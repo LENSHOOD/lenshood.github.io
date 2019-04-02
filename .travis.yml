@@ -1,0 +1,19 @@
+language: node_js
+node_js: stable
+branches:
+  only:
+  - source
+before_install:
+  - npm install -g hexo
+  - npm install -g hexo-cli
+before_script:
+  - git config user.name "LENSHOOD"
+  - git config user.email "zhangxh_job@sina.com"
+  - sed -i'' "s~git@github.com:lenshood/lenshood.github.io.git~https://${ACCESS_TOKEN}:x-oauth-basic@github.com/lenshood/lenshood.github.io.git~" _config.yml 
+install:
+  - npm i
+script:
+  - hexo clean
+  - hexo generate
+after_success:
+  - hexo deploy
