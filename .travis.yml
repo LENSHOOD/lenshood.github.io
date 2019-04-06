@@ -1,19 +1,26 @@
 language: node_js
+
 node_js: stable
+
 branches:
   only:
   - source
+
 before_install:
-  - npm install -g hexo
   - npm install -g hexo-cli
+
+install:
+  - npm install
+  - npm install hexo-deployer-git --save
+
 before_script:
   - git config user.name "LENSHOOD"
   - git config user.email "zhangxh_job@sina.com"
   - sed -i "s/access_token/${ACCESS_TOKEN}/g" ./_config.yml
-install:
-  - npm i
+
 script:
   - hexo clean
   - hexo generate
-after_success:
+
+after_script:
   - hexo deploy
