@@ -169,23 +169,28 @@ Travis CI is a online CI pipeline that have the ability of build, test, package 
 4. Go back to our blog project, touch a new file named `.travis.yml`, then typing the commands like following:
 ``` yml
 language: node_js
+
 node_js: stable
+
 branches:
   only:
-  - <your source branch>
+  - source
+
 before_install:
-  - npm install -g hexo
   - npm install -g hexo-cli
-before_script:
-  - git config user.name "<username>"
-  - git config user.email "<email>"
-  - sed -i "s/access_token/${ACCESS_TOKEN}/g" ./_config.yml
+
 install:
-  - npm i
+  - npm install
+  - npm install hexo-deployer-git --save
+
 script:
   - hexo clean
   - hexo generate
-after_success:
+
+after_script:
+  - git config user.name "LENSHOOD"
+  - git config user.email "zhangxh_job@sina.com"
+  - sed -i "s/access_token/${ACCESS_TOKEN}/g" ./_config.yml
   - hexo deploy
 ```
 	As you can see, replace the `<source branch>`, `<username>`, `<email>` and `<repo name>` to your own info, the `$(ACCESS_TOKEN)` refer to the github ACCESS_TOKEN. 
