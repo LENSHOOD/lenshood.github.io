@@ -79,5 +79,5 @@ theme: next
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
   type: git
-  repo: https://github.com/LENSHOOD/lenshood.github.io.git
+  repo: https://access_token@github.com/LENSHOOD/lenshood.github.io.git
   branch: master

@@ -179,7 +179,7 @@ before_install:
 before_script:
   - git config user.name "<username>"
   - git config user.email "<email>"
-  - sed -i'' "s~git@github.com:<username>/<repo name>.git~https://${ACCESS_TOKEN}:x-oauth-basic@github.com/<username>/<repo name>.git~" _config.yml
+  - sed -i "s/access_token/${ACCESS_TOKEN}/g" ./_config.yml
 install:
   - npm i
 script:
@@ -189,6 +189,15 @@ after_success:
   - hexo deploy
 ```
 	As you can see, replace the `<source branch>`, `<username>`, `<email>` and `<repo name>` to your own info, the `$(ACCESS_TOKEN)` refer to the github ACCESS_TOKEN. 
+
+	Modify the `_config.yml` to change the deploy repo address:
+
+    ``` yml
+    deploy:
+        type: git
+        repo: https://access_token@github.com/<username>/<repo>.git
+        branch: master
+    ```
 
 5. Finally, push everything of the Hexo blog source to the source branch, then Travis CI will detect it, and deploy the static html files to the master branch.
 

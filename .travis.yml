@@ -9,7 +9,7 @@ before_install:
 before_script:
   - git config user.name "LENSHOOD"
   - git config user.email "zhangxh_job@sina.com"
-  - sed -i'' "s~git@github.com:lenshood/lenshood.github.io.git~https://${ACCESS_TOKEN}:x-oauth-basic@github.com/lenshood/lenshood.github.io.git~" _config.yml 
+  - sed -i "s/access_token/${ACCESS_TOKEN}/g" ./_config.yml
 install:
   - npm i
 script:
