@@ -3,9 +3,9 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: Lenshood's
-subtitle: 
-description:
+title: Lenshood
+subtitle: Software Developer @ThoughtWorks. I have two cats.
+description: 
 keywords:
 author: Zhang Xuhai
 language: zh
@@ -73,7 +73,7 @@ pagination_dir: page
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: next
+theme: next 
 
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
