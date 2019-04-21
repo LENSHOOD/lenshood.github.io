@@ -113,6 +113,8 @@ commit e0540dfed1c1276106105aea8d5765356961ef3d
 2. Creation of internal "Image" class and subclasses for Raw & QCow2 image type impls
 3. Refactor libvirt driver to replace raw/qcow2 image management code, with calls to the new "Image" class APIs
 4. Introduce the new "LVM" Image class implementation
+
+
 #### 好的实践
 ``` text
 commit 3114a97ba188895daff4a3d337b2c73855d4632d
