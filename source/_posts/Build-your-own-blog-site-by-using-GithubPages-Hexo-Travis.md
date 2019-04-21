@@ -5,6 +5,8 @@ tags:
 - github pages
 - hexo
 - travis ci
+categories:
+- Others
 ---
 ### Overview
 Thanks for the github static site service - GithubPages - it's really easy to build your own blog for free.

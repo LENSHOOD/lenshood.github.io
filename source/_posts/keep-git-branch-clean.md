@@ -5,6 +5,8 @@ tags:
 - git
 - rebase
 - squash
+categories:
+- Git
 ---
 
 ### 糟糕而难看的公共分支

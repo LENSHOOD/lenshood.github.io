@@ -5,6 +5,8 @@ tags:
 - java
 - string-concat 
 - logger formatter
+categories:
+- Java
 ---
 
 ### Logger.info() 在 debug level 下会对代码效率产生怎样的影响？

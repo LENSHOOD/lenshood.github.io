@@ -4,6 +4,8 @@ date: 2019-04-21 13:16:47
 tags: 
 - git
 - commit
+categories:
+- Git
 ---
 
 在前一篇文章 [如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)中，提到了一些不规范的 git 提交，本文将进一步介绍什么样的提交才是优秀的 git 提交，以及怎么样规范 git 提交。

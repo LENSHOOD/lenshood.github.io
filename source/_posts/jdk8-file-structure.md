@@ -4,6 +4,8 @@ date: 2019-04-18 01:32:27
 tags: 
 - java
 - jdk 8
+categories:
+- Java
 ---
 
 > 下文翻译自 oracle Java SE 8 官方文档， 原文链接：https://docs.oracle.com/javase/8/docs/technotes/tools/windows/jdkfiles.html
