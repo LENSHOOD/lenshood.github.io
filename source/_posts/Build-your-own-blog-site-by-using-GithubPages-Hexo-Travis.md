@@ -1,7 +1,10 @@
 ---
 title: Build your own blog site by using GithubPages + Hexo + Travis CI
 date: 2019-04-02 21:52:28
-tags: Github Pages, Hexo, Travis CI
+tags: 
+- github pages
+- hexo
+- travis ci
 ---
 ### Overview
 Thanks for the github static site service - GithubPages - it's really easy to build your own blog for free.
@@ -194,15 +197,15 @@ after_script:
   - hexo deploy
 ```
 	As you can see, replace the `<source branch>`, `<username>`, `<email>` and `<repo name>` to your own info, the `$(ACCESS_TOKEN)` refer to the github ACCESS_TOKEN. 
-
+	
 	Modify the `_config.yml` to change the deploy repo address:
-
-    ``` yml
-    deploy:
-        type: git
-        repo: https://access_token@github.com/<username>/<repo>.git
-        branch: master
-    ```
+	
+	``` yml
+	deploy:
+	    type: git
+	    repo: https://access_token@github.com/<username>/<repo>.git
+	    branch: master
+	```
 
 5. Finally, push everything of the Hexo blog source to the source branch, then Travis CI will detect it, and deploy the static html files to the master branch.
 

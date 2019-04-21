@@ -1,7 +1,10 @@
 ---
 title: 从 Java 字符串连接看 Logger 的 String formatter
 date: 2019-02-20 20:57:19
-tags: java string-concat logger formatter
+tags: 
+- java
+- string-concat 
+- logger formatter
 ---
 
 ### Logger.info() 在 debug level 下会对代码效率产生怎样的影响？

@@ -1,7 +1,10 @@
 ---
 title: 如何保持公共开发分支的整洁
 date: 2019-04-09 00:54:50
-tags: Git Rebase Squash-Merge
+tags: 
+- git
+- rebase
+- squash
 ---
 
 ### 糟糕而难看的公共分支
