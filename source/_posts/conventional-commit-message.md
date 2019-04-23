@@ -4,7 +4,7 @@ date: 2019-04-21 22:33:04
 tags:
 - git
 - commit
-catagroies:
+categories:
 - Git
 ---
 
@@ -92,6 +92,7 @@ Date:   Thu Dec 13 14:08:46 2018 +0800
 - 其他信息：包括各种编号等等
 
 以下举两个开源项目的规范，作为例子：
+
 1. Spring Boot
 > Capitalized, short (50 chars or less) summary
 > 摘要部分大写，尽量短(50 个字符以内)
@@ -125,6 +126,7 @@ Date:   Thu Dec 13 14:08:46 2018 +0800
 > - Use a hanging indent
 > - 使用悬挂缩进(一种缩进方式，段落除第一行外其余行都缩进)
 
+
 2. OpenStack
 > Provide a brief description of the change in the first line.
 > 在第一行提供对修改的简短描述。
@@ -149,7 +151,9 @@ Date:   Thu Dec 13 14:08:46 2018 +0800
 
 然而基于对规范和约束的大量需求，逐步出现了一种通用的方案，适应性强，使用和记忆都很简单，这就是接下来要提到的：[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/)。
 
-Conventional Commits 称自己为：**A specification for adding human and machine readable meaning to commit messages** 
+Conventional Commits 称自己为：
+
+**A specification for adding human and machine readable meaning to commit messages** 
 
 #### 规范格式
 ``` text
