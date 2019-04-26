@@ -353,15 +353,15 @@ han: false
 #swiftype_key:
 
 # Baidu Analytics ID
-#baidu_analytics:
+baidu_analytics: efe317544df9b6ab93f9a09da36b658a
 
 # Duoshuo ShortName
 #duoshuo_shortname:
 
 # Disqus
 disqus:
-  enable: false
-  shortname:
+  enable: true 
+  shortname: lenshood
   count: true
 
 # Hypercomments
