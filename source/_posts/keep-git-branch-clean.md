@@ -183,7 +183,7 @@ Date:   Tue Apr 9 01:56:19 2019 +0800
 Lenshood say hi
 
 commit 19e0a8cc9921fda34f6a4e6ecd12379e1bf5fc5f
-Author: lenshood <lenshood@example.com>
+Author: old-wang <old-wang@example.com>
 Date:   Tue Apr 9 01:38:43 2019 +0800
 
     Old Wang say hi
@@ -267,7 +267,7 @@ Date:   Tue Apr 9 01:56:19 2019 +0800
     Lenshood say hi
 
 commit 19e0a8cc9921fda34f6a4e6ecd12379e1bf5fc5f
-Author: lenshood <lenshood@example.com>
+Author: old-wang <old-wang@example.com>
 Date:   Tue Apr 9 01:38:43 2019 +0800
 
     Old Wang say hi
