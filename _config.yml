@@ -81,3 +81,7 @@ deploy:
   type: git
   repo: https://access_token@github.com/LENSHOOD/lenshood.github.io.git
   branch: master
+
+# Sitemap
+sitemap:
+  path: sitemap.xml
