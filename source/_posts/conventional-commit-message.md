@@ -8,6 +8,13 @@ categories:
 - Git
 ---
 
+规范 Git 系列：
+[第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
+[第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
+[第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
+
+---
+
 在先前的文章[Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)中我主要描述了什么样的提交是好的提交，也介绍了好的提交该如何做的几点原则。其中，有一点提到好的提交需要正确的编写 commit message。
 
 考虑到 commit message 是每一个开发者一定会做的事，同时我也的确写过、见过很多不规范的 commit message，这些不规范的 message 经常会影响项目的质量。
@@ -233,3 +240,10 @@ closes issue #12
 4. [KARMA Git Commit Msg](http://karma-runner.github.io/3.0/dev/git-commit-msg.html)
 5. [Angular Commit Message Guidelines](https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines)
 6. [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/) 
+
+---
+
+规范 Git 系列：
+[第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
+[第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
+[第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)

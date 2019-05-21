@@ -8,6 +8,13 @@ categories:
 - Git
 ---
 
+规范 Git 系列：
+[第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
+[第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
+[第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
+
+---
+
 在前一篇文章 [如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)中，提到了一些不规范的 git 提交，本文将进一步介绍什么样的提交才是优秀的 git 提交，以及怎么样规范 git 提交。
 
 ### 为什么要保持规范的 git 提交？
@@ -167,3 +174,10 @@ commit 62bea64940cf629829e2945255cc34903f310115
 ### 参考
 [OpenStack Wiki：Git Commit Good Practice](https://wiki.openstack.org/wiki/GitCommitMessages)
 [Git Commit Best Practices](https://github.com/trein/dev-best-practices/wiki/Git-Commit-Best-Practices)
+
+---
+
+规范 Git 系列：
+[第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
+[第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
+[第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
