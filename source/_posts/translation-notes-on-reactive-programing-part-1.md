@@ -63,4 +63,19 @@ Java 1.5 版本引入了大量新库，包括 Doug Lea 的 java.util.concurrent 
 - Coroutines(协程)
 [Coroutine](https://en.wikipedia.org/wiki/Coroutines) 是 Subroutine 的一种概括 - 它像 Subroutine 一样包含入口点和出口点，但当退出时，它将控制权传递给另一个 Coroutine (不一定是传给调用者)，同时，不论 Coroutine 积累了怎样的状态，都会持续保存到下一次调用时。Coroutine 可以作为更高级功能（Actor 或 Stream）的基础模块。响应式编程的其中一个目标就是并行处理 Agent 的通信上提供相同的抽象，因此 Coroutine (如果可以使用的话) 将是一个有用的基础模块。Coroutine 存在各种形式，有一些相比一般情况下更严格，但仍然比普通的 Subroutine 更灵活。Fiber(参见 Event-Machine 的讨论) 是一种风格，而 Generator（在 Python 和 Scala 中更常见）则是另一种风格。
 
+### Java 中的响应式编程
+Java 本身并不是一种"响应式的语言"，因为其原生并不支持 Coroutine。有一些运行在 JVM 上的语言（Scala，Clojure）原生支持响应式模型，但 Java 不是，至少在 Java 9 之前不是。然而，响应式编程在企业开发中需求旺盛，因此已经有一些在 JDK 之上提供响应式层的尝试非常活跃。以下我们简略的看一看其中的几种。
+
+[Reactive Streams](http://www.reactive-streams.org/) 是一种非常底层的契约，表现为少量的 Java interface(加上 TCK)，但也适用于其他语言。这些 interface 表示为背压式的 `Publisher` 和`Subscriber` 的基本构造块，形成通用语言可调用的库。Reactive Stream 已经在 Java 9 中被纳入 JDK，名为`java.util.concurrent.Flow`。该项目由来自 Kaazing, Netflix, Pivotal, Red Hat, Twitter, Typesafe 等多个组织的工程师共同合作维护。
+
+[RxJava](https://github.com/ReactiveX/RxJava/wiki)：Netflix 曾经在内部使用的响应式模型，后来他们将之发布为基于开源许可的 [Netflix/RxJava](https://github.com/ReactiveX/RxJava/wiki) (随后被重命名为 "ReactiveX/RxJava")。Netflix 在 RxJava 上开发了大量基于 Groovy 的代码，但他对 Java 使用开放，非常适合采用 Java 8 的 Lambda 进行开发。这里有一种 [对 Reactive Stream 的适配方案](https://github.com/ReactiveX/RxJavaReactiveStreams)。根据 David Karnok 的[响应式代际分类](https://akarnokd.blogspot.co.uk/2016/03/operator-fusion-part-1.html)，RxJava 属于第二代响应式库。
+
+[Reactor](https://projectreactor.io/) 是一种来自 Pivotal 开源团队（Spring 的创造者）的 Java 框架。因为他直接基于 Reactive Stream 开发，因此无需任何适配。Reactor IO 项目还提供了对底层网络运行时(如 Netty 或 Aeron) 的包装。根据 David Karnok 的[响应式代际分类](https://akarnokd.blogspot.co.uk/2016/03/operator-fusion-part-1.html)，Reactor 属于第四代响应式库。
+
+[Spring Framework 5.0](https://projects.spring.io/spring-framework/)(在 2016 年 6 月发布了第一个里程碑) 内建了响应式特性，其中包括构建 Http 服务端和客户端的工具。在 Web 层中已经使用 Spring 的用户会发现，由于大部分的对响应式请求进行分发及背压的工作都交给了框架，因此他们可以直接通过对 `controller`进行注解装饰这种熟悉的编程模型来处理 Http 请求。虽然基于 Reactor 构建，Spring 仍然开放了相关 API 来允许其特性采用其他可选的库来进行开发(例如 Reactor 和 RxJava)。用户可以选择从 Tomcat，Jetty， Netty(通过 Reactor IO) 以及 UnderTow来作为服务端的网络栈。
+
+[Ratpack](https://ratpack.io/) 是一系列用于构建高性能 Http 服务的库。他基于 Netty 构建并在内部采用Reactive Stream 实现(所以你可以在更高层使用其他的 Reactive Streams 实现)。Spring 作为原生组件被支持，同时可以通过几个简单的工具类来提供依赖注入。同时，因为还包含了 autoconfiguration，因此 Spring Boot 用户可以直接将 Ratpack 内嵌于 Spring 应用中，作为 Http 端点进行监听，来替换 Spring Boot 默认使用的内嵌服务器。
+
+[Akka](http://akka.io/) 是一套用于通过 Java 或 Scala 实现 Actor 模式来开发应用程序的工具套件，它使用 Akka Stream 来进行进程间通信，并内建了 Reactive Streams。根据 David Karnok 的[响应式代际分类](https://akarnokd.blogspot.co.uk/2016/03/operator-fusion-part-1.html)，Reactor 属于第三代响应式库。
+
 
