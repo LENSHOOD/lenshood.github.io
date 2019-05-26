@@ -7,6 +7,14 @@ tags:
 categories:
 - Java
 ---
+
+Java IO 系列：
+[第一篇： Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)
+[第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
+[第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)
+
+---
+
 ### Reader/Writer
 在前文[Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)中，介绍了 Java IO 包内相关类对字节流的定义与处理。
 
@@ -89,3 +97,10 @@ Build char stream and read out cost: 113993
 显然，转换为字符后读取的时间是直接读取字节的 51.6 倍。
 
 在性能优化中，编解码、序列化都属于很耗时的操作通常会被优先考虑优化。很多时候，REST API 响应中会提供对状态、信息等的描述，描述大都采用 String 类型，因此在调用的序列化过程中，势必存在多次的编码/解码操作。因此，若这类 REST API 用于微服务内部调用，而非与人交互，则相关的描述完全可以采用错误码替代，这样就减少了一定的编解码开销，对于高频调用效果较为显著。
+
+---
+
+Java IO 系列：
+[第一篇： Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)
+[第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
+[第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)

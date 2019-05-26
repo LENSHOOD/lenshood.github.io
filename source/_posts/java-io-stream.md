@@ -8,6 +8,13 @@ categories:
 - Java
 ---
 
+Java IO 系列：
+[第一篇： Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)
+[第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
+[第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)
+
+---
+
 Java io 包用于操纵数据的输入输出，其主要采用流的概念（stream）为核心，通过装饰器模式（decorator）实现了对流的多种操作与功能。
 
 在 IO 包中，可以看到里面存放了各种各样的类，命名包括 **xxxInputStream xxxOutputStream xxxReader xxxWriter** 等等，以上四种类正好对应了 io 中的四种基本概念，除此之外，在 io 包中还包含了一些为了配合上述四种类所创建的工具、实体、异常等。
@@ -97,3 +104,10 @@ public int read() throws IOException {
     }
 ```
 可见只是简单地调用了持有输入流自身的 read()。因此对于扩展了缓存功能的 BufferedInputStream，其通过装饰器模式，对原输入流的 read() 进行了装饰，增加了缓存的能力。
+
+---
+
+Java IO 系列：
+[第一篇： Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)
+[第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
+[第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)

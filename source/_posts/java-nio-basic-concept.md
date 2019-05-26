@@ -1,11 +1,18 @@
 ---
-title: Java NIO 基本概念
+title: Java NIO - 基本概念
 date: 2019-05-19 01:14:10
 tags: 
 - java
 - nio
 categories:
 - Java
+---
+
+Java IO 系列：
+[第一篇： Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)
+[第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
+[第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)
+
 ---
 
 ### IO ？ NIO ？
@@ -35,3 +42,10 @@ Java 1.4 以后，提供了 NIO，来对原先的 IO 进行更新。NIO 即 new 
 
 借用 Think of Java 中的一张类图，可以对 NIO 更加清晰(图片非原创，若侵权请联系我删除)：
 {% asset_img relationship-between-nio-classes.png %}
+
+---
+
+Java IO 系列：
+[第一篇： Java IO - Stream 输入输出流](https://lenshood.github.io/2019/04/28/java-io-stream/)
+[第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
+[第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)
