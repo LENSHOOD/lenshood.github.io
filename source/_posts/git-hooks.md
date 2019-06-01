@@ -38,6 +38,39 @@ git hooks 作为 git 的内置功能，无需额外安装。具体的脚本存�
 	以上三个 post-xxx 的 hook 分别会在1. 对 message 进行修改后 2. checkout 后 3. merge 后 被触发。通常都用于做一些命令完成后的工作，例如设置环境，移动文件，清空目录等。
 	
 ### Any examples ?
+1. 提交前静态检查
+git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git-hooks 本身类似于给 git 命令增加了生命周期钩子，同时支持执行脚本，因此我们能够在 git-hooks 里面触发各式各样的外部工具。
+
+以下以 checkstyle 为例，结合 gradle 来展示如何在执行 git commit 之前自动进行 checkstyle。
+
+- 创建一个名为 git-hooks-demo 的 gradle 项目，执行 `git init` 初始化为 git 项目
+- 在 gradle 中引入 checkstyle 插件
+	``` 
+	plugins {
+    	id 'checkstyle'
+	}
+	```
+- 在代码目录下创建 git-hooks 目录，用于存放 hooks 文件。同时，在 build.gradle 中增加一个 task 用于关联 git-hooks
+	``` 
+	task installGitHooks() {
+    	"git config core.hooksPath ./git-hooks".execute()
+	}
+	```
+	> 为什么要这么做呢？ 根据上文，默认情况下 hooks 文件是存放于 .git/hooks 下的，因此存在一个严重的问题，他不会随代码一同提交至远程仓库，因此我们采用改变 hooks 文件目录的形式用于提交。
+- 在 git-hooks 目录下创建新文件：pre-commit
+    ``` shell
+    #!/bin/sh
+    set -x
+
+    ./gradlew checkstyleMain
+
+    RESULT=$?
+
+    exit $RESULT
+    ```
+	pre-commit(注意没有任何后缀名)的内容即执行 `./gradlew checkstyleMain` 之后exit，任何返回不为零的 exit 将会打断提交的流程。
+
+试验一下，对当前代码进行提交，可得到如下结果：
 
 
 
