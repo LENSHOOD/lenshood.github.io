@@ -39,19 +39,34 @@ git hooks 作为 git 的内置功能，无需额外安装。具体的脚本存�
 	
 ### Any examples ?
 1. 提交前静态检查
+
 git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git-hooks 本身类似于给 git 命令增加了生命周期钩子，同时支持执行脚本，因此我们能够在 git-hooks 里面触发各式各样的外部工具。
 
 以下以 checkstyle 为例，结合 gradle 来展示如何在执行 git commit 之前自动进行 checkstyle。
 
 - 创建一个名为 git-hooks-demo 的 gradle 项目，执行 `git init` 初始化为 git 项目
 - 在 gradle 中引入 checkstyle 插件
-	``` 
-	plugins {
-    	id 'checkstyle'
-	}
-	```
+    ``` groovy
+    apply plugin: 'checkstyle'
+    
+    checkstyle {
+        toolVersion = '8.21'
+}
+    
+    tasks.withType(Checkstyle).each { checkstyleTask ->
+        checkstyleTask.doLast {
+            reports.all { report ->
+                def outputFile = report.destination
+                if (outputFile.exists() && outputFile.text.contains("<error 			")) {
+                    throw new GradleException("There were checkstyle warnings! For more info check $outputFile")
+                }
+            }
+        }
+    }
+    ```
+    以上定义了 checkstyle 的 gradle 插件，并进行了定义。
 - 在代码目录下创建 git-hooks 目录，用于存放 hooks 文件。同时，在 build.gradle 中增加一个 task 用于关联 git-hooks
-	``` 
+	``` groovy
 	task installGitHooks() {
     	"git config core.hooksPath ./git-hooks".execute()
 	}
@@ -71,6 +86,41 @@ git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git
 	pre-commit(注意没有任何后缀名)的内容即执行 `./gradlew checkstyleMain` 之后exit，任何返回不为零的 exit 将会打断提交的流程。
 
 试验一下，对当前代码进行提交，可得到如下结果：
+
+``` shell
++ ./gradlew checkstyleMain
+
+... omit checkstyle error and warning ...
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '.../git-hooks-demo/build.gradle' line: 18
+
+* What went wrong:
+Execution failed for task ':checkstyleMain'.
+> There were checkstyle warnings! For more info check .../git-hooks-demo/build/reports/checkstyle/main.xml
+
+* Try:
+Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+BUILD FAILED in 1s
+2 actionable tasks: 2 executed
++ RESULT=1
++ exit 1
+
+```
+
+可见 checkstyle 对当前的代码进行检查后发现了错误，并由 pre-commit 终止了此次提交。
+
+2. Conventional Commit 检查
+
+前文[Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/) 中提到了一种 commit message 的编写规范。
+
+规范固然好，然而如果能在每次提交之前，对已经写好的 message 进行检查，并对不符合规范的地方进行提醒，则能够降低错误提交的概率，对新人也更为友好。
+
 
 
 
