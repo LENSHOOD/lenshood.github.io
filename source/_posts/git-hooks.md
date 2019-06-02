@@ -8,11 +8,11 @@ categories:
 - Git
 ---
 
-本系列前几篇文章讲了许多理论，如何保持分支整洁，如何撰写合理的commit message等等。本文不再多谈理论，而是将引入一项 git built-in 的强大功能 - **hooks**。
+本系列前几篇文章讲了许多理论，如何保持分支整洁，如何撰写合理的 commit message 等等。本文不再多谈理论，而是将引入一项 git built-in 的强大功能 - **hooks**。
 
 与我们所知的其他软件或系统的 hooks 一致，git hooks 也是一种类似钩子函数的脚本，可以在执行某些 git 命令的前后自动触发。
 
-上面提到了 1.脚本 2.自动，有了这两点 git 的功能就被极大的延伸了，因为有无数的用户可以根据自己的喜好在 hooks 定义的范围内进行自己的创作，来提升工作效率。正因此，github 上有非常多与 git hooks 相关的优秀项目。
+上面提到了 1.脚本 2.自动，有了这两点 git 的功能将被极大的延伸，因为有无数的用户可以根据自己的喜好在 hooks 定义的范围内进行自己的创作，来提升工作效率。正因此，github 上有非常多与 git hooks 相关的优秀项目。
 
 ### What exactly the GIT-HOOKS is ?
 正如前文所述，hooks 是 git 内置的功能，能够允许用户定义脚本并在重要操作发生时被触发。hooks 分为两部分，client-side 和 server-side。client-side 主要在 git 命令操作时被触发，例如 commit、merge 等。server-side 主要在 git 服务端起作用，例如在收到 push commit 的时候被触发(本文仅涉及 client-side)。
@@ -57,14 +57,14 @@ git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git
         checkstyleTask.doLast {
             reports.all { report ->
                 def outputFile = report.destination
-                if (outputFile.exists() && outputFile.text.contains("<error 			")) {
+                if (outputFile.exists() && outputFile.text.contains("<error ")) {
                     throw new GradleException("There were checkstyle warnings! For more info check $outputFile")
                 }
             }
         }
     }
     ```
-    以上定义了 checkstyle 的 gradle 插件，并进行了定义。
+    以上定义了 checkstyle 的 gradle 插件，并对其结果进行了处理， 一旦发现 error 就抛异常中断流程。
 - 在代码目录下创建 git-hooks 目录，用于存放 hooks 文件。同时，在 build.gradle 中增加一个 task 用于关联 git-hooks
 	``` groovy
 	task installGitHooks() {
@@ -80,10 +80,9 @@ git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git
     ./gradlew checkstyleMain
 
     RESULT=$?
-
-    exit $RESULT
+exit $RESULT
     ```
-	pre-commit(注意没有任何后缀名)的内容即执行 `./gradlew checkstyleMain` 之后exit，任何返回不为零的 exit 将会打断提交的流程。
+    pre-commit(注意没有任何后缀名)的内容即执行 `./gradlew checkstyleMain` 之后exit，任何返回不为零的 exit 将会打断提交的流程。
 
 试验一下，对当前代码进行提交，可得到如下结果：
 
@@ -121,9 +120,97 @@ BUILD FAILED in 1s
 
 规范固然好，然而如果能在每次提交之前，对已经写好的 message 进行检查，并对不符合规范的地方进行提醒，则能够降低错误提交的概率，对新人也更为友好。
 
+我们拥有强大的 gradle，可以直接执行 groovy 脚本，因此我们可以自己编写一个简单的 gradle task，结合 git-hooks 中的 prepare-commit-msg，即可对 commit message 进行检查了。
 
+- gradle task:
+	``` groovy
+  task checkCommitMsgByConventionalCommit() {
+    String[] types = ["feat", "fix", "docs", "style", "refactor",
+            "test", "chore", "build", "ci", "perf"]
 
+    // if no params then directly return
+    if (!project.hasProperty("commitMsg")) {
+        return
+    }
 
+    // check the three section: header, detail, footer
+    String[] msgArray = ((String)commitMsg).split('\n\n')
+    if (msgArray.length > 3) {
+        throw new GradleException("[COMMIT MESSAGE CHECKER] \n" +
+                "Too many message sections! (Header, Detail, Footer allowed)" +
+                "\nAbout conventional commit, see: https://www.conventionalcommits.org")
+    }
+
+    // check header format
+    String header = msgArray[0]
+    String[] headers = header.split(": ")
+    if (headers.length != 2) {
+        throw new GradleException("[COMMIT MESSAGE CHECKER] \n" +
+                "Wrong header format, which should be: {type}({scope}): {description}" +
+                "\nAbout conventional commit, see: https://www.conventionalcommits.org")
+    }
+
+    // check type
+    for (int i=0; i<types.length; i++) {
+        if (headers[0].startsWith(types[i])) {
+            break
+        }
+
+        if (i == types.length - 1) {
+            throw new GradleException("[COMMIT MESSAGE CHECKER] \n"
+                    + "Wrong type detected! "
+                    + "Allowed: feat, fix, docs, style, refactor, test, chore, build, ci, perf."
+                    + "\nAbout conventional commit, see: https://www.conventionalcommits.org")
+        }
+    }
+
+    // check header length
+    if (header.length() > 72) {
+        throw new GradleException("[COMMIT MESSAGE CHECKER] \n" 
+                + "Too long header! Header length should be shorter than 72 characters."
+                + "\nAbout conventional commit, see: https://www.conventionalcommits.org")
+    }
+}
+
+	```
+
+- prepare-commit-msg
+	``` shell
+	#!/bin/bash
+	
+	COMMIT_MSG_FILE=$1
+	COMMIT_SOURCE=$2
+	SHA1=$3
+	
+	MSG=$(cat $COMMIT_MSG_FILE)
+	./gradlew checkCommitMsgByConventionalCommit -PcommitMsg="$MSG"
+	
+	RESULT=$?
+	exit 1
+	```
+
+因此，当执行 `git commit -m 'xxx'` 时，如果出现检测不通过的情况，则提交会失败。
+示例显示：
+
+``` shell
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '/Users/alexanderzhang/Documents/personal/code/java_project/git-hooks-demo/build.gradle' line: 45
+
+* What went wrong:
+A problem occurred evaluating root project 'git-hooks'.
+> [COMMIT MESSAGE CHECKER] 
+  Wrong header format, which should be: {type}({scope}): {description}
+  About conventional commit, see: https://www.conventionalcommits.org
+
+* Try:
+Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+
+BUILD FAILED in 0s
+```
 
 ### Reference
 https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks
