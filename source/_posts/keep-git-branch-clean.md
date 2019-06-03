@@ -14,6 +14,7 @@ categories:
 [第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
 [第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
+[第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 
 ---
 
@@ -290,7 +291,9 @@ Date:   Tue Apr 9 01:36:56 2019 +0800
 > 再次回顾该方法： `git merge {branch} --squash`
 
 ---
+
 规范 Git 系列：
 [第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
 [第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
+[第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
