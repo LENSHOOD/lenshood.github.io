@@ -5,7 +5,7 @@ tags:
 	- float
 	- ieee754
 category:
-	- java
+	- Java
 ---
 
 由于某些神秘的原因，某些理所当然的数值计算，通过编程语言操作时，会让人匪夷所思。
