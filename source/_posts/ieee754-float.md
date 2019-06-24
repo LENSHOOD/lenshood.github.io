@@ -102,6 +102,10 @@ IEEE 754 采用科学计数法来表示浮点数，其换算过程通常分为�
 得到： 
 	443c80d8
 	4087901b0dd82fd7 
+再次转换回十进制数后：
+	754.01318359375
+	754.0132099999999581996235065162181854248046875
+可见确实存在由于小数转换导致的误差
 ```
 
 **eg. 0.1072**
@@ -129,8 +133,8 @@ IEEE 754 采用科学计数法来表示浮点数，其换算过程通常分为�
 	Integer.toHexString(Float.floatToIntBits(0.1072f))
 	Long.toHexString(Double.doubleToLongBits(0.1072))
 得到： 
-	3ddb8bac
-	3fbb71758e219653 
+	3ddb8bac(hex) 0.1071999967098236083984375(dec)
+	3fbb71758e219653(hex) 0.10720000000000000361932706027801032178103923797607421875(dec)
 ```
 
 此外，IEEE 754 还规定了一些特殊情况：
@@ -174,18 +178,57 @@ b-c=0.099999964
 显然 Java 帮我们做了舍入，逻辑就在 `Float.toString()`中
 #### Float.toString()
 ``` java
+// Float.java
 public static String toString(float f) {
     return FloatingDecimal.toJavaFormatString(f);
 }
 
+// FloatingDecimal.java
 public static String toJavaFormatString(float f) {
     return getBinaryToASCIIConverter(f).toJavaFormatString();
 }
 
-BinaryToASCIIBuffer.dtoa();
+// FloatingDecimal.java
+static BinaryToASCIIConverter getBinaryToASCIIConverter(double d, boolean isCompatibleFormat) {
+    ......
+    
+    BinaryToASCIIBuffer buf = getBinaryToASCIIBuffer();
+    buf.setSign(isNegative);
+    // call the routine that actually does all the hard work.
+    buf.dtoa(binExp, fractBits, nSignificantBits, isCompatibleFormat);
+    
+    ......
+}
+
+// BinaryToASCIIBuffer inner class in FloatingDecimal.java
+private void dtoa( int binExp, long fractBits, int nSignificantBits, boolean isCompatibleFormat) {
+    ......
+    
+    while( ! low && ! high ){
+        q = b / s;
+        b = 10 * ( b % s );
+        m *= 10;
+        assert q < 10 : q; // excessively large digit
+        if ( m > 0L ){
+            low  = (b <  m );
+            high = (b+m > tens );
+        } else {
+            // hack -- m might overflow!
+            // in this case, it is certainly > b,
+            // which won't
+            // and b+m > tens, too, since that has overflowed
+            // either!
+            low = true;
+            high = true;
+        }
+        digits[ndigit++] = (char)('0' + q);
+    }
+    
+    ......
+}
 ```
 
-在 dtoa() 方法中，对小数位进行还原时，做了较为复杂的舍入操作。
+在 dtoa() 方法中，对小数位进行还原时，做了较为复杂的舍入操作(我还没搞懂怎么做的..)。
 将原问题稍作修改后：
 ``` java
 @Test
