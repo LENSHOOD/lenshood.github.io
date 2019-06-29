@@ -1,5 +1,5 @@
 ---
-title: intellij-vim
+title: 在 IntelliJ Idea 中使用 Vim
 date: 2019-06-28 23:44:05
 tags:
 - vim
