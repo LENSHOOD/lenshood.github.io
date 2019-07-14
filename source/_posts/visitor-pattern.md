@@ -69,3 +69,139 @@ Represent an operation to be performed on elements of an object structure. Visit
 
 The nature of the Visitor makes it an ideal pattern to plug into public APIs thus allowing its clients to perform operations on a class using a "visiting" class without having to modify the source.
 
+### Implement Visitor Pattern
+So now we know that in the traditional we use Parent-Children inheritance to do polymorphic, but there's a problem that if we happend to need add a new behavior into parent, then we have to spend many time to deal with the disaster, which is add that behavior implementation to every single child.
+
+Just like the above instance, assume that we refactor the code to meet the OO principle:
+``` java
+public interface Shape {
+	double area(Object shape);
+}
+
+public class Square implements Shape {
+	public Point topLeft;
+	public double side;
+	
+	public double area(Object shape) {
+		return side * side;
+	}
+}
+
+public class Rectangle implements Shape {
+	public Point topLeft;
+	public double height;
+	public double width;
+	
+	public double area(Object shape) {
+		return height * width;
+	}
+}
+
+public class Circle implements Shape {
+	public Point center;
+	public double radius;
+	public final double PI = 3.141592653589793;
+	
+	public double area() {
+		return PI * radius * radius;
+	}
+}
+
+public class Geometry {
+	public double area(Shape shape) {
+		return shape.area();
+	}
+}
+```
+Woo, simple and elegant!
+
+Unfortunately, uncle Bob want us to add a perimeter() to Geometry, in this time, only if we add such behavior to each Shape can solve that problem, so let's do it!
+
+However, we sadly find that all the Shape code have already deployed to production, so we cannot just modify Shape to meet the new requirment because we may introducing potential risks to the old code.
+
+Seems we ended in a deadlock, it's time to introduing Visitor Pattern:
+At first we leave aside how to build a vistor, just see the code as follow:
+``` java
+public interface Visitor {
+	void visit(Square square);
+	void visit(Rectangle rectangle);
+	void visit(Circle circle);
+}
+
+public class PerimeterVisitor implements Visitor {
+	private double perimeter;
+	
+	public void visit(Square square) {
+		perimeter = square.side * 4;
+	}
+	
+	public void visit(Rectangle rectangle) {
+		perimeter = rectangle.height * 2 + rectangle.width * 2;
+	}
+	
+	public void visit(Circle circle) {
+		perimeter = circle.radius * 2 * circle.PI;
+	}
+}
+
+public interface Visitable {
+	void accept(Visitor v);
+}
+
+public interface Shape {
+	double area(Object shape);
+}
+
+public class Square implements Shape, Visitable {
+	public Point topLeft;
+	public double side;
+	
+	public double area(Object shape) {
+		return side * side;
+	}
+	
+	public void accept(Visitor v) {
+		v.visit(this);
+	}
+}
+
+public class Rectangle implements Shape, Visitable {
+	public Point topLeft;
+	public double height;
+	public double width;
+	
+	public double area(Object shape) {
+		return height * width;
+	}
+	
+	public void accept(Visitor v) {
+		v.visit(this);
+	}
+}
+
+public class Circle implements Shape, Visitable {
+	public Point center;
+	public double radius;
+	public final double PI = 3.141592653589793;
+	
+	public double area() {
+		return PI * radius * radius;
+	}
+	
+	public void accept(Visitor v) {
+		v.visit(this);
+	}
+}
+
+public class Geometry {
+	public double area(Shape shape) {
+		return shape.area();
+	}
+	
+	public perimeter(Shape shape) {
+		PerimeterVisitor perimeterVisitor = new PerimeterVisitor();
+		shape.accept(perimeterVisitor);
+		return perimeterVisitor.perimeter;
+	}
+}
+```
