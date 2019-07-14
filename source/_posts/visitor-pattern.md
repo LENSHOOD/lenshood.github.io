@@ -144,49 +144,49 @@ public class PerimeterVisitor implements Visitor {
 	}
 }
 
-public interface Visitable {
-	void accept(Visitor v);
+public class AreaVisitor implements Visitor {
+	private double area;
+	
+	public void visit(Square square) {
+		area = square.side * square.side;
+	}
+	
+	public void visit(Rectangle rectangle) {
+		area = rectangle.height * rectangle.width;
+	}
+	
+	public void visit(Circle circle) {
+		area = circle.PI * circle.radius * circle.radius;
+	}
 }
 
 public interface Shape {
-	double area(Object shape);
+	void accept(Visitor v);
 }
 
-public class Square implements Shape, Visitable {
+public class Square implements Shape {
 	public Point topLeft;
 	public double side;
-	
-	public double area(Object shape) {
-		return side * side;
-	}
 	
 	public void accept(Visitor v) {
 		v.visit(this);
 	}
 }
 
-public class Rectangle implements Shape, Visitable {
+public class Rectangle implements Shape {
 	public Point topLeft;
 	public double height;
 	public double width;
 	
-	public double area(Object shape) {
-		return height * width;
-	}
-	
 	public void accept(Visitor v) {
 		v.visit(this);
 	}
 }
 
-public class Circle implements Shape, Visitable {
+public class Circle implements Shape {
 	public Point center;
 	public double radius;
 	public final double PI = 3.141592653589793;
-	
-	public double area() {
-		return PI * radius * radius;
-	}
 	
 	public void accept(Visitor v) {
 		v.visit(this);
@@ -195,7 +195,9 @@ public class Circle implements Shape, Visitable {
 
 public class Geometry {
 	public double area(Shape shape) {
-		return shape.area();
+		AreaVisitor areaVisitor = new AreaVisitor();
+		shape.accept(areaVisitor);
+		return areaVisitor.area;
 	}
 	
 	public perimeter(Shape shape) {
@@ -205,3 +207,12 @@ public class Geometry {
 	}
 }
 ```
+Look like we create something new named Visitor, and created  two Visitor implementations. Then at Shape, we added a new method `accept(Visitor v)`, which takes a Visitor as parmeter. 
+
+As we can see, unlike the inheritance plan, this new version of code remove behavior inside the Shape implementations, otherwise, move it to the implementation of Visitor -- AreaVisitor and PerimeterVisitor.
+
+That's the core concept of Visitor Pattern: separate data structure and behavior to make it mor e flexible to modify.
+
+Considering deal with different class type, we put three `visit()` method into the Visitor related to three type of Shape. And put `accept(Visitor v)`  into each Shape, let Shape itself to choose the right `visit()`, rather than using a bunch of `instance of` to distinguish different type. This is what we called: **double dispatch**.
+
+### Abstraction of Visitor
