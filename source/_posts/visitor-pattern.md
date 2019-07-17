@@ -70,7 +70,7 @@ Represent an operation to be performed on elements of an object structure. Visit
 The nature of the Visitor makes it an ideal pattern to plug into public APIs thus allowing its clients to perform operations on a class using a "visiting" class without having to modify the source.
 
 ### Implement Visitor Pattern
-So now we know that in the traditional we use Parent-Children inheritance to do polymorphic, but there's a problem that if we happend to need add a new behavior into parent, then we have to spend many time to deal with the disaster, which is add that behavior implementation to every single child.
+So now we know that in the traditional we use Parent-Children inheritance to do polymorphic, but there's a problem that if we happend to need add a new behavior into parent, then we have to spend many time to deal with a disaster, which is add that behavior implementation to every single child.
 
 Just like the above instance, assume that we refactor the code to meet the OO principle:
 ``` java
@@ -120,7 +120,7 @@ Unfortunately, uncle Bob want us to add a perimeter() to Geometry, in this time,
 However, we sadly find that all the Shape code have already deployed to production, so we cannot just modify Shape to meet the new requirment because we may introducing potential risks to the old code.
 
 Seems we ended in a deadlock, it's time to introduing Visitor Pattern:
-At first we leave aside how to build a vistor, just see the code as follow:
+We leave aside how to build a vistor, just see the code as follow:
 ``` java
 public interface Visitor {
 	void visit(Square square);
@@ -213,6 +213,16 @@ As we can see, unlike the inheritance plan, this new version of code remove beha
 
 That's the core concept of Visitor Pattern: separate data structure and behavior to make it mor e flexible to modify.
 
-Considering deal with different class type, we put three `visit()` method into the Visitor related to three type of Shape. And put `accept(Visitor v)`  into each Shape, let Shape itself to choose the right `visit()`, rather than using a bunch of `instance of` to distinguish different type. This is what we called: **double dispatch**.
+Considering deal with different class type, we put three `visit()` method into the Visitor related to three type of Shape. And put `accept(Visitor v)`  into each Shape, let Shape itself to choose the right `visit()`, rather than using a bunch of `instance of` to distinguish different type. This is what we called: double dispatch.
 
 ### Abstraction of Visitor
+We alreay known how to use vistor pattern to solve the problem of behavior change. Now let's conclude and describe what exactly is vistor.
+
+From the code at above, we can see two parts: visitor, concrete vistor, shape, concrete shap. For more generality, now we call the shape as element, then the concrete shape such as square, circle, we can call them concrete element. 
+
+After that, we can abstract the UML of visitor:
+
+Hence, we can get:
+1. Visitor provide several visit(Element e) method to meet every type of element. visit(Element e) take a Element as parameter, and get useful information from that element to do some job.
+2. Element provide accept(Vistor v) method to "accept" a visitor, then do the standard operation: `v.visit(this);`, throught this, element can halp visitor to dynamicly run the right visit method, to achieve double dispatch.
+
