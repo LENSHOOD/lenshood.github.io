@@ -203,3 +203,27 @@ public class SynchronizedVisibility {
 ```
 
 由`synchronized` 关键字保证的同步性，使得无论在同步块内的语句被如何重排，只要主线程当前执行至同步块内，Reader 线程则无法在类锁释放前访问其静态成员，因此保证了 ready 和 num 对 Reader 线程的可见性。
+
+#### volatile
+除了基本的同步以外，Java 语言提供了`volatile`关键字，来提供一种“弱同步”，即对线程共享变量提供可见性(仅提供可见性而不包括原子性)。
+
+Java SE8 官方文档中提到：
+```
+The Java programming language allows threads to access shared variables. As a rule, to ensure that shared variables are consistently and reliably updated, a thread should ensure that it has exclusive use of such variables by obtaining a lock that, conventionally, enforces mutual exclusion for those shared variables.
+
+The Java programming language provides a second mechanism, volatile fields, that is more convenient than locking for some purposes.
+
+A field may be declared volatile, in which case the Java Memory Model ensures that all threads see a consistent value for the variable.
+```
+为了实现在保证并发的同时提供可见，JVM 简单的将操作带有`volatile`关键字的共享变量的语句禁止重排，因此也就杜绝了由于重排导致的可见性问题。
+
+`volatile`与`synchronized`不同，在访问`volatile`的变量时并不会加锁，因此就提升了并发性，提升了性能。然而由于`volatile`的弱同步性，在涉及复杂逻辑处使用之应慎重，以防止出现更脆弱也更难以理解的代码。
+
+引用`《Java 并发编程实战》 P31`的一段话：
+```
+仅当 volatile 变量能简化代码的实现以及对同步策略的验证时，才应该使用它们。如果在验证正确性时需要对可见性进行复杂的判断，那么就不要使用 volatile 变量。volatile 变量的正确使用方法包括：确保他们自身状态的可见性，确保他们所引用对象的状态的可见性，以及标识一些重要的程序生命周期事件的发生(例如，初始化或关闭)。
+```
+
+### 参考
+1. [Java Memory Model](https://docs.oracle.com/javase/specs/jls/se8/html/jls-17.html#jls-17.4)
+2. [volatile Fields](https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-8.3.1.4)
