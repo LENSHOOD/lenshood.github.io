@@ -150,6 +150,7 @@ public class SynchronizedVisibility {
 
 > 需要说明的是，我在本地环境中运行上述代码 5w + 次，并未出现一例错误，经 Google 后得知，对指令的重排与 CPU 架构，JIT 等等都有关，虽然无法复现，但从 JVM 的设计角度讲上述情况是可能发生的。
 
+#### Reordering
 上述因为可见性导致的问题，都可归于 Java 的重排序问题。
 
 重排序是由[ Java 内存模型](https://docs.oracle.com/javase/specs/jls/se8/html/jls-17.html)的设计而产生的一种自动对程序代码执行顺序的重排优化。无论是 JIT、Javac 还是处理器硬件，都可能会因优化考虑，而对代码指令进行重排序。
@@ -172,6 +173,7 @@ if (!ready) {
 The semantics of the Java programming language allow compilers and microprocessors to perform optimizations that can interact with incorrectly synchronized code in ways that can produce behaviors that seem paradoxical. Here are some examples of how incorrectly synchronized programs may exhibit surprising behaviors.
 ```
 
+#### synchronized 关键字
 由于优化的原因，非正确同步的代码会产生令人惊讶的行为。那么我们只要保证程序被正确的同步，则就不会出现上述异常的情况。
 
 因此最简单的，将上述程序修改：
@@ -182,7 +184,7 @@ public class SynchronizedVisibility {
 
     public static class ReaderThread extends Thread {
         @Override
-        public synchronized void run() {
+        public void run() {
             while (!ready) {
                 Thread.yield();
             }
@@ -200,4 +202,4 @@ public class SynchronizedVisibility {
 }
 ```
 
-由`synchronized` 关键字保证的同步性，使得
+由`synchronized` 关键字保证的同步性，使得无论在同步块内的语句被如何重排，只要主线程当前执行至同步块内，Reader 线程则无法在类锁释放前访问其静态成员，因此保证了 ready 和 num 对 Reader 线程的可见性。
