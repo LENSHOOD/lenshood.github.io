@@ -19,7 +19,7 @@ Guava 项包含了被 Google 的 Java 项目依赖的多个核心库：集合、
 *本 wiki 文档仍然在更新中，其中一些段落可能还没有完成。*
 
 - 基本工具类：让 Java 语言用起来更愉快
-    - [使用和避免使用 null](https://github.com/google/guava/wiki/UsingAndAvoidingNullExplained)：null 可能会引起模棱两可，可能会造成令人迷惑的错误，有时只是不够优雅。 许多 Guava 工具不会盲目的接受 null，而是会拒绝 null 且会对 null 值快速失败。
+    - [使用和避免使用 null](https://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/)：null 可能会引起模棱两可，可能会造成令人迷惑的错误，有时只是不够优雅。 许多 Guava 工具不会盲目的接受 null，而是会拒绝 null 且会对 null 值快速失败。
     - [前置条件](https://github.com/google/guava/wiki/PreconditionsExplained)：更简单的在方法中测试前置条件。
     - [通用Object方法](https://github.com/google/guava/wiki/CommonObjectUtilitiesExplained)：对 Object 方法的简化实现，例如 hashCode() 和 toString()。
     - [排序](https://github.com/google/guava/wiki/OrderingExplained)：Guava 强大的“流式 Comparator”类。
