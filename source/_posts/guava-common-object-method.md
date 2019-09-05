@@ -1,5 +1,5 @@
 ---
-title: 通用Object方法
+title: （Guava 译文系列）通用Object方法
 date: 2019-09-04 22:42:30
 tags:
 - guava
