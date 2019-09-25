@@ -23,7 +23,7 @@ Guava 项包含了被 Google 的 Java 项目依赖的多个核心库：集合、
     - [先决条件](https://lenshood.github.io/2019/09/02/guava-precondition/)：更简单的在方法中测试先决条件。
     - [通用Object方法](https://lenshood.github.io/2019/09/04/guava-common-object-method/)：对 Object 方法的简化实现，例如 hashCode() 和 toString()。
     - [排序](https://lenshood.github.io/2019/09/05/guava-ordering/)：Guava 强大的“流式 Comparator”类。
-    - [异常](https://github.com/google/guava/wiki/ThrowablesExplained)：简化的异常和错误的传播和检查方案。
+    - [异常](https://lenshood.github.io/2019/09/02/guava-throwables/)：简化的异常和错误的传播和检查方案。
 
 - 集合：对 JDK 集合生态的 Guava 扩展。这里包含部分Guava 中非常成熟和流行的部分。
     - [不可变集合](https://github.com/google/guava/wiki/ImmutableCollectionsExplained)，用于防御性编程，常量集合，提升效率。
