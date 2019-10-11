@@ -87,6 +87,7 @@ commit ae878fc8b9761d099a4145617e4a48cbeb390623
 首先，以上提交显然存在两方面的修改：
 1. The switch to use the new "reset" API for the "hard_reboot" method (message 第四条)
 2. The adjustment to internal driver methods to not use "hard_reboot" (message 第五、六条)
+
 因此存在以下的问题：
 1. 首先并没有什么有说服力的原因需要将以上两方面的修改放在一起，应该改为两个提交，第一个提交将多处名为 hard_reboot 的调用替换，第二个提交重写 hard_reboot 方法。
 2. 其次，使用 libvirt reset 方法的相关内容隐藏在了大的 “Refactor” 信息中，对于 reviewer 很可能忽略了实际上这个提交引入了一个新的 libvert API 的依赖。如果这个提交包含缺陷，然而由于包含了各种不相关的修改，因此无法进行简单的 revert。
