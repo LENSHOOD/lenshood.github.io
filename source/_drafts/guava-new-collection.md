@@ -77,26 +77,15 @@ Map                 | Corresponding Multiset     | Supports `null` elements
 
 ### SortedMultiset
 
-[`SortedMultiset`] is a variation on the `Multiset` interface that supports
-efficiently taking sub-multisets on specified ranges. For example, you could use
-`latencies.subMultiset(0, BoundType.CLOSED, 100, BoundType.OPEN).size()` to
-determine how many hits to your site had under 100ms latency, and then compare
-that to `latencies.size()` to determine the overall proportion.
+[`SortedMultiset`]是`Multiset`接口的一种变体，它能够支持按照特定范围来高效的取出 sub-multisets。例如你可以使用`latencies.subMultiset(0, BoundType.CLOSED, 100, BoundType.OPEN).size()`来测算你的网站中有多少点击延迟小于 100ms 并且与`latencies.size()`相比较来测算与点击总量的占比。
 
-`TreeMultiset` implements the `SortedMultiset` interface. At the time of
-writing, `ImmutableSortedMultiset` is still being tested for GWT compatibility.
+`TreeMultiset` 实现了 `SortedMultiset` 接口。在本文撰写时，`ImmutableSortedMultiset`对 GWT 的兼容性测试仍在进行中。
 
 ## Multimap
 
-Every experienced Java programmer has, at one point or another, implemented a
-`Map<K, List<V>>` or `Map<K, Set<V>>`, and dealt with the awkwardness of that
-structure. For example, `Map<K, Set<V>>` is a typical way to represent an
-unlabeled directed graph. Guava's [`Multimap`] framework makes it easy to handle
-a mapping from keys to multiple values. A `Multimap` is a general way to
-associate keys with arbitrarily many values.
+每一个有经验的 Java 程序员，在某些时刻，都尝试实现并处理过一种令人尴尬的结构： `Map<K, List<V>>` 或 `Map<K, Set<V>>`。例如 `Map<K, Set<V>>` 是一种典型的表示未标记有向图的方式。Guava 的 [`Multimap`]框架让处理一个 key 与多个 value 之间的映射变得简单。`Multimap` 是一种通用的关联单个 key 与任意多个 value 的方法。
 
-There are two ways to think of a Multimap conceptually: as a collection of
-mappings from single keys to single values:
+理解 Multimap 的概念有两种办法：看作是单个 key 对单个 value 的映射的集合：
 
 ```
 a -> 1
@@ -106,7 +95,7 @@ b -> 3
 c -> 5
 ```
 
-or as a mapping from unique keys to collections of values:
+或者作为唯一 key 到 value 集合的映射：
 
 ```
 a -> [1, 2, 4]
@@ -114,21 +103,13 @@ b -> [3]
 c -> [5]
 ```
 
-In general, the `Multimap` interface is best thought of in terms of the first
-view, but allows you to view it in either way with the `asMap()` view, which
-returns a `Map<K, Collection<V>>`. Most importantly, there is no such thing as a
-key which maps to an empty collection: a key either maps to at least one value,
-or it is simply not present in the `Multimap`.
+通常，`Multimap` 接口根据第一种视角来理解是最好的，但他也允许你按照另一种视角来看待，即以`asMap()`的视角，他会返回 `Map<K, Collection<V>>`。重要的是一个 key 映射一个空集合的形式并不存在：一个 key 映射到至少一个 value，否则他就不会在`Multimap`中存在。
 
-You rarely use the `Multimap` interface directly, however; more often you'll use
-`ListMultimap` or `SetMultimap`, which map keys to a `List` or a `Set`
-respectively.
+很少会直接使用 `Multimap` 接口，反之，更多情况你会使用 `ListMultimap` 或 `SetMultimap`，对应分别将 key 映射为一个`List` 或一个 `Set`。
 
-### Construction
+### 构建
 
-The most straight-forward way to create a `Multimap` is using
-[`MultimapBuilder`], which allows you to configure how your keys and values
-should be represented. For example:
+创建一个 `Multimap` 最直接的方式就是使用 [`MultimapBuilder`]，它允许你配置 key 和 value 以怎样的形式展现。比如：
 
 ```java
 // creates a ListMultimap with tree keys and array list values
@@ -140,16 +121,13 @@ SetMultimap<Integer, MyEnum> hashEnumMultimap =
     MultimapBuilder.hashKeys().enumSetValues(MyEnum.class).build();
 ```
 
-You may also choose to use the `create()` methods directly on the implementation
-classes, but that is lightly discouraged in favor of `MultimapBuilder`.
+你也可以选择直接在实现类上使用 `create()` 方法，只不过这样相比于 `MultimapBuilder` 有一些不妥。
 
-### Modifying
+### 修改
 
-[`Multimap.get(key)`] returns a *view* of the values associated with the
-specified key, even if there are none currently. For a `ListMultimap`, it
-returns a `List`, for a `SetMultimap`, it returns a `Set`.
+[`Multimap.get(key)`] 返回与指定 key 关联的所有值的*视图*，即使当前并没有值。对 `ListMultimap` 他会返回一个 `List`，对 `SetMultimap` 他会返回一个 `Set`。
 
-Modifications write through to the underlying `Multimap`. For example,
+修改操作通过底层的 `Multimap` 来进行写。例如,
 
 ```java
 Set<Person> aliceChildren = childrenMultimap.get(alice);
@@ -158,17 +136,18 @@ aliceChildren.add(bob);
 aliceChildren.add(carol);
 ```
 
-writes through to the underlying multimap.
+通过底层 multimap 来写.
 
 Other ways of modifying the multimap (more directly) include:
+另外的（更直接的）修改 multimap 的方法包括：
 
 Signature                         | Description                                                                                                                                                                                                           | Equivalent
 :-------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------
-[`put(K, V)`]                     | Adds an association from the key to the value.                                                                                                                                                                        | `multimap.get(key).add(value)`
-[`putAll(K, Iterable<V>)`]        | Adds associations from the key to each of the values in turn.                                                                                                                                                         | `Iterables.addAll(multimap.get(key), values)`
-[`remove(K, V)`]                  | Removes one association from `key` to `value` and returns `true` if the multimap changed.                                                                                                                             | `multimap.get(key).remove(value)`
-[`removeAll(K)`]                  | Removes and returns all the values associated with the specified key. The returned collection may or may not be modifiable, but modifying it will not affect the multimap. (Returns the appropriate collection type.) | `multimap.get(key).clear()`
-[`replaceValues(K, Iterable<V>)`] | Clears all the values associated with `key` and sets `key` to be associated with each of `values`. Returns the values that were previously associated with the key.                                                   | `multimap.get(key).clear(); Iterables.addAll(multimap.get(key), values)`
+[`put(K, V)`]                     | 增加一个 key 和 value 的关联 | `multimap.get(key).add(value)`
+[`putAll(K, Iterable<V>)`]        | 按顺序增加 key 与 value 的关联。 | `Iterables.addAll(multimap.get(key), values)`
+[`remove(K, V)`]                  | 删除一个 `key` 与 `value` 的关联并在 multimap 被修改后返回 `true`. | `multimap.get(key).remove(value)`
+[`removeAll(K)`] | 删除所有与 key 相关联的 value 并将这些 value 返回. 返回的集合可能可以也可能不可以被修改, 但不论怎样对其进行修改都不会影响原 multimap. (会返回何时的集合类型。) | `multimap.get(key).clear()`
+[`replaceValues(K, Iterable<V>)`] | 删除所有与 `key` 关联的 `value` 并且将 `key` 与新的 `values` 关联. 返回先前与`key` 关联的所有值。| `multimap.get(key).clear(); Iterables.addAll(multimap.get(key), values)`
 
 ### Views
 
