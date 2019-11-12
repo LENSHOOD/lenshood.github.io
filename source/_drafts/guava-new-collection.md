@@ -149,57 +149,29 @@ Signature                         | Description                                 
 [`removeAll(K)`] | 删除所有与 key 相关联的 value 并将这些 value 返回. 返回的集合可能可以也可能不可以被修改, 但不论怎样对其进行修改都不会影响原 multimap. (会返回何时的集合类型。) | `multimap.get(key).clear()`
 [`replaceValues(K, Iterable<V>)`] | 删除所有与 `key` 关联的 `value` 并且将 `key` 与新的 `values` 关联. 返回先前与`key` 关联的所有值。| `multimap.get(key).clear(); Iterables.addAll(multimap.get(key), values)`
 
-### Views
+### 视图
 
-`Multimap` also supports a number of powerful views.
+`Multimap` 也支持多种强大的视图.
 
-*   [`asMap`] views any `Multimap<K, V>` as a `Map<K, Collection<V>>`. The
-    returned map supports `remove`, and changes to the returned collections
-    write through, but the map does not support `put` or `putAll`. Critically,
-    you can use `asMap().get(key)` when you want `null` on absent keys rather
-    than a fresh, writable empty collection. (You can and should cast
-    `asMap.get(key)` to the appropriate collection type -- a `Set` for a
-    `SetMultimap`, a `List` for a `ListMultimap` -- but the type system does not
-    allow `ListMultimap` to return `Map<K, List<V>>` here.)
-*   [`entries`] views the `Collection<Map.Entry<K, V>>` of all entries in the
-    `Multimap`. (For a `SetMultimap`, this is a `Set`.)
-*   [`keySet`] views the distinct keys in the `Multimap` as a `Set`.
-*   [`keys`] views the keys of the `Multimap` as a `Multiset`, with multiplicity
-    equal to the number of values associated to that key. Elements can be
-    removed from the `Multiset`, but not added; changes will write through.
-*   [`values()`] views all the values in the `Multimap` as a "flattened"
-    `Collection<V>`, all as one collection. This is similar to
-    `Iterables.concat(multimap.asMap().values())`, but returns a full
-    `Collection` instead.
+*   [`asMap`] 将任何 `Multimap<K, V>` 以 `Map<K, Collection<V>>` 的形式展示。返回的 map 支持 `remove`，修改会写回原对象，但他并不支持`put` 或 `putAll`。重要的是，当你期望对不存在的 key 返回 `null` 而不是空的可写集合时，你可以使用 `asMap().get(key)`。（你可以也应该将 `asMap.get(key)` 的返回值转换为适当的集合类型 -- 对 `SetMultimap` 返回 `Set`，对 `ListMultimap` 返回 `List` -- 然而类型系统不允许 `ListMultimap` 返回 `Map<K, List<V>>`。）
+*   [`entries`] 以 `Collection<Map.Entry<K, V>>` 形式展示 `Multimap` 的所有 entries。（对 `SetMultimap` 会返回一个 `Set`。）
+*   [`keySet`] 以的 `Set` 形式展示 `Multimap` 中所有不重复的 key。
+*   [`keys`] 以 `Multiset` 的形式展示 `Multimap` 的所有 key，相同 key 的数量与对应的值的数量一致。允许从 `Multiset` 中删除元素，但不允许添加，相应的更改会被写入原对象。
+*   [`values()`] 以“拍平”的`Collection<V>`形式展示 `Multimap` 所有的值，值都处于同一个集合中。这与 `Iterables.concat(multimap.asMap().values())` 很类似，只是返回了一个满的`Collection`。
 
-### Multimap Is Not A Map
+### Multimap 不是 Map
 
-A `Multimap<K, V>` is *not* a `Map<K, Collection<V>>`, though such a map might
-be used in a `Multimap` implementation. Notable differences include:
+`Multimap<K, V>` *不是* `Map<K, Collection<V>>`，尽管上述 map 可能被用于 `Multimap` 的实现。其显著的差异包括：
 
-*   `Multimap.get(key)` always returns a non-null, possibly empty collection.
-    This doesn't imply that the multimap spends any memory associated with the
-    key, but instead, the returned collection is a view that allows you to add
-    associations with the key if you like.
-*   If you prefer the more `Map`-like behavior of returning `null` for keys that
-    aren't in the multimap, use the `asMap()` view to get a `Map<K,
-    Collection<V>>`. (Or, to get a `Map<K,`**`List`**`<V>>` from a
-    `ListMultimap`, use the static [`Multimaps.asMap()`] method. Similar methods
-    exist for `SetMultimap` and `SortedSetMultimap`.)
-*   `Multimap.containsKey(key)` is true if and only if there are any elements
-    associated with the specified key. In particular, if a key `k` was
-    previously associated with one or more values which have since been removed
-    from the multimap, `Multimap.containsKey(k)` will return false.
-*   `Multimap.entries()` returns all entries for all keys in the `Multimap`. If
-    you want all key-collection entries, use `asMap().entrySet()`.
-*   `Multimap.size()` returns the number of entries in the entire multimap, not
-    the number of distinct keys. Use `Multimap.keySet().size()` instead to get
-    the number of distinct keys.
+*   `Multimap.get(key)` 总是返回一个非 null，但可能为空的集合。这并不意味着 multimap 会耗费内存来与 key 做关联，相反，返回的集合是一个视图，能允许你根据需要添加与该 key 的关联。
+*   假如你更喜欢当 multimap 中不存在 key 时返回 `null` 这种类似 `Map` 的行为，使用 `asMap()` 视图来获得一个`Map<K,Collection<V>>`，（或者使用静态方法 [`Multimaps.asMap()`] 来从`ListMultimap`中获取`Map<K,`**`List`**`<V>>`，类似的方法在`SetMultimap` 和 `SortedSetMultimap` 亦存在）
+*   当且仅当对指定的 key 存在相关联的任意个元素时，`Multimap.containsKey(key)`返回 true。特别的，如果一个 key `k` 曾经与一个或多个元素关联，但这些元素已经被移除，则 `Multimap.containsKey(key)` 返回 false。
+*   `Multimap.entries()` 返回 `Multimap` 中所有 key 的所有 entries。假如你想要一个 key-collection 的 entries，则使用 `asMap().entrySet()`。
+*   `Multimap.size()` 返回整个 multimap 中所有 entries 的数量，而不是无重复的 key 的数量。想要获得无重复 key 的数量，使用 `Multimap.keySet().size()`。
 
-### Implementations
+### 实现类
 
-`Multimap` provides a wide variety of implementations. You can use it in most
-places you would have used a `Map<K, Collection<V>>`.
+`Multimap` 提供了大量的实现类。你可以在大多数情况下使用他来替代 `Map<K, Collection<V>>`。
 
 Implementation             | Keys behave like... | Values behave like..
 :------------------------- | :------------------ | :-------------------
@@ -211,23 +183,15 @@ Implementation             | Keys behave like... | Values behave like..
 [`ImmutableListMultimap`]  | `ImmutableMap`      | `ImmutableList`
 [`ImmutableSetMultimap`]   | `ImmutableMap`      | `ImmutableSet`
 
-Each of these implementations, except the immutable ones, support null keys and
-values.
+除了不可变的类以外，每一个实现类都支持 null key 和 value。
 
-`*` `LinkedListMultimap.entries()` preserves iteration order across non-distinct
-key values. See the link for details.
+`*` `LinkedListMultimap.entries()` 在重复的 key 和 value 之间保留迭代顺序。点击链接查看详情。
 
-`**` `LinkedHashMultimap` preserves insertion order of entries, as well as the
-insertion order of keys, and the set of values associated with any one key.
+`**` `LinkedHashMultimap` 保留 entries 的插入顺序，也即是 key 的插入顺序，以及与任何一个 key 关联的 value 集。
 
-Be aware that not all implementations are actually implemented as a `Map<K,
-Collection<V>>` with the listed implementations! (In particular, several
-`Multimap` implementations use custom hash tables to minimize overhead.)
+注意并不是所有列出的实现的其本质都是 `Map<K, Collection<V>>`！（尤其是一些 `Multimap`的实现采用定制化的哈希表来使得开销最小。）
 
-If you need more customization, use [`Multimaps.newMultimap(Map,
-Supplier<Collection>)`] or the [list][newListMultimap] and [set][newSetMultimap]
-versions to use a custom collection, list, or set implementation to back your
-multimap.
+假如你想要更多的定制，使用[`Multimaps.newMultimap(Map, Supplier<Collection>)`]或 [list][newListMultimap] 以及 [set][newSetMultimap] 的变体或使用自定义集合，列表或集来实现支持 multimap。
 
 ## BiMap
 
