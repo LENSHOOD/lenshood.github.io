@@ -195,9 +195,7 @@ Implementation             | Keys behave like... | Values behave like..
 
 ## BiMap
 
-The traditional way to map values back to keys is to maintain two separate maps
-and keep them both in sync, but this is bug-prone and can get extremely
-confusing when a value is already present in the map. For example:
+将 value 映射回 key 的传统方法是维护两个独立的 map 并且使他们保持同步，然而，这种方式容易出错，且当一个 value 已经存在于 map 中时，会变得非常令人困惑。例如：
 
 ```java
 Map<String, Integer> nameToId = Maps.newHashMap();
@@ -205,18 +203,16 @@ Map<Integer, String> idToName = Maps.newHashMap();
 
 nameToId.put("Bob", 42);
 idToName.put(42, "Bob");
-// what happens if "Bob" or 42 are already present?
-// weird bugs can arise if we forget to keep these in sync...
+// 假如 "Bob" 或 42 已经存在时会怎么样?
+// 如果我们忘记使他们保持一致，那么可能会出现奇奇怪怪的 bug...
 ```
 
-A [`BiMap<K, V>`] is a `Map<K, V>` that
+一个 [`BiMap<K, V>`] 是一个 `Map<K, V>`，它能够：
 
-*   allows you to view the "inverse" `BiMap<V, K>` with [`inverse()`]
-*   ensures that values are unique, making [`values()`][BiMap.values] a `Set`
+*   允许你通过[`inverse()`]来获得反向视图 `BiMap<V, K>`
+*   确保 values 是唯一的，返回的[`values()`][BiMap.values] 是一个 `Set`
 
-`BiMap.put(key, value)` will throw an `IllegalArgumentException` if you attempt
-to map a key to an already-present value. If you wish to delete any preexisting
-entry with the specified value, use [`BiMap.forcePut(key, value)`] instead.
+假如你尝试将 key 映射至一个已经存在的 value 时，`BiMap.put(key, value)`会抛出`IllegalArgumentException`。假如你期望删除具有指定 value 的任何已经存在的 entry，可以使用 [`BiMap.forcePut(key, value)`]
 
 ```java
 BiMap<String, Integer> userId = HashBiMap.create();
@@ -225,7 +221,7 @@ BiMap<String, Integer> userId = HashBiMap.create();
 String userForId = userId.inverse().get(id);
 ```
 
-### Implementations
+### 实现类
 
 Key-Value Map Impl | Value-Key Map Impl | Corresponding `BiMap`
 :----------------- | :----------------- | :--------------------
@@ -234,7 +230,7 @@ Key-Value Map Impl | Value-Key Map Impl | Corresponding `BiMap`
 `EnumMap`          | `EnumMap`          | [`EnumBiMap`]
 `EnumMap`          | `HashMap`          | [`EnumHashBiMap`]
 
-*Note:* `BiMap` utilities like `synchronizedBiMap` live in [`Maps`].
+*注意：* `BiMap` 工具类例如 `synchronizedBiMap` 在 [`Maps`] 中存在.
 
 ## Table
 
