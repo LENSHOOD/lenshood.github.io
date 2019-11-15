@@ -1,3 +1,12 @@
+---
+title: （Guava 译文系列）新集合类型
+date: 2019-11-15 11:19:30
+tags:
+- guava
+- translation
+categories:
+- Guava
+---
 # 新集合类型
 
 Guava 引入了许多 JDK 未包含但我们却广泛使用的的新集合类型。他们全都设计为可以和 JDK 的集合框架友好的共存， 而不是硬塞入 JDK 的集合类抽象中。
@@ -244,72 +253,47 @@ weightedGraph.row(v1); // returns a Map mapping v2 to 4, v3 to 20
 weightedGraph.column(v3); // returns a Map mapping v1 to 20, v2 to 5
 ```
 
-Typically, when you are trying to index on more than one key at a time, you will
-wind up with something like `Map<FirstName, Map<LastName, Person>>`, which is
-ugly and awkward to use. Guava provides a new collection type, [`Table`], which
-supports this use case for any "row" type and "column" type. `Table` supports a
-number of views to let you use the data from any angle, including
+通常，当你尝试同时对超过一个 key 进行索引时，你最终会选择类似 `Map<FirstName, Map<LastName, Person>>` 的难看而尴尬的解决方案。Guava 提供了一个新的集合类， [`Table`]，用于支持 "row" 类型和 "column" 类型的情况。`Table` 支持多种视图，来提供多角度的数据展示，包括：
 
-*   [`rowMap()`], which views a `Table<R, C, V>` as a `Map<R, Map<C, V>>`.
-    Similarly, [`rowKeySet()`] returns a `Set<R>`.
-*   [`row(r)`] returns a non-null `Map<C, V>`. Writes to the `Map` will write
-    through to the underlying `Table`.
-*   Analogous column methods are provided: [`columnMap()`], [`columnKeySet()`],
-    and [`column(c)`]. (Column-based access is somewhat less efficient than
-    row-based access.)
-*   [`cellSet()`] returns a view of the `Table` as a set of [`Table.Cell<R, C,
-    V>`]. `Cell` is much like `Map.Entry`, but distinguishes the row and column
-    keys.
+*   [`rowMap()`], 将 `Table<R, C, V>` 展示为 `Map<R, Map<C, V>>`. 同样的, [`rowKeySet()`] 返回一个 `Set<R>`.
+*   [`row(r)`] 返回一个非 null `Map<C, V>`. 写入这个 `Map` 写入底层的 `Table`.
+*   类似的也提供了类方法： [`columnMap()`], [`columnKeySet()`], 和 [`column(c)`]. (基于列的查询会比基于行的效率更低一些)
+*   [`cellSet()`] 的返回将 `Table` 展示为一组  [`Table.Cell<R, C, V>`]. `Cell` 就像 `Map.Entry`, 但区分了行和列的 key。
 
-Several `Table` implementations are provided, including:
+多种 `Table` 的实现类如下：
 
-*   [`HashBasedTable`], which is essentially backed by a `HashMap<R, HashMap<C,
-    V>>`.
-*   [`TreeBasedTable`], which is essentially backed by a `TreeMap<R, TreeMap<C,
-    V>>`.
+*   [`HashBasedTable`], 实际上底层是 `HashMap<R, HashMap<C,V>>`。
+*   [`TreeBasedTable`], 实际上底层是 `TreeMap<R, TreeMap<C,V>>`。
 *   [`ImmutableTable`]
-*   [`ArrayTable`], which requires that the complete universe of rows and
-    columns be specified at construction time, but is backed by a
-    two-dimensional array to improve speed and memory efficiency when the table
-    is dense. `ArrayTable` works somewhat differently from other
-    implementations; consult the Javadoc for details.
+*   [`ArrayTable`]，它要求在创建时即指定完整的行和列，当表密集时通过二维数组来提升速度与内存效率。`ArrayTable`与其他的实现上有些许不同，查看 javadoc 来获取详情。
 
 ## ClassToInstanceMap
 
-Sometimes, your map keys aren't all of the same type: they *are* types, and you
-want to map them to values of that type. Guava provides [`ClassToInstanceMap`]
-for this purpose.
+有些时候，map 中的 key 不一定全都是同样的类型：他们*是各种*类型，且你想要让某种类型映射对应其类型的值。Guava 提供了 [`ClassToInstanceMap`] 来实现它。
 
-In addition to extending the `Map` interface, `ClassToInstanceMap` provides the
-methods [`T getInstance(Class<T>)`] and [`T putInstance(Class<T>, T)`], which
-eliminate the need for unpleasant casting while enforcing type safety.
+除了扩展 `Map` 接口外，`ClassToInstanceMap` 提供了
+[`T getInstance(Class<T>)`] 和 [`T putInstance(Class<T>, T)`] 方法，以此来避免在强制类型安全时不愉快的类型转换。
 
-`ClassToInstanceMap` has a single type parameter, typically named `B`,
-representing the upper bound on the types managed by the map. For example:
+`ClassToInstanceMap` 有一个单一类型的参数，通常命名为 `B`，代表由 map 管理的类型上界。例如：
 
 ```java
 ClassToInstanceMap<Number> numberDefaults = MutableClassToInstanceMap.create();
 numberDefaults.putInstance(Integer.class, Integer.valueOf(0));
 ```
 
-Technically, `ClassToInstanceMap<B>` implements `Map<Class<? extends B>, B>` --
-or in other words, a map from subclasses of B to instances of B. This can make
-the generic types involved in `ClassToInstanceMap` mildly confusing, but just
-remember that `B` is always the upper bound on the types in the map -- usually,
-`B` is just `Object`.
+技术上讲，`ClassToInstanceMap<B>` 实现了 `Map<Class<? extends B>, B>` -- 或者换句话说，一个 B 的子类映射到 B 的一个实例。这让 `ClassToInstanceMap` 引入泛型变得有点混乱，但只要记住 `B` 总是 map 的上边界 -- 通常 `B` 只是 `Object`。
 
-Guava provides implementations helpfully named [`MutableClassToInstanceMap`] and
-[`ImmutableClassToInstanceMap`].
+Guava 提供了名为 [`MutableClassToInstanceMap`] 和
+[`ImmutableClassToInstanceMap`] 的实现类。
 
-**Important**: Like any other `Map<Class, Object>`, a `ClassToInstanceMap` may
-contain entries for primitive types, and a primitive type and its corresponding
-wrapper type may map to different values.
+**重要**：就像其他的`Map<Class, Object>`一样，`ClassToInstanceMap` 也许会包含基本类型的 entries，因此基本类型和其对应的包装类也许会映射至不同的值。
 
 ## RangeSet
 
 A `RangeSet` describes a set of *disconnected, nonempty* ranges. When adding a
 range to a mutable `RangeSet`, any connected ranges are merged together, and
 empty ranges are ignored. For example:
+`RangeSet` 描述了一种存储 *非连续，非空* 范围的 set。当给不可变的 `RangeSet` 增加了一个范围时，任何连续的范围被合并，空范围被忽略。例如：
 
 ```java
    RangeSet<Integer> rangeSet = TreeRangeSet.create();
@@ -320,49 +304,33 @@ empty ranges are ignored. For example:
    rangeSet.remove(Range.open(5, 10)); // splits [1, 10]; {[1, 5], [10, 10], [11, 20)}
 ```
 
-Note that to merge ranges like `Range.closed(1, 10)` and `Range.closedOpen(11,
-15)`, you must first preprocess ranges with [`Range.canonical(DiscreteDomain)`],
-e.g. with `DiscreteDomain.integers()`.
+注意当合并类似`Range.closed(1, 10)` 和 `Range.closedOpen(11, 15)` 时，你需要通过 [`Range.canonical(DiscreteDomain)`] 来对范围进行预处理，例如 `DiscreteDomain.integers()`。
 
 **NOTE**: `RangeSet` is not supported under GWT, nor in the JDK 1.5 backport;
 `RangeSet` requires full use of the `NavigableMap` features in JDK 1.6.
+**注意**：`RangeSet` 在 GWT 和 JDK 1.5 之前都不受支持，`RangeSet`依赖 JDK 1.6 的 `NavigableMap` 功能。
 
-### Views
+### 视图
 
-`RangeSet` implementations support an extremely wide range of views, including:
+`RangeSet` 的实现类支持非常广泛的范围视图，例如：
 
-*   `complement()`: views the complement of the `RangeSet`. `complement` is also
-    a `RangeSet`, as it contains disconnected, nonempty ranges.
-*   `subRangeSet(Range<C>)`: returns a view of the intersection of the
-    `RangeSet` with the specified `Range`. This generalizes the `headSet`,
-    `subSet`, and `tailSet` views of traditional sorted collections.
-*   `asRanges()`: views the `RangeSet` as a `Set<Range<C>>` which can be
-    iterated over.
-*   `asSet(DiscreteDomain<C>)` (`ImmutableRangeSet` only): Views the
-    `RangeSet<C>` as an `ImmutableSortedSet<C>`, viewing the elements in the
-    ranges instead of the ranges themselves. (This operation is unsupported if
-    the `DiscreteDomain` and the `RangeSet` are both unbounded above or both
-    unbounded below.)
+*   `complement()`: `RangeSet` 的补集视图。`complement` 也是一个 `RangeSet`，即包含非连续、非空的范围。
+*   `subRangeSet(Range<C>)`: 返回 `RangeSet` 中指定 `Range` 的交叉视图。这可以概括为传统有序集合的`headSet`, `subSet`,  和 `tailSet` 视图。
+*   `asRanges()`: 以可迭代的 `Set<Range<C>>` 形式展示 `RangeSet`。
+*   `asSet(DiscreteDomain<C>)` (`ImmutableRangeSet` only): 以 `ImmutableSortedSet<C>` 的形式展示 `RangeSet<C>`，展示其中的元素，而不是范围本身。（这个操作不支持在 `DiscreteDomain` 和 `RangeSet` 都无上界或下界的情况）
 
-### Queries
+### 查询
 
-In addition to operations on its views, `RangeSet` supports several query
-operations directly, the most prominent of which are:
+除了对视图的操作以外，`RangeSet` 还支持多种直接查询操作，其中最突出的有：
 
-*   `contains(C)`: the most fundamental operation on a `RangeSet`, querying if
-    any range in the `RangeSet` contains the specified element.
-*   `rangeContaining(C)`: returns the `Range` which encloses the specified
-    element, or `null` if there is none.
-*   `encloses(Range<C>)`: straightforwardly enough, tests if any `Range` in the
-    `RangeSet` encloses the specified range.
-*   `span()`: returns the minimal `Range` that `encloses` every range in this
-    `RangeSet`.
+*   `contains(C)`: `RangeSet` 最基础的操作，查询 `RangeSet` 的任意范围中是否包含给定的元素。
+*   `rangeContaining(C)`: 返回包围了指定元素的范围，若不存在则返回 `null`。
+*   `encloses(Range<C>)`: 直截了当，测试 `RangeSet` 中是否存在任何 `Range` 包含了给定的范围。
+*   `span()`: 返回一个最小的 `Range`，他能 `encloses` 所有 `RangeSet` 中的范围。
 
 ## RangeMap
 
-`RangeMap` is a collection type describing a mapping from disjoint, nonempty
-ranges to values. Unlike `RangeSet`, `RangeMap` never "coalesces" adjacent
-mappings, even if adjacent ranges are mapped to the same values. For example:
+`RangeMap` 是一个集合类型，描述一个不相交、非空的范围与值的映射。不像`RangeSet`，`RangeMap` 从不“合并”相邻的映射， 即使相邻的映射指向相同的值。例如：
 
 ```java
 RangeMap<Integer, String> rangeMap = TreeRangeMap.create();
@@ -372,15 +340,12 @@ rangeMap.put(Range.open(10, 20), "foo"); // {[1, 3] => "foo", (3, 6) => "bar", [
 rangeMap.remove(Range.closed(5, 11)); // {[1, 3] => "foo", (3, 5) => "bar", (11, 20) => "foo"}
 ```
 
-### Views
+### 视图
 
-`RangeMap` provides two views:
+`RangeMap` 提供两种视图:
 
-*   `asMapOfRanges()`: views the `RangeMap` as a `Map<Range<K>, V>`. This can be
-    used, for example, to iterate over the `RangeMap`.
-*   `subRangeMap(Range<K>)` views the intersection of the `RangeMap` with the
-    specified `Range` as a `RangeMap`. This generalizes the traditional
-    `headMap`, `subMap`, and `tailMap` operations.
+*   `asMapOfRanges()`: 以 `Map<Range<K>, V>` 的形式展示 `RangeMap`。例如这可以用于遍历 `RangeMap`。
+*   `subRangeMap(Range<K>)` 将 `RangeMap` 与指定的 `Range` 相交为一个 `RangeMap`。这可以概括为传统 `headMap`, `subMap`, 和 `tailMap`操作。
 
 [`Multiset`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html
 [`count(E)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#count-java.lang.Object-
