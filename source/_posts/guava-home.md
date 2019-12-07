@@ -27,7 +27,7 @@ Guava 项包含了被 Google 的 Java 项目依赖的多个核心库：集合、
 
 - 集合：对 JDK 集合生态的 Guava 扩展。这里包含部分Guava 中非常成熟和流行的部分。
     - [不可变集合](https://lenshood.github.io/2019/09/25/guava-immutable-collections/)，用于防御性编程，常量集合，提升效率。
-    - [新集合类型](https://github.com/google/guava/wiki/NewCollectionTypesExplained)，包含 JDK 集合类未实现的场景：multiset，multimap，tables，双向 map等等。
+    - [新集合类型](https://lenshood.github.io/2019/11/15/guava-new-collection/)，包含 JDK 集合类未实现的场景：multiset，multimap，tables，双向 map等等。
     - [强大的集合工具](https://github.com/google/guava/wiki/CollectionUtilitiesExplained)，JDK 集合类未提供的通用操作。
     - [扩展工具](https://github.com/google/guava/wiki/CollectionHelpersExplained)：写个集合装饰器？实现一个迭代器？我们将这些变得简单。
 
