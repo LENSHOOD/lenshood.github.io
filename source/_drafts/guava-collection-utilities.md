@@ -81,37 +81,27 @@ Multiset<String> multiset = HashMultiset.create();
 
 任何可能的情况下，Guava 都更倾向于提供接受 `Iterable` 而不是 `Collection` 的工具。在 Google， 遇到某个并不存储在内存中的 “集合” 的情况并不少见，它的数据可能是从数据库，其他数据中心等处聚集而来的，因此实际上在并没有获取到所有元素的情况下，它并不能支持类似`size()` 等的操作。
 
-As a result, many of the operations you might expect to see supported for all
-collections can be found in [`Iterables`]. Additionally, most `Iterables`
-methods have a corresponding version in [`Iterators`] that accepts the raw
-iterator.
+因此，很多你期望支持所有 collections 的操作，都能在[`Iterables`]里面找到。此外，大多`Iterables` 方法都在 [`Iterators`] 中有对应的版本来接受一个 iterator。
 
-The overwhelming majority of operations in the `Iterables` class are *lazy*:
-they only advance the backing iteration when absolutely necessary. Methods that
-themselves return `Iterables` return lazily computed views, rather than
-explicitly constructing a collection in memory.
+`Iterables` 类中绝大多数的操作都是“懒操作”：除非绝对必要时才会提前准备迭代。返回`Iterables`的方法全都都返回懒计算的视图，而不会显式的在内存中构建 collection。
 
-As of Guava 12, `Iterables` is supplemented by the [`FluentIterable`] class,
-which wraps an `Iterable` and provides a "fluent" syntax for many of these
-operations.
+截止至 Guava 12，`Iterables` 通过一个包装了 `Iterable`且提供流式运算符的类 [`FluentIterable`] 来辅助。
 
-The following is a selection of the most commonly used utilities, although many
-of the more "functional" methods in `Iterables` are discussed in [Guava
-functional idioms][functional].
+以下是被选出的最常用的工具，尽管在`Iterables`中许多更函数式的方法会在[Guava 函数式语法][functional]中详述。
 
-### General
+### 通用
 
 Method                                | Description                                                                                            | See Also
 :------------------------------------ | :----------------------------------------------------------------------------------------------------- | :-------
-[`concat(Iterable<Iterable>)`]        | Returns a lazy view of the concatenation of several iterables.                                         | [`concat(Iterable...)`]
-[`frequency(Iterable, Object)`]       | Returns the number of occurrences of the object.                                                       | Compare `Collections.frequency(Collection, Object)`; see [`Multiset`]
-[`partition(Iterable, int)`]          | Returns an unmodifiable view of the iterable partitioned into chunks of the specified size.            | [`Lists.partition(List, int)`], [`paddedPartition(Iterable, int)`]
-[`getFirst(Iterable, T default)`]     | Returns the first element of the iterable, or the default value if empty.                              | Compare `Iterable.iterator().next()`, [`FluentIterable.first()`]
-[`getLast(Iterable)`]                 | Returns the last element of the iterable, or fails fast with a `NoSuchElementException` if it's empty. | [`getLast(Iterable, T default)`], [`FluentIterable.last()`]
-[`elementsEqual(Iterable, Iterable)`] | Returns true if the iterables have the same elements in the same order.                                | Compare `List.equals(Object)`
-[`unmodifiableIterable(Iterable)`]    | Returns an unmodifiable view of the iterable.                                                          | Compare `Collections.unmodifiableCollection(Collection)`
-[`limit(Iterable, int)`]              | Returns an `Iterable` returning at most the specified number of elements.                              | [`FluentIterable.limit(int)`]
-[`getOnlyElement(Iterable)`]          | Returns the only element in `Iterable`. Fails fast if the iterable is empty or has multiple elements.  | [`getOnlyElement(Iterable, T default)`]
+[`concat(Iterable<Iterable>)`]        | 返回懒视图的多个 iterable 的连接。                                       | [`concat(Iterable...)`]
+[`frequency(Iterable, Object)`]       | 返回一个对象在 iterable 中出现的次数。                                                       | Compare `Collections.frequency(Collection, Object)`; see [`Multiset`]
+[`partition(Iterable, int)`]          | 返回将 iterable 划分为指定块的不可变视图。           | [`Lists.partition(List, int)`], [`paddedPartition(Iterable, int)`]
+[`getFirst(Iterable, T default)`]     | 返回 iterable 中的第一个元素，或当为空时返回默认值。                              | Compare `Iterable.iterator().next()`, [`FluentIterable.first()`]
+[`getLast(Iterable)`]                 | 返回 iterable 中的最后一个元素，或当为空时快速失败并抛出 `NoSuchElementException` | [`getLast(Iterable, T default)`], [`FluentIterable.last()`]
+[`elementsEqual(Iterable, Iterable)`] | 当两个 iterable 中的元素和顺序都一致时，返回 true。                                | Compare `List.equals(Object)`
+[`unmodifiableIterable(Iterable)`]    | 返回给定 iterable 的一个不可变视图。                                                          | Compare `Collections.unmodifiableCollection(Collection)`
+[`limit(Iterable, int)`]              | 返回一个 `Iterable` 并包含指定大小的元素。                              | [`FluentIterable.limit(int)`]
+[`getOnlyElement(Iterable)`]          | 返回 `Iterable` 中的唯一元素. 当为空或存在多个元素时快速失败。  | [`getOnlyElement(Iterable, T default)`]
 
 ```java
 Iterable<Integer> concatenated = Iterables.concat(
