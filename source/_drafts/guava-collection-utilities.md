@@ -115,15 +115,11 @@ String theElement = Iterables.getOnlyElement(thisSetIsDefinitelyASingleton);
   // if this set isn't a singleton, something is wrong!
 ```
 
-### Collection-Like
+### 类 collection
 
-Typically, collections support these operations naturally on other collections,
-but not on iterables.
+通常，collection 在其他 collection 上支持此类操作，但 iterable 不支持。
 
-*Each of these operations delegates to the corresponding `Collection` interface
-method when the input is actually a `Collection`.* For example, if
-`Iterables.size` is passed a `Collection`, it will call the `Collection.size`
-method instead of walking through the iterator.
+*当输入是一个 collection 时，每一个操作都交给对应的 `Collection` 接口方法委托。* 例如，如果 `Iterables.size` 传递给了 `Collection`，那么它实际上会调用 `Collection.size` 而不是遍历整个 iterator。
 
 Method                                                  | Analogous `Collection` method      | `FluentIterable` equivalent
 :------------------------------------------------------ | :--------------------------------- | :--------------------------
@@ -139,9 +135,7 @@ Method                                                  | Analogous `Collection`
 
 ### FluentIterable
 
-Besides the methods covered above and in the functional idioms [article]
-[functional], `FluentIterable` has a few convenient methods for copying
-into an immutable collection:
+除了上述方法和[函数式语法][functional]，`FluentIterable` 包含一些方便的方法来复制为一个不可变集合：
 
 Result Type          | Method
 :------------------- | :-----------------------------------
@@ -151,13 +145,12 @@ Result Type          | Method
 
 ### Lists
 
-In addition to static constructor methods and functional programming methods,
-[`Lists`] provides a number of valuable utility methods on `List` objects.
+除了静态构造器方法和函数式编程方法，[`Lists`]提供了大量针对`List`对象的值工具方法。
 
 Method                   | Description
 :----------------------- | :----------
-[`partition(List, int)`] | Returns a view of the underlying list, partitioned into chunks of the specified size.
-[`reverse(List)`]        | Returns a reversed view of the specified list. *Note*: if the list is immutable, consider [`ImmutableList.reverse()`] instead.
+[`partition(List, int)`] | 返回底层列表的视图，该视图被分成指定大小的块。
+[`reverse(List)`]        | 返回指定列表的反转. *注意*: 如果给定列表是不可变的, 考虑使用 [`ImmutableList.reverse()`] 来代替.
 
 ```java
 List<Integer> countUp = Ints.asList(1, 2, 3, 4, 5);
@@ -166,9 +159,9 @@ List<Integer> countDown = Lists.reverse(theList); // {5, 4, 3, 2, 1}
 List<List<Integer>> parts = Lists.partition(countUp, 2); // {{1, 2}, {3, 4}, {5}}
 ```
 
-### Static Factories
+### 静态工厂
 
-`Lists` provides the following static factory methods:
+`Lists` 提供了下述静态工厂方法:
 
 Implementation | Factories
 :------------- | :--------
@@ -177,16 +170,15 @@ Implementation | Factories
 
 ## Sets
 
-The [`Sets`] utility class includes a number of spicy methods.
+[`Sets`] 类包含了许多厉害的方法.
 
-### Set-Theoretic Operations
+### 集合论操作
 
-We provide a number of standard set-theoretic operations, implemented as views
-over the argument sets. These return a [`SetView`], which can be used:
+我们提供了大量集合论操作, 作为参数集合上的视图实现. 这些返回[`SetView`]的方法可以用于:
 
-*   as a `Set` directly, since it implements the `Set` interface
-*   by copying it into another mutable collection with [`copyInto(Set)`]
-*   by making an immutable copy with [`immutableCopy()`]
+*   直接用作 `Set`，因为他实现了 `Set` 接口
+*   通过[`copyInto(Set)`]将他复制为另一个可变集合
+*   通过 [`immutableCopy()`] 创建一个不可变副本
 
 Method                            |
 :-------------------------------- |
@@ -195,7 +187,7 @@ Method                            |
 [`difference(Set, Set)`]          |
 [`symmetricDifference(Set, Set)`] |
 
-For example:
+例如：
 
 ```java
 Set<String> wordsWithPrimeLength = ImmutableSet.of("one", "two", "three", "six", "seven", "eight");
@@ -206,12 +198,12 @@ SetView<String> intersection = Sets.intersection(primes, wordsWithPrimeLength); 
 return intersection.immutableCopy();
 ```
 
-### Other Set Utilities
+### 其他集合工具
 
 Method                          | Description                                                                             | See Also
 :------------------------------ | :-------------------------------------------------------------------------------------- | :-------
-[`cartesianProduct(List<Set>)`] | Returns every possible list that can be obtained by choosing one element from each set. | [`cartesianProduct(Set...)`]
-[`powerSet(Set)`]               | Returns the set of subsets of the specified set.                                        |
+[`cartesianProduct(List<Set>)`] | 返回从每个集合中取一个元素可以得到的每个可能的列表. | [`cartesianProduct(Set...)`]
+[`powerSet(Set)`]               | 返回指定集合的子集集合.                                        |
 
 ```java
 Set<String> animals = ImmutableSet.of("gerbil", "hamster");
@@ -225,9 +217,9 @@ Set<Set<String>> animalSets = Sets.powerSet(animals);
 // {{}, {"gerbil"}, {"hamster"}, {"gerbil", "hamster"}}
 ```
 
-### Static Factories
+### 静态工厂
 
-`Sets` provides the following static factory methods:
+`Sets` 提供了以下静态工厂方法:
 
 Implementation  | Factories
 :-------------- | :--------
@@ -237,16 +229,13 @@ Implementation  | Factories
 
 ## Maps
 
-[`Maps`] has a number of cool utilities that deserve individual explanation.
+[`Maps`] 包含了许多有用的工具，值得我们单独讨论.
 
 ### `uniqueIndex`
 
-[`Maps.uniqueIndex(Iterable, Function)`] addresses the common case of having a
-bunch of objects that each have some unique attribute, and wanting to be able to
-look up those objects based on that attribute.
+[`Maps.uniqueIndex(Iterable, Function)`] 处理了一种常见的情况：存在许多对象，每一个都有一些自己特定的属性, 期望基于这些属性来查找这些对象.
 
-Let's say we have a bunch of strings that we know have unique lengths, and we
-want to be able to look up the string with some particular length.
+比如说我们有很多字符串，我们知道他们有独一无二的长度，我们期望查找特定长度的字符串。
 
 ```java
 ImmutableMap<Integer, String> stringsByIndex = Maps.uniqueIndex(strings, new Function<String, Integer> () {
@@ -256,20 +245,18 @@ ImmutableMap<Integer, String> stringsByIndex = Maps.uniqueIndex(strings, new Fun
   });
 ```
 
-If indices are *not* unique, see `Multimaps.index` below.
+假如索引*不*唯一, 可以参见 `Multimaps.index`.
 
 ### `difference`
 
-[`Maps.difference(Map, Map)`] allows you to compare all the differences between
-two maps. It returns a `MapDifference` object, which breaks down the Venn
-diagram into:
+[`Maps.difference(Map, Map)`] 允许你比较两个 Map 之间的不同. 他返回一个 `MapDifference` 对象, 他把文氏图分解为:
 
 Method                   | Description
 :----------------------- | :----------
-[`entriesInCommon()`]    | The entries which are in both maps, with both matching keys and values.
-[`entriesDiffering()`]   | The entries with the same keys, but differing values. The values in this map are of type [`MapDifference.ValueDifference`], which lets you look at the left and right values.
-[`entriesOnlyOnLeft()`]  | Returns the entries whose keys are in the left but not in the right map.
-[`entriesOnlyOnRight()`] | Returns the entries whose keys are in the right but not in the left map.
+[`entriesInCommon()`]    | 在两个 map 中都存在的 entries, key 和 value 都匹配.
+[`entriesDiffering()`]   | 相同 key 但不同 value 的 entries. 在该 map 中的值属于 [`MapDifference.ValueDifference`] 类型, 能让你查找左值和右值.
+[`entriesOnlyOnLeft()`]  | 返回 key 在左边 map 出现，但未出现在右边 map 的 entries。
+[`entriesOnlyOnRight()`] | 返回 key 在右边 map 出现，但未出现在左边 map 的 entries。
 
 ```java
 Map<String, Integer> left = ImmutableMap.of("a", 1, "b", 2, "c", 3);
@@ -284,17 +271,16 @@ diff.entriesOnlyOnRight(); // {"d" => 5}
 
 ### `BiMap` utilities
 
-The Guava utilities on `BiMap` live in the `Maps` class, since a `BiMap` is also
-a `Map`.
+Guava `BiMap` 的工具基于 `Maps`, 因此 `BiMap` 也同样是一个 `Map`.
 
 `BiMap` utility              | Corresponding `Map` utility
 :--------------------------- | :---------------------------------
 [`synchronizedBiMap(BiMap)`] | `Collections.synchronizedMap(Map)`
 [`unmodifiableBiMap(BiMap)`] | `Collections.unmodifiableMap(Map)`
 
-#### Static Factories
+#### 静态工厂
 
-`Maps` provides the following static factory methods.
+`Maps` 提供了如下静态工厂方法.
 
 Implementation    | Factories
 :---------------- | :--------
@@ -307,17 +293,14 @@ Implementation    | Factories
 
 ## Multisets
 
-Standard `Collection` operations, such as `containsAll`, ignore the count of
-elements in the multiset, and only care about whether elements are in the
-multiset at all, or not. [`Multisets`] provides a number of operations that take
-into account element multiplicities in multisets.
+标准`Collection`操作，例如`containsAll`，忽略了 multiset 中的元素计数，只关心元素是否存在于 multiset。[`Multisets`] 提供了大量考虑到 multiset 中元素多样性的操作。
 
 Method                                                        | Explanation                                                                                               | Difference from `Collection` method
 :------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------- | :----------------------------------
-[`containsOccurrences(Multiset sup, Multiset sub)`]           | Returns `true` if `sub.count(o) <= super.count(o)` for all `o`.                                           | `Collection.containsAll` ignores counts, and only tests whether elements are contained at all.
-[`removeOccurrences(Multiset removeFrom, Multiset toRemove)`] | Removes one occurrence in `removeFrom` for each occurrence of an element in `toRemove`.                   | `Collection.removeAll` removes all occurences of any element that occurs even once in `toRemove`.
-[`retainOccurrences(Multiset removeFrom, Multiset toRetain)`] | Guarantees that `removeFrom.count(o) <= toRetain.count(o)` for all `o`.                                   | `Collection.retainAll` keeps all occurrences of elements that occur even once in `toRetain`.
-[`intersection(Multiset, Multiset)`]                          | Returns a view of the intersection of two multisets; a nondestructive alternative to `retainOccurrences`. | Has no analogue.
+[`containsOccurrences(Multiset sup, Multiset sub)`]           | 返回 `true` 假如对于所有 `o`， `sub.count(o) <= super.count(o)`.                                           | `Collection.containsAll` 忽略了数量, 只测试元素是否被包含.
+[`removeOccurrences(Multiset removeFrom, Multiset toRemove)`] | 将 `removeFrom` 中出现的元素，在 `toRemove` 中移除.                   | `Collection.removeAll` 移除 `toRemove` 中的所有元素，哪怕只出现了一次.
+[`retainOccurrences(Multiset removeFrom, Multiset toRetain)`] | 确保对所有的`o`， `removeFrom.count(o) <= toRetain.count(o)`.                                   | `Collection.retainAll` 保留 `toRetain` 中出现的所有元素，哪怕只出现了一次.
+[`intersection(Multiset, Multiset)`]                          | 返回两个 multisets 中交叉的部分; `retainOccurrences` 的一个无副作用替代品. | 没有类似对比.
 
 ```java
 Multiset<String> multiset1 = HashMultiset.create();
@@ -336,13 +319,13 @@ multiset2.removeAll(multiset1); // removes all occurrences of "a" from multiset2
 multiset2.isEmpty(); // returns true
 ```
 
-Other utilities in `Multisets` include:
+其他的 `Multisets` 工具包括:
 
 Method                                         | Description
 :--------------------------------------------- | :----------
-[`copyHighestCountFirst(Multiset)`]            | Returns an immutable copy of the multiset that iterates over elements in descending frequency order.
-[`unmodifiableMultiset(Multiset)`]             | Returns an unmodifiable view of the multiset.
-[`unmodifiableSortedMultiset(SortedMultiset)`] | Returns an unmodifiable view of the sorted multiset.
+[`copyHighestCountFirst(Multiset)`]            | 返回 multiset 的一个不可变副本，按照元素出现频率降序迭代。
+[`unmodifiableMultiset(Multiset)`]             | 返回 multiset 的一个不可变视图。
+[`unmodifiableSortedMultiset(SortedMultiset)`] | 返回有序 multiset 的一个不可变视图。
 
 ```java
 Multiset<String> multiset = HashMultiset.create();
