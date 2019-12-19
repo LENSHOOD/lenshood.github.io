@@ -63,7 +63,7 @@ public static final ImmutableSet<Color> GOOGLE_COLORS =
 的元素会以"a","b","c","d"的顺序被遍历。
 
 #### `copyOf`比你想象的更聪明
-很有用的一点是，请记住`ImmutableXXX.copyOf`会在安全的前提suo下尽量避免复制数据 -- 具体细节未明，但实现通常很“智能”。例如：
+很有用的一点是，请记住`ImmutableXXX.copyOf`会在安全的前提下尽量避免复制数据 -- 具体细节未明，但实现通常很“智能”。例如：
 ```java
 ImmutableSet<String> foobar = ImmutableSet.of("foo", "bar", "baz");
 thingamajig(foobar);
