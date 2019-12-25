@@ -48,20 +48,11 @@ _注意：_假如你不需要`Cache`的特性，实际上 `ConcurrentHashMap`的
 
 ## Population
 
-The first question to ask yourself about your cache is: is there some _sensible
-default_ function to load or compute a value associated with a key? If so, you
-should use a `CacheLoader`. If not, or if you need to override the default, but
-you still want atomic "get-if-absent-compute" semantics, you should pass a
-`Callable` into a `get` call. Elements can be inserted directly, using
-`Cache.put`, but automatic cache loading is preferred as it makes it easier to
-reason about consistency across all cached content.
+你需要问自己的第一个关于缓存的问题是：是否存在某个 _sensible default_ 函数，通过某个 key 来加载或计算与之关联的 value？如果是，你应该使用 `CacheLoader`。如果不是，或者如果你想要覆盖默认的函数，但是你仍然需要类似 “有则取值，无则计算” 的模式，那么你应该在调用 `get` 时传递一个 `Callable`。我们当然可以先用 `Cache.put` 来设置缓存，但是显然原子的缓存加载操作会更好，因为这会使我们更容易对所有缓存内容的一致性进行推理解释。
 
 #### From a CacheLoader
 
-A `LoadingCache` is a `Cache` built with an attached [`CacheLoader`]. Creating a
-`CacheLoader` is typically as easy as implementing the method `V load(K key)
-throws Exception`. So, for example, you could create a `LoadingCache` with the
-following code:
+`LoadingCache`是通过[`CacheLoader`]来构造的`Cache`。创建一个`CacheLoader`简单来说只需实现`V load(K key) throws Exception`。所以举例来说，你可以通过下述代码来创建`CacheLoader`：
 
 ```java
 LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
@@ -81,15 +72,7 @@ try {
 }
 ```
 
-The canonical way to query a `LoadingCache` is with the method [`get(K)`]. This
-will either return an already cached value, or else use the cache's
-`CacheLoader` to atomically load a new value into the cache. Because
-`CacheLoader` might throw an `Exception`, `LoadingCache.get(K)` throws
-`ExecutionException`. (If the cache loader throws an _unchecked_ exception,
-`get(K)` will throw an `UncheckedExecutionException` wrapping it.) You can also
-choose to use `getUnchecked(K)`, which wraps all exceptions in
-`UncheckedExecutionException`, but this may lead to surprising behavior if the
-underlying `CacheLoader` would normally throw checked exceptions.
+查询`LoadingCache`的规范操作是调用[`get(K)`]方法。它将返回一个已经缓存的值，或是使用预设的`CacheLoader`自动加载一个新值并缓存。由于`CacheLoader`可能会抛出一个`Exception`，`LoadingCache.get(K)`会抛出`ExecutionException`。（假如 cache loader 抛出 _非检查_ 异常，`get(K)` 则会抛出一个`UncheckedExecutionException`来包装它。）你也可以选择使用`getUnchecked(K)`来将所有的异常包装为`UncheckedExecutionException`，然而假如底层的`CacheLoader`正常抛出检查异常时，该方法可能会导致某些令人惊讶的行为。
 
 ```java
 LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
@@ -105,16 +88,9 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
 return graphs.getUnchecked(key);
 ```
 
-Bulk lookups can be performed with the method `getAll(Iterable<? extends K>)`.
-By default, `getAll` will issue a a separate call to `CacheLoader.load` for each
-key which is absent from the cache. When bulk retrieval is more efficient than
-many individual lookups, you can override [`CacheLoader.loadAll`] to exploit
-this. The performance of `getAll(Iterable)` will improve accordingly.
+`getAll(Iterable<? extends K>)` 能实现批量查找。默认的，`getAll` 会对每一个在缓存中未找到的 key 调用`CacheLoader.load`。当批量检索的效率高于大多单独查找时，你可以通过覆盖[`CacheLoader.loadAll`]方法来使他被 `getAll(Iterable)`调用，以此提升整体性能。
 
-Note that you can write a `CacheLoader.loadAll` implementation that loads values
-for keys that were not specifically requested. For example, if computing the
-value of any key from some group gives you the value for all keys in the group,
-`loadAll` might load the rest of the group at the same time.
+请注意，你可以编写一个`CacheLoader.loadAll`的实现来加载并未明确被请求的 key 所对应的 value。例如，假设在某个组中，计算任意 key 返回的 value 正好是该组中所有的 key，那么用 `loadAll` 便可能同时将组内余下的 value 一并加载。
 
 #### From a Callable
 
