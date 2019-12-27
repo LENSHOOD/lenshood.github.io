@@ -94,12 +94,7 @@ return graphs.getUnchecked(key);
 
 #### From a Callable
 
-All Guava caches, loading or not, support the method [`get(K, Callable<V>)`].
-This method returns the value associated with the key in the cache, or computes
-it from the specified `Callable` and adds it to the cache. No observable state
-associated with this cache is modified until loading completes. This method
-provides a simple substitute for the conventional "if cached, return; otherwise
-create, cache and return" pattern.
+所有的 Guava 缓存，不论 loading 与否，都支持 [`get(K, Callable<V>)`]方法。该方法返回与给定 key 相关联的缓存 value，或者从给定的`Callable`中计算出 value，并添加进缓存。任何与缓存相关联的可观察状态都不会在加载完成前发生改变。该方法为传统的 “有则取值，无则计算” 模式提供了一个简单的替代。
 
 ```java
 Cache<Key, Value> cache = CacheBuilder.newBuilder()
@@ -122,15 +117,7 @@ try {
 
 #### Inserted Directly
 
-Values may be inserted into the cache directly with [`cache.put(key, value)`].
-This overwrites any previous entry in the cache for the specified key. Changes
-can also be made to a cache using any of the `ConcurrentMap` methods exposed by
-the `Cache.asMap()` view. Note that no method on the `asMap` view will ever
-cause entries to be automatically loaded into the cache. Further, the atomic
-operations on that view operate outside the scope of automatic cache loading, so
-`Cache.get(K, Callable<V>)` should always be preferred over
-`Cache.asMap().putIfAbsent` in caches which load values using either
-`CacheLoader` or `Callable`.
+value 可以直接通过  [`cache.put(key, value)`] 方法直接插入进缓存。该方法会覆盖所有对应 key 先前的缓存值。也可以通过`Cache.asMap()`暴露出的`ConcurrentMap`行为来实现修改。请注意，`asMap`中暴露的任何方法都不会使 entries 自动加载到缓存中。而且，该视图上的原子操作超出了自动缓存加载的范围，所以`Cache.get(K, Callable<V>)` 总是应该优先于`Cache.asMap().putIfAbsent`来通过`CacheLoader` 或 `Callable`加载数据。
 
 ## Eviction
 
@@ -460,3 +447,4 @@ additional effort into a proposed `AsyncLoadingCache`, which would return
 [`hitRate()`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html#hitRate--
 [`averageLoadPenalty()`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html#averageLoadPenalty--
 [`evictionCount()`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html#evictionCount--
+
