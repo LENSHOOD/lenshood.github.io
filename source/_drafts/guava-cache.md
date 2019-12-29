@@ -121,25 +121,13 @@ value 可以直接通过  [`cache.put(key, value)`] 方法直接插入进缓存�
 
 ## Eviction
 
-The cold hard reality is that we almost _certainly_ don't have enough memory to
-cache everything we could cache. You must decide: when is it not worth keeping a
-cache entry? Guava provides three basic types of eviction: size-based eviction,
-time-based eviction, and reference-based eviction.
+一个冰冷的现实是，我们 _从来_ 没有过够用的内存来缓存所有我们想缓存的东西。你得决定：在什么时候缓存的 entry 不值得再存下去了？Guava 提供了三种基础的失效类型：基于容量失效，基于时间失效，基于引用失效。
 
-### Size-based Eviction
+### 基于容量失效
 
-If your cache should not grow beyond a certain size, just use
-[`CacheBuilder.maximumSize(long)`]. The cache will try to evict entries that
-haven't been used recently or very often. _Warning_: the cache may evict entries
-before this limit is exceeded -- typically when the cache size is approaching
-the limit.
+假如你不想让缓存超出某个固定的容量，可以用[`CacheBuilder.maximumSize(long)`]设置。缓存会尝试使某些不常用或最近未使用的 entries 失效。_注意_：缓存可能会在还未超出容量限制时就开始失效 entries -- 通常是当缓存容量即将达到限额时。
 
-Alternately, if different cache entries have different "weights" -- for example,
-if your cache values have radically different memory footprints -- you may
-specify a weight function with [`CacheBuilder.weigher(Weigher)`] and a maximum
-cache weight with [`CacheBuilder.maximumWeight(long)`]. In addition to the same
-caveats as `maximumSize` requires, be aware that weights are computed at entry
-creation time, and are static thereafter.
+此外，假如不同的 entries 有不同的“权重” -- 例如，假如你的缓存 value 有着完全不同的内存占用 -- 你也许可以通过 [`CacheBuilder.weigher(Weigher)`] 来指定一个权重，并且用 [`CacheBuilder.maximumWeight(long)`]来指定最大权重。另外，与`maximumSize`一样，请注意权重会在 entry 创建时计算，之后以 static 形式存在。
 
 ```java
 LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
@@ -157,28 +145,18 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
            });
 ```
 
-### Timed Eviction
+### 基于时间失效
 
-`CacheBuilder` provides two approaches to timed eviction:
+`CacheBuilder` 对基于时间失效提供了两种方式：
 
-*   [`expireAfterAccess(long, TimeUnit)`] Only expire entries after the
-    specified duration has passed since the entry was last accessed by a read or
-    a write. Note that the order in which entries are evicted will be similar to
-    that of [size-based eviction].
-*   [`expireAfterWrite(long, TimeUnit)`] Expire entries after the specified
-    duration has passed since the entry was created, or the most recent
-    replacement of the value. This could be desirable if cached data grows stale
-    after a certain amount of time.
+*   [`expireAfterAccess(long, TimeUnit)`] 只会在距离最后一次读写的时间超出了指定的时间后失效。要注意的是，entries 的失效顺序与 [基于容量失效] 一致。
+*   [`expireAfterWrite(long, TimeUnit)`]会在距离 entry 被创建，或 value 最近一次被替换的时间超出了指定的时间后失效。假如数据会在一段时间之后变为脏数据，那么正好可以使用这种方式。
 
-Timed expiration is performed with periodic maintenance during writes and
-occasionally during reads, as discussed below.
+定时过期是在写入、偶尔读取的期间执行定期维护的，具体见下述。
 
-#### Testing Timed Eviction
+#### 测试
 
-Testing timed eviction doesn't have to be painful...and doesn't actually have to
-take you two seconds to test a two-second expiration. Use the [Ticker] interface
-and the [`CacheBuilder.ticker(Ticker)`] method to specify a time source in your
-cache builder, rather than having to wait for the system clock.
+测试基于时间失效并不该痛苦... 而且事实上也不用真的等待两秒钟来测试一个两秒失效的缓存。可以使用 [Ticker] 接口和 [`CacheBuilder.ticker(Ticker)`] 方法来给 cache builder 指定一个时间源，而不需要等待系统时钟。
 
 ### Reference-based Eviction
 
