@@ -158,37 +158,21 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
 
 测试基于时间失效并不该痛苦... 而且事实上也不用真的等待两秒钟来测试一个两秒失效的缓存。可以使用 [Ticker] 接口和 [`CacheBuilder.ticker(Ticker)`] 方法来给 cache builder 指定一个时间源，而不需要等待系统时钟。
 
-### Reference-based Eviction
+### 基于引用失效
 
-Guava allows you to set up your cache to allow the garbage collection of
-entries, by using [weak references] for keys or values, and by using [soft
-references] for values.
+Guava 可以让你将缓存配置为允许对 entries 进行垃圾收集，这可以通过 [weak references] 的 key 和 value，以及[soft references] 的 value 来实现。
 
-*   [`CacheBuilder.weakKeys()`] stores keys using weak references. This allows
-    entries to be garbage-collected if there are no other (strong or soft)
-    references to the keys. Since garbage collection depends only on identity
-    equality, this causes the whole cache to use identity (`==`) equality to
-    compare keys, instead of `equals()`.
-*   [`CacheBuilder.weakValues()`] stores values using weak references. This
-    allows entries to be garbage-collected if there are no other (strong or
-    soft) references to the values. Since garbage collection depends only on
-    identity equality, this causes the whole cache to use identity (`==`)
-    equality to compare values, instead of `equals()`.
-*   [`CacheBuilder.softValues()`] wraps values in soft references. Softly
-    referenced objects are garbage-collected in a globally least-recently-used
-    manner, _in response to memory demand_. Because of the performance
-    implications of using soft references, we generally recommend using the more
-    predictable [maximum cache size][size-based eviction] instead. Use of `softValues()` will cause
-    values to be compared using identity (`==`) equality instead of `equals()`.
+*   [`CacheBuilder.weakKeys()`] 通过弱引用来存储 key。这允许该 entries 在其 key 没有被其他（强、软）引用时，可以被垃圾收集。由于垃圾收集只依赖与标识相等性，这使得整个缓存都使用标识相等 (`==`) 来比较 key，而不是 `equals()`。
+*   [`CacheBuilder.weakValues()`] 通过弱引用来存储 value。这允许该 entries 在其 value 没有被其他（强、软）引用时，可以被垃圾收集。由于垃圾收集只依赖与标识相等性，这使得整个缓存都使用标识相等 (`==`) 来比较 key，而不是 `equals()`。
+*   [`CacheBuilder.softValues()`] 将 value 包装为软引用。软引用对象以全局最近使用最少的方式进行垃圾收集，_来响应内存需求_ 。由于使用软引用对性能可能的影响，我们通常建议使用能加具有可预测性的 [最大缓存容量][size-based eviction] 来代替。使用`softValues()`可能会使 value 的比较使用标识相等 (`==`) ，而不是 `equals()`。
 
-### Explicit Removals
+### 显式移除
 
-At any time, you may explicitly invalidate cache entries rather than waiting for
-entries to be evicted. This can be done:
+任何时候，你想要显式的使缓存失效，而不是等待它被失效，可以通过下述方式实现：
 
-*   individually, using [`Cache.invalidate(key)`]
-*   in bulk, using [`Cache.invalidateAll(keys)`]
-*   to all entries, using [`Cache.invalidateAll()`]
+*   单个失效 [`Cache.invalidate(key)`]
+*   批量失效 [`Cache.invalidateAll(keys)`]
+*   全部失效 [`Cache.invalidateAll()`]
 
 ### Removal Listeners
 
@@ -397,7 +381,7 @@ additional effort into a proposed `AsyncLoadingCache`, which would return
 [`CacheBuilder.weigher(Weigher)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#weigher-com.google.common.cache.Weigher-
 [`CacheBuilder.maximumWeight(long)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#maximumWeight-long-
 [`expireAfterAccess(long, TimeUnit)`]: https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#expireAfterAccess-long-java.util.concurrent.TimeUnit-
-[size-based eviction]: #Size-based-Eviction
+[size-based eviction]: #基于容量失效
 [`expireAfterWrite(long, TimeUnit)`]: https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#expireAfterWrite-long-java.util.concurrent.TimeUnit-
 [Ticker]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Ticker.html
 [`CacheBuilder.ticker(Ticker)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#ticker-com.google.common.base.Ticker-
