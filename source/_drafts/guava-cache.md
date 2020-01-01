@@ -174,15 +174,11 @@ Guava 可以让你将缓存配置为允许对 entries 进行垃圾收集，这�
 *   批量失效 [`Cache.invalidateAll(keys)`]
 *   全部失效 [`Cache.invalidateAll()`]
 
-### Removal Listeners
+### 移除监听器
 
-You may specify a removal listener for your cache to perform some operation when
-an entry is removed, via [`CacheBuilder.removalListener(RemovalListener)`]. The
-[`RemovalListener`] gets passed a [`RemovalNotification`], which specifies the
-[`RemovalCause`], key, and value.
+你可以给缓存指定一个移除监听器，使之在当一个 entry 被移除时，通过[`CacheBuilder.removalListener(RemovalListener)`] 来做一些操作。[`RemovalListener`] 会接收一个 [`RemovalNotification`]参数，其中包含了[`RemovalCause`]，key 和 value。
 
-Note that any exceptions thrown by the `RemovalListener` are logged (using
-`Logger`) and swallowed.
+不过要注意，所有从`RemovalListener`抛出的异常都会被吞掉，并打日志（通过`Logger`）。
 
 ```java
 CacheLoader<Key, DatabaseConnection> loader = new CacheLoader<Key, DatabaseConnection> () {
@@ -203,49 +199,25 @@ return CacheBuilder.newBuilder()
   .build(loader);
 ```
 
-**Warning**: removal listener operations are executed synchronously by default,
-and since cache maintenance is normally performed during normal cache
-operations, expensive removal listeners can slow down normal cache function! If
-you have an expensive removal listener, use
-[`RemovalListeners.asynchronous(RemovalListener, Executor)`] to decorate a
-`RemovalListener` to operate asynchronously.
+**警告**：默认情况下，移除监听器的操作是同步执行的，由于缓存维护工作通常在正常的缓存操作期间执行，因此移除监听器执行某些重型操作时会拖慢正常的缓存功能！假如你真的需要在移除监听器里面执行重型操作，使用[`RemovalListeners.asynchronous(RemovalListener, Executor)`]来将一个`RemovalListener`装饰为异步操作。
 
-### When Does Cleanup Happen?
+### 清除在什么时候发生?
 
-Caches built with `CacheBuilder` do _not_ perform cleanup and evict values
-"automatically," or instantly after a value expires, or anything of the sort.
-Instead, it performs small amounts of maintenance during write operations, or
-during occasional read operations if writes are rare.
+通过`CacheBuilder`构建的缓存 _不会_ “自动”对 value 进行清除失效，也不会在 value 过期后立即执行，也不会在任何有序的情况下执行。反之，他会在写操作期间做少量的维护工作，或当写操作非常少的时候，偶尔在读操作时进行维护。
 
-The reason for this is as follows: if we wanted to perform `Cache` maintenance
-continuously, we would need to create a thread, and its operations would be
-competing with user operations for shared locks. Additionally, some environments
-restrict the creation of threads, which would make `CacheBuilder` unusable in
-that environment.
+原因如下：假如我们期望持续的进行 `Cache`维护，我们得创建一个线程，而该线程会在共享锁的情况下与用户操作产生竞争。此外，有些环境下创建线程是受到限制的，那么在该环境下`CacheBuilder`就无法使用了。
 
-Instead, we put the choice in your hands. If your cache is high-throughput, then
-you don't have to worry about performing cache maintenance to clean up expired
-entries and the like. If your cache does writes only rarely and you don't want
-cleanup to block cache reads, you may wish to create your own maintenance thread
-that calls [`Cache.cleanUp()`] at regular intervals.
+取而代之的，我们将选择权交予你。假如你的缓存是高吞吐的，那么你就不用担心执行缓存维护来清除过期的 entries 以及类似操作。而假如你的缓存写的场景非常少，并且你不想让清除工作阻塞到读缓存，那么你也许期望创建你自己的维护线程来定时调用[`Cache.cleanUp()`] 。
 
-If you want to schedule regular cache maintenance for a cache which only rarely
-has writes, just schedule the maintenance using [`ScheduledExecutorService`].
+如果你想在写很少的情况下计划定期对缓存进行维护，只需要使用[`ScheduledExecutorService`]来创建定时计划即可。
 
-### Refresh
+### 刷新
 
-Refreshing is not quite the same as eviction. As specified in
-[`LoadingCache.refresh(K)`], refreshing a key loads a new value for the key,
-possibly asynchronously. The old value (if any) is still returned while the key
-is being refreshed, in contrast to eviction, which forces retrievals to wait
-until the value is loaded anew.
+刷新和失效不太一样。如[`LoadingCache.refresh(K)`]中所述，刷新一个 key 将会为该 key 加载一个新 value。可能会是异步加载。在进行 key 刷新时，获取 key 的操作仍然会返回旧 value（假如存在的话），而失效相反，当 key 失效后，取值操作会被强制等待到加载新值完毕以后。
 
-If an exception is thrown while refreshing, the old value is kept, and the
-exception is logged and swallowed.
+假如在刷新时有异常抛出，则旧 value 会被保存，而异常会被吞掉，并记录日志。
 
-A `CacheLoader` may specify smart behavior to use on a refresh by overriding
-[`CacheLoader.reload(K, V)`], which allows you to use the old value in computing
-the new value.
+`CacheLoader`可以通过覆盖[`CacheLoader.reload(K, V)`]来指定执行更聪明的行为，这允许你使用旧 value 来计算新 value。
 
 ```java
 // Some keys don't need refreshing, and we want refreshes to be done asynchronously.
@@ -275,16 +247,7 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
            });
 ```
 
-Automatically timed refreshing can be added to a cache using
-[`CacheBuilder.refreshAfterWrite(long, TimeUnit)`]. In contrast to
-`expireAfterWrite`, `refreshAfterWrite` will make a key _eligible_ for refresh
-after the specified duration, but a refresh will only be actually initiated when
-the entry is queried. (If `CacheLoader.reload` is implemented to be
-asynchronous, then the query will not be slowed down by the refresh.) So, for
-example, you can specify both `refreshAfterWrite` and `expireAfterWrite` on the
-same cache, so that the expiration timer on an entry isn't blindly reset
-whenever an entry becomes eligible for a refresh, so if an entry isn't queried
-after it comes eligible for refreshing, it is allowed to expire.
+可以通过[`CacheBuilder.refreshAfterWrite(long, TimeUnit)`]来给缓存增加自动定时刷新功能。与`expireAfterWrite`不同， `refreshAfterWrite`会使 key 在指定的间隔时间之后符合刷新条件，但真正的刷新操作会在该 entry 被查询时进行。（假如`CacheLoader.reload`以异步方式实现，那么查询就不会被刷新操作拖慢。）所以，例如，你可以在同一个缓存中指定`refreshAfterWrite` 和 `expireAfterWrite`，这时对于 entry 符合刷新条件时，其过期定时器就不会盲目的重置，而当一个 entry 符合刷新条件，但之后并没有被查询时，则其允许被过期。
 
 ## Features
 
