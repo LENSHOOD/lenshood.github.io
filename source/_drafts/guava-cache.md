@@ -249,40 +249,29 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
 
 可以通过[`CacheBuilder.refreshAfterWrite(long, TimeUnit)`]来给缓存增加自动定时刷新功能。与`expireAfterWrite`不同， `refreshAfterWrite`会使 key 在指定的间隔时间之后符合刷新条件，但真正的刷新操作会在该 entry 被查询时进行。（假如`CacheLoader.reload`以异步方式实现，那么查询就不会被刷新操作拖慢。）所以，例如，你可以在同一个缓存中指定`refreshAfterWrite` 和 `expireAfterWrite`，这时对于 entry 符合刷新条件时，其过期定时器就不会盲目的重置，而当一个 entry 符合刷新条件，但之后并没有被查询时，则其允许被过期。
 
-## Features
+## 特性
 
-### Statistics
+### 统计
 
 By using [`CacheBuilder.recordStats()`], you can turn on statistics collection
 for Guava caches. The [`Cache.stats()`] method returns a [`CacheStats`] object,
 which provides statistics such as
 
-*   [`hitRate()`], which returns the ratio of hits to requests
-*   [`averageLoadPenalty()`], the average time spent loading new values, in
-    nanoseconds
-*   [`evictionCount()`], the number of cache evictions
+通过使用 [`CacheBuilder.recordStats()`]，你打开 Guava 缓存的统计收集。[`Cache.stats()`]方法返回一个[`CacheStats`]对象，它能提供的统计值包括：
 
-and many more statistics besides. These statistics are critical in cache tuning,
-and we advise keeping an eye on these statistics in performance-critical
-applications.
+*   [`hitRate()`]，可返回请求的命中率
+*   [`averageLoadPenalty()`], 加载 value 的平均时间，以纳秒记
+*   [`evictionCount()`], 缓存失效次数
+
+以及除此之外的大量其他统计值。这些信息在缓存调优中至关重要，因此我们推荐在注重性能的应用中应该考虑关注这些统计值。
 
 ### `asMap`
 
-You can view any `Cache` as a `ConcurrentMap` using its `asMap` view, but how
-the `asMap` view interacts with the `Cache` requires some explanation.
+你可以通过`asMap`将任何`Cache`展现为`ConcurrentMap`视图，不过至于`asMap`如何与`Cache`交互需要一些解释。
 
-*   `cache.asMap()` contains all entries that are _currently loaded_ in the
-    cache. So, for example, `cache.asMap().keySet()` contains all the currently
-    loaded keys.
-*   `asMap().get(key)` is essentially equivalent to `cache.getIfPresent(key)`,
-    and never causes values to be loaded. This is consistent with the `Map`
-    contract.
-*   Access time is reset by all cache read and write operations (including
-    `Cache.asMap().get(Object)` and `Cache.asMap().put(K, V)`), but not by
-    `containsKey(Object)`, nor by operations on the collection-views of
-    `Cache.asMap()`. So, for example, iterating through
-    `cache.asMap().entrySet()` does not reset access time for the entries you
-    retrieve.
+*   `cache.asMap()`包含了缓存中 _目前加载_ 的所有 entries，所里举例说明， `cache.asMap().keySet()`即包含了目前所有加载的 key。
+*   `asMap().get(key)` 实际上与`cache.getIfPresent(key)`相同，也一定不会导致 value 被加载。这与`Map`中的契约一致。
+*   访问时间会在所有缓存读写操作中被重置（包括`Cache.asMap().get(Object)` 和 `Cache.asMap().put(K, V)`），但不包括`containsKey(Object)`，也不包括`Cache.asMap()`的集合视图。所以举例说明，对`cache.asMap().entrySet()`的迭代不会对你所获取到的 entries 的访问时间进行重置。
 
 ## Interruption
 
