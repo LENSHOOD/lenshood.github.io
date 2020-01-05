@@ -273,56 +273,19 @@ which provides statistics such as
 *   `asMap().get(key)` 实际上与`cache.getIfPresent(key)`相同，也一定不会导致 value 被加载。这与`Map`中的契约一致。
 *   访问时间会在所有缓存读写操作中被重置（包括`Cache.asMap().get(Object)` 和 `Cache.asMap().put(K, V)`），但不包括`containsKey(Object)`，也不包括`Cache.asMap()`的集合视图。所以举例说明，对`cache.asMap().entrySet()`的迭代不会对你所获取到的 entries 的访问时间进行重置。
 
-## Interruption
+## 中断
 
-Loading methods (like `get`) never throw `InterruptedException`. We could have
-designed these methods to support `InterruptedException`, but our support would
-have been incomplete, forcing its costs on all users but its benefits on only
-some. For details, read on.
+加载类方法（例如`get`）不会抛出`InterruptedException`。我们原本可以将这类方法设计为支持抛出`InterruptedException`异常的，但是我们的支持也许是不完整的，将成本强加给所有用户，而收益却只能归部分用户。预知详情请继续阅读。
 
-`get` calls that request uncached values fall into two broad categories: those
-that load the value and those that await another thread's in-progress load. The
-two differ in our ability to support interruption. The easy case is waiting for
-another thread's in-progress load: Here we could enter an interruptible wait.
-The hard case is loading the value ourselves. Here we're at the mercy of the
-user-supplied `CacheLoader`. If it happens to support interruption, we can
-support interruption; if not, we can't.
+调用`get`请求未缓存的值，主要可分两大类：自己加载值或是等待其他正在加载的线程。我们支持中断在这两种情况下是不同的。等待其他正在加载过程中线程的情况相对更简单：我们可以直接进入一个可中断的等待。而相对困难的情况就是我们自己加载值的情况。这种情况下便完全由用户提供的`CacheLoader`来决定了。假如它恰好支持中断，那我们就能支持，而假如它不支持，那我们也无法支持。
 
-So why not support interruption when the supplied `CacheLoader` does? In a
-sense, we do (but see below): If the `CacheLoader` throws
-`InterruptedException`, all `get` calls for the key will return promptly (just
-as with any other exception). Plus, `get` will restore the interrupt bit in the
-loading thread. The surprising part is that the `InterruptedException` is
-wrapped in an `ExecutionException`.
+那为什么不在`CacheLoader`支持中断的情况下我们也支持中断呢？在某种意义上，我们确实这么做了（但是请继续看下文）：假如`CacheLoader`抛出了`InterruptedException`，所有对该 key 调用的`get`将会立即返回（就像遇到其他异常一样）。此外，`get`会在加载线程中存储该中断位。令人惊讶的部分是， `InterruptedException`会被包装为`ExecutionException`。
 
-In principle, we could unwrap this exception for you. However, this forces all
-`LoadingCache` users to handle `InterruptedException`, even though the majority
-of `CacheLoader` implementations never throw it. Maybe that's still worthwhile
-when you consider that all _non-loading_ threads' waits could still be
-interrupted. But many caches are used only in a single thread. Their users must
-still catch the impossible `InterruptedException`. And even those users who
-share their caches across threads will be able to interrupt their `get` calls
-only _sometimes_, based on which thread happens to make a request first.
+原则上，我们可以将该异常解包给你。然而，这会强制要求所有`LoadingCache`的用户处理`InterruptedException`，即便大多数`CacheLoader`的实现并不会抛出它。也许你认为在所有 _非阻塞_ 线程的等待可能被中断的情况下这仍然有价值。但大多数缓存都仅仅会在单线程内使用。然而这些用户仍然必须要捕获那不存在的`InterruptedException`。并且即使那些会在线程间共享缓存的用户他们也只有在 _有些时候_ 才期望调用`get`时可以被中断，这基于到底那一个线程恰好先发出了请求。
 
-Our guiding principle in this decision is for the cache to behave as though all
-values are loaded in the calling thread. This principle makes it easy to
-introduce caching into code that previously recomputed its values on each call.
-And if the old code wasn't interruptible, then it's probably OK for the new code
-not to be, either.
+在对上述情况的决定中，我们的指导原则是让缓存的行为表现得像所有的值都在调用线程中加载。这一指导原则能让那些先前每一次调用都会重新计算值的代码更容易引入缓存。且如果旧代码并不能被中断，那么新代码也不能被中断也多半是合理的。
 
-I said that we support interruption "in a sense." There's another sense in which
-we don't, making `LoadingCache` a leaky abstraction. If the loading thread is
-interrupted, we treat this much like any other exception. That's fine in many
-cases, but it's not the right thing when multiple `get` calls are waiting for
-the value. Although the operation that happened to be computing the value was
-interrupted, the other operations that need the value might not have been. Yet
-all of these callers receive the `InterruptedException` (wrapped in an
-`ExecutionException`), even though the load didn't so much "fail" as "abort."
-The right behavior would be for one of the remaining threads to retry the load.
-We have [a bug filed for this](https://github.com/google/guava/issues/1122).
-However, a fix could be risky. Instead of fixing the problem, we may put
-additional effort into a proposed `AsyncLoadingCache`, which would return
-`Future` objects with correct interruption behavior.
+我讲过了，我们“在某种意义上”支持中断。但在另一种意义上，我们不支持使`LoadingCache`成为一个泄露的抽象。假如加载线程被中断，我们会视它为更像任何其他的异常。这在大多数情况下就是合适的，但当多个`get`调用在等待值时，这并不合适。虽然碰巧正在计算值的操作被中断了，但其他需要该值的操作可能并没有。然而所有这些调用者都收到了`InterruptedException` （被包装为一个`ExecutionException`），即使加载操作的“失败”并不像“终止”那么多。合理的行为应该是由其中某个剩余的线程重试加载。我们[为这个提了一个 bug](https://github.com/google/guava/issues/1122)。然而，修复可能是有风险的。相较于修复这个问题，我们更可能会花额外的工作在给出一个`AsyncLoadingCache`上，它会返回一个包含正确的中断行为的`Future`对象。
 
 [`CacheLoader`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheLoader.html
 [`get(K)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/LoadingCache.html#get-K-
