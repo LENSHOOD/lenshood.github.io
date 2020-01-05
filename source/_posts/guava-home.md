@@ -37,7 +37,7 @@ Guava 项包含了被 Google 的 Java 项目依赖的多个核心库：集合、
 	- [网络](https://github.com/google/guava/wiki/GraphsExplained#network)：边缘是唯一对象的一种图。
 	- 支持可变与不可变、有向和无向以及其他一些属性的图。
 
-- [缓存](https://github.com/google/guava/wiki/CachesExplained)：本地缓存，支持多种过期行为。
+- [缓存](https://lenshood.github.io/2019/12/21/guava-cache/)：本地缓存，支持多种过期行为。
 - [函数式语法](https://github.com/google/guava/wiki/FunctionalExplained)：谨慎使用，Guava的函数式语法能够显著的简化代码。
 - 并发：很强大，其简单的抽象使得编写正确的并发代码更为简单。
 	- [ListenableFuture](https://github.com/google/guava/wiki/ListenableFutureExplained)：Future，当其结束时进行回调。
