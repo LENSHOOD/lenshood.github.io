@@ -4,7 +4,6 @@ date: 2019-05-23 21:16:24
 tags:
 - reactive
 categories:
-- Reactive
 - Software Engineering
 ---
 
