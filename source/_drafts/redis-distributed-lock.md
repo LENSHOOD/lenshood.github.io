@@ -86,7 +86,15 @@ categories:
 ```java
 public class RedisDistributedLock implements Lock {
     private static final String OBTAIN_LOCK_SCRIPT = ...
+    private static final String clientId = UUID.randomUUID().toString();
+    private static final int EXPIRE_SECONDS = ...;
+
+    private final String lockKey;
     private final ReentrantLock localLock = new ReentrantLock();
+
+    public RedisDistributedLock(String lockKey) {
+        this.lockKey = lockKey;
+    }
 
     @Override
     public void lock() {
@@ -122,14 +130,143 @@ public class RedisDistributedLock implements Lock {
 ```
 由上述代码可见，我们的分布式锁实现了 `Lock` 接口，来确保依赖倒置，用户可以方便的在本地锁与分布式锁之前切换而无需改动逻辑。
 
-在 class field 中，`OBTAIN_LOCK_SCRIPT` 是用于执行 redis 获取锁操作的 lua script，详情见后文。`localLock` 即本地锁，代码中采用 `ReentrantLock` 用作本地锁。
+在 class field 中，
+- `OBTAIN_LOCK_SCRIPT` 是用于执行 redis 获取锁操作的 lua script，详情见后文。
+- `clientId`用于唯一标识当前所在实例，是分布式锁进行重入的重要属性，注意该 field 为 static，因此仅此一份。
+-  `lockKey` 为锁 key，用于标识一个锁，在构造函数中初始化。
+- `localLock` 即本地锁，代码中采用 `ReentrantLock` 用作本地锁。
 
 出于演示性质考虑，只实现了 `Lock` 中定义的三个方法：`lock()`, `tryLock(long time, TimeUnit unit)`, `unlock()`，其他方法可以自由发散。
 
 接下来我们将主要介绍获取锁、释放锁这两部分代码。
 
 #### lock
+```java
+private static final String OBTAIN_LOCK_SCRIPT =
+            "local lockClientId = redis.call('GET', KEYS[1])\n" +
+            "if lockClientId == ARGV[1] then\n" +
+            "  redis.call('EXPIRE', ARGV[2])\n" +
+            "  return true\n" +
+            "else if not lockClientId then\n" +
+            "  redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])\n" +
+            "  return true\n" +
+            "end\n" +
+            "return false";
 
+@Override
+public void lock() {
+    localLock.lock();
+    boolean acquired = false;
+    try {
+        while (!(acquired = obtainRemoteLock())) {
+            sleep();
+        }
+    } finally {
+        if (!acquired) {
+            localLock.unlock();
+        }
+    }
+}
+
+private boolean obtainRemoteLock() {
+    return Boolean.parseBoolean((String) getJedis().eval(
+            OBTAIN_LOCK_SCRIPT, 1, lockKey, clientId, String.valueOf(EXPIRE_SECONDS)));
+}
+
+private void sleep() {
+    try {
+        Thread.sleep(100);
+    } catch (InterruptedException e) {
+        // do not response interrupt
+    }
+}
+```
+
+`lock()`中包含了绝大多数的核心逻辑，可以看到其主要流程如下：
+- 获取本地锁
+- 循环调用 `obtainRemoteLock()` 直至其返回 true，或抛出异常
+- 假如跳出循环后仍未能获取到锁，则释放本地锁
+
+以上流程中，需要细说的正是 `obtainRemoteLock()`：
+该方法直接通过 `eval` 来执行了前面提到的 lua 脚本，我们来看看脚本的内容：
+1. `local lockClientId = redis.call('GET', KEYS[1])`
+    - 此处是通过 get 获取到了 key 值，并赋值为 lockClientId，其中 `KEYS[1]` 是 eval 传入的 key 参数
+2. `if lockClientId == ARGV[1] then`
+    - 这里将拿到的值与参数 ARGV[1] 进行判断，结合 `obtainRemoteLock()`的逻辑我们发现 ARGV[1] 其实是 `clientId`，所以假如获取的值与 clientId 相等，则代表一种情况：获取锁的线程与锁处于同一个实例
+    - 又因为：每次获取远程锁之前需要先获取本地锁，在同一实例下，本地锁确保了同一时间只能有一个线程尝试获取远程锁
+    - 结合上述两点，可以确定：**当 lockClientId 等于 clientId 的时候，是同一实例下的同一线程重入了代码段。**
+    - `redis.call('EXPIRE', ARGV[2])` 在重入之后刷新锁超时时间，ARGV[2] 即我们传入的 `EXPIRE_SECONDS`
+    - 最后直接返回 true，结束逻辑
+3. `else if not lockClientId then`
+    - 假如 get 的结果为 null(nil) 表明锁还没有被任何人获取，直接获取后返回 true
+    - 这里用到了 redis 的 set 命令 `redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])`
+4. `return false`
+    - 即不是重入，锁又存在，证明锁被其他实例持有了，返回 false
+
+上述一连串判断逻辑，因为全部都是在 Redis 内执行的，我们完全不用考虑原子性问题，因此可以放心大胆的相信执行结果。
 #### tryLock
+```java
+@Override
+public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+    if ( !localLock.tryLock(time, unit)) {
+        return false;
+    }
+
+    boolean acquired = false;
+    try {
+        long expire = System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(time, unit);
+        while (!(acquired = obtainRemoteLock()) && System.currentTimeMillis() < expire) {
+            sleep();
+        }
+        return acquired;
+    } finally {
+        if (!acquired) {
+            localLock.unlock();
+        }
+    }
+}
+```
+结合 `lock()`的逻辑，`tryLock()`看起来只是增加了超时逻辑，并没有本质的区别。
 
 #### unlock
+```java
+@Override
+public void unlock() {
+    if (!localLock.isHeldByCurrentThread()) {
+        throw new IllegalStateException("You do not own lock at " + lockKey);
+    }
+
+    if (localLock.getHoldCount() > 1) {
+        localLock.unlock();
+        return;
+    }
+
+    try {
+        if (clientId.equals(getJedis().get(lockKey))) {
+            throw new IllegalStateException("Lock was released in the store due to expiration. " +
+                    "The integrity of data protected by this lock may have been compromised.");
+        }
+        getJedis().del(lockKey);
+    } finally {
+        localLock.unlock();
+    }
+}
+```
+相比本地锁，分布式锁的解锁过程需要考虑的多一些：
+1. 先判断尝试解锁的线程与持有本地锁的线程是否一致，实际上 ReentrantLock.unlock() 原生即有相关判断，但是目前我们还暂时不想让本地锁直接被解锁，因此手动判断一下。
+2. 当本地锁重入计数大于 1 时，本地锁解锁后直接返回。由于我们的远程锁并没有记录重入计数这一参数，因此对于重入线程的解锁，只解锁本地。
+3. 先判断当前远程锁的值是否与本实例 clientId 相等，如果不等则认为是远程锁超时被释放，因此分布式锁的逻辑已经被破坏，只能抛出异常。
+    - 这里涉及到远程锁超时时间的设定问题，设定过长可能会导致死锁时间过长，设定过短则容易在逻辑未执行完便自动释放，因此实际上应该结合业务来设定。
+4. 假如一切正常，则释放远程锁，之后再释放本地锁。
+
+### RedisLockRegistry
+对 Spring Integration Redis 熟悉的同学，一定已经发现，前面的代码完全就是 RedisLockRegistry 的简化版，许多变量名都没改。
+
+是的，其实前文所述的代码就是 RedisLockRegistry 的核心逻辑。RedisLockRegistry 是 Redis 分布式锁中代码比较简单、功能比较完善的一种实现，可以很好的满足常见的分布式锁要求。（由于采用 sleep-retry  的方式尝试获取锁，在低时延或高并发要求下并不适用）
+
+RedisLockRegistry 对外部库的依赖较少，虽然执行 redis 命令主要使用的 Spring Redis Template，不过也很容易迁移为类似 Jedis 的方案。
+
+不过截至目前 Spring-Integration-Redis 在 github 上面并没有放置任何 licence，按照 github 的规定，没有 licence 的代码版权默认受到保护，因此我们可以学习其设计思想并自己尝试实现，但是最好不要直接移植代码。
+
+### 参考
+[RedisLockRegistry at Github](https://github.com/spring-projects/spring-integration/blob/master/spring-integration-redis/src/main/java/org/springframework/integration/redis/util/RedisLockRegistry.java)
