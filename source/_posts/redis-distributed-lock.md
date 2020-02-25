@@ -268,5 +268,29 @@ RedisLockRegistry 对外部库的依赖较少，虽然执行 redis 命令主要�
 
 不过截至目前 Spring-Integration-Redis 在 github 上面并没有放置任何 licence，按照 github 的规定，没有 licence 的代码版权默认受到保护，因此我们可以学习其设计思想并自己尝试实现，但是最好不要直接移植代码。
 
+### Redis 多实例
+通过上述方法，我们似乎可以成功的将实例间同步的问题转交给 Redis 来处理。然而就存在两种情况：
+1. 采用单实例 Redis -- Redis 存在单点风险，应用服务都依赖 Redis， 一旦宕机业务全挂
+2. 采用 Redis 集群 -- 应用服务实例间的同步问题转化为了 Redis 实例间的同步问题
+
+单实例 Redis 一定是不可接受的，所以似乎允许上生产环境的唯一方案就是 Redis 集群了。那么如何保证 Redis 实例间的同步呢？
+
+我们知道，Redis 集群的数据冗余策略不同于类似 HDFS 的 3 Replica，而是采用一对一主从的形式，每个节点一主一从，主节点宕机备节点上，备节点也宕机就全完。同时，主从之间的数据同步是异步的。以上这些都是为了超高吞吐量而做出的妥协。
+
+所以，设想会有这种情况：
+
+当应用服务节点 App-A 从 Redis 某主节点 R-Master 获取到锁后，R-Master 宕机，此时 R-Master 的数据还没来得及同步到 R-Slave。现在 R-Slave 成为了主节点，这时候 App-B 尝试获取锁，不出意外的也获取成功了。
+
+基于以上问题，Redis 给出了 [RedLock](https://redis.io/topics/distlock) 方案，该方案采用相互孤立的奇数个 Redis 节点来共同存储锁，对于获取锁的操作，只有当 (N-1)/2 + 1 个 Redis 实例都获取成功且获取时间不超过锁失效时间的前提下，才真正被判定为获取到了锁，这种场景下锁的争抢就看谁能先成功操作超过半数的 Redis 实例。Redisson 实现了 [RedLock 的客户端方案](https://github.com/redisson/redisson/wiki/8.-distributed-locks-and-synchronizers)。
+
+当然，在 Redis 官网上也贴出了各方对于 RedLock 方案的争论，这里不再赘述。
+
+总之，对于问题的处理终归是结合实际情况来权衡的，
+- 假如小概率（但几乎一定会发生）的 Redis 宕机未同步导致锁失效的问题，业务可以承受，那么 RedisLockRegistry + Redis 集群的方案就没问题
+- 对性能和可靠性都有更高要求的情况下，不妨使用 RedLock 方案
+- 业务非常关键，一定要求强一致的分布式锁，使用 ZooKeeper 的方案会更好（性能没法和 Redis 比）
+
 ### 参考
 [RedisLockRegistry at Github](https://github.com/spring-projects/spring-integration/blob/master/spring-integration-redis/src/main/java/org/springframework/integration/redis/util/RedisLockRegistry.java)
+
+[Redis Documentaion](https://redis.io/documentation)
