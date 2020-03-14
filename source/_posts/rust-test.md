@@ -8,7 +8,6 @@ categories:
 - Rust
 ---
 
-## Rust 怎么写测试
 ### 先跑起来
 不说什么具体的知识，我们先一步步的，来写个最简单的测试，并且让他啊跑起来，看看 rust 下的测试是什么样子的：
 1. 创建个 lib 工程：`cargo new simplest-test --lib`
