@@ -20,5 +20,6 @@ script:
 after_script:
   - git config user.name "LENSHOOD"
   - git config user.email "zhangxh_job@sina.com"
-  - sed -i "s/access_token/${ACCESS_TOKEN}/g" ./_config.yml
+  - sed -i "s/git_access_token/${GIT_ACCESS_TOKEN}/g" ./_config.yml
+  - sed -i "s/gitee_access_token/${GITEE_ACCESS_TOKEN}/g" ./_config.yml
   - hexo deploy
