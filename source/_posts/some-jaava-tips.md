@@ -66,3 +66,55 @@ class Outer {
 private static List<String> java9CollectionInit =
             List.of("Dopey", "Doc", "Bashful", "Happy", "Grumpy", "Sleepy", "Sneezy");
 ```
+
+## 伪唤醒 （Spurious Wakeup）
+首先看一段代码：
+```java
+public class SpuriousWakeup {
+    private static final Random RANDOM = new Random();
+    private boolean condition = RANDOM.nextBoolean();
+    
+    void notifier() {
+        synchronized (this) {
+            ... ...
+            notify();
+        }
+    }
+
+    void wrongWaiter() throws InterruptedException {
+        synchronized (this) {
+            if (condition) {
+                wait();
+            }
+            ... ...
+        }
+    }
+}
+```
+上述代码中，`wrongWaiter()`根据 `condition` 来判断是否进行 `wait()`，而对应的，在 `notifier()`中进行 `notify()`。
+
+类似这种 `wait - notify` 结构是代码中很常见的一种多线程协作结构，但上述代码中存在问题：
+
+`wait()`有被伪唤醒的可能，什么是或怎么样伪唤醒先放一边，我们可以暂且认为被伪唤醒的线程，实际上没有达到唤醒条件。
+
+那么会怎么样呢？ 假如 `wrongWaiter()` 被伪唤醒，则 `wait()` 语句阻塞解除，之后的逻辑会在不安全的情况下被执行，那么执行结果也就是不可信的了。
+
+在某些情况下，这非常危险。
+
+因此，对于防止伪唤醒，在使用 `wait()` 时，应该确保条件判断被放在 `while` 循环中，当被唤醒时再次判断条件，直到不满足为止，见如下代码：
+
+```java
+void correctWaiter() throws InterruptedException {
+        synchronized (this) {
+            while (condition) {
+                wait();
+            }
+        }
+    }
+```
+
+在《Java 并发编程实战》中，
+
+#### 伪唤醒
+
+#### 其他错误
