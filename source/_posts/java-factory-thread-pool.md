@@ -29,5 +29,66 @@ Java 提供了线程机制允许我们将方法调用放在与主流程独立的
 - 工人：干活
 - 老板：获得订单，安排生产
 
-老板不断地获取订单，将订单分发给工人，工人按照订单要求，一个接一个的生产产品，最后交付。
+老板不断地获取订单任务，将订单任务分发给工人，工人按照订单要求，一个接一个的生产产品，最后交付。
 
+```mermaid
+graph LR
+A[Task] -->|add| B[Task Queue]
+C[Worker] -->|add| D[Workers]
+B --> E[Do Job]
+D --> E[Do Job]
+E --> F[Product]
+F -->|add| G[Product Pool]
+```
+
+那么，映射到代码里，假如我们想要实现一间代码工厂，我们可能会这样设计：
+
+```java
+class Factory {
+  taskQueue: Queue<Task>;
+  workers: Collection<Worker>;
+  productPool: Map<Task, Product>;
+  
+  submit(t: Task) {
+    taskQueue.push(t);
+  }
+  
+  run() {
+    while (true) {
+      t: Task = taskQueue.pop();
+      w: Worker = workers.getAvailable();
+      p: Product = w.doJob(t);
+      productPool.put(t, p);
+      w.setAvailable();
+    }
+  }
+}
+
+class Worker {
+  doJob(t: Task) -> Product {
+    ... ...
+  }
+}
+```
+
+整个工厂的运转就是一个大循环，在循环中取出一个待完成的任务，并取出一个空闲的工人，最后将任务执行结果输出到产品池中。其中工人的工作方式 `doJob` 根据具体业务要求来实现。
+
+上述代码中每一次都必须等待工人执行完任务才能再次循环，这中设计同一时间只有一名工人在工作，这是不合理的，因此稍作改动，将工人干活的部分放到独立的线程中，即可实现高效运转：
+
+```java
+... ...
+    while (true) {
+      t: Task = taskQueue.pop();
+      w: Worker = workers.getAvailable();
+      new Thread(
+      	() -> {
+          p: Product = w.doJob(t);
+          productPool.put(t, p);
+          w.setAvailable();
+        }
+      ).start();
+    }
+... ...
+```
+
+### Java 任务工厂：线程池
