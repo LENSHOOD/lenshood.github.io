@@ -92,3 +92,58 @@ class Worker {
 ```
 
 ### Java 任务工厂：线程池
+
+本质上讲，Java 的 `ThreadPoolExecutor` 其工作原理和前文所述的流程基本一致，`ThreadPoolExecutor` 本身可类比为工厂，在工厂内定义了以下成员及方法：
+
+```java
+public class ThreadPoolExecutor extends AbstractExecutorService {
+    ... ...
+    private final BlockingQueue<Runnable> workQueue;
+    private final HashSet<Worker> workers = new HashSet<>();
+  
+    public void execute(Runnable command) {
+  	  ... ...
+      if (isRunning(c) && workQueue.offer(command)) {
+        ... ...
+      }
+    }
+  
+    final void runWorker(Worker w) {
+        ... ...
+        while (task != null || (task = getTask()) != null) {
+          ... ...
+            try {
+              beforeExecute(wt, task);
+              try {
+                task.run();
+                afterExecute(task, null);
+              } catch (Throwable ex) {
+                afterExecute(task, ex);
+                throw ex;
+              }
+            } finally {
+              task = null;
+              w.completedTasks++;
+              w.unlock();
+            }
+        }
+        ... ...
+    }
+    ... ...
+}
+```
+
+可以看到，任务队列由 `BlockingQueue<Runnable>` 定义，工人集合由 `HashSet<Worker>` 定义，`execute(Runnable)` 方法将任务入队，而实际的 `runWorker(Worker)` 方法，在 `whiile` 循环内执行 `task.run()` 来真正的执行任务（实际代码中通过在 `Worker` 线程内调用 `runWorker()` 来实现异步执行）。
+
+从以上视角来看，`ThreadPoolExecutor` 的确与前一节描述的设计大体一致，唯一不同之处在于他并没有提供存放任务执行结果的产品池，实际当中是将任务封装为 `FutureTask` 以委托其进行结果的存储与关联。
+
+#### 工厂运行细节 -- 初始化工厂
+
+
+
+####工厂运行细节 -- 创建工人
+
+
+
+#### 工厂运行细节 -- 生命周期
+
