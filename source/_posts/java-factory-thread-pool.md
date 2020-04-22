@@ -139,7 +139,43 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
 
 #### 工厂运行细节 -- 初始化工厂
 
+`ThreadPoolExecutor` 的初始化是一个老生常谈的话题了，包括 `corePoolSize`和 `maximumPoolSize` 的关系，任务队列的选取，定制化的 `threadFactory` 等等。
 
+这些概念都很清晰且容易理解：封装了绝大多数细节，初始化参数不多不少，体现了良好的设计。
+
+简单介绍一下 `Executors` 类中提供的几种线程池：
+
+- `FixedThreadPool`： 固定的线程数量，最大容量为 `Integer.MEX_VALUE` 的 `LinkedBlockingQueue`（可以视为不限制队列容量） 
+- `SingleThreadPool`：`FixedThreadPool`的特殊情况，只有一个固定线程，可以用做 Logger
+- `CachedThreadPool`: 线程数量不设限（最大为`Integer.MEX_VALUE`），实际工作线程数约等于当前时间窗口的最大吞吐量（工作线程存活期为 60 秒）。使用独特的`SynchronousQueue`当作任务队列：容量为 0，仅用于解耦客户线程与工作线程。
+
+此外，关于拒绝策略，默认的拒绝策略是直接终止，但有些场景下更保险的做法是通过`CallerRunsPolicy`来采用类似自适应的策略确保任务不会被丢弃。
+
+最后给出初始化方法：
+
+```java
+public ThreadPoolExecutor(int corePoolSize,
+                          int maximumPoolSize,
+                          long keepAliveTime,
+                          TimeUnit unit,
+                          BlockingQueue<Runnable> workQueue,
+                          ThreadFactory threadFactory,
+                          RejectedExecutionHandler handler) {
+  if (corePoolSize < 0 ||
+      maximumPoolSize <= 0 ||
+      maximumPoolSize < corePoolSize ||
+      keepAliveTime < 0)
+    throw new IllegalArgumentException();
+  if (workQueue == null || threadFactory == null || handler == null)
+    throw new NullPointerException();
+  this.corePoolSize = corePoolSize;
+  this.maximumPoolSize = maximumPoolSize;
+  this.workQueue = workQueue;
+  this.keepAliveTime = unit.toNanos(keepAliveTime);
+  this.threadFactory = threadFactory;
+  this.handler = handler;
+}
+```
 
 ####工厂运行细节 -- 创建工人
 
