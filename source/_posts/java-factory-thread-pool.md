@@ -179,6 +179,63 @@ public ThreadPoolExecutor(int corePoolSize,
 
 ####工厂运行细节 -- 创建工人
 
+在 `ThreadPoolExecutor` 中，为了对系统资源的优化使用，Worker 不是在初始化后就全部准备好的（毕竟一个 Worker 要独占一个线程），而是随着任务的不断提交来逐步创建出 Worker。同时，在默认情况下，创建出的不超过 `corePoolSize`  的 Worker 会永远保留，而当任务队列满时会尝试继续创建 Worker，直到达到 `maximumPoolSize`。这些额外创建出来的 “临时工“ 会在一段时间（`keepAliveTime`）没有任务后自动退出，以节约资源（活多的时候找外包，活少的时候就辞退外包，惨兮兮的外包员工..）。
+
+如上所述，在线程池初始化后是并没有任何的 Worker ，随着任务的来临开始创建 Worker，实际的创建逻辑封装在 `addWorker(Runnable firstTask, boolean core)` 方法中，如下是创建核心部分：
+
+```java
+... ...
+Worker w = null;
+try {
+  
+  -----------------------------
+  | w = new Worker(firstTask);|
+  -----------------------------  
+    
+  final Thread t = w.thread;
+  if (t != null) {
+    final ReentrantLock mainLock = this.mainLock;
+    mainLock.lock();
+    try {
+      // Recheck while holding lock.
+      // Back out on ThreadFactory failure or if
+      // shut down before lock acquired.
+      int c = ctl.get();
+
+      if (isRunning(c) ||
+          (runStateLessThan(c, STOP) && firstTask == null)) {
+        if (t.isAlive()) // precheck that t is startable
+          throw new IllegalThreadStateException();
+        
+        -------------------
+        | workers.add(w); |
+        -------------------
+        
+        int s = workers.size();
+        if (s > largestPoolSize)
+          largestPoolSize = s;
+        workerAdded = true;
+      }
+    } finally {
+      mainLock.unlock();
+    }
+    if (workerAdded) {
+      
+      --------------
+      | t.start(); |
+      --------------  
+        
+      workerStarted = true;
+    }
+  }
+}
+... ...
+```
+
+从框出的语句看到，实际上除了必要的 check 工作与加锁同步以外，实际上就是先创建 Worker，将其加入 `workers` 集合中，最后将 Worker 内部的线程启动（其实 `t.start()`这里我觉得在 Worker 中封装一个类似 `worker.start()` 的方法也许会更清晰）。
+
+从上面的代码中，我们了解到 Worker 包含了自己的线程，那么除此之外，作为一个 Worker，还有什么必须的逻辑呢？来看看 Worker 的代码：
+
 
 
 #### 工厂运行细节 -- 生命周期
