@@ -295,7 +295,7 @@ final void runWorker(Worker w) {
 }
 ```
 
-通过 `Worker` 内部类，我们看到 Worker 持有了一个工作线程（同时 Worker 自己也是该线程的 `Runable`），以及其 `firstTask`，结合前面 `addWorker()` 中的 `t.start()`逻辑，我们能知道一个 Worker 会在创建后被启动，并赋以第一个任务，从而开始独立的工作旅程。
+通过 `Worker` 内部类，我们看到 Worker 持有了一个工作线程（同时 Worker 自己也是该线程的 `Runable`），及其 `firstTask`，结合前面 `addWorker()` 中的 `t.start()`逻辑，我们能知道一个 Worker 会在创建后被启动，并赋以第一个任务，从而开始独立的工作旅程。另外，Worker 自身还是一个 AQS，以确保任务执行期间的同步安全。
 
 了解了 Worker 的内部构造，再次看一遍`runWorker()`就清晰多了：先执行 `fisrtTask`，之后在循环中不断地执行从 `getTaask()`中获取到的任务，`getTask()`实际上正是从 `workQueue` 中来获取任务。
 
@@ -307,4 +307,16 @@ final void runWorker(Worker w) {
 4. 已创建的 Worker 不断的从任务队列中获取任务来执行，并持续下去
 
 #### 工厂运行细节 -- 生命周期
+
+`ThreadPoolExecutor`描述了以下几个生命阶段：
+
+- RUNNING:  Accept new tasks and process queued tasks
+- SHUTDOWN: Don't accept new tasks, but process queued tasks
+- STOP:     Don't accept new tasks, don't process queued tasks, and interrupt in-progress tasks
+- TIDYING:  All tasks have terminated, workerCount is zero, the thread transitioning to state TIDYING will run the terminated() hook method
+- TERMINATED: terminated() has completed
+
+有趣的是，`ThreadPoolExecutor`用了一个 `AtomicInteger` 类型的`ctl`来同时存储当前运行状态与当前 Worker 数量，采用位存储，以此来简化对两种不同数字的同步更新操作。
+
+### 结尾
 
