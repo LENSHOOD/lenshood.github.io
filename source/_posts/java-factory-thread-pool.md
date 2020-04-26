@@ -236,7 +236,75 @@ try {
 
 从上面的代码中，我们了解到 Worker 包含了自己的线程，那么除此之外，作为一个 Worker，还有什么必须的逻辑呢？来看看 Worker 的代码：
 
+```java
+private final class Worker
+        extends AbstractQueuedSynchronizer
+        implements Runnable
+{
+  final Thread thread;
+  Runnable firstTask;
+  volatile long completedTasks;
 
+  Worker(Runnable firstTask) {
+    setState(-1); // inhibit interrupts until runWorker
+    this.firstTask = firstTask;
+    this.thread = getThreadFactory().newThread(this);
+  }
+
+  /** Delegates main run loop to outer runWorker. */
+  public void run() {
+    runWorker(this);
+  }
+
+  ... ...
+
+  public void lock()        { acquire(1); }
+  public boolean tryLock()  { return tryAcquire(1); }
+  public void unlock()      { release(1); }
+  public boolean isLocked() { return isHeldExclusively(); }
+
+  ... ...
+}
+
+final void runWorker(Worker w) {
+  Thread wt = Thread.currentThread();
+  Runnable task = w.firstTask;
+  w.firstTask = null;
+  w.unlock(); // allow interrupts
+  boolean completedAbruptly = true;
+  try {
+    while (task != null || (task = getTask()) != null) {
+      w.lock();
+      ... ...
+      try {
+        beforeExecute(wt, task);
+        try {
+          task.run();
+          afterExecute(task, null);
+        } catch (Throwable ex) {
+          afterExecute(task, ex);
+          throw ex;
+        }
+      } finally {
+        task = null;
+        w.completedTasks++;
+        w.unlock();
+      }
+    }
+    ... ...
+}
+```
+
+通过 `Worker` 内部类，我们看到 Worker 持有了一个工作线程（同时 Worker 自己也是该线程的 `Runable`），以及其 `firstTask`，结合前面 `addWorker()` 中的 `t.start()`逻辑，我们能知道一个 Worker 会在创建后被启动，并赋以第一个任务，从而开始独立的工作旅程。
+
+了解了 Worker 的内部构造，再次看一遍`runWorker()`就清晰多了：先执行 `fisrtTask`，之后在循环中不断地执行从 `getTaask()`中获取到的任务，`getTask()`实际上正是从 `workQueue` 中来获取任务。
+
+至此，看了一圈代码后我们验证了，`ThreadPoolExecutor`正是按照上一节的流程图来执行任务：
+
+1. 创建任务工厂（此时没有 Worker）
+2. 通过`execute(Runable)`接收任务
+3. 创建 Worker 在独立的线程内执行任务，直到 Worker 数量达到 `corePoolSize`后新任务入队
+4. 已创建的 Worker 不断的从任务队列中获取任务来执行，并持续下去
 
 #### 工厂运行细节 -- 生命周期
 
