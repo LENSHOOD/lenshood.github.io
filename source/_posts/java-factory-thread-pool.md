@@ -31,15 +31,7 @@ Java 提供了线程机制允许我们将方法调用放在与主流程独立的
 
 老板不断地获取订单任务，将订单任务分发给工人，工人按照订单要求，一个接一个的生产产品，最后交付。
 
-```mermaid
-graph LR
-A[Task] -->|add| B[Task Queue]
-C[Worker] -->|add| D[Workers]
-B --> E[Do Job]
-D --> E[Do Job]
-E --> F[Product]
-F -->|add| G[Product Pool]
-```
+{% asset_img factory-pic.png %}
 
 那么，映射到代码里，假如我们想要实现一间代码工厂，我们可能会这样设计：
 
