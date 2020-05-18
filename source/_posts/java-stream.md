@@ -148,5 +148,270 @@ public static <T> Stream<T> stream(Spliterator<T> spliterator, boolean parallel)
 
 #### 中间操作：有状态 vs 无状态
 
+**StatelessOp 无状态**
+
+每一个中间操作都会在当前流水线末端增加一道工序。
+
+我们从最简单、最容易理解的操作`map`来看看到底怎么样给流水线增加一道工序：
+
+```java
+@Override
+@SuppressWarnings("unchecked")
+public final <R> Stream<R> map(Function<? super P_OUT, ? extends R> mapper) {
+  Objects.requireNonNull(mapper);
+  return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
+                                   StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT) {
+    @Override
+    Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
+      return new Sink.ChainedReference<P_OUT, R>(sink) {
+        @Override
+        public void accept(P_OUT u) {
+          downstream.accept(mapper.apply(u));
+        }
+      };
+    }
+  };
+}
+```
+
+我们知道，`map`操作会对流水线上每一个工件进行相同的加工工作，具体的加工方法描述为一个`Function<? super P_OUT, ? extends R> mapper`，所以显然`map`是一种无状态操作。上述代码中也印证了这一点：
+
+对一个`ReferencePipeline`（可以假定当前是一个`Head`）实施`map`操作实际上是返回了一个`StatelessOp`的匿名子类。那么在哪里做挂载工序操作呢？看看`StatelessOp`的构造方法：
+
+```java
+// StatelessOp
+StatelessOp(AbstractPipeline<?, E_IN, ?> upstream,
+            StreamShape inputShape,
+            int opFlags) {
+  super(upstream, opFlags);
+  assert upstream.getOutputShape() == inputShape;
+}
+
+// super方法调用了 ReferencePipeline 的构造方法
+ReferencePipeline(AbstractPipeline<?, P_IN, ?> upstream, int opFlags) {
+  super(upstream, opFlags);
+}
+
+// ReferencePipeline 的 super 方法调用了 AbstractPipeline 的构造方法
+AbstractPipeline(AbstractPipeline<?, E_IN, ?> previousStage, int opFlags) {
+  if (previousStage.linkedOrConsumed)
+    throw new IllegalStateException(MSG_STREAM_LINKED);
+  previousStage.linkedOrConsumed = true;
+  previousStage.nextStage = this;
+
+  this.previousStage = previousStage;
+  this.sourceOrOpFlags = opFlags & StreamOpFlag.OP_MASK;
+  this.combinedFlags = StreamOpFlag.combineOpFlags(opFlags, previousStage.combinedFlags);
+  this.sourceStage = previousStage.sourceStage;
+  if (opIsStateful())
+    sourceStage.sourceAnyStateful = true;
+  this.depth = previousStage.depth + 1;
+}
+```
+
+根据代码可知，创建的 `StatelessOp`实例，在构造函数中以调用者（刚刚我们假定为`Head`）`this` 作为其`upstream`（也就是 `AbstractPipeline` 中的`previousStage`）这有点像是构造链表时，新增节点将其`previousNode`设置为尾结点，并将尾结点的`nextNode`指向自己一样。
+
+{% asset_img stage-connect.png %}
+
+至于匿名类中复写的`opWrapSink`方法，我们可以暂且认为该方法会在最终流水线启动时对每一个工件调用，因此也就不难理解方法内构造了一个`Sink`（Sink 是什么后文会讲到），在`Sink`中又通过`downstream.accept(mapper.apply(u))`来对工件（也就是输入参数`u`）apply 了 mapper，并继续调用其下游的`accept`方法。
+
+明白了`map`是怎么一回事，`filter`也就显而易见了：
+
+```java
+@Override
+public final Stream<P_OUT> filter(Predicate<? super P_OUT> predicate) {
+  Objects.requireNonNull(predicate);
+  return new StatelessOp<P_OUT, P_OUT>(this, StreamShape.REFERENCE,
+                                       StreamOpFlag.NOT_SIZED) {
+    @Override
+    Sink<P_OUT> opWrapSink(int flags, Sink<P_OUT> sink) {
+      return new Sink.ChainedReference<P_OUT, P_OUT>(sink) {
+        @Override
+        public void begin(long size) {
+          downstream.begin(-1);
+        }
+
+        @Override
+        public void accept(P_OUT u) {
+          if (predicate.test(u))
+            downstream.accept(u);
+        }
+      };
+    }
+  };
+}
+```
+
+`filter`除了具体的操作与`map`不同以外，仍然是构造了一个`StatelessOp`的匿名类。并且结合`filter`的语义，确实是当`predicate.test(u)`为 true 时，才会继续执行下游的操作，否则什么也不做。通过这种方法简单的实现了筛选功能。
+
+**StatefulOp 有状态**
+
+在来对比的看一下有状态操作`limit`:
+
+```java
+@Override
+public final Stream<P_OUT> limit(long maxSize) {
+  if (maxSize < 0)
+    throw new IllegalArgumentException(Long.toString(maxSize));
+  return SliceOps.makeRef(this, 0, maxSize);
+}
+
+// SliceOps
+public static <T> Stream<T> makeRef(AbstractPipeline<?, T, ?> upstream,
+                                    long skip, long limit) {
+  if (skip < 0)
+    throw new IllegalArgumentException("Skip must be non-negative: " + skip);
+
+  return new ReferencePipeline.StatefulOp<T, T>(upstream, StreamShape.REFERENCE,
+                                                flags(limit)) {
+    ... ...
+      
+    @Override
+    Sink<T> opWrapSink(int flags, Sink<T> sink) {
+      return new Sink.ChainedReference<T, T>(sink) {
+        long n = skip;
+        long m = limit >= 0 ? limit : Long.MAX_VALUE;
+
+        @Override
+        public void begin(long size) {
+          downstream.begin(calcSize(size, skip, m));
+        }
+
+        @Override
+        public void accept(T t) {
+          if (n == 0) {
+            if (m > 0) {
+              m--;
+              downstream.accept(t);
+            }
+          }
+          else {
+            n--;
+          }
+        }
+
+        ... ...
+      };
+    }
+  };
+}
+```
+
+很直白：将 `limit`值赋给`m`， 每当执行一个工件时`m--`，直到`m<0`后不再继续操作。这里的 "Stateful" 说的就是`m`了。
+
+#### 出口：从工件到产品
+
+在对流水线添加了一系列工序之后，是时候启动流水线并生产出产品了。
+
+我们通过对流水线挂载最后一个工序：`TerminalOp`来结束流水线的创建，并启动流水线。先来看看`TerminalOp`提供的行为:
+
+```java
+interface TerminalOp<E_IN, R> {
+    ... ...
+    /**
+     * Performs a sequential evaluation of the operation using the specified
+     * {@code PipelineHelper}, which describes the upstream intermediate
+     * operations.
+     *
+     * @param helper the pipeline helper
+     * @param spliterator the source spliterator
+     * @return the result of the evaluation
+     */
+    <P_IN> R evaluateSequential(PipelineHelper<E_IN> helper,
+                                Spliterator<P_IN> spliterator);
+}
+
+```
+
+除去我们不关心的行为，最重要的行为便是：`evaluateSequential()`了，根据注释可知，实现该方法，来对给定的`spliterator`执行操作，操作是由描述了上游中间操作的`PipelineHelper`来执行。根据前文的继承关系图，我们知道实际上`ReferencePipeling`本身就是一个`PipelineHelper`，再结合前文所述，一条流水线被创建时，`spliterator`已经与`Head`一起被作为流水线入口的一部分了，因此直接找一段比较简单的终止操作实现，`reduce`：
+
+```java
+// ReferencePipeline
+@Override
+public final Optional<P_OUT> reduce(BinaryOperator<P_OUT> accumulator) {
+  return evaluate(ReduceOps.makeRef(accumulator));
+}
+
+// AbstractPipeline
+final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp) {
+  assert getOutputShape() == terminalOp.inputShape();
+  if (linkedOrConsumed)
+    throw new IllegalStateException(MSG_STREAM_LINKED);
+  linkedOrConsumed = true;
+
+  return isParallel()
+    ? terminalOp.evaluateParallel(this, sourceSpliterator(terminalOp.getOpFlags()))
+    : terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()));
+}
+
+// ReduceOps 
+public static <T> TerminalOp<T, Optional<T>>
+  makeRef(BinaryOperator<T> operator) {
+  Objects.requireNonNull(operator);
+  class ReducingSink
+    implements AccumulatingSink<T, Optional<T>, ReducingSink> {
+    private boolean empty;
+    private T state;
+
+    public void begin(long size) {
+      empty = true;
+      state = null;
+    }
+
+    @Override
+    public void accept(T t) {
+      if (empty) {
+        empty = false;
+        state = t;
+      } else {
+        state = operator.apply(state, t);
+      }
+    }
+
+    @Override
+    public Optional<T> get() {
+      return empty ? Optional.empty() : Optional.of(state);
+    }
+
+    @Override
+    public void combine(ReducingSink other) {
+      if (!other.empty)
+        accept(other.state);
+    }
+  }
+  return new ReduceOp<T, Optional<T>, ReducingSink>(StreamShape.REFERENCE) {
+    @Override
+    public ReducingSink makeSink() {
+      return new ReducingSink();
+    }
+  };
+}
+```
+
+可以发现，当我们对一个 Stream 挂载`reduce`操作时，实际上先构造了一个`ReduceOp`（实现了 `TerminalOp`）之后通过语句`terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()))` 触发`TerminalOp`中的`evaluateSequential()`方法，其两个入参正好是当前组装好的流水线`this`以及输入源`sourceSpliterator()`（该方法返回一个`Spliterator`）。
+
+那么我们具体来看一看`ReduceOp`中定义的``evaluateSequential()`：
+
+```java
+private abstract static class ReduceOp<T, R, S extends AccumulatingSink<T, R, S>>
+  implements TerminalOp<T, R> {
+
+  ... ...
+		public abstract S makeSink();
+    
+    @Override
+    public <P_IN> R evaluateSequential(PipelineHelper<T> helper,
+                                       Spliterator<P_IN> spliterator) {
+    return helper.wrapAndCopyInto(makeSink(), spliterator).get();
+  }
+}
+```
+
+结合前面`reduce`方法构造的匿名类中实现的`makeSink()`方法 `return new ReducingSink();`，我们得知其实`reduce`匿名类的真实作用是调用`makeSink`构造了一个`Sink`之后将之传入原 Stream 中，并调用流水线的`wrapAndCopyInto()`方法来启动整个流水线。
+
+**Sink**
+
+前文我们在构建中间操作时遇到过`Sink`但没有细说，终于，要到了解释`Sink`的时刻了。
+
 
 
