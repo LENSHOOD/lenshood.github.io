@@ -413,5 +413,20 @@ private abstract static class ReduceOp<T, R, S extends AccumulatingSink<T, R, S>
 
 前文我们在构建中间操作时遇到过`Sink`但没有细说，终于，要到了解释`Sink`的时刻了。
 
+从流水线的角度讲 ，不论是 `map`、`filter`、 `limit` 还是 `reduce`，都属于高层抽象概念，主要用于定义通用的工序行为。在 Stream 的实现中，采用`Head`、`StatelessOp`、`StatefulOp`和`TerminalOp`作为中间层抽象，主要用于对工序行为进行归纳分类。而最终落到低层实现上，靠的只有一种东西：`Sink`。
 
+从`Sink`的定义来看，不论是什么样的流水线工序，Steam 都将其低层定义成了一个`Sink`，用来在流水线的各个阶段（stage）传递值。从名称中就很明确，`Sink`就像是一个个的水槽，互相之间首尾相连，数据流从第一个水槽漏到第二个，再漏到第三个，以此类推，只能向下漏，不能向上返。
+
+{% asset_img sink.png %}
+
+`Sink`具有两个状态：
+
+- 初始态
+- 激活态
+
+三种基本的行为：
+
+- begin: 在接收数据之前调用，并将`Sink`置为激活态
+- accept：开始接收数据，并对数据进行处理
+- end：数据处理完成后调用，并将`Sink`置为初始态
 
