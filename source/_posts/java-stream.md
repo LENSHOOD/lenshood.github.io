@@ -299,7 +299,7 @@ public static <T> Stream<T> makeRef(AbstractPipeline<?, T, ?> upstream,
 
 很直白：将 `limit`值赋给`m`， 每当执行一个工件时`m--`，直到`m<0`后不再继续操作。这里的 "Stateful" 说的就是`m`了。
 
-#### 出口：从工件到产品
+#### 出口：完成组装
 
 在对流水线添加了一系列工序之后，是时候启动流水线并生产出产品了。
 
@@ -429,4 +429,87 @@ private abstract static class ReduceOp<T, R, S extends AccumulatingSink<T, R, S>
 - begin: 在接收数据之前调用，并将`Sink`置为激活态
 - accept：开始接收数据，并对数据进行处理
 - end：数据处理完成后调用，并将`Sink`置为初始态
+
+有了以上知识，结合前文`map`操作的实现：
+
+```java
+@Override
+Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
+  return new Sink.ChainedReference<P_OUT, R>(sink) {
+    @Override
+    public void accept(P_OUT u) {
+      downstream.accept(mapper.apply(u));
+    }
+  };
+}
+```
+
+就很清晰了，就像前文图里画的一样，通过`opWrapSink`方法，把传入的`sink`进行一层包装，创建一个新的`Sink.ChainedReference`（有点像装饰器模式）。来看看`Sink.ChainedReference`的实现：
+
+```java
+abstract static class ChainedReference<T, E_OUT> implements Sink<T> {
+  protected final Sink<? super E_OUT> downstream;
+
+  public ChainedReference(Sink<? super E_OUT> downstream) {
+    this.downstream = Objects.requireNonNull(downstream);
+  }
+
+  @Override
+  public void begin(long size) {
+    downstream.begin(size);
+  }
+
+  @Override
+  public void end() {
+    downstream.end();
+  }
+
+  @Override
+  public boolean cancellationRequested() {
+    return downstream.cancellationRequested();
+  }
+}
+```
+
+基于传入的`Sink`构造的`Sink.ChainedReference`，顾名思义就像一根链条一样，其`begin`和`end`方法都直接调用传入`Sink`的方法，在`map`的`opWrapSink`中，覆写了`accept()`方法，先执行`mapper`的逻辑，之后执行传入`Sink`的逻辑。
+
+有趣的是，在`Sink.ChainedReference`中将传入的`Sink`命名为"downstram"，也就是下游，那么从实现上，`Sink`是从最底层开始，层层包装，层层向上构建的。而前文中我们提到，`Sink`就像是首尾相连的水槽，水（数据）只能向下流，不能向上流。正因为这一点，实际上`Sink`在组装时，是从下往上，才能满足运行时数据从上往下流动。
+
+基于此，我们是否可以假设，类似`Stream.of("a", "b", "c", "1", "2", "3").filter(NumUtil::isNum).map(NumUtil::minusOne).limit(1).collect(Collectors.toList);`流水线的组装，从实现上其实是先从`collect`这一道`TerminlOp`工序为起点的？
+
+从代码我们可以得知：确实是这样的，回顾一下`ReduceOp`的实现：
+
+```java
+private abstract static class ReduceOp<T, R, S extends AccumulatingSink<T, R, S>>
+  implements TerminalOp<T, R> {
+
+  ... ...
+		public abstract S makeSink();
+    
+    @Override
+    public <P_IN> R evaluateSequential(PipelineHelper<T> helper,
+                                       Spliterator<P_IN> spliterator) {
+    return helper.wrapAndCopyInto(makeSink(), spliterator).get();
+  }
+}
+
+public static <T> TerminalOp<T, Optional<T>>
+  makeRef(BinaryOperator<T> operator) {
+  Objects.requireNonNull(operator);
+  class ReducingSink
+    implements AccumulatingSink<T, Optional<T>, ReducingSink> {
+    ... ...
+  }
+  return new ReduceOp<T, Optional<T>, ReducingSink>(StreamShape.REFERENCE) {
+    @Override
+    public ReducingSink makeSink() {
+      return new ReducingSink();
+    }
+  };
+}
+```
+
+在`helper.wrapAndCopyInto(makeSink(), spliterator)`中第一次被`wrap`的`Sink`就是通过`makeSink()`方法生成出来的。
+
+### 流水线的执行
 
