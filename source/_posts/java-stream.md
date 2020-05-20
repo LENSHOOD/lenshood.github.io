@@ -511,5 +511,25 @@ public static <T> TerminalOp<T, Optional<T>>
 
 在`helper.wrapAndCopyInto(makeSink(), spliterator)`中第一次被`wrap`的`Sink`就是通过`makeSink()`方法生成出来的。
 
+**综合以上所有**，我们发现： Java Stream 中对流水线的组装，从抽象层次角度划分，可以分成三层：
+
+1. 业务高层：采用 `filter`、`map`、`reduce` 等业务概念描述流水线中的多种工序
+2. 抽象中层：采用`Head`，`StatelessOp`、`StatefulOp`、`TerminalOp`四种形式来完整描述所有的业务工序
+3. 实现低层：采用`Sink`来具体完成实现逻辑，形成各工序的串联
+
+{% asset_img three-level-abstract.png %}
+
+从代码组装的角度划分，可以分成正向/反向两个过程：
+
+1. 正向组装：
+
+   从 `Head`开始，不断在尾部挂载新的工序，包括中间操作或终止操作。
+
+2. 反向组装：
+
+   从`TerminalOp`的`makeSink()`开始，不断向前包装 `Sink` 形成`Sink`链。
+
+{% asset_img two-wrap-line.png %}
+
 ### 流水线的执行
 
