@@ -533,3 +533,108 @@ public static <T> TerminalOp<T, Optional<T>>
 
 ### 流水线的执行
 
+经过上一节的流水线组装，终于到了要执行流水线的时候了。
+
+详细的看看`helper.wrapAndCopyInto(makeSink(), spliterator).get()`具体是如何实现的：
+
+```java
+// AbstractPipeline.class
+@Override
+final <P_IN, S extends Sink<E_OUT>> S wrapAndCopyInto(S sink, Spliterator<P_IN> spliterator) {
+  copyInto(wrapSink(Objects.requireNonNull(sink)), spliterator);
+  return sink;
+}
+
+@Override
+@SuppressWarnings("unchecked")
+final <P_IN> Sink<P_IN> wrapSink(Sink<E_OUT> sink) {
+  Objects.requireNonNull(sink);
+
+  for ( @SuppressWarnings("rawtypes") AbstractPipeline p=AbstractPipeline.this; p.depth > 0; p=p.previousStage) {
+    sink = p.opWrapSink(p.previousStage.combinedFlags, sink);
+  }
+  return (Sink<P_IN>) sink;
+}
+
+@Override
+final <P_IN> void copyInto(Sink<P_IN> wrappedSink, Spliterator<P_IN> spliterator) {
+  Objects.requireNonNull(wrappedSink);
+
+  if (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) {
+    wrappedSink.begin(spliterator.getExactSizeIfKnown());
+    spliterator.forEachRemaining(wrappedSink);
+    wrappedSink.end();
+  }
+  else {
+    copyIntoWithCancel(wrappedSink, spliterator);
+  }
+}
+
+```
+
+以上`AbstractPipeline`中的三个方法组成了最终执行流水线的全部动作。
+
+其中，`wrapSink()`方法接收由`ReduceOp`的`maakeSink()`方法所创建出的尾部`Sink`，之后不断向上查找`priviousStaage`并调用其`opWrapSink()`方法，层层包装形成最终的`Sink`链条，这就是上一节图中所展示的`Sink`包装具体实现。
+
+`wrapSink()`最终返回的`Sink`，包含了所有下游的`Sink`。
+
+这时该`Sink`作为参数，与另一个参数`splieraator`，一起进入 `copyInto()`方法，通过`spliterator.forEachRemaining(wrappedSink)`这句话，对Stream中的每一个元素都会从上到下流经一遍所有的 `Sink`，最终被最后一个`Sink`（也就是`makeSink()`方法创建的`ReducingSink`）所收集，并进行最后的处理。
+
+为了清晰，我们再次放出`ReducingSink`的实现：
+
+```java
+// ReduceOps 
+public static <T> TerminalOp<T, Optional<T>>
+  makeRef(BinaryOperator<T> operator) {
+  Objects.requireNonNull(operator);
+  class ReducingSink
+    implements AccumulatingSink<T, Optional<T>, ReducingSink> {
+    private boolean empty;
+    private T state;
+
+    public void begin(long size) {
+      empty = true;
+      state = null;
+    }
+
+    @Override
+    public void accept(T t) {
+      if (empty) {
+        empty = false;
+        state = t;
+      } else {
+        state = operator.apply(state, t);
+      }
+    }
+
+    @Override
+    public Optional<T> get() {
+      return empty ? Optional.empty() : Optional.of(state);
+    }
+
+    @Override
+    public void combine(ReducingSink other) {
+      if (!other.empty)
+        accept(other.state);
+    }
+  }
+  return new ReduceOp<T, Optional<T>, ReducingSink>(StreamShape.REFERENCE) {
+    @Override
+    public ReducingSink makeSink() {
+      return new ReducingSink();
+    }
+  };
+}
+```
+
+`ReducingSink`保存了一个共享变量`state`，其`accept()`方法调用`BinaryOperator.apply(op1, op2)`来将到达`Sink`的 Stream 中前后两个元素进行聚合，最后，由于`ReducingSink`的父类`AccumulatingSink`实现了`Consumer`，因此可以在所有元素都聚合完成后通过`get()`方法拿到聚合结果。
+
+这整是`helper.wrapAndCopyInto(makeSink(), spliterator).get()`最后的`get()`的作用。
+
+### 结尾
+
+看完了 Java Stream 的实现原理，再想想自从 jdk8 以后在业务代码里随处可见的 Stream 用法，不得不感叹其底层实现的工整、精巧。他以较为复杂的方式实现了流式操作，但最终暴露给用户的，仅仅是`Stream.of().filter().map().collect()`这样简单、直接的语义，真正做到了设计的高内聚和低耦合。
+
+从代码架构角度看，Stream 的实现采用三层结构，高层引申概念并提供 API，底层抽取共性并实现逻辑，而中层通过业务抽象来衔接高低层。通过这种方式实现了良好的扩展性，有了基础架构，多种多样的功能都能简单的实现出来（这里可以参考`distinct`、`collect`等操作符的实现逻辑，无一不实现的清晰而简洁）。
+
+回过头想想我自己日常的 coding，有没有可能尽量通过合理的分层、清晰地设计来更好的表达业务，并提供更强的扩展性呢？这应该是我读完 Stream 的源码后期望能深入思考之处。
