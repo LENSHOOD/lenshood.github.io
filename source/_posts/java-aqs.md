@@ -14,3 +14,60 @@ categories:
 
 开始之前，先放出一个小例子，来看看使用 AQS 实现同步工具是多么的简单（本例参考了《Java 并发编程实战》中的例子）：
 
+```java
+public class Latch {
+    private final Sync sync = new Sync();
+
+    public void await() { sync.acquireShared(0); }
+
+    public void release() { sync.release(0); }
+
+    class Sync extends AbstractQueuedSynchronizer {
+        @Override
+        protected int tryAcquireShared(int arg) { return getState() == 1 ? 1 : -1; }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            setState(1);
+            return true;
+        }
+    }
+}
+
+@Test
+    public void should_release_after_10_seconds() throws InterruptedException {
+        Latch latch = new Latch();
+
+        Runnable waiter = () -> {
+            latch.await();
+            System.out.println(Thread.currentThread().getName() + " done");
+        };
+        Thread thread1 = new Thread(waiter);
+        Thread thread2 = new Thread(waiter);
+
+        System.out.println("Start at: " + System.currentTimeMillis());
+
+        thread1.start();
+        thread2.start();
+        Thread.sleep(10000);
+
+        latch.release();
+        thread1.join();
+        thread2.join();
+
+        System.out.println("End at: " + System.currentTimeMillis());
+    }
+```
+
+上述例子描述了一个最简单的同步工具：闭锁。多个线程可以`await()`在其上，一旦闭锁`release()`时，所有线程得以释放。
+
+上述例子的测试结果如下：
+
+```shell
+Start at: 1590683053181
+Thread-4 done
+Thread-3 done
+End at:   1590683054190
+```
+
+通过 AQS，只要不到 20 行代码，就能实现闭锁功能，可见其极大的简化了工作。
