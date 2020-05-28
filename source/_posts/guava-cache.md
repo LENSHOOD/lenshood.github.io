@@ -253,10 +253,6 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
 
 ### 统计
 
-By using [`CacheBuilder.recordStats()`], you can turn on statistics collection
-for Guava caches. The [`Cache.stats()`] method returns a [`CacheStats`] object,
-which provides statistics such as
-
 通过使用 [`CacheBuilder.recordStats()`]，你打开 Guava 缓存的统计收集。[`Cache.stats()`]方法返回一个[`CacheStats`]对象，它能提供的统计值包括：
 
 *   [`hitRate()`]，可返回请求的命中率
