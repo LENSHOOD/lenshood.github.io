@@ -116,8 +116,7 @@ replacement string for a given character.
 
 ## CharMatcher
 
-In olden times, our `StringUtil` class grew unchecked, and had many methods like
-these:
+过去的时候，我们的`StringUtil`类逐渐变得不受控制，他拥有很多类似如下的方法：
 
 *   `allAscii`
 *   `collapse`
@@ -132,27 +131,16 @@ these:
 *   `stripAndCollapse`
 *   `stripNonDigits`
 
-They represent a partial cross product of two notions:
+他们代表了两种概念的交叉产物：
 
-1.  what constitutes a "matching" character?
-1.  what to do with those "matching" characters?
+1.  “匹配”字符是由什么组成的？
+1.  用“匹配”到的字符能干什么？
 
-To simplify this morass, we developed `CharMatcher`.
+为了简化这一团乱码，我们开发了 `CharMatcher`。
 
-Intuitively, you can think of a `CharMatcher` as representing a particular class
-of characters, like digits or whitespace. Practically speaking, a `CharMatcher`
-is just a boolean predicate on characters -- indeed, `CharMatcher` implements
-[`Predicate<Character>`] -- but because it
-is so common to refer to "all whitespace characters" or "all lowercase letters,"
-Guava provides this specialized syntax and API for characters.
+直觉上，你可以把`CharMatcher`当作是一个特殊的字符类，比如数字或空格符。实际上，`CharMatcher`只是基于字符上的一种布尔断言 -- 的确，`CharMatcher`实现了[`Predicate<Character>`]  -- 但是由于指代 “所有空格符” 或 “所有小写字符” 的情况很常见，所以 Guava 提供了这个字符专用的语法和 API。
 
-But the utility of a `CharMatcher` is in the _operations_ it lets you perform on
-occurrences of the specified class of characters: trimming, collapsing,
-removing, retaining, and much more. An object of type `CharMatcher` represents
-notion 1: what constitutes a matching character? It then provides many
-operations answering notion 2: what to do with those matching characters? The
-result is that API complexity increases linearly for quadratically increasing
-flexibility and power. Yay!
+但`CharMatcher`的实用之处在于他能够在出现指定字符类型时才执行相关_操作_：截断，折叠，移除，保留等等。一个`CharMatcher`类型的对象能代表：概念 1，“匹配”字符是由什么组成的？之后他提供了许多操作来实现概念 2：用“匹配”到的字符能干什么？当然最终 API 的复杂度会随着更加灵活和功能更强的方向而线性增长。Yay！
 
 ```java
 String noControl = CharMatcher.javaIsoControl().removeFrom(string); // remove control characters
@@ -164,14 +152,11 @@ String lowerAndDigit = CharMatcher.javaDigit().or(CharMatcher.javaLowerCase()).r
   // eliminate all characters that aren't digits or lowercase
 ```
 
-**Note:** `CharMatcher` deals only with `char` values; it does not understand
-supplementary Unicode code points in the range 0x10000 to 0x10FFFF. Such logical
-characters are encoded into a `String` using surrogate pairs, and a
-`CharMatcher` treats these just as two separate characters.
+**注意：**`CharMatcher`只处理`char`值；他无法理解从0x10000 到 0x10FFFF的增补 Unicode 代码点。此类逻辑字符会通过替换对（surrogate pairs） 编码为`String`，并且`CharMatcher`把这种替换对视为是两个分立的字符。
 
-### Obtaining CharMatchers
+### 获取 CharMatchers
 
-Many needs can be satisfied by the provided `CharMatcher` factory methods:
+`CharMatcher`提供的工厂方法能够满足非常多的需求：
 
 *   [`any()`]
 *   [`none()`]
@@ -188,34 +173,31 @@ Many needs can be satisfied by the provided `CharMatcher` factory methods:
 *   [`ascii()`]
 *   [`singleWidth()`]
 
-Other common ways to obtain a `CharMatcher` include:
+其他获取一个`CharMatcher`的通用方法包括：
 
 | Method                  | Description                                                  |
 | :---------------------- | :----------------------------------------------------------- |
-| [`anyOf(CharSequence)`] | Specify all the characters you wish matched. For example, `CharMatcher.anyOf("aeiou")` matches lowercase English vowels. |
-| [`is(char)`]            | Specify exactly one character to match.                      |
-| [`inRange(char, char)`] | Specify a range of characters to match, e.g. `CharMatcher.inRange('a', 'z')`. |
+| [`anyOf(CharSequence)`] | 指定你想要匹配的所有字符。例如，`CharMatcher.anyOf("aeiou")`能匹配所有英文小写元音字符。 |
+| [`is(char)`]            | 指定需要匹配的单个字符。                                     |
+| [`inRange(char, char)`] | 指定一个字符匹配范围，例如，`CharMatcher.inRange('a', 'z')`。 |
 
-Additionally, `CharMatcher` has [`negate()`], [`and(CharMatcher)`], and
-[`or(CharMatcher)`]. These provide simple boolean operations on `CharMatcher`.
+此外，`CharMatcher` 拥有 [`negate()`]， [`and(CharMatcher)`]，和
+[`or(CharMatcher)`]。他们提供了基于`CharMatcher`的简单布尔操作。
 
-### Using CharMatchers
+### 使用 CharMatchers
 
-`CharMatcher` provides a [wide variety] of methods to operate on occurrences of
-the specified characters in any `CharSequence`. There are more methods provided
-than we can list here, but some of the most commonly used are:
+`CharMatcher`提供了[大量的]方法来操作任何`CharSequence`中出现的字符。我们列出了最常用的方法，但实际上还有很多方法我们未列出：
 
 | Method                                      | Description                                                  |
 | :------------------------------------------ | :----------------------------------------------------------- |
-| [`collapseFrom(CharSequence, char)`]        | Replace each group of consecutive matched characters with the specified character. For example, `WHITESPACE.collapseFrom(string, ' ')` collapses whitespaces down to a single space. |
-| [`matchesAllOf(CharSequence)`]              | Test if this matcher matches all characters in the sequence. For example, `ASCII.matchesAllOf(string)` tests if all characters in the string are ASCII. |
-| [`removeFrom(CharSequence)`]                | Removes matching characters from the sequence.               |
-| [`retainFrom(CharSequence)`]                | Removes all non-matching characters from the sequence.       |
-| [`trimFrom(CharSequence)`]                  | Removes leading and trailing matching characters.            |
-| [`replaceFrom(CharSequence, CharSequence)`] | Replace matching characters with a given sequence.           |
+| [`collapseFrom(CharSequence, char)`]        | 将一组连续匹配到的字符替换为指定的字符。例如，`WHITESPACE.collapseFrom(string, ' ')`把多个空格符折叠为单个空格符。 |
+| [`matchesAllOf(CharSequence)`]              | 判断序列中的字符是否全部能被匹配到。例如，`ASCII.matchesAllOf(string)`可以检查是否所有的字符都在 ASCII 字符集内。 |
+| [`removeFrom(CharSequence)`]                | 从序列中移除匹配到的字符。                                   |
+| [`retainFrom(CharSequence)`]                | 从序列中移除所有未被匹配到的字符。                           |
+| [`trimFrom(CharSequence)`]                  | 移除首尾匹配到的字符。                                       |
+| [`replaceFrom(CharSequence, CharSequence)`] | 用给定的序列替换匹配到的字符。                               |
 
-(Note: all of these methods return a `String`, except for `matchesAllOf`, which
-returns a `boolean`.)
+（注意：以上所有方法都返回一个`String`，除了`matchesAllOf`，他会返回一个`boolean`。）
 
 ## Charsets
 
@@ -308,7 +290,7 @@ class.
 [`negate()`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#negate--
 [`and(CharMatcher)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#and-com.google.common.base.CharMatcher-
 [`or(CharMatcher)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#or-com.google.common.base.CharMatcher-
-[wide variety]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#method_summary
+[大量的]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#method_summary
 [`collapseFrom(CharSequence, char)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#collapseFrom-java.lang.CharSequence-char-
 [`matchesAllOf(CharSequence)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#matchesAllOf-java.lang.CharSequence-
 [`removeFrom(CharSequence)`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#removeFrom-java.lang.CharSequence-
