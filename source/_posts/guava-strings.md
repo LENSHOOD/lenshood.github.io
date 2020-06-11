@@ -201,7 +201,7 @@ String lowerAndDigit = CharMatcher.javaDigit().or(CharMatcher.javaLowerCase()).r
 
 ## Charsets
 
-Don't do this:
+别这么干：
 
 ```java
 try {
@@ -212,26 +212,21 @@ try {
 }
 ```
 
-Do this instead:
+应该这么干：
 
 ```java
 bytes = string.getBytes(Charsets.UTF_8);
 ```
 
-[`Charsets`] provides constant references to the six standard `Charset`
-implementations guaranteed to be supported by all Java platform implementations.
-Use them instead of referring to charsets by their names.
+[`Charsets`] 提供了对标准的六种`Charset`实现的常量引用，所有 java 平台都保证支持这六种实现。使用这些常量引用而不是他们的名字。
 
-TODO: an explanation of charsets and when to use them
+TODO: an explanation of charsets and when to use them（注：似乎是作者给自己留的一个坑）
 
-(Note: If you're using JDK7, you should use the constants in
-[`StandardCharsets`]
+(注意：如果你已经使用了 JDK7，那么可以直接使用 [`StandardCharsets`] 中定义的常量）
 
 ## CaseFormat
 
-`CaseFormat` is a handy little class for converting between ASCII case
-conventions &mdash; like, for example, naming conventions for programming
-languages. Supported formats include:
+`CaseFormat` 是一个趁手的小工具类，他能方便的在不同的 ASCII 大小写习惯（例如，编程语言的命名习惯） 之间进行转换 。支持的格式包括：
 
 | Format               | Example            |
 | :------------------- | :----------------- |
@@ -241,19 +236,17 @@ languages. Supported formats include:
 | [`UPPER_CAMEL`]      | `UpperCamel`       |
 | [`UPPER_UNDERSCORE`] | `UPPER_UNDERSCORE` |
 
-Using it is relatively straightforward:
+使用方法相当直接：
 
 ```java
 CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, "CONSTANT_NAME")); // returns "constantName"
 ```
 
-We find this especially useful, for example, when writing programs that generate
-other programs.
+我们发现这非常好用，比如在编写某种能够生成其他程序的程序时。
 
 ## Strings
 
-A limited number of general-purpose `String` utilities reside in the [`Strings`]
-class.
+类中包含了一定数量的通用`String`工具。
 
 [`Joiner`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Joiner.html
 [`Splitter`]: http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html
