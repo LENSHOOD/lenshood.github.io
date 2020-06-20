@@ -1,5 +1,5 @@
 ---
-title: Guava 译文系列）缓存
+title: （Guava 译文系列）缓存
 date: 2020-06-20 21:42:32
 tags:
 - guava
@@ -8,72 +8,50 @@ categories:
 - Guava
 ---
 
-Guava's `common.graph` is a library for modeling
-[graph](https://en.wikipedia.org/wiki/Graph_\(discrete_mathematics\))-structured
-data, that is, entities and the relationships between them. Examples include
-webpages and hyperlinks; scientists and the papers that they write; airports and
-the routes between them; and people and their family ties (family trees). Its
-purpose is to provide a common and extensible language for working with such
-data.
+Guava 的`common.graph`库对图结构进行了建模，[图](https://en.wikipedia.org/wiki/Graph_\(discrete_mathematics\))，是一种包含实体及其之间关系的数据结构。这种结构的例子包括 web 页面与超链接、科学家和他们写的论文、机场以及机场之间的航路、以及个人与其家庭关系（谱系树）。图结构的目的在于能提供一种通用且可扩展的语言来描述上述这类数据。
 
-## Definitions
+## 定义
 
-A graph consists of a set of **nodes** (also called vertices) and a set of
-**edges** (also called links, or arcs); each edge connects nodes to each other.
-The nodes incident to an edge are called its **endpoints**.
+一个图包含了一组**节点（node）**（也叫顶点）和一组**边（edge）**（也叫连接或弧线）；每一条边连接了两个节点。与边关联的节点成为**端点（endpoints）**
 
-(While we introduce an interface called `Graph` below, we will use "graph"
-(lower case "g") as a general term referring to this type of data structure.
-When we want to refer to a specific type in this library, we capitalize it.)
+（当我们在下文中介绍`Graph`接口时，我们使用小写的"graph"来指代图这种数据结构。当我们想要指代`Graph`接口时，我们会用大写。（译者注：译文中图数据结构与`Graph`接口的名字不存在混淆。））。
 
-An edge is **directed** if it has a defined start (its **source**) and end (its
-**target**, also called its destination). Otherwise, it is **undirected**.
-Directed edges are suitable for modeling asymmetric relations ("descended from",
-"links to", "authored by"), while undirected edges are suitable for modeling
-symmetric relations ("coauthored a paper with", "distance between", "sibling
-of").
+如果一条边拥有定义好的起点（他的**源 source**）和终点（他的**目标 target**，也叫目的地），那么这条边是**有向的（directed）**。否则便是**无向的（undirected）**。有向边适合表示不对称关系（派生自...， 连接到...， 被...撰写），而无向边适合表示对称关系（“与...为共同作者”，“两者之间距离...”， “与...是兄弟”）。
 
-A graph is directed if each of its edges are directed, and undirected if each of
-its edges are undirected. (`common.graph` does not support graphs that have both
-directed and undirected edges.)
+假如一个图的所有边都是有向的，则称为有向图，反正如果一个图的所有边都是无向的，则成为无向图。（`common.graph` 不支持同时包含有向边和无向边的图）。
 
-Given this example:
+举例如下：
 
 ```java
 graph.addEdge(nodeU, nodeV, edgeUV);
 ```
 
-*   `nodeU` and `nodeV` are mutually **adjacent**
-*   `edgeUV` is **incident** to `nodeU` and to `nodeV` (and vice versa)
+*   `nodeU` 和 `nodeV` 互为相邻（ **adjacent**）
+*   `edgeUV` 关联（ **incident**）  `nodeU` 到 `nodeV` (反之亦然)
 
-If `graph` is directed, then:
+如果 `graph` 是有向图，那么：
 
-*   `nodeU` is a **predecessor** of `nodeV`
-*   `nodeV` is a **successor** of `nodeU`
-*   `edgeUV` is an **outgoing** edge (or out-edge) of `nodeU`
-*   `edgeUV` is an **incoming** edge (or in-edge) of `nodeV`
-*   `nodeU` is a **source** of `edgeUV`
-*   `nodeV` is a **target** of `edgeUV`
+*   `nodeU` 是 `nodeV` 的一个前任（**predecessor**）
+*   `nodeV` 是`nodeU` 的一个后继（**successor** ）
+*   `edgeUV` 是`nodeU`的一条外向（ **outgoing**）边
+*   `edgeUV` 是`nodeV`的一条内向（ **incoming**）边
+*   `nodeU` 是 `edgeUV`的一个源（**source**）
+*   `nodeV` 是`edgeUV`的一个目标（ **target** ）
 
-If `graph` is undirected, then:
+如果 `graph` 是无向图，那么：
 
-*   `nodeU` is a predecessor and a successor of `nodeV`
-*   `nodeV` is a predecessor and a successor of `nodeU`
-*   `edgeUV` is both an incoming and an outgoing edge of `nodeU`
-*   `edgeUV` is both an incoming and an outgoing edge of `nodeV`
+*   `nodeU` 是 `nodeV`的一个前任和后继
+*   `nodeV` 是`nodeU`的一个前任和后继
+*   `edgeUV` 是 `nodeU`的一条外向与内向边
+*   `edgeUV` 是 `nodeV`的一条外向与内向边
 
-All of these relationships are with respect to `graph`.
+所有这些关系，都与 `graph`有关。
 
-A **self-loop** is an edge that connects a node to itself; equivalently, it is
-an edge whose endpoints are the same node. If a self-loop is directed, it is
-both an outgoing and incoming edge of its incident node, and its incident node
-is both a source and a target of the self-loop edge.
+**自循环（self-loop）**指一条边连接了一个节点到他自身，同样的，这也代表一条边的两个端点是同一个节点。如果一个自循环是有向的，那么他既是关联节点的外向边，也是内向边，且与之关联的节点既是源也是目标。
 
-Two edges are **parallel** if they connect the same nodes in the same order (if
-any), and **antiparallel** if they connect the same nodes in the opposite order.
-(Undirected edges cannot be antiparallel.)
+如果两条边以相同的顺序连接了相同的节点，则称这两条边**平行（parallel）**，而如果他们以相反的顺序连接了相同的节点，则称**反平行（antiparallel）**。（无向边不能成为反平行。）
 
-Given this example:
+举例如下：
 
 ```java
 directedGraph.addEdge(nodeU, nodeV, edgeUV_a);
@@ -86,11 +64,9 @@ undirectedGraph.addEdge(nodeV, nodeU, edgeVU);
 
 ```
 
-In `directedGraph`, `edgeUV_a` and `edgeUV_b` are mutually parallel, and each is
-antiparallel with `edgeVU`.
+在 `directedGraph` 中，`edgeUV_a` 和 `edgeUV_b` 互为平行, 且都与 `edgeVU`互为反平行。
 
-In `undirectedGraph`, each of `edgeUV_a`, `edgeUV_b`, and `edgeVU` is mutually
-parallel with the other two.
+在 `undirectedGraph`中， `edgeUV_a`， `edgeUV_b`， 和 `edgeVU` 都互为平行。
 
 ## Capabilities
 
