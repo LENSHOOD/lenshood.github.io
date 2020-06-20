@@ -43,7 +43,7 @@ Guava 项包含了被 Google 的 Java 项目依赖的多个核心库：集合、
 	- [ListenableFuture](https://github.com/google/guava/wiki/ListenableFutureExplained)：Future，当其结束时进行回调。
 	- [Service](https://github.com/google/guava/wiki/ServiceExplained)：帮你处理启动、停止中复杂的状态逻辑。
 
-- [Strings](https://github.com/google/guava/wiki/StringsExplained)：一些超有用的 String 工具类：splitting, joining, padding 等等。
+- [Strings](https://lenshood.github.io/2020/06/07/guava-strings/)：一些超有用的 String 工具类：splitting, joining, padding 等等。
 
 - [扩展基本类型](https://github.com/google/guava/wiki/PrimitivesExplained)：对 JDK 未包含的基本类型，例如`int`，`char`等等的操作，包括一些类型的无符号变量。
 
