@@ -68,46 +68,32 @@ undirectedGraph.addEdge(nodeV, nodeU, edgeVU);
 
 在 `undirectedGraph`中， `edgeUV_a`， `edgeUV_b`， 和 `edgeVU` 都互为平行。
 
-## Capabilities
+## 能力
 
-`common.graph` is focused on providing interfaces and classes to support working
-with graphs. It does not provide functionality such as I/O or visualization
-support, and it has a very limited selection of utilities. See the [FAQ](#faq)
-for more on this topic.
+`common.graph` 聚焦于提供接口和类来支撑基于图的开发工作。它不提供类似于 I/O 的功能或是可视化的支持，它的实用工具选择也很有限。详情可见[FAQ](#faq)。
 
-As a whole, `common.graph` supports graphs of the following varieties:
+总体上， `common.graph` 支持了一下几种图：
 
-*   directed graphs
-*   undirected graphs
-*   nodes and/or edges with associated values (weights, labels, etc.)
-*   graphs that do/don't allow self-loops
-*   graphs that do/don't allow parallel edges (graphs with parallel edges are
-    sometimes called multigraphs)
-*   graphs whose nodes/edges are insertion-ordered, sorted, or unordered
+*   有向图
+*   无向图
+*   能够关联值（权重、标签等等）的节点和边
+*   允许/不允许自循环的图
+*   允许/不允许平行边的图（有平行边的图有时会被称为multigraph）
+*   图的节点/边支持以插入顺序、可排序或无序。
 
-The kinds of graphs supported by a particular `common.graph` type are specified
-in its Javadoc. The kinds of graphs supported by the built-in implementations of
-each graph type are specified in the Javadoc for its associated `Builder` type.
-Specific _implementations_ of the types in this library (especially third-party
-implementations) are not required to support all of these varieties, and may
-support others in addition.
+具体哪种`common.graph`支持哪些图，已在 javadoc 中说明。而对内置的各种图的实现类，其说明文档处于对应的`Builder`类的 javadoc 中。在库内对特殊类型的*实现类*（特别是第三方实现）并不要求支持所有种类，且可能在后续添加支持其他种类。
 
-The library is agnostic as to the choice of underlying data structures:
-relationships can be stored as matrices, adjacency lists, adjacency maps, etc.
-depending on what use cases the implementor wants to optimize for.
+对于底层数据结构的选择，该库是不可知的：根据实现者对不同用例的优化，图关系的描述可以通过矩阵、邻接表、邻接映射等结构来表示。
 
-`common.graph` does not (at this time) include _explicit_ support for the
-following graph variants, although they can be modeled using the existing types:
+`common.graph` 目前不包括对如下图种类的*明确*支持， 即使他们能够用现有的类型来建模：
 
-*   trees, forests
-*   graphs with elements of the same kind (nodes or edges) that have different
-    types (for example: bipartite/k-partite graphs, multimodal graphs)
-*   hypergraphs
+*   树、森林
+*   具有相同类型的元素（节点或边）具有不同的数据类型（例如：二部/k部图，多模图）
+*   超图
 
-`common.graph` does not allow graphs with both directed and undirected edges.
+`common.graph` 不允许图既包含有向边，又包含无向边。
 
-The [`Graphs`] class provides some basic utilities (for example, copying and
-comparing graphs).
+ [`Graphs`] 类提供了一些基本实用工具（例如，对图的复制和比较）
 
 ## Graph Types
 
