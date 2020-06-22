@@ -95,69 +95,39 @@ undirectedGraph.addEdge(nodeV, nodeU, edgeVU);
 
  [`Graphs`] 类提供了一些基本实用工具（例如，对图的复制和比较）
 
-## Graph Types
+## 图的种类
 
-There are three top-level graph interfaces, that are distinguished by their
-representation of edges: `Graph`, `ValueGraph`, and `Network`.  These are
-sibling types, i.e., none is a subtype of any of the others.
+顶层的图接口有三个，以边的表示方式可以区分为：`Graph`， `ValueGraph`，和 `Network`。他们互为同级，不存在一种为另一种的子类型的关系。
 
-Each of these "top-level" interfaces extends [`SuccessorsFunction`] and
-[`PredecessorsFunction`].  These interfaces are meant to be used as the type of
-a parameter to graph algorithms (such as breadth first traversal) that only need
-a way of accessing the successors/predecessors of a node in a graph.  This
-is especially useful in cases where the owner of a graph already has a
-representation that works for them and doesn't particularly want to serialize
-their representation into a `common.graph` type just to run one graph algorithm.
+每一个“顶层”接口都扩展自[`SuccessorsFunction`] 和 [`PredecessorsFunction`]。这些接口的意义在于当作只需要获取前任和后继节点的图算法（例如广度优先算法）的参数。当图的拥有者已经有了一种行之有效的图表示方法，且他们并不想专门把自己的表示法转化为`common.graph`而只想采用一种图算法的时候，这种顶层接口十分有用。
 
 ### Graph
 
-[`Graph`] is the simplest and most fundamental graph type. It defines the
-low-level operators for dealing with node-to-node relationships, such as
-`successors(node)`, `adjacentNodes(node)`, and `inDegree(node)`. Its nodes are
-first-class unique objects; you can think of them as analogous to `Map` keys
-into the `Graph` internal data structures.
+[`Graph`]是最基础、最简单的一种图类型。他定义了一些底层操作符，来处理节点之间的关系，例如`successors(node)，` `adjacentNodes(node)，` 和 `inDegree(node)`。他的节点是第一等的唯一对象；你可以将之在`Graph`内部数据结构类比为`Map`的键。
 
-The edges of a `Graph` are completely anonymous; they are defined only in terms
-of their endpoints.
+`Graph`的边是完全匿名的；他们仅仅由其端点来定义。
 
-Example use case: `Graph<Airport>`, whose edges connect the airports between
-which one can take a direct flight.
+示例用法：`Graph<Airport>`的边俩连接了能搭乘直达航班到达的机场。
 
 ### ValueGraph
 
-[`ValueGraph`] has all the node-related methods that [`Graph`] does, but adds a
-couple of methods that retrieve a value for a specified edge.
+[`ValueGraph`] 一样拥有 [`Graph`] 所拥有的所有与节点相关的方法，但增加了两个从特定边获取值的方法。
 
-The edges of a `ValueGraph` each have an associated user-specified value. These
-values need not be unique (as nodes are); the relationship between a
-`ValueGraph` and a `Graph` is analogous to that between a `Map` and a `Set`; a
-`Graph`'s edges are a set of pairs of endpoints, and a `ValueGraph`'s edges are
-a map from pairs of endpoints to values.)
+`ValueGraph`的每一条边都关联着一个用户指定的值。这些值不要求唯一（因为节点是唯一的）；一个`ValueGraph`和一个  `Graph ` 的关系可以类比为`Map` 和 `Set`；一个`Graph`的边是一对端点，而一个`ValueGraph`的边是一对端点与其值的映射。
 
-[`ValueGraph`] provides an `asGraph()` method which returns a `Graph` view of
-the `ValueGraph`. This allows methods which operate on `Graph` instances to
-function for `ValueGraph` instances as well.
+[`ValueGraph`] 提供了一个 `asGraph()` 方法来返回一个`ValueGraph`的`Graph`视图。这允许以`Graph`为参数的方法同样能处理`ValueGraph`实例。
 
-Example use case: `ValueGraph<Airport, Integer>`, whose edges values represent
-the time required to travel between the two `Airport`s that the edge connects.
+示例用法：`ValueGraph<Airport, Integer>`的边代表了被一条边连接的两个`Airport`之间的旅途时间。
 
 ### Network
 
-[`Network`] has all the node-related methods that `Graph` does, but adds methods
-that work with edges and node-to-edge relationships, such as `outEdges(node)`,
-`incidentNodes(edge)`, and `edgesConnecting(nodeU, nodeV)`.
+[`Network`] 一样拥有 [`Graph`] 所拥有的所有与节点相关的方法，但增加了操作边与操作节点-边关系的相关方法，例如`outEdges(node)`，`incidentNodes(edge)`和 `edgesConnecting(nodeU, nodeV)`。
 
-The edges of a `Network` are first-class (unique) objects, just as nodes are in
-all graph types. The uniqueness constraint for edges allows [`Network`] to
-natively support parallel edges, as well as the methods relating to edges and
-node-to-edge relationships.
+`Network`的边是第一等的唯一对象，就像所有图类型中的节点一样。边的唯一性约束使得 [`Network`]原生支持平行边，以及边之间关系的方法和节点-边之间关系的方法。
 
-[`Network`] provides an `asGraph()` method which returns a `Graph` view of the
-`Network`. This allows methods which operate on `Graph` instances to function
-for `Network` instances as well.
+[`Network`] 提供了一个 `asGraph()` 方法来返回一个`Network`的 `Graph` 视图。这允许以`Graph`为参数的方法同样能处理`Network`实例。
 
-Example use case: `Network<Airport, Flight>`, in which the edges represent the
-specific flights that one can take to get from one airport to another.
+示例用法：`Network<Airport, Flight>`的边代表了一个人能从一个机场到另一个机场可以搭乘的具体航班。
 
 ### Choosing the right graph type
 
