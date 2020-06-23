@@ -129,25 +129,15 @@ undirectedGraph.addEdge(nodeV, nodeU, edgeVU);
 
 示例用法：`Network<Airport, Flight>`的边代表了一个人能从一个机场到另一个机场可以搭乘的具体航班。
 
-### Choosing the right graph type
+### 选择合适的 graph 类型
 
-The essential distinction between the three graph types is in their
-representation of edges.
+上述三种 graph，其本质的区别在于他们对边的不同表示方式。
 
-[`Graph`] has edges which are anonymous connections between nodes, with no
-identity or properties of their own. You should use `Graph` if each pair of
-nodes is connected by at most one edge, and you don't need to associate any
-information with edges.
+[`Graph`] 中节点之间连接的边是匿名的，边本身并不拥有任何标识或属性。当每一对节点都最多被一条边连接，且不需要在边上关联任何信息的时候，你应该使用`Graph`。
 
-[`ValueGraph`] has edges which have values (e.g., edge weights or labels) that
-may or may not be unique. You should use `ValueGraph` if each pair of nodes is
-connected by at most one edge, and you need to associate information with edges
-that may be the same for different edges (for example, edge weights).
+[`ValueGraph`] 的边拥有自己的唯一或不唯一的值（例如边的权重或标签等）。当每一对节点都最多被一条边连接，且需要在边上关联信息，不同边上的信息并不要求唯一的时候（例如边的权重），你应该使用`ValueGraph`。
 
-[`Network`] has edges which are first-class unique objects, just as nodes are.
-You should use `Network` if your edge objects are unique, and you want to be
-able to issue queries that reference them. (Note that this uniqueness allows
-`Network` to support parallel edges.)
+[`Network`] 的边是第一等唯一对象，就像节点一样。当边对象唯一，且期望实施对其引用的查询时，你应该使用`Network`。（注意这种唯一性允许`Network`支持平行边。）
 
 ## Building graph instances
 
