@@ -139,17 +139,11 @@ undirectedGraph.addEdge(nodeV, nodeU, edgeVU);
 
 [`Network`] 的边是第一等唯一对象，就像节点一样。当边对象唯一，且期望实施对其引用的查询时，你应该使用`Network`。（注意这种唯一性允许`Network`支持平行边。）
 
-## Building graph instances
+## 构造 graph 实例
 
-The implementation classes that `common.graph` provides are not public, by
-design. This reduces the number of public types that users need to know about,
-and makes it easier to navigate the various capabilities that the
-built-implementations provide, without overwhelming users that just want to
-create a graph.
+`common.graph`提供的实现类在设计上并不是 public 的。这减少了用户需要了解的 public 类型类的数量，也使浏览内置实现类提供的多种能力变得更容易，而不会让只想创建一个 graph 的用户感到不知所措。
 
-To create an instance of one of the built-in implementations of a graph type,
-use the corresponding `Builder` class: [`GraphBuilder`], [`ValueGraphBuilder`],
-or [`NetworkBuilder`]. Examples:
+为了创建 graph 类型中的某一种内建实现类的实例，可以使用对应的 `Builder` 类： [`GraphBuilder`]，[`ValueGraphBuilder`]，或 [`NetworkBuilder`]。例如：
 
 ```java
 // Creating mutable graphs
@@ -177,27 +171,20 @@ ImmutableGraph<Country> countryAdjacencyGraph =
         .build();
 ```
 
-*   You can get an instance of a graph `Builder` in one of two ways:
-    *   calling the static methods `directed()` or `undirected()`. Each Graph
-        instance that the `Builder` provides will be directed or undirected.
-    *   calling the static method `from()`, which gives you a `Builder` based on
-        an existing graph instance.
-*   After you've created your `Builder` instance, you can optionally specify
-    other characteristics and capabilities.
-*   Building mutable graphs
-    *   You can call `build()` on the same `Builder` instance multiple times to
-        build multiple graph instances with the same configuration.
-    *   You don't need to specify the element type(s) on the `Builder`;
-        specifying them on the graph type itself is sufficient.
-    *   The `build()` method returns a `Mutable` subtype of the associated graph
-        type, which provides mutation methods; more on this in
-        ["`Mutable` and `Immutable` graphs"](#mutable-and-immutable-graphs),
-        below.
-*   Building immutable graphs
+*   你可以通过以下两种方式来获得一个 graph `Builder` 实例:
+    *   调用静态方法 `directed()` 或 `undirected()`。每一个`Builder`提供的 graph 实例都会是有向或无向的。
+    *   调用静态方法`from()`，他能返回一个基于已存在的 graph 实例的`Builder`。
+*   在你创建好`Builder`实例之后，你可以选择指定其他的特性和能力。
+*   构建可变的 graph 实例
+    *   你可以通过对同一个`Builder`实例调用多次`build()`方法来构建相同配置的多个不同实例。
+    *   你不需要指定`Builder `的元素类型，在 graph 类型本身上指定他们就足够了。
+    *    `build()` 方法会返回一个对应 graph 类型的`Mutable` 子类型，他提供了修改方法，更多细节可见下文的["`Mutable` and `Immutable` graphs"](#mutable-and-immutable-graphs)章节。
+*   构建不可变的 graph 实例
     *   You can call `immmutable()` on the same `Builder` instance multiple
         times to create multiple `ImmutableGraph.Builder` instances with the
         same configuration.
-    *   You need to specify the element type(s) on the `immutable` call.
+    *   在同一个`Builder`上多次调用`immmutable()`来获得多个相同配置的`ImmutableGraph.Builder`实例。
+    *   你需要在调用`immutable`时指定元素类型。
 
 ### Builder constraints vs. optimization hints
 
