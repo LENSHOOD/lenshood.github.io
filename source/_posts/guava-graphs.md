@@ -180,32 +180,24 @@ ImmutableGraph<Country> countryAdjacencyGraph =
     *   你不需要指定`Builder `的元素类型，在 graph 类型本身上指定他们就足够了。
     *    `build()` 方法会返回一个对应 graph 类型的`Mutable` 子类型，他提供了修改方法，更多细节可见下文的["`Mutable` and `Immutable` graphs"](#mutable-and-immutable-graphs)章节。
 *   构建不可变的 graph 实例
-    *   You can call `immmutable()` on the same `Builder` instance multiple
-        times to create multiple `ImmutableGraph.Builder` instances with the
-        same configuration.
     *   在同一个`Builder`上多次调用`immmutable()`来获得多个相同配置的`ImmutableGraph.Builder`实例。
     *   你需要在调用`immutable`时指定元素类型。
 
-### Builder constraints vs. optimization hints
+### Builder 的约束 vs. 优化提示
 
-The `Builder` types generally provide two types of options: constraints and
-optimization hints.
+`Builder`类型通常提供了两类可选项：约束和优化提示。
 
-Constraints specify behaviors and properties that graphs created by a given
-`Builder` instance must satisfy, such as:
+约束指定了一个由`Builder`创建的 graph 实例必须要满足的行为和属性，例如：
 
-*   whether the graph is directed
-*   whether this graph allows self-loops
-*   whether this graph's edges are sorted
+*   graph 是否有向
+*   graph 是否允许自循环
+*   graph 的边是否可排序
 
-and so forth.
+等等。
 
-Optimization hints may optionally be used by the implementation class to
-increase efficiency, for example, to determine the type or initial size of
-internal data structures. They are not guaranteed to have any effect.
+graph 的实现类可以选择性的使用优化提示来提高效率，例如，决定类型或是内部数据结构的初始大小。优化提示并不保证有任何效果。
 
-Each graph type provides accessors corresponding to its `Builder`-specified
-constraints, but does not provide accessors for optimization hints.
+每个 graph 类型都提供与其特定`Builder`约束相关的访问器，但并不提供优化提示的访问器。
 
 ## `Mutable` and `Immutable` graphs
 
