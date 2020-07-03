@@ -199,17 +199,15 @@ graph 的实现类可以选择性的使用优化提示来提高效率，例如�
 
 每个 graph 类型都提供与其特定`Builder`约束相关的访问器，但并不提供优化提示的访问器。
 
-## `Mutable` and `Immutable` graphs
+## `Mutable` 和 `Immutable` 图
 
-### `Mutable*` types
+### `Mutable*` 类型
 
-Each graph type has a corresponding `Mutable*` subtype: [`MutableGraph`],
-[`MutableValueGraph`], and [`MutableNetwork`]. These subtypes define the
-mutation methods:
+每个 graph 类型都有一个与之相关联的 `Mutable*` 子类型： [`MutableGraph`]，[`MutableValueGraph`]，和 [`MutableNetwork`]。这些子类型定义了对其进行修改的方法：
 
-*   methods for adding and removing nodes:
-    *   `addNode(node)` and `removeNode(node)`
-*   methods for adding and removing edges:
+*   添加或删除节点功能：
+    *   `addNode(node)` 和 `removeNode(node)`
+*   添加或删除边功能：
     *   [`MutableGraph`]
         *   `putEdge(nodeU, nodeV)`
         *   `removeEdge(nodeU, nodeV)`
@@ -220,23 +218,10 @@ mutation methods:
         *   `addEdge(nodeU, nodeV, edge)`
         *   `removeEdge(edge)`
 
-This is a departure from the way that the Java Collections Framework--and
-Guava's new collection types--have historically worked; each of those types
-includes signatures for (optional) mutation methods. We chose to break out the
-mutable methods into subtypes in part to encourage defensive programming:
-generally speaking, if your code only examines or traverses a graph and does not
-mutate it, its input should be specified as on [`Graph`], [`ValueGraph`], or
-[`Network`] rather than their mutable subtypes. On the other hand, if your code
-does need to mutate an object, it's helpful for your code to have to call
-attention to that fact by working with a type that labels itself "Mutable".
+这种方式与传统的 Java 集合框架（也包括 Guava 的新集合类型）的工作方式不同；每种类型都包含（可选的）修改方法签名。我们选择将这些修改方法剥离开并放入子类型，有一部分鼓励防御型编程的考虑：通常，如果你的代码只是检查或遍历一个 graph 而并不改变他，那么代码的输入应该被指定为 [`Graph`]， [`ValueGraph`]，或
+[`Network`] 而不是可变子类型。另一方面，如果你的代码的确需要修改一个对象，在一个带有“Mutable”标签的类型上工作有助于提醒你注意他会被修改这个事实。
 
-Since [`Graph`], etc. are interfaces, even though they don't include mutation
-methods, providing an instance of this interface to a caller _does not
-guarantee_ that it will not be mutated by the caller, as (if it is in fact a
-`Mutable*` subtype) the caller could cast it to that subtype. If you want to
-provide a contractual guarantee that a graph which is a method parameter or
-return value cannot be modified, you should use the `Immutable` implementations;
-more on this below.
+由于 [`Graph`] 等都是接口，即使他们不包含可变方法，向调用者提供该接口实例也*不保证*不会被调用者修改，就像（实际上他是一个`Mutable*`子类型的实例一样），调用者可以把它强制转换为一个可变子类型。如果你想要提供一个契约性的保证，即作为方法参数或返回值的 graph 不可被改变，你应该使用`Immutable`实现类，详情见下文。
 
 ### `Immutable*` implementations
 
