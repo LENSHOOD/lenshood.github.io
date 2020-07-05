@@ -231,3 +231,185 @@ function reticulateSplines(){
 ```
 
 然而假如我们创建了一个新的权限 Toggle，我们期望其 Toggle Point 存活非常长的时间，那么我们当然不想随意的将 Toggle Point 实现为少量 if/else 检查。我们需要使用更加易于维护的实现技术。
+
+## 实现技术
+
+Feature Flags 似乎产生了相当混乱的 Toggle Point 代码，而这些 Toggle Point 也有在整个代码库中扩散的趋势。确保这一趋势对任何 feature flags 都可控则非常重要，尤其是对于那些长寿的 flag。以下有一些实现模式与实践能帮助减少这类问题。
+
+### 决策点与决策逻辑解耦
+
+一个 Feature Toggle 的常见错误就是将 toggle 决策发生的地方（即 Toggle Point）与决策背后的逻辑（即 Toggle Router）耦合在一起。来看一个例子。我们目前正在开发下一代电商系统。我们的其中一个新功能可以让用户便捷的通过点击他们的订单确认邮件（即清单邮件）中的一个链接，就能取消该订单。我们用 Feature Flags 来管理所有下一代新功能的推出。我们初始的 feature flag 实现看起来是这样的：
+
+invoiceEmailer.js
+
+```javascript
+  const features = fetchFeatureTogglesFromSomewhere();
+
+  function generateInvoiceEmail(){
+    const baseEmail = buildEmailForInvoice(this.invoice);
+    if( features.isEnabled("next-gen-ecomm") ){ 
+      return addOrderCancellationContentToEmail(baseEmail);
+    }else{
+      return baseEmail;
+    }
+  }
+```
+
+当生成清单邮件时我们的 InvoiceEmailler 检查 `next-gen-ecomm `功能是否启用。如果是，则邮件发送器会增加一些附加的订单取消内容至邮件中，
+
+这看起来是一个合理的做法，不过非常脆弱。关于是否在清单邮件中包含订单取消功能的相关内容直接和一个广泛的`next-gen-ecomm（下一代 ecomm）`功能开关相关联 -- 而且居然使用了一个魔数字符串。为什么发清单邮件的代码需要知晓订单取消功能是下一代功能集的一部分呢？如果我们想要暴露下一代功能中的一部分，而不包含订单取消呢？或者反之亦然？如果我们只想将订单取消功能暴露给一部分用户呢？在特性开发中，这种 “切换范围” 的更改很常见。还需要牢记在心的就是，这种 toggle point 会有蔓延至整个代码库的趋势。以我们现在的方法，因为 toggle 决策逻辑是 toggle point 的一部分，任何对该决策逻辑的修改都需要搜索所有这些被蔓延至代码库的 toggle point。
+
+令人欣喜的是，[软件领域的任何问题都能通过增加一个中间层来解决（any problem in software can be solved by adding a layer of indirection](https://en.wikipedia.org/wiki/Fundamental_theorem_of_software_engineering)。我们可以用以下方式来将 toggle point 从决策逻辑中解耦：
+
+featureDecisions.js
+
+```javascript
+  function createFeatureDecisions(features){
+    return {
+      includeOrderCancellationInEmail(){
+        return features.isEnabled("next-gen-ecomm");
+      }
+      // ... additional decision functions also live here ...
+    };
+  }
+```
+
+invoiceEmailer.js
+
+```javascript
+  const features = fetchFeatureTogglesFromSomewhere();
+  const featureDecisions = createFeatureDecisions(features);
+
+  function generateInvoiceEmail(){
+    const baseEmail = buildEmailForInvoice(this.invoice);
+    if( featureDecisions.includeOrderCancellationInEmail() ){
+      return addOrderCancellationContentToEmail(baseEmail);
+    }else{
+      return baseEmail;
+    }
+  }
+```
+
+我们引入了一个 `FeatureDecisions` 对象，作为一个所有 feature toggle 决策逻辑的集合点。我们在该对象上为每一个特定的 toggle 决策创建了一个决策方法 -- 在我们的 “我们是否应该在清单邮件中包含订单取消功能” 例子中，其决策被`includeOrderCancellationInEmail` 方法代表。至此，决策的 “逻辑” 已经变成检查`next-gen-ecomm` 特性状态的一个简单过程，但随着逻辑的更新发展，我们有了一个单独的地方来管理它。无论何时我们想要修改这个特定 toggle 决策的逻辑，我们都只要找到这个单一的地方即可。我们也许想要修改该决策的范围 -- 例如哪个特定的 feature flag 来控制该决策。或者，我们可能需要修改产生决策的原因 -- 想要从静态 toggle 配置驱动转为 A/B 试验驱动，或者任何由于操作上的问题，例如订单取消基础设施出现故障时。在所有的场景下，我们的清单邮件发送器都能幸福的对 toggle 决策是如何或为何产生保持不知情。
+
+### 决策倒置
+
+在之前的例子中，我们的清单邮件发送器需要询问 feature flags 基础设施功能应该如何执行。这意味着我们的清单邮件发送器需要知道一个额外的概念 -- feature flaging， 同时也就有一个额外的模块与他耦合。这使得清单邮件发送器更难单独工作和思考，也更难测试。随着 feature flaging 在我们的系统中逐渐流行的趋势，我们会看到更多的模块与成为一个全局依赖项的 feature flaging 耦合。这并不是一个理想的场景。
+
+在软件设计中我们总能使用控制反转来解决这类耦合问题。在我们的例子里也一样。下面是我们如何将 feature flaging 基础设施与清单邮件发送器解耦的：
+
+invoiceEmailer.js
+
+```javascript
+  function createInvoiceEmailler(config){
+    return {
+      generateInvoiceEmail(){
+        const baseEmail = buildEmailForInvoice(this.invoice);
+        if( config.includeOrderCancellationInEmail ){
+          return addOrderCancellationContentToEmail(email);
+        }else{
+          return baseEmail;
+        }
+      },
+  
+      // ... other invoice emailer methods ...
+    };
+  }
+```
+
+featureAwareFactory.js
+
+```javascript
+  function createFeatureAwareFactoryBasedOn(featureDecisions){
+    return {
+      invoiceEmailler(){
+        return createInvoiceEmailler({
+          includeOrderCancellationInEmail: featureDecisions.includeOrderCancellationInEmail()
+        });
+      },
+  
+      // ... other factory methods ...
+    };
+  }
+```
+
+现在，与 `InvoiceEmailler` 直接获取 `FeatureDecisions` 不同，这些决策以一个 `config` 对象的形式，在构造时期被注入。`InvoiceEmailler` 现在对什么 feature flaging 已经完全不知情了。他只知道一些行为面能够被实时的配置。这种方式也让对 `InvoiceEmailler` 行为的测试变得容易 -- 我们能通过在测试时传入不同的配置选项，来将生成邮件中包含或不包含订单取消内容的两条路径都测试到：
+
+```javascript
+describe( 'invoice emailling', function(){
+  it( 'includes order cancellation content when configured to do so', function(){
+    // Given 
+    const emailler = createInvoiceEmailler({includeOrderCancellationInEmail:true});
+
+    // When
+    const email = emailler.generateInvoiceEmail();
+
+    // Then
+    verifyEmailContainsOrderCancellationContent(email);
+  };
+
+  it( 'does not includes order cancellation content when configured to not do so', function(){
+    // Given 
+    const emailler = createInvoiceEmailler({includeOrderCancellationInEmail:false});
+
+    // When
+    const email = emailler.generateInvoiceEmail();
+
+    // Then
+    verifyEmailDoesNotContainOrderCancellationContent(email);
+  };
+});
+```
+
+我们同时还引入了一个 `FeatureAwareFactory` 来将这类需要 “决策注入” 的对象集中创建。这是通用依赖注入模式的一种应用。如果我们的代码库中已经配置了 DI 系统，那我们也许能直接使用它来完成我们的实现。
+
+### 避免条件判断
+
+到目前为止，我们例子中的 Toggle Point 都是以 if 语句来实现的。这在构建简单、短命的 Toggle Point 上还说得过去。但我们并不建议在需要过个 Toggle Point 的地方使用条件判断式的 Toggle Point，也不建议在期望 Toggle Point 长期存活的场景中使用。一个更易于维护的替代方法是采用某种策略模式来实现：
+
+invoiceEmailler.js
+
+```javascript
+  function createInvoiceEmailler(additionalContentEnhancer){
+    return {
+      generateInvoiceEmail(){
+        const baseEmail = buildEmailForInvoice(this.invoice);
+        return additionalContentEnhancer(baseEmail);
+      },
+      // ... other invoice emailer methods ...
+  
+    };
+  }
+```
+
+featureAwareFactory.js
+
+```javascript
+  function identityFn(x){ return x; }
+  
+  function createFeatureAwareFactoryBasedOn(featureDecisions){
+    return {
+      invoiceEmailler(){
+        if( featureDecisions.includeOrderCancellationInEmail() ){
+          return createInvoiceEmailler(addOrderCancellationContentToEmail);
+        }else{
+          return createInvoiceEmailler(identityFn);
+        }
+      },
+  
+      // ... other factory methods ...
+    };
+  }
+```
+
+这里我们通过给清单邮件发送器配置一个内容增强函数来实现策略模式。`FeatureAwareFactory`在创建清单邮件发送器时通过 `FeatureDecision` 的指导来选择一个策略。如果订单取消应该包含在邮件中，那么它会传入一个添加邮件内容的增强函数。否则他就传入一个`identityFn` 函数 -- 这个函数没有任何修改的作用，只是简单的将邮件返回。
+
+## Toggle 配置
+
+### Dynamic routing vs dynamic configuration
+
+Earlier we divided feature flags into those whose toggle routing decisions are essentially static for a given code deployment vs those whose decisions vary dynamically at runtime. It's important to note that there are two ways in which a flag's decisions might change at runtime. Firstly, something like a Ops Toggle might be dynamically *re-configured* from On to Off in response to a system outage. Secondly, some categories of toggles such as Permissioning Toggles and Experiment Toggles make a dynamic routing decision for each request based on some request context such as which user is making the request. The former is dynamic via re-configuration, while the later is inherently dynamic. These inherently dynamic toggles may make highly dynamic **decisions** but still have a **configuration** which is quite static, perhaps only changeable via re-deployment. Experiment Toggles are an example of this type of feature flag - we don't really need to be able to modify the parameters of an experiment at runtime. In fact doing so would likely make the experiment statistically invalid.
+
+### Prefer static configuration
+
+Managing toggle configuration via source control and re-deployments is preferable, if the nature of the feature flag allows it. Managing toggle configuration via source control gives us the same benefits that we get by using source control for things like infrastructure as code. It can allows toggle configuration to live alongside the codebase being toggled, which provides a really big win: toggle configuration will move through your Continuous Delivery pipeline in the exact same way as a code change or an infrastructure change would. This enables the full the benefits of CD - repeatable builds which are verified in a consistent way across environments. It also greatly reduces the testing burden of feature flags. There is less need to verify how the release will perform with both a toggle Off and On, since that state is baked into the release and won't be changed (for less dynamic flags at least). Another benefit of toggle configuration living side-by-side in source control is that we can easily see the state of the toggle in previous releases, and easily recreate previous releases if needed.
