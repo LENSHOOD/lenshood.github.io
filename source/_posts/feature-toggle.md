@@ -465,41 +465,41 @@ function reticulateSplines(){
 
 我在[这篇文章](http://blog.thepete.net/blog/2012/11/06/cookie-based-feature-flag-overrides/)中详细介绍了这种基于 cookie 配置覆盖的方法，同时还描述了一个由我和 ThoughtWorks 同事一起开源的[一个 ruby 的实现](http://blog.thepete.net/blog/2013/08/24/introducing-rack-flags/)。
 
-## Working with feature-flagged systems
+## 与 feature-flagged 系统一起工作
 
-While feature toggling is absolutely a helpful technique it does also bring additional complexity. There are a few techniques which can help make life easier when working with a feature-flagged system.
+Feature Toggling 绝对是一项很有帮助的技术，但他也会引入额外的复杂性。这里有一些技术能让我们与 feature-flagged 系统一起工作的日子更美好。
 
-### Expose current feature toggle configuration
+### 暴露当前的 feature toggle 配置
 
-It's always been a helpful practice to embed build/version numbers into a deployed artifact and expose that metadata somewhere so that a dev, tester or operator can find out what specific code is running in a given environment. The same idea should be applied with feature flags. Any system using feature flags should expose some way for an operator to discover the current state of the toggle configuration. In an HTTP-oriented SOA system this is often accomplished via some sort of metadata API endpoint or endpoints. See for example Spring Boot's [Actuator endpoints](http://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-endpoints.html).
+将编译/版本号信息嵌入部署包并暴露这些元数据是一种很有用的实践。他能帮助开发、测试、运维人员找到到底是哪个特定的代码在当前环境中运行。Feature flags 也同样应该应用这一点。任何使用 feature flag 的系统都应该以某种方式暴露当前配置，使运维人员能发现当前的 toggle 状态。在一个 HTTP 导向的 SOA 系统中，这经常通过某种元数据 API 端点的形式来实现。比如 Spring Boot 的 [Actuator endpoints](http://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-endpoints.html)。
 
-### Take advantage of structured Toggle Configuration files
+### 利用结构化 Toggle 配置文件的优势
 
-It's typical to store base Toggle Configuration in some sort of structured, human-readable file (often in YAML format) managed via source-control. There are some additional benefits we can derive from this file. Including a human-readable description for each toggle is surprisingly useful, particularly for toggles managed by folks other than the core delivery team. What would you prefer to see when trying to decide whether to enable an Ops toggle during a production outage event: **basic-rec-algo** or **"Use a simplistic recommendation algorithm. This is fast and produces less load on backend systems, but is way less accurate than our standard algorithm."**? Some teams also opt to include additional metadata in their toggle configuration files such as a creation date, a primary developer contact, or even an expiration date for toggles which are intended to be short lived.
+将基本的 Toggle 配置存储在某种结构化的、人类易读的文件（经常是 YAML 文件）并以源代码控制系统管理的方式很常见。我们能从这种文件中获得许多额外的好处。对每一个 toggle 都包含一个人类易读的描述是非常有用的，尤其是对那些被核心交付团队以外的人所管理的 toggle。当在生产故障事件中，你尝试决定是否开启一个运维 toggle 时，以下哪一种是你更想看到的：**basic-rec-algo** 或 **"Use a simplistic recommendation algorithm. This is fast and produces less load on backend systems, but is way less accurate than our standard algorithm."**？有些团队也选择将一些额外的信息加入 toggle 配置的元数据中，例如创建时间，主开发者联系方式，甚至于是一个短命的 toggle 的失效时间。
 
-### Manage different toggles differently
+### 不同的 toggle 分开管理
 
-As discussed earlier, there are various categories of Feature Toggles with different characteristics. These differences should be embraced, and different toggles managed in different ways, even if all the various toggles might be controlled using the same technical machinery.
+之前讨论过，Feature Toggles 包括了多种具有不同特性的不同类型。我们应该接受这种不同，即使所有 toggle 都采用同样的技术机制来控制，其不同类型也应该以不同的方式来管理。
 
-Let's revisit our previous example of an ecommerce site which has a Recommended Products section on the homepage. Initially we might have placed that section behind a Release Toggle while it was under development. We might then have moved it to being behind an Experiment Toggle to validate that it was helping drive revenue. Finally we might move it behind an Ops Toggle so that we can turn it off when we're under extreme load. If we've followed the earlier advice around de-coupling decision logic from Toggle Points then these differences in toggle category should have had no impact on the Toggle Point code at all.
+让我们再看一看先前举的电商网站的例子，其首页拥有一个 Recommended Products 的模块。最开始我们可能会在未开发完成时将这部分功能通过发布 Toggle 屏蔽。之后我们也许会将之改为一个试验 Toggle 来验证其是否能驱动盈利。最后我们可能会把它改为一个运维 Toggle 因此我们能在极限负载时将之关闭。假如我们遵循了先前关于Toggle Point 与决策逻辑解耦方面的建议，那么这些不同类型的 toggle 应该一点都不会影响到 Toggle Point 处的代码。
 
-However from a feature flag management perspective these transitions absolutely should have an impact. As part of transitioning from Release Toggle to an Experiment Toggle the way the toggle is configured will change, and likely move to a different area - perhaps into an Admin UI rather than a yaml file in source control. Product folks will likely now manage the configuration rather than developers. Likewise, the transition from Experiment Toggle to Ops Toggle will mean another change in how the toggle is configured, where that configuration lives, and who manages the configuration.
+不过，从 feature flag 管理的角度看，这些变更绝对会产生影响。作为从发布 Toggle 到试验 Toggle 的一部分，该 toggle 的配置方式将会发生变化，也可能会移动带其他区域去 -- 也许从由源代码控制管理的 yaml 文件中转移到管理界面上。产品人员（而不是开发人员）现在可能会管理这些配置了。同样的，从试验 Toggle 到 运维 Toggle 的转换，意味着对 toggle 配置的另一种修改，包括配置存放在哪里，以及由谁来管理这些配置。
 
-### Feature Toggles introduce validation complexity
+### Feature Toggles 引入了验证复杂性
 
-With feature-flagged systems our Continuous Delivery process becomes more complex, particularly in regard to testing. We'll often need to test multiple codepaths for the same artifact as it moves through a CD pipeline. To illustrate why, imagine we are shipping a system which can either use a new optimized tax calculation algorithm if a toggle is on, or otherwise continue to use our existing algorithm. At the time that a given deployable artifact is moving through our CD pipeline we can't know whether the toggle will at some point be turned On or Off in production - that's the whole point of feature flags after all. Therefore in order to validate all codepaths which may end up live in production we must perform test our artifact in **both** states: with the toggle flipped On and flipped Off.
+持续交付流水线会因为 feature-flagged 的引入而变得更复杂，尤其是关于测试。我们经常需要通过 CD 流水线对相同的包测试多个代码路径。为了演示其原因，想象我们正在交付一个系统，它既可以在 toggle 开启时使用新的经过优化的税额计算算法，也可以继续使用现有的算法。在一个给定的可部署包在经过 CD 流水线时，我们并不知道在生产环境的某些节点下 toggle 的状态是开启还是关闭 -- 毕竟这正是 feature flag 存在的意义。因此为了验证所有可能最终在生产环境生效的代码路径，我们必须对**两种**状态（开启或关闭）分别实施测试验证。
 
 ![](https://martinfowler.com/articles/feature-toggles/feature-toggles-testing.png)
 
-We can see that with a single toggle in play this introduces a requirement to double up on at least some of our testing. With multiple toggles in play we have a combinatoric explosion of possible toggle states. Validating behavior for each of these states would be a monumental task. This can lead to some healthy skepticism towards Feature Flags from folks with a testing focus.
+我们可以看到，在引入单个 toggle 时，对我们的测试要求至少要加倍。如果有多个 toggle，那我们可能的 toggle 状态就会产生组合爆炸。对每一种状态进行验证将是一项艰巨的任务。这将会导致一些关注测试的人对 Feature Flags 产生健康方面的怀疑。
 
-Happily, the situation isn't as bad as some testers might initially imagine. While a feature-flagged release candidate does need testing with a few toggle configurations, it is not necessary to test *every* possible combination. Most feature flags will not interact with each other, and most releases will not involve a change to the configuration of more than one feature flag.
+高兴的是，情形并不像一些测试人员一开始想的那么坏。一个 feature-flagged 的候选发布版本的确需要对一些 toggle 配置进行测试，但并不需要测试*每一个*可能的组合。大多数 feature flags 互相之间并不存在交互，且大多数发布都不会涉及对多个 feature flag 的配置变更。
 
-So, which feature toggle configurations should a team test? It's most important to test the toggle configuration which you expect to become live in production, which means the current production toggle configuration plus any toggles which you intend to release flipped On. It's also wise to test the fall-back configuration where those toggles you intend to release are also flipped Off. To avoid any surprise regressions in a future release many teams also perform some tests with all toggles flipped On. Note that this advice only makes sense if you stick to a convention of toggle semantics where existing or legacy behavior is enabled when a feature is Off and new or future behavior is enabled when a feature is On.
+所以，团队到底应该测试哪一种 toggle 配置呢？最应该测试的 toggle 配置是你期望它在生产被开启的，也就意味着这当前生产已开启的 toggle 加你期望在这次发布中开启的，测试那些你期望在发布中关闭的回退配置也是明智的。为了避免在将来的发布回归中出现任何意外，许多团队也会实施对所有 toggle 都打开的测试。注意这条建议只有在当你坚持 toggle 语义约定时（即在功能关闭时启用现有或遗留行为，而在功能启用时启用新的或未来的行为），才有意义。
 
-If your feature flag system doesn't support runtime configuration then you may have to restart the process you're testing in order to flip a toggle, or worse re-deploy an artifact into a testing environment. This can have a very detrimental effect on the cycle time of your validation process, which in turn impacts the all important feedback loop that CI/CD provides. To avoid this issue consider exposing an endpoint which allows for dynamic in-memory re-configuration of a feature flag. These types of override becomes even more necessary when you are using things like Experiment Toggles where it's even more fiddly to exercise both paths of a toggle.
+假如你的 feature flag 系统不支持实时配置，那么你可能需要重启进程来测试 toggle 翻转的两种情况，或更糟的情况下需要重新部署包至测试环境。这将对与你的整个验证流程的周期时间（cycle time）产生非常不利的影响，进而反过来影响 CI/CD 提供的所有重要的反馈循环。为了避免这种情况，考虑暴露一个端点，允许在内存中动态重配置 feature flag。当你在使用诸如试验 Toggle 类型时，这些配置覆盖就会变得更加必要，因为在这种情况下使用 toggle 的两种代码路径会变得更麻烦。
 
-This ability to dynamically re-configure specific service instances is a very sharp tool. If used inappropriately it can cause a lot of pain and confusion in a shared environment. This facility should only ever be used by automated tests, and possibly as part of manual exploratory testing and debugging. If there is a need for a more general-purpose toggle control mechanism for use in production environments it would be best built out using a real distributed configuration system as discussed in the Toggle Configuration section above.
+这种对特定服务实例进行动态配置的能力是一种非常敏锐的工具。如果使用不当，则可能会在共享环境中产生很多痛苦和混乱。这种工具应该只在自动化测试以及可能的部分人工试验性测试和 debug 中使用。如果对生产环境中更通用目的的 toggle 控制机制有需求，那么最好使用一个真正的分布式配置系统来构建，如同前面 Toggle 配置的部分所讨论的那样。
 
 ### Where to place your toggle
 
