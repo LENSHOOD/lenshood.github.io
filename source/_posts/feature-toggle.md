@@ -501,11 +501,11 @@ Feature Toggling 绝对是一项很有帮助的技术，但他也会引入额外
 
 这种对特定服务实例进行动态配置的能力是一种非常敏锐的工具。如果使用不当，则可能会在共享环境中产生很多痛苦和混乱。这种工具应该只在自动化测试以及可能的部分人工试验性测试和 debug 中使用。如果对生产环境中更通用目的的 toggle 控制机制有需求，那么最好使用一个真正的分布式配置系统来构建，如同前面 Toggle 配置的部分所讨论的那样。
 
-### Where to place your toggle
+### 在哪里放置你的 toggle
 
-#### Toggles at the edge
+#### 边缘 Toggles
 
-For categories of toggle which need per-request context (Experiment Toggles, Permissioning Toggles) it makes sense to place Toggle Points in the edge services of your system - i.e. the publicly exposed web apps that present functionality to end users. This is where your user's individual requests first enter your domain and thus where your Toggle Router has the most context available to make toggling decisions based on the user and their request. A side-benefit of placing Toggle Points at the edge of your system is that it keeps fiddly conditional toggling logic out of the core of your system. In many cases you can place your Toggle Point right where you're rendering HTML, as in this Rails example:
+对那种需要请求上下文的 toggle 而言（试验 Toggle，权限 Toggle），将 Toggle Point 放置在系统的服务边缘是有一定道理的 -- 例如向终端用户提供功能的公开 web 应用程序。这里是用户的单个请求首先进入你的领域的地方，因此你的 Toggle Router 基于用户和其请求中有最多的上下文能使之做出 toggling 决策。将 Toggle Point 放置在系统边缘的一个额外好处是他能使复杂的条件 toggle 逻辑远离系统的核心。在多数情况下你可以将 Toggle Point 直接放置在你递交 HTML 的地方，就像这个 Rails 的例子：
 
 someFile.erb
 
@@ -515,22 +515,22 @@ someFile.erb
   <% end %>
 ```
 
-Placing Toggle Points at the edges also makes sense when you are controlling access to new user-facing features which aren't yet ready for launch. In this context you can again control access using a toggle which simply shows or hides UI elements. As an example, perhaps you are building the ability to [log in to your application using Facebook](https://developers.facebook.com/docs/facebook-login) but aren't ready to roll it out to users just yet. The implementation of this feature may involve changes in various parts of your architecture, but you can control exposure of the feature with a simple feature toggle at the UI layer which hides the "Log in with Facebook" button.
+当你想要控制尚未准备好发布的面向用户的新功能时，将 Toggle Point 放置在边缘也很有意义。在这种上下文中，你仍旧可以使用 toggle 来简单的控制 UI 元素的开闭。举个例子，也许你正在构建[使用 Facebook 登录](https://developers.facebook.com/docs/facebook-login)的能力，但还没准备好将之推给用户。实现这种功能可能会涉及到对架构的多处修改，但你能简单的通过基于 UI 层的 Toggle 来控制对 “以 Facebook 登录” 按钮的展现。
 
-It's interesting to note that with some of these types of feature flag the bulk of the unreleased functionality itself might actually be publicly exposed, but sitting at a url which is not discoverable by users.
+有趣的是，有了这类 feature flag，大部分未发布的功能本身其实可能是公开的，但却位于用户无法发现的 url 上。
 
-#### Toggles in the core
+#### 内核中的 Toggles
 
-There are other types of lower-level toggle which must be placed deeper within your architecture. These toggles are usually technical in nature, and control how some functionality is implemented internally. An example would be a Release Toggle which controls whether to use a new piece of caching infrastructure in front of a third-party API or just route requests directly to that API. Localizing these toggling decisions within the service whose functionality is being toggled is the only sensible option in these cases.
+还有一类低层级的 toggle 必须要放置在架构的更深处。这种 toggle 通常是技术性的，用于控制一些功能在内部的实现。例如一个发布 Toggle，用于控制是否在调用第三方 API 之前增加新的缓存基础设施。在这种情况下，在实际功能被 toggle 的地方放置 toggle 决策是唯一合理的选择。
 
-### Managing the carrying cost of Feature Toggles
+### 管理 Feature Toggles 的持有成本
 
-Feature Flags have a tendency to multiply rapidly, particularly when first introduced. They are useful and cheap to create and so often a lot are created. However toggles do come with a carrying cost. They require you to introduce new abstractions or conditional logic into your code. They also introduce a significant testing burden. Knight Capital Group's [$460 million dollar mistake](http://dougseven.com/2014/04/17/knightmare-a-devops-cautionary-tale/) serves as a cautionary tale on what can go wrong when you don't manage your feature flags correctly (amongst other things).
+Feature Flags 会有快速增长的趋势，尤其是在首次引入时。由于它有用且廉价，因此经常会被大量创建。然而 toggle 的确会带来持有成本。他们要求你在代码中引入新的抽象或条件逻辑。他们也引入了显著的测试负担。Knight Capital Group 的[价值 4 亿 6000 万美元的错误](http://dougseven.com/2014/04/17/knightmare-a-devops-cautionary-tale/)作为一个警告，来警示当你不能正确的管理你的 feature flag 时，会出现什么问题。
 
-Savvy teams view the Feature Toggles in their codebase as inventory which comes with a carrying cost and seek to keep that inventory as low as possible. In order to keep the number of feature flags manageable a team must be proactive in removing feature flags that are no longer needed. Some teams have a rule of always adding a toggle removal task onto the team's backlog whenever a Release Toggle is first introduced. Other teams put "expiration dates" on their toggles. Some go as far as creating "time bombs" which will fail a test (or even refuse to start an application!) if a feature flag is still around after its expiration date. We can also apply a Lean approach to reducing inventory, placing a limit on the number of feature flags a system is allowed to have at any one time. Once that limit is reached if someone wants to add a new toggle they will first need to do the work to remove an existing flag.
+精明的团队将代码库中的 Feature Toggle 视为会带来储存成本的库存，并会尽可能的降低这种库存。威克士 feature flags 可管理，团队必须积极主动的清除不再使用的 feature flag。一些团队制定了规约，当发布 Toggle 引入代码之时，就在团队 backlog 中创建一个 toggle 清除任务。另外一些团队给他们的 toggle 加上了 “失效日期”。更有甚者在测试中增加了 “定时炸弹”，当一个 feature flag 到期但却仍然存在时会导致测试失败（他们甚至会直接让应用拒绝启动！）。我们也能实施一个精益的方法来降低库存，即通过给系统同一时间能允许拥有的最多的 feature flag 数量。一旦到达该数量限制，如果有人想要增加新的 toggle，他们需要先移除一个已经存在的才行。
 
 ------
 
-## Acknowledgements
+## 致谢
 
-Thanks to Brandon Byars and Max Lincoln for providing detailed feedback and suggestions to early drafts of this article. Many thanks to Martin Fowler for support, advice and encouragement. Thanks to my colleagues Michael Wongwaisayawan and Leo Shaw for editorial review, and to Fernanda Alcocer for making my diagrams look less ugly.
+感谢 Brandon Byars 和 Max Lincoln 对本文早期草稿提供的详细反馈和建议。 非常感谢 Martin Fowler 的支持、建议和鼓励。感谢我的同事 Michael Wongwaisayawan 和 Leo Shaw 的编辑评论，以及 Fernanda Alcocer 的帮助得以让我的图表看起来不那么难看。
