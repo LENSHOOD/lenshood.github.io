@@ -223,20 +223,15 @@ graph 的实现类可以选择性的使用优化提示来提高效率，例如�
 
 由于 [`Graph`] 等都是接口，即使他们不包含可变方法，向调用者提供该接口实例也*不保证*不会被调用者修改，就像（实际上他是一个`Mutable*`子类型的实例一样），调用者可以把它强制转换为一个可变子类型。如果你想要提供一个契约性的保证，即作为方法参数或返回值的 graph 不可被改变，你应该使用`Immutable`实现类，详情见下文。
 
-### `Immutable*` implementations
+### `Immutable*` 实现
 
-Each graph type also has a corresponding `Immutable` implementation. These
-classes are analogous to Guava's `ImmutableSet`, `ImmutableList`,
-`ImmutableMap`, etc.: once constructed, they cannot be modified, and they use
-efficient immutable data structures internally.
+每一种 graph 类型还有一个相关联的 `Immutable`  实现。这些类与 Guava 的 `ImmutableSet` 、`ImmutableList` 、 `ImmutableMap` 类似：一旦创建，他们就再也不能被编辑了，同时，他们内部采用了高效的不可变数据结构。
 
-Unlike the other Guava `Immutable` types, however, these implementations do not
-have any method signatures for mutation methods, so they don't need to throw
-`UnsupportedOperationException` for attempted mutates.
+与 Guava 的其他 `Immutable` 类型不同，这些实现并没有任何可变的方法签名，所以他们并不需要在被尝试改变时抛出  `UnsupportedOperationException` 异常。
 
-You create an instance of an `ImmutableGraph`, etc. in one of two ways:
+你可以通过以下两种方式创建一个 `ImmutableGraph` 的实例。
 
-Using `GraphBuilder`:
+使用 `GraphBuilder` ：
 
 ```java
 ImmutableGraph<Country> immutableGraph1 =
@@ -249,52 +244,33 @@ ImmutableGraph<Country> immutableGraph1 =
         .build();
 ```
 
-Using `ImmutableGraph.copyOf()`:
+使用 `ImmutableGraph.copyOf()`:
 
 ```
 ImmutableGraph<Integer> immutableGraph2 = ImmutableGraph.copyOf(otherGraph);
 ```
 
-Immutable graphs are always guaranteed to provide a stable incident edge order.
-If the graph is populated using `GraphBuilder`, then the incident edge order
-will be insertion order where possible (see [`ElementOrder.stable()`] for more
-info). When using `copyOf`, then the incident edge order will be the order in
-which they are visited during the copy process.
+不可变图总能提供对关联边顺序稳定的保证。如果使用 `GraphBuilder` 来填充一个图，那么相关边的顺序将会在可能的情况下使用插入顺序（通过[`ElementOrder.stable()`]了解更多细节）。当使用 `copyOf` 时，相关边的顺序将会采用他们在被访问并复制时的顺序。
 
-#### Guarantees
+#### 保证
 
-Each `Immutable*` type makes the following guarantees:
+每一个 `Immutable*` 类型都能做出如下保证：
 
-*   **shallow immutability**: elements can never be added, removed or replaced
-    (these classes do not implement the `Mutable*` interfaces)
-*   **deterministic iteration**: the iteration orders are always the same as
-    those of the input graph
-*   [**thread safety**](#synchronization): it is safe to access this graph
-    concurrently from multiple threads
-*   **integrity**: this type cannot be subclassed outside this package (which
-    would allow these guarantees to be violated)
+*   **浅不变性（shallow immutability）**: 元素不可被增加、删除或被替换
+    (这些类并不实现 `Mutable*` 接口)
+*   **确定性迭代（deterministic iteration）**: 迭代的顺序总与输入图的顺序一致
+*   [**线程安全（thread safety）**](#synchronization): 多线程访问是安全的
+*   **完整性（integrity）**: 该类型不能在包外被创建子类 (子类会让上述保证被破坏)
 
-#### Treat these classes as "interfaces", not implementations
+#### 把这些类当作是 "interfaces"， 而不是实现
 
-Each of the `Immutable*` classes is a type offering meaningful behavioral
-guarantees -- not merely a specific implementation. You should treat them as
-interfaces in every important sense of the word.
+每一个 `Immutable*` 类型都提供有意义的保证行为 -- 而不仅仅是具体的某个实现。你应当将他们视同接口。
 
-Fields and method return values that store an `Immutable*` instance (such as
-`ImmutableGraph`) should be declared to be of the `Immutable*` type rather than
-the corresponding interface type (such as `Graph`). This communicates to callers
-all of the semantic guarantees listed above, which is almost always very useful
-information.
+若存储一个 `Immutable*` 的字段或方法返回值（类似`ImmutableGraph`）应该被声明为  `Immutable*` 类而不是其关联的接口类型（例如 `Graph`）。这向调用者传递了所有上述列举的语义保证，这是一种非常有用的信息。
 
-On the other hand, a parameter type of `ImmutableGraph` is generally a nuisance
-to callers. Instead, accept `Graph`.
+另一方面，一个 `ImmutableGraph` 类型的参数通常会让调用者不快。因此，接受 `Graph` 更合适。
 
-**Warning**: as noted [elsewhere](#elements-and-mutable-state), it is almost
-always a bad idea to modify an element (in a way that affects its `equals()`
-behavior) while it is contained in a collection. Undefined behavior and bugs
-will result. It's best to avoid using mutable objects as elements of an
-`Immutable*` instance at all, as users may expect your "immutable" object to be
-deeply immutable.
+**警告**：就像[下文中提到的](#elements-and-mutable-state)，修改一个集合中包含的元素（在某种程度上影响了他的 `equals()` 行为），多数情况下是个坏主意。这会导致未定义的行为和一些 bug。所以最好的是使用不可变对象用作`Immutable*`实例的元素，因为用户可能希望你的“不可变”对象是完全不可变的。
 
 ## Graph elements (nodes and edges)
 
