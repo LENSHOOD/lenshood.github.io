@@ -272,35 +272,27 @@ ImmutableGraph<Integer> immutableGraph2 = ImmutableGraph.copyOf(otherGraph);
 
 **警告**：就像[下文中提到的](#elements-and-mutable-state)，修改一个集合中包含的元素（在某种程度上影响了他的 `equals()` 行为），多数情况下是个坏主意。这会导致未定义的行为和一些 bug。所以最好的是使用不可变对象用作`Immutable*`实例的元素，因为用户可能希望你的“不可变”对象是完全不可变的。
 
-## Graph elements (nodes and edges)
+## Graph 元素 (节点和边)
 
-### Elements must be useable as `Map` keys
+### 元素必须可用作 `Map` 的 key
 
-The graph elements provided by the user should be thought of as keys into the
-internal data structures maintained by the graph implementations. Thus, the
-classes used to represent graph elements must have `equals()` and `hashCode()`
-implementations that have, or induce, the properties listed below.
+用户提供 graph 元素应该被视作是 graph 内部实现维护的内部数据结构的 key。所以，作为代表 graph 元素的类，必须实现 `equals()` 和 `hashCode()`，或包含下面列举的属性。
 
-#### Uniqueness
+#### 唯一性
 
-If `A` and `B` satisfy `A.equals(B) == true` then at most one of the two may be
-an element of the graph.
+如果 `A` 和 `B` 满足 `A.equals(B) == true` 那么这两个对象中至多有一个能作为 graph 的 key。
 
-#### Consistency between `hashCode()` and `equals()`
+#### `hashCode()` 和 `equals()` 之间的一致性
 
-`hashCode()` must be consistent with `equals()` as defined by
-[`Object.hashCode()`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode--).
+`hashCode()` 必须与由[`Object.hashCode()`](https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode--) 定义的`equals()`保持一致。
 
-#### Ordering consistency with `equals()`
+####  `equals()` 的顺序一致性
 
-If the nodes are sorted (for example, via `GraphBuilder.orderNodes()`), the
-ordering must be consistent with `equals()`, as defined by [`Comparator`] and
-[`Comparable`].
+假如节点是有序的（例如，通过 `GraphBuilder.orderNodes()` 创建的 graph），那么其顺序一定要与`equals()`保持一致，就如同 [`Comparator`] 和 [`Comparable`] 定义的一样。
 
-#### Non-recursiveness
+#### 非递归性
 
-`hashCode` and `equals()` _must not_ recursively reference other
-    elements, as in this example:
+`hashCode` 和 `equals()` *一定不能*递归引用其他元素，例如：
 
 ```java
 // DON'T use a class like this as a graph element (or Map key/Set element)
@@ -320,39 +312,27 @@ public final class Node<T> {
 }
 ```
 
-Using such a class as a `common.graph` element type (e.g., `Graph<Node<T>>`)
-has these problems:
+当给 `common.graph`使用上述类作为其元素类型时 (例如， `Graph<Node<T>>`) 存在如下问题：
 
-*   **redundancy**: the implementations of `Graph` provided by the
-    `common.graph` library already store these relationships
-*   **inefficiency**: adding/accessing such elements calls `equals()` (and
-    possibly `hashCode()`), which require O(n) time
-*   **infeasibility**: if there are cycles in the graph, `equals()` and
-    `hashCode()` may never terminate
+*   **冗余**： 由 `common.graph` 提供的 `Graph` 的内部实现已经提供了类似的关系。
+*   **低效**： 添加/访问该元素时将会调用  `equals()` (可能还会调用 `hashCode()`)，这将需要 O(n) 的时间复杂度
+*   **不可行**： 如果 graph 中包含环， `equals()` 和
+    `hashCode()` 将无法终止
 
-Instead, just use the `T` value itself as the node type (assuming that the
-`T` values are themselves valid `Map` keys).
+取而代之的， 仅使用 `T` 值自身来作为节点类型 (假设`T` 本身能用做 `Map` 的 key)。
 
-### Elements and mutable state
+### 元素和可变状态
 
-If graph elements have mutable state:
+如果 graph 的元素包含可变状态：
 
-*   the mutable state must not be reflected in the `equals()/hashCode()` methods
-    (this is discussed in the `Map` documentation in detail)
-*   don't construct multiple elements that are equal to each other and expect
-    them to be interchangeable. In particular, when adding such elements to a
-    graph, you should create them once and store the reference if you will need
-    to refer to those elements more than once during creation (rather than
-    passing `new MyMutableNode(id)` to each `add*()` call).
+*   该可变状态一定不能反映在 `equals()/hashCode()` 方法中（本条详情在  `Map` 的文档中有讨论）
+*   不要构建多个彼此相等的元素，并期望他们可以互换。尤其是，当将这种元素加入 graph 后，如果需要在创建过程中多次引用这些元素，则应该创建一次并存储引用（而不是将 `new MyMutableNode(id)` 传递给每个 `add*()` 调用）。
 
-If you need to store mutable per-element state, one option is to use immutable
-elements and store the mutable state in a separate data structure (e.g. an
-element-to-state map).
+如果你需要存储每个元素的可变状态，一种选择是使用不可变元素并将可变状态存储在单独的数据结构中（例如，一个元素到状态的映射）。
 
-### Elements must be non-null
+### 元素必须非 null
 
-The methods that add elements to graphs are contractually required to reject
-null elements.
+向 graph 中添加元素的方法按照契约需要拒绝 null 元素。
 
 ## Library contracts and behaviors
 
