@@ -334,15 +334,13 @@ public final class Node<T> {
 
 向 graph 中添加元素的方法按照契约需要拒绝 null 元素。
 
-## Library contracts and behaviors
+## Graph 库的契约与行为
 
-This section discusses behaviors of the built-in implementations of the
-`common.graph` types.
+本节将会讨论`common.graph`类型内置实现的行为。
 
-### Mutation
+### 变更
 
-You can add an edge whose incident nodes have not previously been added to the
-graph. If they're not already present, they're silently added to the graph:
+你可以给一个还未被添加进 graph 的节点增加一个对应的边。若他们还没有准备好展示，则他们会静默的被添加进 graph：
 
 ```java
 Graph<Integer> graph = GraphBuilder.directed().build();  // graph is empty
@@ -353,29 +351,19 @@ if (graph.nodes().contains(1)) {  // evaluates to "true"
 }
 ```
 
-### Graph `equals()` and graph equivalence
+### Graph `equals()` 和 graph 相等
 
-As of Guava 22, `common.graph`'s graph types each define `equals()` in a way
-that makes sense for the particular type:
+截止至 Guava 22，，每一个 `common.graph `的 graph 类型都以一种对特定类型合理的方式定义了  `equals()` ：
 
-*   `Graph.equals()` defines two `Graph`s to be equal if they have the same node
-    and edge sets (that is, each edge has the same endpoints and same direction
-    in both graphs).
-*   `ValueGraph.equals()` defines two `ValueGraph`s to be equal if they have the
-    same node and edge sets, and equal edges have equal values.
-*   `Network.equals()` defines two `Network`s to be equal if they have the same
-    node and edge sets, and each edge object has connects the same nodes in the
-    same direction (if any).
+*   `Graph.equals()` 定义了两个 `Graph` 相等的条件是他们拥有相同的节点与边集合（即每一条边都有相同的终点和方向）。
+*   `ValueGraph.equals()` 定义了两个  `ValueGraph` 相等的条件是他们拥有相同的节点与边集合，且相同的边拥有相同的值。
+*   `Network.equals()` 定义了两个 `Network` 相等的条件是他们拥有相同的节点与边集合，且每一条边的对象都在相同的方向上连接了相同的节点。（如果有的话）
 
-In addition, for each graph type, two graphs can be equal only if their edges
-have the same directedness (both graphs are directed or both are undirected).
+另外,对每一种 graph 类型，两个 graph 仅当他们的边拥有相同的方向性时才相等（要么二者都有向，要么都无向）。
 
-Of course, `hashCode()` is defined consistently with `equals()` for each graph
-type.
+当然，每一种 graph 类型的 `hashCode()` 都与 `equals()` 定义一致。
 
-If you want to compare two `Network`s or two `ValueGraph`s based only on
-connectivity, or to compare a `Network` or a `ValueGraph` to a `Graph`, you can
-use the `Graph` view that `Network` and `ValueGraph` provide:
+如果你只想基于连通性来比较两个 `Network` 或 `ValueGraph`，或是比较一个`Network` 或一个  `ValueGraph` 与一个 `Graph`，你可以使用 `Network` 和 `ValueGraph` 的`Graph` 视图。
 
 ```java
 Graph<Integer> graph1, graph2;
