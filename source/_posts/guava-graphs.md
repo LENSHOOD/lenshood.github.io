@@ -382,35 +382,22 @@ if (valueGraph1.equals(valueGraph2)) { ... }
 if (network1.equals(network2)) { ... }
 ```
 
-### Accessor methods
+### 访问器方法
 
-Accessors which return collections:
+访问器将会返回集合：
 
-*   may return views of the graph; modifications to the graph which affect a
-    view (for example, calling `addNode(n)` or `removeNode(n)` while iterating
-    through `nodes()`) are not supported and may result in throwing
-    `ConcurrentModificationException`.
-*   will return empty collections if their inputs are valid but no elements
-    satisfy the request (for example: `adjacentNodes(node)` will return an empty
-    collection if `node` has no adjacent nodes).
+*   也许是 graph 的视图；可能会影响视图的对 graph 的修改（例如，在用 `nodes()` 迭代时调用 `addNode(n)` 或 `removeNode(n)`）可能会抛出`ConcurrentModificationException`。
+*   假如输入合法但并没有元素满足该请求时，将会返回空集合（例如：如果`node` 并没有相邻节点时，`adjacentNodes(node)`会返回空集合）。
 
-Accessors will throw `IllegalArgumentException` if passed an element that is not
-in the graph.
+假如传入的元素并在 graph 中，那么访问器会抛出`IllegalArgumentException`。
 
-While some Java Collection Framework methods such as `contains()` take `Object`
-parameters rather than the appropriate generic type specifier, as of Guava 22,
-the `common.graph` methods take the generic type specifiers to improve type
-safety.
+Java 的集合框架中的一些方法就像`contains()`会接受`Object`类型的参数而不是合适的泛型类，截止至 Guava 22，`common.graph` 的方法都会接受泛型类说明符来提升类型安全性。
 
-### Synchronization
+### 同步
 
-It is up to each graph implementation to determine its own synchronization
-policy. By default, undefined behavior may result from the invocation of any
-method on a graph that is being mutated by another thread.
+不同的 graph 实现会自主决定他们的同步策略。默认情况下，未定义的行为可能是由于调用正在被另一个线程所更改的 graph 中的任意方法引起的。
 
-Generally speaking, the built-in mutable implementations provide no
-synchronization guarantees, but the `Immutable*` classes (by virtue of being
-immutable) are thread-safe.
+通常来说，内置的可变实现不提供任何同步保证，但`Immutable*`类是线程安全的（凭借他的不可变性）。
 
 ### Element objects
 
