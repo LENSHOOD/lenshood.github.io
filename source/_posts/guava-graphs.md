@@ -399,34 +399,26 @@ Java 的集合框架中的一些方法就像`contains()`会接受`Object`类型�
 
 通常来说，内置的可变实现不提供任何同步保证，但`Immutable*`类是线程安全的（凭借他的不可变性）。
 
-### Element objects
+### 元素对象
 
-The node, edge, and value objects that you add to your graphs are irrelevant to
-the built-in implementations; they're just used as keys to internal data
-structures. This means that nodes/edges may be shared among graph instances.
+你添加到 graph 中的节点、边、值等对象都与内置实现无关；他们只用作内部数据结构的 key。这表明节点/边也许可以在 graph 实例之间共享。
 
-By default, node and edge objects are insertion-ordered (that is, are visited by
-the `Iterator`s for `nodes()` and `edges()` in the order in which they were
-added to the graph, as with `LinkedHashSet`).
+默认情况下，节点和边的对象遵从插入顺序（即，通过 `Iterator` 的  `nodes()` 和 `edges()` 访问的顺序就是他们被添加进 graph 的顺序，就像 `LinkedHashSet` 一样）。
 
-## Notes for implementors
+## 实现者须知
 
-### Storage models
+### 存储模型
 
-`common.graph` supports multiple mechanisms for storing the topology of a graph,
-including:
+`common.graph` 支持多种机制来存储 graph 的拓扑，包括：
 
 *   the graph implementation stores the topology (for example, by storing a
     `Map<N, Set<N>>` that maps nodes onto their adjacent nodes); this implies
     that the nodes are just keys, and can be shared among graphs
-*   the nodes store the topology (for example, by storing a `List<E>` of
-    adjacent nodes); this (usually) implies that nodes are graph-specific
-*   a separate data repository (for example, a database) stores the topology
+*   由 graph 的实现来存储拓扑（例如，通过存储一个 `Map<N, Set<N>>` 来将节点映射到他们相邻的节点）；这种实现中节点只作为 key，因此可以在 graph 之间共享。
+*   由节点来存储拓扑（例如，通过存储一个相邻节点的  `List<E>`）；这种实现（通常）是单个 graph 专有的。
+*   由一个独立的数据仓库（例如数据库）来存储拓扑
 
-Note: `Multimap`s are not sufficient internal data structures for Graph
-implementations that support isolated nodes (nodes that have no incident edges),
-due to their restriction that a key either maps to at least one value, or is not
-present in the `Multimap`.
+注意：`Multimap` 并不能满足用作Graph 实现需要支持节点隔离的要求（在节点没有关联边时），这是因为 `Multimap` 限制了一个 key 要么会映射到至少一个 value，要么就不会出现在`Multimap`中。
 
 ### Accessor behavior
 
