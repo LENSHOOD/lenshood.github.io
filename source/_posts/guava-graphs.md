@@ -420,45 +420,31 @@ Java 的集合框架中的一些方法就像`contains()`会接受`Object`类型�
 
 注意：`Multimap` 并不能满足用作Graph 实现需要支持节点隔离的要求（在节点没有关联边时），这是因为 `Multimap` 限制了一个 key 要么会映射到至少一个 value，要么就不会出现在`Multimap`中。
 
-### Accessor behavior
+### 访问器行为
 
 For accessors that return a collection, there are several options for the
 semantics, including:
 
-1.  Collection is an immutable copy (e.g. `ImmutableSet`): attempts to modify
-    the collection in any way will throw an exception, and modifications to the
-    graph will **not** be reflected in the collection.
-2.  Collection is an unmodifiable view (e.g. `Collections.unmodifiableSet()`):
-    attempts to modify the collection in any way will throw an exception, and
-    modifications to the graph will be reflected in the collection.
-3.  Collection is a mutable copy: it may be modified, but modifications to the
-    collection will **not** be reflected in the graph, and vice versa.
-4.  Collection is a modifiable view: it may be modified, and modifications to
-    the collection will be reflected in the graph, and vice versa.
+对于返回一个集合的访问器，在语义上有一些可选项，包括：
 
-(In theory one could return a collection which passes through writes in one
-direction but not the other (collection-to-graph or vice-versa), but this is
-basically never going to be useful or clear, so please don't. :) )
+1.  当其集合是一个不可变副本时（例如 `ImmutableSet`）:任何尝试修改该集合的行为都会抛出一个异常，对 graph 的任何修改，都**不会**反映在该集合上。
+2.  当其集合是一个不可变视图时（例如`Collections.unmodifiableSet()`）：任何尝试修改该集合的行为都会抛出一个异常，对 graph 的修改会反映在该集合上。
+3.  当其集合是一个可变副本时：他可以被修改，但对 graph 的任何修改，都**不会**反映在该集合上。
+4.  当其集合是一个可变视图时：他可以被修改，对 graph 的修改也会反映在该集合上。
 
-(1) and (2) are generally preferred; as of this writing, the built-in
-implementations generally use (2).
+（理论上，可以返回在一个方向上的写操作集合，但不能返回另一个方向（集合到 graph 或反之），但这基本上永远不会被用到，所以别这么干:)）
 
-(3) is a workable option, but may be confusing to users if they expect that
-modifications will affect the graph, or that modifications to the graph would be
-reflected in the set.
+（1）和（2）通常更好；直到撰写本文时，内置实现通常都使用（2）。
 
-(4) is a hazardous design choice and should be used only with extreme caution,
-because keeping the internal data structures consistent can be tricky.
+（3）是一个可行的选项，但可能会在当用户期望对 graph 或集合的修改会影响另一方的时让用户感到混淆。
 
-### `Abstract*` classes
+（4）是一种危险的设计选择，使用时应该特别小心，因为保持内部数据结构的一致性非常困难。
 
-Each graph type has a corresponding `Abstract` class: `AbstractGraph`, etc.
+### `Abstract*` 类
 
-Implementors of the graph interfaces should, if possible, extend the appropriate
-abstract class rather than implementing the interface directly. The abstract
-classes provide implementations of several key methods that can be tricky to do
-correctly, or for which it's helpful to have consistent implementations, such
-as:
+每一个 graph 类型都对应了一个 `Abstract` 类：`AbstractGraph`，等等。
+
+如果可能的话，对该 graph 接口的实现者应该继承合适的抽象类而不是直接去实现接口。抽象类提供了许多难以正确设计的关键方法实现，以及能够帮助给出一致性的实现，例如：
 
 *   `*degree()`
 *   `toString()`
