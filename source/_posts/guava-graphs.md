@@ -451,18 +451,17 @@ semantics, including:
 *   `Graph.edges()`
 *   `Network.asGraph()`
 
-## Code examples
+## 代码示例
 
-### Is `node` in the graph?
+### Graph 包含`node` 吗？
 
 ```java
 graph.nodes().contains(node);
 ```
 
-### Is there an edge between nodes `u` and `v` (that are known to be in the graph)?
+### 在节点 `u` 和 `v`之间存在边吗 （是 graph 中已知的吗）？
 
-In the case where the graph is undirected, the ordering of the arguments `u` and
-`v` in the examples below is irrelevant.
+当 graph 是无向时， 下例中参数 `u` 和 `v` 的顺序无关。
 
 ```java
 // This is the preferred syntax since 23.0 for all graph types.
@@ -487,7 +486,7 @@ valueGraph.edgeValue(u, v).isPresent();  // Java 8 only
 valueGraph.edgeValueOrDefault(u, v, null) != null;
 ```
 
-### Basic `Graph` example
+### 基础 `Graph` 示例
 
 ```java
 ImmutableGraph<Integer> graph =
@@ -501,7 +500,7 @@ ImmutableGraph<Integer> graph =
 Set<Integer> successorsOfTwo = graph.successors(2); // returns {3}
 ```
 
-### Basic [`ValueGraph`] example
+### 基础 [`ValueGraph`] 示例
 
 ```java
 MutableValueGraph<Integer, Double> weightedGraph = ValueGraphBuilder.directed().build();
@@ -512,7 +511,7 @@ weightedGraph.putEdgeValue(3, 5, 1.5);  // edge values (like Map values) need no
 weightedGraph.putEdgeValue(2, 3, 2.0);  // updates the value for (2,3) to 2.0
 ```
 
-### Basic [`Network`] example
+### 基础 [`Network`] 示例
 
 ```java
 MutableNetwork<Integer, String> network = NetworkBuilder.directed().build();
@@ -530,7 +529,7 @@ network.addEdge("2->3", 2, 3);  // no effect; this edge is already present
 Set<String> inEdgesOfFour = network.inEdges(4); // throws; node not in graph
 ```
 
-### Traversing an undirected graph node-wise
+### 逐节点遍历无向图
 
 ```java
 // Return all nodes reachable by traversing 2 edges starting from "node"
@@ -545,7 +544,7 @@ Set<N> getTwoHopNeighbors(Graph<N> graph, N node) {
 }
 ```
 
-### Traversing a directed graph edge-wise
+### 逐边遍历有向图
 
 ```java
 // Update the shortest-path weighted distances of the successors to "node"
