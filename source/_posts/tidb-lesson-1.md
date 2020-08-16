@@ -42,3 +42,39 @@ TiDB 是一款支持 SQL 语义并直接兼容 MySQL 通信协议的分布式关
 如果只谈部署的话，其实 TiDB 提供了一个非常方便的集群部署工具：TiUP，在[《TiDB in action》的安装部署章节中](https://book.tidb.io/session2/chapter1/tiup-tiops.html)，非常清楚的描述了 TiUP 的使：不论是部署单机测试环境还是部署集群，几条命令就能全部搞定了。
 
 不过在我们当前的上下文中，是想要从源码开始部署的，所以，接下来我会暂时先抛开 TiUP，直接从源码开始。
+
+##### 1. 安装 Go 环境
+
+三大件中，tidb 和 pd 都是基于 go 开发的，所以我们首先需要安装 Go 语言的环境：
+
+- 方法一 ：[官网](https://golang.org/)直接下载安装包安装即可。
+- 方法二：`brew install golang`，但 brew 目前安装的版本是 1.14.7，实际上 1.15 已经发布了。
+- 方法三：安装一个 GoLand， 在里面直接安装
+
+安装完成后需要配置 `GOROOT` 和 `GOPATH`两个环境变量，详情可以见[官网](https://golang.org/doc/install)。
+
+##### 2. 学习 Golang
+
+因为先前没有接触过 Go 语言，所以先花了两天时间简单学习了 Go，从 java 切换过来入门不算太难。推荐[官网教程](https://tour.golang.org/welcome/1)。
+
+##### 3. 编译运行 tidb
+
+直接 clone master 分支到本地，我们可以看到源码中提供了 Makefile，default target 会以 `tidb_server/main.go`作为入口进行编译。编译完成后的 binary 会输出在 `bin` 目录，可以直接通过`./bin/tidb-server`执行。
+
+##### 4. 编译运行 pd
+
+##### 5. 编译运行 tikv
+
+##### 6. 启动一个最小集群：one tidb + one pd + three tikv
+
+### 开启事务时打印 “hello transaction” 
+
+##### 1. tidb 执行 SQL 命令的总体步骤
+
+{% asset_img tidb-execute-cmd.png %}
+
+##### 2. `func (s *session) Txn(active bool) (kv.Transaction, error)`
+
+##### 3. Executor
+
+##### 4. 运行结果
