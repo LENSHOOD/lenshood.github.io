@@ -37,6 +37,8 @@ TiDB 是一款支持 SQL 语义并直接兼容 MySQL 通信协议的分布式关
 
 了解了总体架构后，我们发现，外表上看似乎是一台 MySQL，实际上除了对 MySQL 协议的支持以外，其内部结构已经和 MySQL 没有太大关系了。相比之下，TiDB 可能更像一个 Spark 集群，因此其实 TiDB 就是一个根正苗红的分布式数据库方案。
 
+
+
 ### 从源码开始部署
 
 如果只谈部署的话，其实 TiDB 提供了一个非常方便的集群部署工具：TiUP，在[《TiDB in action》的安装部署章节中](https://book.tidb.io/session2/chapter1/tiup-tiops.html)，非常清楚的描述了 TiUP 的使：不论是部署单机测试环境还是部署集群，几条命令就能全部搞定了。
@@ -182,14 +184,153 @@ Makefile 中默认是采用 release 编译，因此输出的 binary 需要到 `.
 
 {% asset_img dashboard-instances.png %}
 
+
+
 ### 开启事务时打印 “hello transaction” 
 
 ##### 1. tidb 执行 SQL 命令的总体步骤
 
 {% asset_img tidb-execute-cmd.png %}
 
+从源码中我们可知，`tidb-server/main.go` 的 `main` 函数作为程序入口，在启动后会执行一些读取配置、初始化等操作，之后会创建一个 server，并执行`server.Run()`启动 server。
+
+之后 server 获取到的每一个 tcp 连接，都会开启一个 go routine，在 go routine 中执行连接的具体工作（go routine 真简单... 想想 netty 的 reactor 模型...）：
+
+```go
+go s.onConn(clientConn)
+```
+
+处理连接的主要逻辑在 `conn.go`包中，其中主要包括了读取 tcp 数据并分发（`readPacket()` 和 `dispatch(ctx, data)`），之后对第一个字符进行解析，解析为不同的 command，我们关注 DML 语句的执行，因此可以直接进入`handleQuery(ctx, dataStr)` 函数。
+
+之后对来源数据进行 parse，将字节数组转化为 `ast.StmtNode` ，这里没有深入看，应该是引入了抽象语法树来描述 SQL。
+
+之后的工作就转交至了 `session.go`这个包，由 session 包来执行相应的 statement，具体函数可见：`ExecuteStmt(ctx, stmt)`。
+
+执行 statement 的过程中，就会涉及到对事务的操作，一开始回先将事务准备好：`s.PrepareTxnCtx(ctx)`，之后在执行具体动作时，通过 `Txn(active bool)` 函数来开启事务（该函数会在等待事务时阻塞）。
+
 ##### 2. `func (s *session) Txn(active bool) (kv.Transaction, error)`
+
+具体对事务的操作就是本函数了：
+
+```go
+func (s *session) Txn(active bool) (kv.Transaction, error) {
+	if !active {
+		return &s.txn, nil
+	}
+  
+	... ...
+	
+  if s.txn.pending() {
+	
+    ... ...
+		
+    // Transaction is lazy initialized.
+		// PrepareTxnCtx is called to get a tso future, makes s.txn a pending txn,
+		// If Txn() is called later, wait for the future to get a valid txn.
+		if err := s.txn.changePendingToValid(); err != nil {
+			logutil.BgLogger().Error("active transaction fail",
+				zap.Error(err))
+			s.txn.cleanup()
+			s.sessionVars.TxnCtx.StartTS = 0
+			return &s.txn, err
+		
+    }
+		
+    ... ...
+	}
+  
+	// logutil.BgLogger().Info("hello transaction")
+	
+  return &s.txn, nil
+}
+```
+
+可以看到，当输入参数为 false 时，代表不需要激活事务，因此直接将当前 session 的 txn 返回即可，否则，需要判断事务是否在 pending 中，如果是则等待其解除 pending（实际上是等待一个 future 完成）。
+
+所以可以看到，我们的题目要求在开启事务时打印 “hello transaction”，那么就可以将相应代码啊添加到注释处。
 
 ##### 3. Executor
 
+对不同的 SQL 操作，tidb 定义了许多 Executor 来执行，例如：`SelectionExec`、`DeleteExec`、`DDLExec`等等。
+
+为了验证在执行 DML 时真的开启了事务，我们可以任意选择一个 Executor，来看看在执行时是不是真的开启了事务。这里我们选择 `UpdateExec`。（tidb 默认开启了 auto commit，且新版本默认开启悲观事务）
+
+update 动作一共分为了五个步骤，
+
+- 转换被修改的值
+
+- 处理 null 错误
+
+- 数据比较
+
+- 将需要更改的值写入 on-update-now
+
+- 删除旧值，插入新值
+
+可以看到，真正的更新操作是在第五步，选取第五步中的 ”删除旧值“ 相关逻辑：
+
+```go
+func (t *TableCommon) removeRowData(ctx sessionctx.Context, h kv.Handle) error {
+	// Remove row data.
+	txn, err := ctx.Txn(true)
+	if err != nil {
+		return err
+	}
+
+	key := t.RecordKey(h)
+	err = txn.Delete(key)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+```
+
+我们发现在 `txn.Delete(key)`之前，确实先执行了 `ctx.Txn(true)`。
+
 ##### 4. 运行结果
+
+最后，将改动后的 tidb 重新编译，加入到先前的集群中，执行一下 insert 或者 update 语句，我们就能看到如下输出：
+
+```shell
+[2020/08/16 16:55:21.158 +08:00] [INFO] [set.go:216] ["set session var"] [conn=2] [name=tx_read_only] [val=0]
+[2020/08/16 16:55:21.158 +08:00] [INFO] [set.go:216] ["set session var"] [conn=2] [name=transaction_read_only] [val=0]
+[2020/08/16 16:55:21.163 +08:00] [INFO] [set.go:216] ["set session var"] [conn=2] [name=net_write_timeout] [val=600]
+
+[2020/08/16 16:55:21.163 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:55:21.163 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+
+[2020/08/16 16:55:21.164 +08:00] [WARN] [session.go:472] ["can not retry txn"] [conn=2] [label=general] [error="[kv:1062]Duplicate entry '1' for key 'PRIMARY'"] [IsBatchInsert=false] [IsPessimistic=false] [InRestrictedSQL=false] [tidb_retry_limit=10] [tidb_disable_txn_auto_retry=true]
+[2020/08/16 16:55:21.165 +08:00] [WARN] [session.go:488] ["commit failed"] [conn=2] ["finished txn"="Txn{state=invalid}"] [error="[kv:1062]Duplicate entry '1' for key 'PRIMARY'"]
+[2020/08/16 16:55:21.165 +08:00] [ERROR] [conn.go:744] ["command dispatched failed"] [conn=2] [connInfo="id:2, addr:127.0.0.1:53187 status:10, collation:utf8_general_ci, user:root"] [command=Query] [status="inTxn:0, autocommit:1"] [sql="/* ApplicationName=GoLand 2020.2.2 */ insert into tester (id, name) VALUES (1, 'aa')"] [txn_mode=PESSIMISTIC] [err="[kv:1062]Duplicate entry '1' for key 'PRIMARY'"]
+[2020/08/16 16:55:21.167 +08:00] [INFO] [2pc.go:717] ["2PC clean up done"] [conn=2] [txnStartTS=418792897543667719]
+```
+
+以上是对有主键约束的一行进行重复插入而打印的日志，可以看到打印的：`["hello transaction"]`。
+
+另外，在做了上述修改后，tidb 会每隔 3 秒打印 7 条 `["hello transaction"]`，怀疑是后台定时任务所致。
+
+```shell
+[2020/08/16 16:58:59.661 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:58:59.661 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:58:59.663 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:58:59.664 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:58:59.665 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+
+[2020/08/16 16:59:02.636 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:02.663 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:02.665 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:02.666 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:02.666 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:02.668 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:02.669 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+
+[2020/08/16 16:59:05.635 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:05.660 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:05.662 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:05.663 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:05.664 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:05.665 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+[2020/08/16 16:59:05.665 +08:00] [INFO] [session.go:1454] ["hello transaction"]
+```
+
