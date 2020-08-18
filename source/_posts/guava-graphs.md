@@ -565,23 +565,19 @@ void updateDistancesFrom(Network<N, E> network, N node) {
 
 ## FAQ
 
-### Why did Guava introduce `common.graph`?
+### 为什么 Guava 要引入 `common.graph`？
 
-The same arguments apply to graphs as to many other things that Guava does:
+正如 Guava 所做的其他事情一样，引入 graph 也是基于同样的理由：
 
-*   code reuse/interoperability/unification of paradigms: lots of things relate
-    to graph processing
-*   efficiency: how much code is using inefficient graph representations? too
-    much space (e.g. matrix representations)?
-*   correctness: how much code is doing graph analysis wrong?
-*   promotion of use of graph as ADT: how many people would be working with
-    graphs if it were easy?
-*   simplicity: code which deals with graphs is easier to understand if it’s
-    explicitly using that metaphor.
+*   代码重用、互用、范例统一：很多事情都与 graph 处理有关
+*   效率：有多少代码都在使用低效的 graph 表示？太多了（例如矩阵的表示）
+*   正确性：有多少代码都将 graph 分析做错了？
+*   推广 graph 用作 ADT：当 graph 用起来很简单的时候，有多少人都会用？
+*   简单性：假如显式的使用比喻，处理 graph 的代码会变得更容易理解。
 
-### What kinds of graphs does `common.graph` support?
+### `common.graph` 支持哪些类型的 graph？
 
-This is answered in the ["Capabilities"](#capabilities) section, above.
+请见上文章节： ["能力"](#能力) 。
 
 ### `common.graph` doesn’t have feature/algorithm X, can you add it?
 
