@@ -89,15 +89,63 @@ nodes:
 - role: worker
   extraMounts:
   - containerPath: /mnt/disks/vol_1
-    hostPath: ./worker_1/vol_1
-- role: worker
-  extraMounts:
+    hostPath: <...>/worker_0/vol_1
   - containerPath: /mnt/disks/vol_2
-    hostPath: ./worker_2/vol_2
+    hostPath: <...>/worker_0/vol_2
+  - containerPath: /mnt/disks/vol_3
+    hostPath: <...>/worker_0/vol_3
+  - containerPath: /mnt/disks/vol_4
+    hostPath: <...>/worker_0/vol_4
+  - containerPath: /mnt/disks/vol_5
+    hostPath: <...>/worker_0/vol_5
+  - containerPath: /mnt/disks/vol_6
+    hostPath: <...>/worker_0/vol_6
+  - containerPath: /mnt/disks/vol_7
+    hostPath: <...>/worker_0/vol_7
+  - containerPath: /mnt/disks/vol_8
+    hostPath: <...>/worker_0/vol_8
+  - containerPath: /mnt/disks/vol_9
+    hostPath: <...>/worker_0/vol_9
 - role: worker
   extraMounts:
+  - containerPath: /mnt/disks/vol_1
+    hostPath: <...>/worker_1/vol_1
+  - containerPath: /mnt/disks/vol_2
+    hostPath: <...>/worker_1/vol_2
   - containerPath: /mnt/disks/vol_3
-    hostPath: ./worker_3/vol_3
+    hostPath: <...>/worker_1/vol_3
+  - containerPath: /mnt/disks/vol_4
+    hostPath: <...>/worker_1/vol_4
+  - containerPath: /mnt/disks/vol_5
+    hostPath: <...>/worker_1/vol_5
+  - containerPath: /mnt/disks/vol_6
+    hostPath: <...>/worker_1/vol_6
+  - containerPath: /mnt/disks/vol_7
+    hostPath: <...>/worker_1/vol_7
+  - containerPath: /mnt/disks/vol_8
+    hostPath: <...>/worker_1/vol_8
+  - containerPath: /mnt/disks/vol_9
+    hostPath: <...>/worker_1/vol_9
+- role: worker
+  extraMounts:
+  - containerPath: /mnt/disks/vol_1
+    hostPath: <...>/worker_2/vol_1
+  - containerPath: /mnt/disks/vol_2
+    hostPath: <...>/worker_2/vol_2
+  - containerPath: /mnt/disks/vol_3
+    hostPath: <...>/worker_2/vol_3
+  - containerPath: /mnt/disks/vol_4
+    hostPath: <...>/worker_2/vol_4
+  - containerPath: /mnt/disks/vol_5
+    hostPath: <...>/worker_2/vol_5
+  - containerPath: /mnt/disks/vol_6
+    hostPath: <...>/worker_2/vol_6
+  - containerPath: /mnt/disks/vol_7
+    hostPath: <...>/worker_2/vol_7
+  - containerPath: /mnt/disks/vol_8
+    hostPath: <...>/worker_2/vol_8
+  - containerPath: /mnt/disks/vol_9
+    hostPath: <...>/worker_2/vol_9
 ```
 
 执行以下命令创建我们的 K8S 集群：
@@ -164,7 +212,7 @@ namespace/tidb-admin created
 万事俱备，现在可以正式开始安装 TiDB Operator 到我们的 K8S 集群了：
 
 ```shell
-> helm install --namespace tidb-admin tidb-operator pingcap/tidb-operator --version v1.1.2
+> helm install --namespace tidb-admin tidb-operator pingcap/tidb-operator --version v1.1.3
 NAME: tidb-operator
 LAST DEPLOYED: Thu Aug 20 22:11:51 2020
 NAMESPACE: tidb-admin
@@ -224,7 +272,9 @@ NAME                       CREATED AT
 tidbclusters.pingcap.com   2020-08-20T15:08:03Z
 ```
 
-安装完 CRD，就可以开始部署集群了。
+安装完 CRD，还要以同样的方式安装[`local-volume-provisioner.yaml`](https://raw.githubusercontent.com/pingcap/tidb-operator/master/manifests/local-dind/local-volume-provisioner.yaml)，否则在部署 pd 时 pod 会pending，提示找不到 StorageClass，（由于我并没有使用[TiDB Operator 的 kind 集群初始化脚本](https://github.com/pingcap/tidb-operator/blob/master/hack/kind-cluster-build.sh)，而是自建 kind cluster，所以并没有留意要执行这一步，问题搞了好久坑惨我了... ）。
+
+两个 yaml 全部搞定后，就可以开始部署集群了。
 
 先找找最新的 chart：
 
@@ -274,7 +324,23 @@ Cluster access
    If you are running this from a remote machine, you must specify the server's external IP address.
 ```
 
-执行`watch kubectl get pods --namespace tidb-cluster -l app.kubernetes.io/instance=tidb-cluster -o wide`，耐心的等待一会儿，就可以看到如下输出了：
+执行`watch kubectl get pods --namespace tidb-cluster -l app.kubernetes.io/instance=tidb-cluster -o wide`，等待大约 10min 时间，就可以看到如下输出了：
+
+```shell
+NAME                                      READY   STATUS    RESTARTS   AGE
+tidb-cluster-discovery-7d684bcbb6-2f2rp   1/1     Running   0          9m30s
+tidb-cluster-monitor-6b978c6bd6-j7rrm     3/3     Running   0          9m35s
+tidb-cluster-pd-0                         1/1     Running   0          9m34s
+tidb-cluster-pd-1                         1/1     Running   0          9m34s
+tidb-cluster-pd-2                         1/1     Running   0          9m34s
+tidb-cluster-tidb-0                       2/2     Running   0          75s
+tidb-cluster-tidb-1                       2/2     Running   0          75s
+tidb-cluster-tikv-0                       1/1     Running   0          8m21s
+tidb-cluster-tikv-1                       1/1     Running   0          8m21s
+tidb-cluster-tikv-2                       1/1     Running   0          8m21s
+```
+
+
 
 
 
