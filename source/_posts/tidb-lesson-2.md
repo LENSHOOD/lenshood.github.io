@@ -13,7 +13,7 @@ categories:
 
 2. **通过 TiDB Operator 部署 TiDB 集群到 K8S**
 
-3. **根据机器硬件调整 TiDB 线程池配置**
+3. **根据机器硬件调整 TiDB 配置**
 
 4. **sysbench 测试**
 
@@ -171,6 +171,8 @@ kind-worker3         Ready    <none>   3m5s    v1.18.2
 ```
 
 到此为止，我们的 K8S 集群就创建完毕了。
+
+
 
 ### 通过 TiDB Operator 部署 TiDB 集群到 K8S
 
@@ -340,7 +342,26 @@ tidb-cluster-tikv-1                       1/1     Running   0          8m21s
 tidb-cluster-tikv-2                       1/1     Running   0          8m21s
 ```
 
+我们来通过 TiDB Dashboard 来访问一下：
+
+```shell
+# 需要先通过 port-forward 来做内外端口映射
+> kubectl port-forward svc/tidb-cluster-pd 2379:2379 --namespace=tidb-cluster
+Forwarding from 127.0.0.1:2379 -> 2379
+Forwarding from [::1]:2379 -> 2379
+```
+
+之后浏览器进入`http://127.0.0.1:2379/dashboard/#/cluster_info/instance` 来查看一下实例状态：
+
+{% asset_img dashboard-instances.png %}
+
+可以看到一切都运行正常了。
 
 
 
+### 根据机器硬件调整 TiDB 配置
+
+前文中，我们按照 TiDB Operator 的默认配置，部署了完整的 TiDB cluster。然而，由于是单机环境，测试用的 Mac 机器的是 6C + 16GB 的配置，与[推荐配置](https://docs.pingcap.com/zh/tidb/v3.0/hardware-and-software-requirements)相比实在过于简陋，因此我们需要把非必要的功能减去来释放额外的资源，好钢用在刀刃上。
+
+因此，还是选择 1tidb + 1pd + 3 tikv 的最小集群，并对相关细节配置进行优化。结合[TiKV 线程池优化](https://book.tidb.io/session4/chapter8/threadpool-optimize.html)中的建议，我们最终可以给出如下的集群配置：
 
