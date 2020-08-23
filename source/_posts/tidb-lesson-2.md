@@ -424,9 +424,7 @@ time=120
 > sysbench --config-file=config.cfg oltp_point_select --tables=8 --table_size=100000 run
 ```
 
-执行完成后，我们可以看到，在如下配置中，8 张表，每张表 10 万条数据下的测试结果：
-
-结果：
+执行完成后，我们可以看到，8 张表，每张表 10 万条数据下的测试结果：
 
 ```shell
 SQL statistics:
