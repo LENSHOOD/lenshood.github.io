@@ -10,18 +10,13 @@ categories:
 这一节，我们需要对一个完整的 TiDB 集群进行性能测试，为了实现这一目标，本文会通过以下几个步骤来介绍如何从零开始实现 TiDB 的性能测试：
 
 1. **借助 kind 在单机模拟集群**
-
 2. **通过 TiDB Operator 部署 TiDB 集群到 K8S**
-
 3. **根据机器硬件调整 TiDB 配置**
-
-4. **sysbench 测试**
-
-5. **go-ycsb 测试**
-
-6. **go-tpc 测试**
-
-7. **性能瓶颈分析**
+4. **性能测试**
+   1. **sysbench 测试**
+   2. **go-ycsb 测试**
+   3. **go-tpc 测试**
+5. **性能瓶颈分析**
 
 
 
@@ -29,7 +24,7 @@ categories:
 
 [kind](https://kind.sigs.k8s.io/) 能通过容器技术来模拟 K8S 集群：在 docker 容器中运行 K8S Node，再在 Node 中创建容器环境，并管理 Pod，名副其实的 docker in docker。
 
-##### 安装 kind
+#### 安装 kind
 
 首先，我们需要在本地安装 kind （这里忽略了 docker 的安装步骤，想要安装 docker 可以参见其[安装文档](https://www.docker.com/products/docker-desktop)）：
 
@@ -47,7 +42,7 @@ brew install kubectl
 
 kind 安装好之后，我们就可以着手创建我们的 K8S 集群了。
 
-##### 构建 K8S
+#### 构建 K8S
 
 我们知道，任意一个 K8S Node，都至少需要一个 `kubelet` 和一个 `docker env` ，对于需要用作 control panel 的 node，还需要安装 `apiserver`、`etcd`、`scheduler` 、`controller-manager`等等组件，通常我们会使用`kubeadm`工具来安装。
 
@@ -178,7 +173,7 @@ kind-worker3         Ready    <none>   3m5s    v1.18.2
 
 >  本节内容主要参考 [TiDB In Action 第二章 1.2.2 节](https://book.tidb.io/session2/chapter1/tidb-operator-local-deployment.html) 和 [Kubernetes 上使用 TiDB Operator 快速上手]([https://docs.pingcap.com/zh/tidb-in-kubernetes/stable/get-started#%E9%83%A8%E7%BD%B2-tidb-operator](https://docs.pingcap.com/zh/tidb-in-kubernetes/stable/get-started#部署-tidb-operator))。
 
-##### 环境准备
+#### 环境准备
 
 TiDB Operator 主要是采用 Helm 来安装的，因此我们需要先有一个 Helm：
 
@@ -202,7 +197,7 @@ version.BuildInfo{Version:"v3.3.0", GitCommit:"8a4aeec08d67a7b84472007529e8097ec
 "pingcap" has been added to your repositories
 ```
 
-##### 安装 TiDB Operator 到集群
+#### 安装 TiDB Operator 到集群
 
 接下来为 TiDB 创建一个 namespace：
 
@@ -236,7 +231,7 @@ tidb-controller-manager-588848b7b6-mr9cv   1/1     Running   0          67s
 tidb-scheduler-764cfb57d9-97tvx            2/2     Running   0          67s
 ```
 
-##### 使用 TiDB Operator 安装 TiDB 集群
+#### 使用 TiDB Operator 安装 TiDB 集群
 
 > *注意： [Kubernetes 上使用 TiDB Operator 快速上手]([https://docs.pingcap.com/zh/tidb-in-kubernetes/stable/get-started#%E9%83%A8%E7%BD%B2-tidb-operator](https://docs.pingcap.com/zh/tidb-in-kubernetes/stable/get-started#部署-tidb-operator)) 中是通过 tidb-cluster.yaml 描述文件直接创建集群的，默认的 basic 示例只会创建 1 tidb + 1 tikv + 1pd，并不符合我们做性能测试的要求，因此我们仍旧使用 helm 来安装集群。
 
@@ -387,5 +382,237 @@ config: |
 
 
 
-### sysbench 测试
+### 性能测试
 
+以下性能测试，全部都在如下硬件配置的 K8S 集群中完成：
+
+| CPU     | MEM  | HD        | Deployed Items             |
+| ------- | ---- | --------- | -------------------------- |
+| 8C vCPU | 8GB  | 120GB SSD | 1pd + 1tidb + 3tikv shared |
+
+#### sysbench 测试
+
+首先安装 sysbench：
+
+```shell
+brew install sysbench
+```
+
+之后进行配置，配置文件如下（可以通过执行 `sysbench --help` 或 `sysbench {testname} --help` 来查看通用配置与特定 test 的配置）：
+
+```shell
+mysql-host=127.0.0.1
+mysql-port=4000
+mysql-user=root
+mysql-password=
+mysql-db=test
+threads=8
+report-interval=10
+time=120
+```
+
+测试流程如下（主要测试的是查询性能，因此选用 `lotp_point_select` 测试）：
+
+```shell
+# 先准备数据：8 张表，每张 10 万数据量
+> sysbench --config-file=config.cfg oltp_point_select --tables=8 --table_size=100000 prepare
+
+# 数据预热
+> SELECT COUNT(pad) FROM sbtest{n} USE INDEX(k_{n});
+
+# 执行测试
+> sysbench --config-file=config.cfg oltp_point_select --tables=8 --table_size=100000 run
+```
+
+执行完成后，我们可以看到，在如下配置中，8 张表，每张表 10 万条数据下的测试结果：
+
+结果：
+
+```shell
+SQL statistics:
+    queries performed:
+        read:                            108638
+        write:                           0
+        other:                           0
+        total:                           108638
+    transactions:                        108638 (905.23 per sec.)
+    queries:                             108638 (905.23 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0093s
+    total number of events:              108638
+
+Latency (ms):
+         min:                                    3.47
+         avg:                                    8.84
+         max:                                   79.62
+         95th percentile:                       14.73
+         sum:                               959867.21
+
+Threads fairness:
+    events (avg/stddev):           13579.7500/48.15
+    execution time (avg/stddev):   119.9834/0.00
+```
+
+进一步增加测试线程，可以得到如下 thread 与 tps 的关系：
+
+| Threads | TPS     | Avg. Latency | 95% Latency |
+| ------- | ------- | ------------ | ----------- |
+| 8       | 905.23  | 8.84         | 14.73       |
+| 16      | 1115.55 | 14.34        | 24.83       |
+| 32      | 1416.57 | 22.58        | 42.61       |
+| 64      | 1637.44 | 39.06        | 75.82       |
+| 96      | 1673.79 | 57.31        | 108.68      |
+| 112     | 1706.90 | 65.58        | 125.52      |
+| 126     | 1809.67 | 69.57        | 127.81      |
+
+{% asset_img sysbench.png %}
+
+可以看到，从 64 线程开始基本达到了当前硬件环境下的吞吐量瓶颈点。
+
+其他的监控类型：
+
+{% asset_img sysbench-tidb-query-summary.png %}
+
+
+
+{% asset_img sysbench-tikv-cpu-qps.png %}
+
+
+
+{% asset_img sysbench-tikv-grpc.png %}
+
+#### go-ycsb 测试
+
+安装 go-ycsh：
+
+```shell
+# 从 github 获取 go-ycsb
+> git clone https://github.com/pingcap/go-ycsb.git
+
+# build
+> make
+```
+
+与原版 YCSB 略有不同，PingCAP 提供的 go-ycsb 不需要初始化表，选择 db 时也只需要指定 db 类型即可（如 mysql）。
+
+配置基本参数：
+
+```properties
+## file name: basic.properties
+mysql.host=127.0.0.1
+mysql.port=4000
+mysql.user=root
+mysql.password=
+mysql.db=test
+```
+
+workload 参数：
+
+```properties
+## file name: workload.properties
+# 80 万数据
+recordcount=800000
+operationcount=30000
+workload=core
+readallfields=true
+
+# 模拟读多写少的场景
+readproportion=0.8
+updateproportion=0.1
+scanproportion=0
+insertproportion=0.1
+requestdistribution=uniform
+```
+
+执行测试：
+
+```shell
+# load data
+> ./bin/go-ycsb load mysql -P basic.properties -P runtime-config/workload.properties --thread=8
+
+# run test
+> ./bin/go-ycsb run mysql -P runtime-config/basic.properties -P runtime-config/workload.properties --threads=8
+```
+不断调整线程数，得到如下测试结果（主要展示 READ 数据，INSERT 和 UPDATE 结果并未列出）：
+
+| Threads | TPS   | Avg. Latency | 99% Latency |
+| ------- | ----- | ------------ | ----------- |
+| 8       | 232.5 | 20.575       | 60          |
+| 16      | 374.3 | 28.982       | 75          |
+| 32      | 485.0 | 44.81        | 105         |
+| 64      | 474.3 | 91.362       | 237         |
+| 96      | 544.8 | 121.888      | 295         |
+| 112     | 530.4 | 144.853      | 341         |
+| 128     | 547.6 | 159.132      | 401         |
+
+{% asset_img ycsb.png %}
+
+显然，从 64 线程开始基本达到了当前硬件环境下的吞吐量瓶颈点。
+
+其他的监控类型：
+
+{% asset_img ycsb-tidb-query-summary.png %}
+
+
+
+{% asset_img ycsb-tikv-cpu-qps.png %}
+
+
+
+{% asset_img ycsb-tikv-grpc.png %}
+
+#### go-tpc 测试
+
+安装 go-tpc：
+
+```shell
+# 从 github 获取 go-tpc
+> git clone https://github.com/pingcap/go-tpc.git
+
+# build
+> make
+```
+
+由于 go-tpc 工具默认会以 root 用户连接 localhost:4000 因此无需更多配置，直接开始准备数据：
+
+```shell
+# 8 warehouse 8 partition
+> ./bin/go-tpc tpcc --warehouses 8 --parts 8 prepare
+
+# run without waiting time
+> ./bin/go-tpc tpcc --warehouses 8 run --time 1m --threads 8
+
+# run with wating time(keying & thinking time)
+> ./bin/go-tpc tpcc --warehouses 8 run --wait --time 1m --threads 8
+```
+
+| Threads | tpmC  | tpmC with wait |
+| ------- | ----- | -------------- |
+| 8       | 600.7 | 6.8            |
+| 16      | 602.1 | 18.0           |
+| 32      | 736.5 | 31.8           |
+| 64      | 844.6 | 65.3           |
+| 96      | 817.3 | 83.7           |
+| 112     | 819.0 | 100.8          |
+| 128     | 774.5 | 106.0          |
+
+{% asset_img ycsb.png %}
+
+显然，对于无等待的测试，从 64 线程开始基本达到了当前硬件环境下的吞吐量瓶颈点。
+
+而对于有等待的测试，由于其 TPS 远没有达到无等待的水平，预示着整体 workload 较低，因此呈现随线程增长而线性增长的态势。
+
+其他的监控类型：
+
+{% asset_img tpcc-tidb-query-summary.png %}
+
+
+
+{% asset_img tpcc-tikv-cpu-qps.png %}
+
+
+
+{% asset_img tpcc-tikv-grpc.png %}
