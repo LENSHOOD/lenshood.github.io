@@ -21,42 +21,51 @@ categories:
 
 ### TiUP 部署最小集群
 为了确保与[官方文档中建议的环境](https://docs.pingcap.com/zh/tidb/stable/hardware-and-software-requirements)一致，我选择在 docker 容器中启动 centos7 环境，再借助 TiUP 部署本地集群。
-1. 启动容器环境：
+1. 给出 Dockerfile：
+  
+  ```dockerfile
+    ## 使用 centos7 作为基础镜像
+    FROM centos:centos7
+
+    ## 安装 tiup
+    RUN /bin/bash -c 'curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh'
+
+    ## 设定环境变量
+    ENV PATH /root/.tiup/bin:$PATH
+
+    ## 安装 tiup playground 所需的所有组件
+    RUN /bin/bash -c 'tiup install playground | tiup install prometheus | tiup install pd | tiup install tikv | tiup install tidb | tiup install grafana'
+
+    ## 设定 entrypoint 启动 playground 集群，host 映射到 0.0.0.0
+    ENTRYPOINT tiup --tag=local-tidb-cluster playground --db=1 --kv=3 --pd=1 --tiflash=0 --monitor --host=0.0.0.0
+  ```
+
+  
+
+2. 启动容器环境：
    docker-compose.yaml 如下所示，
-   
+
    ```yaml
    version: '2.0'
    services:
      tiup-playground-cluster:
-       image: centos:centos7
+       build:
+         context: .
+         dockerfile: Dockerfile
        ports:
-       - "127.0.0.1:4000:4000"
-       - "127.0.0.1:2379:2379"
-       - "127.0.0.1:9090:9090"
-       - "127.0.0.1:3000:3000"
-       volumes:
-       - ./inner-tiup-mount:/root/.tiup
-       tty: true
+       - "4000:4000"
+       - "2379:2379"
+       - "9090:9090"
+       - "3000:3000"
+       - "10080:10080"
    ```
    ```shell
    # 启动容器
    > docker-compose up -d
-   
-   # 进入容器
-   > docker exec -it {container-id} /bin/bash
    ```
-2. 在容器内安装 TiUP 组件：
 
-   ```shell
-   curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
-   ```
+3. 通过[上一次课程作业](https://lenshood.github.io/2020/08/19/tidb-lesson-2/)提到的压测工具，对部署的 TiDB 集群进行测试
+
    
-3. 通过 `tiup playground` 来快速搭建本地集群（注意配置 host）：
-	```shell
-	tiup --tag=local-tidb-cluster playground --db=1 --kv=3 --pd=1 --tiflash=0 --monitor  --host=0.0.0.0
-	```
 
-	
-	
-	
-	
+
