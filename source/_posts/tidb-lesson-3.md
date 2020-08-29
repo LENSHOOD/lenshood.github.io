@@ -12,9 +12,7 @@ categories:
 主要内容如下：
 
 1. **TiUP 部署最小集群**
-2. **CPU Profile**
-3. **IO Profile**
-4. **Mem Profile**
+2. **TiDB CPU Profile**
 5. **性能瓶颈分析与优化建议**
 
 
@@ -68,4 +66,62 @@ categories:
 
    
 
+### TiDB CPU Profile
+
+由于采用多种测试手段（例如上一节课讲到的 sysbench、ycsb、tpcc）对 TiDB + TiKV 进行全方位的 CPU + IO + Memory 的 profiling 并对其结果进行整合分析是一项比较大的工程。
+
+因此，本文对 Profiling 的 scope 做了限定，**只针对在 tpcc 测试方法下的 TiDB 的 CPU 使用情况进行 Profiling，并分析。**
+
+在确定了方向后，我们开始动手：
+
+1. 环境：
+
+   前文已经提到过了，在 docker 虚拟的 centos7 下部署 1 pd + 1 tidb + 3 tikv
+
+2. 测试方法：
+
+   tpcc 100 warehouse，相关命令如下：
+
+   ```shell
+   # prepare base data
+   > ./bin/go-tpc tpcc --warehouses 100 prepare
+   
+   # run tpcc
+   > ./bin/go-tpc tpcc --warehouses 100 run --time 3m --threads 64
+   ```
+
+3. Profiling:
+
+   采用在 TiDB 内已经开启的 go-pprof 进行数据采集，相关命令如下：
+
+   ```shell
+   # do 60 seconds profiling at tpcc prepare stage (tidb set pprof port as 10080)
+   > curl http://127.0.0.1:10080/debug/zip\?seconds\=60 --output tpcc-w100-prepare.zip
+   
+   # do 60 seconds profiling at tpcc run stage
+   > curl http://127.0.0.1:10080/debug/zip\?seconds\=60 --output tpcc-w100-run.zip
+   
+   # after unzip the downloaded zip package, use pprof tool to illustrate profile result
+   > go tool pprof -http=:8080 {unziped dir}/profile
+   ```
+
+经过上述步骤，我们已经能够拿到在测试期间对 TiDB 的 CPU Profiling 数据了：
+
+- prepare 期间的 CPU Profiling：
+
+{% asset_img pprof-cpu-tpcc-prepare.png %}
+
+
+
+- run 期间的 CPU Profiling：
+
+{% asset_img pprof-cpu-tpcc-run.png %}
+
+
+
+从上述结果中我们可以清晰地看出：
+
+1. prepare 阶段 Parser 的 CPU usage 占比很大
+2. run 阶段没有特别明显的 CPU usage 占比大的函数，其对 CPU 的消耗表现为整体平均
+3. 底层 gc 相关的逻辑显著的占用了 CPU 资源
 
