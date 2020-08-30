@@ -125,3 +125,17 @@ categories:
 2. run 阶段没有特别明显的 CPU usage 占比大的函数，其对 CPU 的消耗表现为整体平均
 3. 底层 gc 相关的逻辑显著的占用了 CPU 资源
 
+
+
+### 能瓶颈分析与优化建议
+
+从上一节的 Profiling 结果中，我们发现，除了与 gc 相关的 go 底层逻辑 CPU 占用率很高以外，对 SQL 语句进行转换的 parser 在大量插入数据时也是一块 CPU 热点。
+
+由于对 gc 的优化可能会横跨各个功能，需要对各种模块的实现细节有一定的理解，因此本文中我们并不会对这部分做分析，而是转为对 parser 这一较为独立的模块进行分析。
+
+#### TiDB Parser
+
+[Parser](https://github.com/pingcap/parser) 的功能边界很清晰，就是将请求中包含的字符串格式的 SQL 语句转换为符合 SQL 语言标准的 AST 抽象语法树，以便于后续对其进行校验、优化以及转化为执行计划。
+
+目前 parser 已经被封装为模块，独立出来，名字仍旧叫做 parser。对 parser 的原理及实现进行初步的了解，可以参考[TiDB SQL Parser 的实现](https://pingcap.com/blog-cn/tidb-source-code-reading-5/)。
+
