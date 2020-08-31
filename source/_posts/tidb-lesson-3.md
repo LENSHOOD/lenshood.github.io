@@ -17,7 +17,7 @@ categories:
 
 
 
-### TiUP 部署最小集群
+## TiUP 部署最小集群
 为了确保与[官方文档中建议的环境](https://docs.pingcap.com/zh/tidb/stable/hardware-and-software-requirements)一致，我选择在 docker 容器中启动 centos7 环境，再借助 TiUP 部署本地集群。
 1. 给出 Dockerfile：
   
@@ -62,11 +62,11 @@ categories:
    > docker-compose up -d
    ```
 
-3. 通过[上一次课程作业](https://lenshood.github.io/2020/08/19/tidb-lesson-2/)提到的压测工具，对部署的 TiDB 集群进行测试
+3. 通过[上一次课程作业](https://lenshood.github.io/2020/08/19/tidb-lesson-2/)提到的压测工具，对部署的 TiDB 集群进行测试。
 
    
 
-### TiDB CPU Profile
+## TiDB CPU Profile
 
 由于采用多种测试手段（例如上一节课讲到的 sysbench、ycsb、tpcc）对 TiDB + TiKV 进行全方位的 CPU + IO + Memory 的 profiling 并对其结果进行整合分析是一项比较大的工程。
 
@@ -76,7 +76,7 @@ categories:
 
 1. 环境：
 
-   前文已经提到过了，在 docker 虚拟的 centos7 下部署 1 pd + 1 tidb + 3 tikv
+   前文已经提到过了，在 docker 虚拟的 centos7 下部署 1 pd + 1 tidb + 3 tikv 。
 
 2. 测试方法：
 
@@ -127,13 +127,13 @@ categories:
 
 
 
-### 性能瓶颈分析与优化建议
+## 性能瓶颈分析与优化建议
 
 从上一节的 Profiling 结果中，我们发现，除了与 gc 相关的 go 底层逻辑 CPU 占用率很高以外，对 SQL 语句进行转换的 parser 在大量插入数据时也是一块 CPU 热点。
 
 由于对 gc 的优化可能会横跨各个功能，需要对各种模块的实现细节有一定的理解，因此本文中我们并不会对这部分做分析，而是转为对 parser 这一较为独立的模块进行分析。
 
-#### TiDB Parser
+### TiDB Parser
 
 [Parser](https://github.com/pingcap/parser) 的功能边界很清晰，就是将请求中包含的字符串格式的 SQL 语句转换为符合 SQL 语言标准的 AST 抽象语法树，以便于后续对其进行校验、优化以及转化为执行计划。
 
@@ -176,7 +176,7 @@ func (parser *Parser) Parse(sql, charset, collation string) (stmt []ast.StmtNode
 
 yacc 是由 Stephen C. Johnson 在 1975 年发表的一种解析器，距离今天已有 45 年历史。
 
-#### ANTLR
+### ANTLR
 
 [ANTLR](https://github.com/antlr/antlr4) 是由 [Terence Parr](http://www.cs.usfca.edu/~parrt/) 开发维护的一种 parser generator，相比 yacc，ANTLR 采用 Java 开发，它更年轻，作者也在持续不断的维护。ANTLR 采用了一种由作者自己对 LL 算法改进的算法： Adaptive LL（ALL(\*)）算法。Spark SQL 的 SQL Parser 实现就采用了 ANTLR 方案。
 
@@ -200,7 +200,7 @@ INT     : [0-9]+ ;
 
 目前最新的 ANTLR 4 已经支持根据语法定义文件生成多种语言的实现，[包括 Go](https://github.com/antlr/antlr4/blob/master/doc/go-target.md)。
 
-#### ANTLR vs. yacc
+### ANTLR vs. yacc
 
 通过前文，我们了解了 TiDB 目前的 parser 方案采用了 yacc，此外我们了解到一种目前很流行的新型 parser generator —— ANTLR。那么，ANTLR 相对 yacc 它的优势都有哪些呢？
 
@@ -227,7 +227,7 @@ ANTLR 的作者在他的[一篇论文](https://www.antlr.org/papers/allstar-tech
 
  {% asset_img algorithm-compare.png %}
 
-#### 性能优化建议
+### 性能优化建议
 
 根据前文的介绍与分析，我们也许能得出以下假设：
 
