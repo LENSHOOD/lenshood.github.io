@@ -172,13 +172,13 @@ func (parser *Parser) Parse(sql, charset, collation string) (stmt []ast.StmtNode
 }
 ```
 
-`yyParse() `方法是由 `goyacc` 工具生成的语法解析器，而 `goyacc` 用 go 重写了 `plan 9` 开源的 c 语言实现，因此可知 `goyacc` 是一种 采用了 LALR 算法的 yacc parser。
+`yyParse() `方法是由 `goyacc` 工具生成的语法解析器，而 `goyacc` 用 go 重写了 [`plan 9` 开源的 c 语言实现](https://9p.io/magic/man2html/1/yacc)，因此可知 `goyacc` 是一种 采用了 LR(1) 算法的 yacc parser。
 
 yacc 是由 Stephen C. Johnson 在 1975 年发表的一种解析器，距离今天已有 45 年历史。
 
 #### ANTLR
 
-[ANTLR](https://github.com/antlr/antlr4) 是由 [Terence Parr](http://www.cs.usfca.edu/~parrt/) 开发维护的一种 parser generator，相比 yacc，ANTLR 采用 Java 开发，它更年轻，作者也在持续不断的维护。ANTLR 采用了一种由作者自己对 LL 算法改进的算法： Adaptive LL（ALL）算法。Spark SQL 的 SQL Parser 实现就采用了 ANTLR 方案。
+[ANTLR](https://github.com/antlr/antlr4) 是由 [Terence Parr](http://www.cs.usfca.edu/~parrt/) 开发维护的一种 parser generator，相比 yacc，ANTLR 采用 Java 开发，它更年轻，作者也在持续不断的维护。ANTLR 采用了一种由作者自己对 LL 算法改进的算法： Adaptive LL（ALL(\*)）算法。Spark SQL 的 SQL Parser 实现就采用了 ANTLR 方案。
 
 ANTLR 的语法分析描述文件的格式与 yacc 不同，这里引用官网的一个例子：
 
@@ -225,7 +225,7 @@ ANTLR 的作者在他的[一篇论文](https://www.antlr.org/papers/allstar-tech
 
 作者的测试结果如下：
 
- {% asset_imgalgorithm-compare.png %}
+ {% asset_img algorithm-compare.png %}
 
 #### 性能优化建议
 
@@ -237,5 +237,6 @@ ANTLR 的作者在他的[一篇论文](https://www.antlr.org/papers/allstar-tech
 
 基于上述假设，TiDB Parser 作为从 TiDB 拆分出来的独立项目，也许可以考虑提供一个基于 ANTLR 的实现，并支持用户自定义切换，以这种方式来提升 Parser 的性能和扩展性。
 
-本节的建议已经在 TiDB Parser 项目中提出了一个 ISSUE，ISSUE num: 
+本节的建议已经在 TiDB Parser 项目中提出了一个 Issue，Issue num: [#998](https://github.com/pingcap/parser/issues/998)。
 
+{% asset_img issue.png %}
