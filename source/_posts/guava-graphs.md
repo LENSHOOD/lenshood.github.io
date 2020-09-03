@@ -579,81 +579,45 @@ void updateDistancesFrom(Network<N, E> network, N node) {
 
 请见上文章节： ["能力"](#能力) 。
 
-### `common.graph` doesn’t have feature/algorithm X, can you add it?
+### `common.graph` 并不包含某个特性/算法，你们可以增加吗？
 
-Maybe. You can email us at `guava-discuss@googlegroups.com` or [open an issue on
-GitHub](https://github.com/google/guava/issues).
+也许吧，你可以给我们的邮箱`guava-discuss@googlegroups.com`发邮件或 [在 Github 上提 Issue](https://github.com/google/guava/issues)。
 
-Our philosophy is that something should only be part of Guava if (a) it fits in
-with Guava’s core mission and (b) there is good reason to expect that it will be
-reasonably widely used.
+我们的处世哲学是只有当某种东西（a）与 Guava 的核心使命相匹配且（b）有一个好的理由来期望他能够合理广泛的被使用时，才应该是 Guava 的一部分。
 
-`common.graph` will probably never have capabilities like visualization and I/O;
-those would be projects unto themselves and don’t fit well with Guava’s mission.
+`common.graph`也许永远也不会提供可视化或者 I/O 的能力；这些都是他们自己项目中的内容，与 Guava 的使命并不相符。
 
-Capabilities like traversal, filtering, or transformation are better fits, and
-thus more likely to be included, although ultimately we expect that other graph
-libraries will provide most capabilities.
+类似遍历、过滤、变换等的能力才更符合，因此也更有可能被引入，虽然最终我们仍期望其他的 graph 库能提供大部分能力。
 
-### Does it support very large graphs (i.e., MapReduce scale)?
+###  超大规模的 Graph 会被支持吗（例如 MapReduce 规模）？
 
-Not at this time. Graphs in the low millions of nodes should be workable, but
-you should think of this library as analogous to the Java Collections Framework
-types (`Map`, `List`, `Set`, and so on).
+现在还不行。Graph 在较小的百万级别节点下应该能工作，但你考虑应该将本库类比为 Java 的集合框架类型（`Map`， `List`，`Set`等等）。
 
-### How can I define the order of `successors(node)`?
+### 我如何能定义 `successors(node)`的顺序？
 
-Setting `incidentEdgeOrder()` to [`ElementOrder.stable()`] in the graph builder
-makes sure that `successors(node)` returns the successors of `node` in the order
-that the edges were inserted. This is also true for most other methods that
-relate to the incident edges of a node, such as (such as `incidentEdges(node)`).
+在 graph builder 中设置`incidentEdgeOrder()`为 [`ElementOrder.stable()`]就能确保  `successors(node)` 会以边的插入顺序返回 `node`的后继。这在对其他与边和节点相关方法（例如`incidentEdges(node)`）时也有效。
 
-### Why should I use it instead of something else?
+### 为什么我要用 Guava Graph 库而不是其他库呢？
 
-**tl;dr**: you should use whatever works for you, but please let us know what
-you need if this library doesn't support it!
+**太长不读**：你应该使用对你奏效的，但当本库不支持你的需求时，请让我们知道！
 
-The main competitors to this library (for Java) are:
-[JUNG](https://github.com/jrtom/jung) and [JGraphT](http://jgrapht.org/).
+本库的主要竞争者（对 Java）是：[JUNG](https://github.com/jrtom/jung) 和 [JGraphT](http://jgrapht.org/)。
 
-`JUNG` was co-created by Joshua O'Madadhain (the `common.graph` lead) in 2003,
-and he still maintains it. JUNG is fairly mature and full-featured and is widely
-used, but has a lot of cruft and inefficiencies. Now that `common.graph` has
-been released externally, he is working on a new version of `JUNG` which uses
-`common.graph` for its data model.
+`JUNG` 是 Joshua O'Madadhain（ `common.graph` 的带头人）在 2003年与其他人共同创建的，
+他现在仍在维护它。 JUNG 是一个相当成熟、功能齐全且被广泛使用的库，但在很多地方粗陋且低效。 现在 `common.graph` 已经对外发布了，他目前工作在一个新的 `JUNG`版本上，该版本试用了`common.graph` 来作为他的数据模型。
 
-`JGraphT` is another third-party Java graph library that’s been around for a
-while. We're not as familiar with it, so we can’t comment on it in detail, but
-it has at least some things in common with `JUNG`. This library also includes a 
-number of [adapter classes](https://jgrapht.org/javadoc/org/jgrapht/graph/guava/package-summary.html)
-to adapt `common.graph` graphs into `JGraphT` graphs.
+`JGraphT` 是另一个已经存在了一段时间的第三方 Java graph 库。我们对它并不熟悉，所以我们并不能评价他的细节，但是它至少在一些地方与 `JUNG` 是相同的。这个库也包含了很多 [适配器类](https://jgrapht.org/javadoc/org/jgrapht/graph/guava/package-summary.html)来将`common.graph`适配到`JGraphT`。
 
-Rolling your own solution is sometimes the right answer if you have very
-specific requirements. But just as you wouldn’t normally implement your own hash
-table in Java (instead of using `HashMap` or `ImmutableMap`), you should
-consider using `common.graph` (or, if necessary, another existing graph library)
-for all the reasons listed above.
+如果你有非常特别的需求的话，推出自己的解决方案有时是正确的方法。但是就像通常你不会在 Java 中实现自己的 hash table（而不是使用 `HashMap` 或 `ImmutableMap`） 一样，基于以上列出的所有原因，你应该考虑使用 `common.graph` （或者，如果有需要，使用其他现存的 graph 库）。
 
-## Major Contributors
+## 主要贡献者
 
-`common.graph` has been a team effort, and we've had help from a number of
-people both inside and outside Google, but these are the people that have had
-the greatest impact.
+`common.graph` 是一个团队合作的成果，我们受到了 Google 内外的各种人的帮助，但这些人的影响最大。
 
-*   **Omar Darwish** did a lot of the early implementations, and set the
-    standard for the test coverage.
-*   [**James Sexton**](https://github.com/bezier89) has been the single most
-    prolific contributor to the project and has had a significant influence on
-    its direction and its designs. He's responsible for some of the key
-    features, and for the efficiency of the implementations that we provide.
-*   [**Joshua O'Madadhain**](https://github.com/jrtom) started the
-    `common.graph` project after reflecting on the strengths and weaknesses of
-    [JUNG](http://jung.sf.net), which he also helped to create. He leads the
-    project, and has reviewed or written virtually every aspect of the design
-    and the code.
-*   [**Jens Nyman**](https://github.com/nymanjens) contributed many of the more
-    recent additions such as [`Traverser`] and immutable graph builders. He also
-    has a major influence on the future direction of the project.
+*   **Omar Darwish** 完成了很多早期实现， 并设置了测试覆盖标准。
+*   [**James Sexton**](https://github.com/bezier89) 是对项目最多产的个人，他在方向和设计上拥有显著的影响力。他负责一些核心特性，以及我们提供实现的效率。
+*   [**Joshua O'Madadhain**](https://github.com/jrtom) 在反思了他也参与创建的 [JUNG ](http://jung.sf.net)的优劣势之后，开启了 `common.graph` 项目。他作为项目带头人审阅或编写了设计和代码的几乎各个方面。
+*   [**Jens Nyman**](https://github.com/nymanjens) 贡献了非常多近期的插件例如 [`Traverser`] 以及不可变 graph 的 builder。他对项目的未来发展方向也有重大影响。
 
 [`Comparable`]: https://docs.oracle.com/javase/8/docs/api/java/lang/Comparable.html
 [`Comparator`]: https://docs.oracle.com/javase/8/docs/api/java/util/Comparator.html
