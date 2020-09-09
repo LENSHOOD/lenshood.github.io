@@ -29,3 +29,27 @@ categories:
 
 上一节我们了解了在 SQL 层的执行路径，这一节我们一起梳理一下 Executor 的执行路径。
 
+Executor 的所有逻辑都放置在 `executor` 包下，其中：`adapter.go` 对应了包模块的上层出入口。
+
+`adapter.go`顾名思义是用于适配，它主要与执行计划交互，用于由外部调用来执行操作，并返回操作结果。`adapter.go` 提供了 `ExecStmt` 来实现构造执行器并执行，提供了 `RecordSet` 通过执行器获取结果集。
+
+与下层 tikv 的交互逻辑，则散落在各种不同的 Executor 实现中。
+
+Executor 都提供了 `Open()` 与 `Next()` 方法来实现对自身的初始化以及实际的执行。
+
+#### Executor 类型
+
+根据不同的操作，Executor 包含了很多种类，不过总体来看，所有的 Executor 都能分成两类：
+
+- 需要返回结果的类型：例如各种单表、连表查询
+- 不需要返回结果的类型：例如插入、更新等
+
+对于不需要返回结果类型的 Executor，其 `Next()` 会立即执行，相关的逻辑在`adapter.go`的`handleNoDelay()` 方法中实现。
+
+而对于需要返回结果的 Executor，不会立即执行，而是会在`Open()`被调用后，构造一个 `ResultSet` 结构，包含相关上下文，最终的读取过程在`conn.go` 的 `handleStmt()` 方法中 `err = cc.writeResultset(ctx, rs, false, status, 0)` 这句话里实际的执行，并获取结果。
+
+接下来会指定两个具有代表性的 Executor 来分别介绍上述两种类型的操作过程。
+
+#### InsertExec 执行过程介绍
+
+#### TableReaderExec 执行过程介绍
