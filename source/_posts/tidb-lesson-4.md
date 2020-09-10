@@ -52,4 +52,24 @@ Executor 都提供了 `Open()` 与 `Next()` 方法来实现对自身的初始化
 
 #### InsertExec 执行过程介绍
 
+连接 TiDB 后执行：
+
+```sql
+> create table test (
+	id int primary key,
+  name varchar(20)
+);
+
+> explain insert into test values(1, 'a');
++----------+---------+------+---------------+---------------+
+| id       | estRows | task | access object | operator info |
++----------+---------+------+---------------+---------------+
+| Insert_1 | N/A     | root |               | N/A           |
++----------+---------+------+---------------+---------------+
+```
+
+我们可以看到对于一个最简单的插入语句，TiDB 给出的执行计划是仅使用 Insert 执行器来执行。
+
+
+
 #### TableReaderExec 执行过程介绍
