@@ -70,6 +70,75 @@ Executor 都提供了 `Open()` 与 `Next()` 方法来实现对自身的初始化
 
 我们可以看到对于一个最简单的插入语句，TiDB 给出的执行计划是仅使用 Insert 执行器来执行。
 
+简单来看一看`InsertExec`：
 
+```go
+type InsertExec struct {
+	*InsertValues
+	OnDuplicate    []*expression.Assignment
+	evalBuffer4Dup chunk.MutRow
+	curInsertVals  chunk.MutRow
+	row4Update     []types.Datum
+
+	Priority mysql.PriorityEnum
+}
+
+func (e *InsertExec) Next(ctx context.Context, req *chunk.Chunk) error {
+	req.Reset()
+	if len(e.children) > 0 && e.children[0] != nil {
+		return insertRowsFromSelect(ctx, e)
+	}
+	return insertRows(ctx, e)
+}
+```
+
+具体的逻辑一部分在`insert_common.go`中，一部分在 `insert.go` 中：
+
+```go
+// insert_common.go
+func insertRows(ctx context.Context, base insertCommon) (err error) {
+	...
+	for i, list := range e.Lists {
+		...
+		if batchInsert && e.rowCount%uint64(batchSize) == 0 {
+			...
+			if err = base.exec(ctx, rows); err != nil {
+				return err
+			}
+			...
+		}
+	}
+	...
+}
+
+// insert.go
+func (e *InsertExec) exec(ctx context.Context, rows [][]types.Datum) error {
+	...
+	
+	if len(e.OnDuplicate) > 0 {
+		...
+	} else if ignoreErr {
+		...
+	} else {
+		for i, row := range rows {
+		  ...
+			if i%sizeHintStep == 0 {
+				...
+			} else {
+				err = e.addRecord(ctx, row)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	...
+}
+
+```
+
+可以看到，插入操作是按批进行插入的，先准备好数据后，再调用 `exec()` 来执行插入动作，`exec()` 中的`err = e.addRecord(ctx, row)` 又会继续调用下层与 TiKV 交互的相关 api。
+
+因此，从 `exec()` 方法的实现角度来看，每一批待插入数据，最终都是按行插入的。
 
 #### TableReaderExec 执行过程介绍
