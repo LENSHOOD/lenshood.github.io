@@ -122,3 +122,47 @@ public --> write only --> delete only --(reorg)--> absent
 
 ## TiDB DDL 实现
 
+TiDB DDL 的实现主要在 `ddl.go` 、 `ddl_api.go`、`ddl_worker.go`、`syncer.go` 几个文件中。
+
+首先，根据 TiDB 的设计架构，DDL 操作首先会被封装为一个 `DDLExec` 的 Executor，作为执行器来执行。在 `DDLExec.Next()` 方法中，根据不同的 DDL 操作，执行路径被分发到不同的逻辑中（实际上调用了 ddl 的逻辑）：
+
+```go
+// executor/ddl.go
+switch x := e.stmt.(type) {
+	case *ast.AlterDatabaseStmt:
+		err = e.executeAlterDatabase(x)
+	case *ast.AlterTableStmt:
+		err = e.executeAlterTable(x)
+	case *ast.CreateIndexStmt:
+		err = e.executeCreateIndex(x)
+	case *ast.CreateDatabaseStmt:
+		err = e.executeCreateDatabase(x)
+	case *ast.CreateTableStmt:
+		err = e.executeCreateTable(x)
+	case *ast.CreateViewStmt:
+		err = e.executeCreateView(x)
+  
+  ... ...
+```
+
+以 `Alter Table XXX Modify XXX ` 的操作为例，在 `ddl_api.go` 的实现如下：
+
+```go
+... ...
+
+job, err := d.getModifiableColumnJob(ctx, ident, originalColName, spec)
+	if err != nil {
+		if infoschema.ErrColumnNotExists.Equal(err) && spec.IfExists {
+			ctx.GetSessionVars().StmtCtx.AppendNote(infoschema.ErrColumnNotExists.GenWithStackByArgs(originalColName, ident.Name))
+			return nil
+		}
+		return errors.Trace(err)
+	}
+
+	err = d.doDDLJob(ctx, job)
+
+... ...
+```
+
+首先通过 `getModifiableColumnJob` 构造对应的 ddl job，之后通过 `doDDLJob` 执行任务。
+
