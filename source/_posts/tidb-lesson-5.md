@@ -166,3 +166,82 @@ job, err := d.getModifiableColumnJob(ctx, ident, originalColName, spec)
 
 首先通过 `getModifiableColumnJob` 构造对应的 ddl job，之后通过 `doDDLJob` 执行任务。
 
+结合 `doDDLJob` 的逻辑：
+
+```go
+func (d *ddl) doDDLJob(ctx sessionctx.Context, job *model.Job) error {
+	... ...
+	task := &limitJobTask{job, make(chan error)}
+	d.limitJobCh <- task
+  ... ...
+	// Notice worker that we push a new job and wait the job done.
+	d.asyncNotifyWorker(job.Type)
+  ... ...
+	for {
+		... ...
+		select {
+		case <-d.ddlJobDoneCh:
+		case <-ticker.C:
+		case <-d.ctx.Done():
+			logutil.BgLogger().Error("[ddl] doDDLJob will quit because context done", zap.Error(d.ctx.Err()))
+			err := d.ctx.Err()
+			return err
+		}
+    
+		historyJob, err = d.getHistoryDDLJob(jobID)
+    ... ...
+    // If a job is a history job, the state must be JobStateSynced or JobStateRollbackDone or JobStateCancelled.
+		if historyJob.IsSynced() {
+			logutil.BgLogger().Info("[ddl] DDL job is finished", zap.Int64("jobID", jobID))
+			return nil
+		}
+    ... ...
+}
+```
+
+首先将 `job` 封装为 `task` 塞入 `limitJobCh` 中，之后 `asyncNotifyWorker()` 提醒 ddlWorker 有任务塞入，最后通过 `getHistoryDDLJob(jobID)` 轮询已完成的任务，获取当前任务的执行状态。
+
+因此，对于 DDL 任务的发起方而言，它只需要将任务发出，并等待最终的执行结果即可，实际的工作，都是由 `worker` 来完成的。
+
+### DDL 初始化
+
+在 `domain` 初始化时，`ddl` 被初始化，整个初始化动作，主要包含三部分：
+
+1. 启动一个 go-routine 来执行向 tikv 任务队列中塞入任务的工作
+2. 创建 worker 并在 go-routine 中启动
+3. 启动一个 go-routine 来清理过期的 Schema 信息（当超过租约期仍未更新时）
+
+对于将任务塞入队列的操作，大致实现如下：
+
+```go
+func (d *ddl) addBatchDDLJobs(tasks []*limitJobTask) {
+	startTime := time.Now()
+	err := kv.RunInNewTxn(d.store, true, func(txn kv.Transaction) error {
+		... ...
+		for i, task := range tasks {
+			job := task.job
+			... ...
+			if job.Type == model.ActionAddIndex || job.Type == model.ActionAddPrimaryKey {
+				jobKey := meta.AddIndexJobListKey
+				err = t.EnQueueDDLJob(job, jobKey)
+			} else {
+				err = t.EnQueueDDLJob(job)
+			}
+			... ...
+		}
+		return nil
+	})
+	... ...
+}
+```
+
+`EnQueueDDLJob` 最终会调用底层的 kv 方法，而实际上任务队列是储存在 tikv 中的一个 list。
+
+在第二步，会创建两个 `worker`：general worker 和 add index worker，其中 add index worker 专职于添加索引动作，其余动作都由 general worker 来执行（这是为了防止添加索引可能的长时间执行会阻塞到其他 ddl 操作）。
+
+worker 在被创建之后，由 ddl 初始化逻辑分别在独立的 go-routine 中启动。
+
+###DDL Worker
+
+有关 `workder ` 的代码，都放在 `ddl_worker.go` 中。
+
