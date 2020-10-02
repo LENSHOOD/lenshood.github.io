@@ -245,3 +245,89 @@ worker 在被创建之后，由 ddl 初始化逻辑分别在独立的 go-routine
 
 有关 `workder ` 的代码，都放在 `ddl_worker.go` 中。
 
+```go
+func (w *worker) start(d *ddlCtx) {
+	... ...
+	// We use 4 * lease time to check owner's timeout, so here, we will update owner's status
+	// every 2 * lease time. If lease is 0, we will use default 1s.
+	// But we use etcd to speed up, normally it takes less than 1s now, so we use 1s as the max value.
+	checkTime := chooseLeaseTime(2*d.lease, 1*time.Second)
+
+	ticker := time.NewTicker(checkTime)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			logutil.Logger(w.logCtx).Debug("[ddl] wait to check DDL status again", zap.Duration("interval", checkTime))
+		case <-w.ddlJobCh:
+		case <-w.ctx.Done():
+			return
+		}
+    
+    err := w.handleDDLJobQueue(d)
+		if err != nil {
+			logutil.Logger(w.logCtx).Error("[ddl] handle DDL job failed", zap.Error(err))
+		}
+  }
+}
+```
+
+可以看到，worker 实际上同时接收 `ticker` 和 `ddlJobCh` 的信号，不论是到达检查时间，还是被通知有新任务到来，worker 都会开始`handleDDLJobQueue()`。
+
+```go
+func (w *worker) handleDDLJobQueue(d *ddlCtx) error {
+	once := true
+	waitDependencyJobCnt := 0
+	for {
+		... ...
+		err := kv.RunInNewTxn(d.store, false, func(txn kv.Transaction) error {
+			// We are not owner, return and retry checking later.
+			if !d.isOwner() {
+				return nil
+			}
+
+			var err error
+			t := newMetaWithQueueTp(txn, w.typeStr())
+			// We become the owner. Get the first job and run it.
+			job, err = w.getFirstDDLJob(t)
+			... ...
+      if job.IsDone() || job.IsRollbackDone() {
+				if !job.IsRollbackDone() {
+					job.State = model.JobStateSynced
+				}
+				err = w.finishDDLJob(t, job)
+				return errors.Trace(err)
+			}
+			... ...      
+			// If running job meets error, we will save this error in job Error
+			// and retry later if the job is not cancelled.
+			schemaVer, runJobErr = w.runDDLJob(d, t, job)
+			... ...
+			err = w.updateDDLJob(t, job, runJobErr != nil)
+			... ...
+			return nil
+		})
+    ... ...
+	}
+}
+```
+
+具体的执行中，首先获取队列中第一个任务，然后执行`runDDLJob()`，完成后执行`updateDDLJob()`更新 job 的状态（参考前述的中间状态变化），在下一次循环中，如果 job 已经结束，则执行`finishDDLJob()` 将任务放入 history 队列。
+
+`runDDLJob()`中实现了47 种 DDL 任务的执行过程，由于篇幅原因，不再详述。
+
+### in place / instant
+
+在目前的 DDL 任务中，根据其执行时间的不同，将所有 DDL 任务分成了两类：
+
+- in place：执行时间长、执行速度慢，如 add index 操作
+- instant：执行时间短、执行速度快，如 add column 操作
+
+之所以分为两类，是由于 TiDB 的 DDL 机制限制：前文提到过，TiDB 为了简化 DDL 的操作，实际上不论有多少个节点，只有一个 `owner` 节点才能处理 DDL，其他节点只接受 DDL 请求，并将实际任务转发给 `owner` 来执行。
+
+那么就会存在一个问题，只有一个 `owner`，相当于所有 DDL 任务是串行执行的，对于通常的 DDL 比如建表、增加列、删除 schema 等操作，速度很快，串行执行没有任何问题，然而对于例如添加索引这种操作，每一条记录都要添加对应的索引，一旦遇到大表，就会明显的阻塞其他 DDL 请求。
+
+为了解决这一问题，TiDB 专门将原先的模式进行改造，再目前现有的 DDL 任务队列基础上，单独增加了一个队列，专门用于存放各种添加索引任务。同时，在 DDL 初始化时，也专门增加了一个 worker，专门处理添加索引任务。这样就解决了 `in place` 任务阻塞 `instant` 任务的情况（实际上目前*删除带有组合索引的列*以及*修改列数据类型*的 DDL 任务同样执行时间很久，这些任务也会阻塞其他任务，[Issue19397](https://github.com/pingcap/tidb/issues/19397)正在讨论如何处理这一情况）。
+
+由于增加了一个 worker，原本的串行执行变成了部分并行，那么就会存在先添加列，之后给新添加的列添加索引时，由于添加的列还在排队，导致添加索引操作失败的现象。解决这一问题的方法，TiDB 是通过任务依赖的方式：对于同一张表，不论是 `in place` 还是 `instant`，标号较大的 job 会依赖标号较小的 job。
