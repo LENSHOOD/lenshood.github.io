@@ -64,13 +64,11 @@ func (c *Compiler) Compile(ctx context.Context, stmtNode ast.StmtNode) (*ExecStm
 
 1. `Preprocess()` 主要对 AST 中各种节点进行检查，校验等。
 2. `TryAddExtraLimit()`在[系统变量](https://docs.pingcap.com/zh/tidb/stable/system-variables)中`sql_select_limit` 置位时添加对应的 `LIMIT` 语句。
-3. `Optimize()` 即执行逻辑优化和物理优化（亦是本文的重点）。
+3. `Optimize()` 即生成执行计划，并进行逻辑优化和物理优化（亦是本文的重点）。
 4. `needLowerPriority() ` 会统计预测查询结果行数大于某个门限时降低其执优先级。
 
-## 逻辑计划及优化
-### 逻辑计划
-
-生存逻辑计划的主要入口是 `PlanBuilder.Build()` 方法。
+## 生成执行计划
+生存执行计划的主要入口是 `PlanBuilder.Build()` 方法。
 
 `Build()`方法实际上也只起分发的作用，根据`ast.Node` 的类型，将之分发至不同的分支下：
 
@@ -190,9 +188,102 @@ select b from t1, t2 where t1.c = t2.c and t1.a > 5
 
 其中，数据（DataSource）从 t1，t2 两张表中被获取，之后以 `t1.c = t2.c` 作为条件进行 join，之后使用一个 selection 来处理 `t1.a > 5` 的筛选，最终，对返回结果进行投影（Projection），将需要的列 b 投影出来。
 
-### 逻辑优化
+## 逻辑优化
 
+在得到了原始的执行计划后，接下来就会对原始的计划进行逐级优化，优化逻辑的入口是`plannercore.DoOptimize()`函数：
 
+```go
+func DoOptimize(ctx context.Context, sctx sessionctx.Context, flag uint64, logic LogicalPlan) (PhysicalPlan, float64, error) {
+	... ...
+	logic, err := logicalOptimize(ctx, flag, logic)
+	... ...
+	physical, cost, err := physicalOptimize(logic, &planCounter)
+	... ...
+	finalPlan := postOptimize(sctx, physical)
+	return finalPlan, cost, nil
+}
+```
+
+可以看到，整个优化过程很明确：
+
+1. `logicalOptimize()` 进行逻辑优化
+2. `physicalOptimize()`进行物理优化
+3. `postOptimize()` 进行后优化
+
+最后生成`finalPlan`并返回。
+
+### 逻辑优化种类
+
+我们在`logicalOptimize()`中发现，整个优化过程实际上就是将 `logicalPlan` 依次通过所有的逻辑优化器，各种逻辑优化器声明在`optimizer.go` 中定义的一个变量 `optRuleList` 中：
+
+```go
+var optRuleList = []logicalOptRule{
+	&gcSubstituter{},
+	&columnPruner{},
+	&buildKeySolver{},
+	&decorrelateSolver{},
+	&aggregationEliminator{},
+	&projectionEliminator{},
+	&maxMinEliminator{},
+	&ppdSolver{},
+	&outerJoinEliminator{},
+	&partitionProcessor{},
+	&aggregationPushDownSolver{},
+	&pushDownTopNOptimizer{},
+	&joinReOrderSolver{},
+	&columnPruner{}, // column pruning again at last, note it will mess up the results of buildKeySolver
+}
+```
+
+显然，每一行都是一种优化器，例如`gcSubstituter`用于将表达式替换为虚拟生成列，以便于使用索引。`columnPruner`用于对列进行剪裁，即去除用不到的列，避免将他们读取出来，以减小数据读取量。
+
+因此，每一种优化器，都是针对特定场景来进行优化，其手段或降低数据量，或减少计算量，最终目的都是为了提升性能。
+
+### 列剪裁 Column Pruner
+
+列剪裁主要是将算子中用不到的列去掉，以减少读取的总数据量，毕竟用不到的列，读取出来也毫无意义。
+
+比如：
+
+```sql
+select a from t where b > 5
+```
+
+假设表 t 共有 abcd 四个列，在上述语句中，只用到了展示列 a 与 筛选列 b，因此 c d 根本没必要读取，因此从最根部的 DataSource 处就不需要 c d 两列。
+
+前一节 `LogicalPlan` 的定义中，就定义了 `PruneColumns([]*expression.Column) error` 方法，因此包括 join、aggregation、datasource 在内的多种执行计划都实现了该方法。
+
+### 聚合消除 Aggregation Eliminator
+
+聚合消除能够在 `group by {unique key}` 时将不需要的聚合计算消除掉，以减少计算量。那么，什么样的聚合可以消除掉呢？
+
+```sql
+select min(b) from t group by a
+```
+
+在上述语句中，假如 a 列存在唯一键，那么上述语句实际上与：
+
+```sql
+select b from t group by a
+```
+
+是等价的，因此`min()`操作毫无必要。
+
+类似的，`count()`、`sum()`、`avg()` 也可以在 group by 唯一键时消除掉。
+
+### 谓词下推 Predicate Push Down
+
+谓词下推是一个非常常用也非常重要的优化形式，它的核心观点是，将可能的筛选条件，尽可能的下推至执行计划的叶子节点（即最先执行筛选），这样就能从源头减少数据量，从而减少后续所有操作的数据量。
+
+举例说明：
+
+```sql
+select * from t1, t2 where t1.a > 3 and t2.b > 5
+```
+
+原始的执行计划中，会先将 t1 t2 进行 join，之后对 join 的结果再进行 `t2.b > 5`的筛选，然而，如果我们能够先将 `t2.b > 5`作用在 DataSource 上，读取出的 t2 本身就已经少了很多，这时再进行 join，数据量就会明显的减少。
+
+不过谓词下推也存在局限，谓词下推不能推过 MaxOneRow 和 Limit 节点，毕竟先进行筛选，再 limit，和先 limit，再筛选是两个概念。
 
 ## 物理优化
 
