@@ -135,3 +135,33 @@ void correctWaiter() throws InterruptedException {
 《Java 并发编程实战》 中提到，只有两种情况才可以直接使用`notify()` :
 > 1. **所有等待线程的类型都相同**：只有一个条件谓词与条件队列相关，并且每个线程在从 wait 返回后将执行相同的操作。
 > 2. **单进单出**: 在条件变量上的每次通知，最多只能唤醒一个线程来执行。
+
+## 慎用 Stream.peek()
+工作中我经常会遇到这种情况：在使用 Stream 对某个对象集合进行 mapping 时，想要顺便修改其中的数据，例如，想要对一个 list 中对象的某个 field 统一赋值，并取第一个对其进行 mapping：
+```java
+class SomeClass {
+    private int a;
+    
+    public void setA(int a) {
+         this.a = a;
+    } 
+}
+
+List<SomeClass> someList = fetchXxxList();
+
+// 方法1：
+somList.stream().forEach(e -> e.setA(someA));
+Optional<OtherClass> first = somelist.stream().map(OtherClass::mapping).findFirst(); 
+
+// 方法2：
+Optional<OtherClass> first = somelist.stream().peek((e -> e.setA(someA))).map(OtherClass::mapping).findFirst(); 
+```
+
+很多时候我们都会觉得 peek 能用更优雅的方式实现我们的诉求，然而，会有静态检查器告诉我们：
+`"Stream.peek" should be used with caution`
+
+在Java Stream中，peek实际上是为了让我们做调试用的（就好像 peek 的释义一样），如果直接用它来实现功能，可能会遇到以下的情况：
+1. peek 和 forEach 其实完全不同，peek 是一种中间操作（intermediate operation），而 forEach 是结束操作（terminal operation），由于 Stream 的 Lazy 策略， `Stream.of(“1”, “2”, “3”).peek(I -> println(i));` 什么也不会打印。
+2. 即使使用是正确的，也保不齐在peek之后的终止阶段会因为什么特殊的原因只处理 Stream 中的几个元素。就如同上面的例子，代码的本意可能是对所有元素都setA，并输出第一个，但实际上，只有第一个元素的a值被set了。
+
+基于上述的原因，我们还是按照代码中的 “方法1” 来写逻辑，更加健壮（即使不够简洁）。
