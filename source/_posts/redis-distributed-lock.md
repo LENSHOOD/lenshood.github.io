@@ -242,7 +242,7 @@ public void unlock() {
     }
 
     try {
-        if (clientId.equals(getJedis().get(lockKey))) {
+        if (!clientId.equals(getJedis().get(lockKey))) {
             throw new IllegalStateException("Lock was released in the store due to expiration. " +
                     "The integrity of data protected by this lock may have been compromised.");
         }
