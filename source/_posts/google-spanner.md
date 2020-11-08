@@ -32,9 +32,33 @@ categories:
 
 # 2 实现
 
-​        这一节描述了 Spanner 的结构以及蕴含在实现下的理论基础。之后描述了目录抽象 - 它用于管理复制和局部性，是数据移动的基本单元。最后，描述了我们的数据模型、为什么 Spanner 看起来更像是关系型数据库而不是 k-v 存储，以及应用程序如何控制数据的局部性。
+​		这一节描述了 Spanner 的结构以及蕴含在实现下的理论基础。之后描述了目录抽象 - 它用于管理复制和局部性，是数据移动的基本单元。最后，描述了我们的数据模型、为什么 Spanner 看起来更像是关系型数据库而不是 k-v 存储，以及应用程序如何控制数据的局部性。
 
-​        A Spanner deployment is called a universe. Given that Spanner manages data globally, there will be only a handful of running universes. We currently run a test/playground universe, a development/production universe, and a production-only universe.
+​		Spanner 的一份部署被称为一个 universe。鉴于 Spanner 全球管理数据的特点，将只有少数个 universe 在运行。目前我们运行了一个 测试/演示 universe，一个开发/生产 universe 和一个仅用于生产的 universe。
 
-Spanner 的一份部署被称为一个 universe。鉴于 Spanner 全球管理数据的特点，将只有少数个 universe 在运行。目前我们运行了一个 测试/演示 universe，
+​		Spanner 被组织为一组 zone 集合，每一个 zone 都是一份大致类似 BigTable 的服务器部署 [9]。Zone 是管理部署的单元。这一组 zone 集合也是一组数据可被复制的位置集合。当新的数据中心被引入服务而旧的被关闭时，zone 能够在运行的系统中被添加或移除。Zone 也是物理隔离的单元：如果不同的应用程序的数据必须在同一数据中心的不同的服务器集上进行分区，那么在一个数据中心内就有可能分布一个或多个 zone。
+
+{% asset_img figure-1.png %}
+
+​		Figure 1 展示了在 Spanner universe 中的服务器。一个 zone 包含一个 zonemaster 和从一百至数千个 spanserver。zonemaster 给 spanserver 分配数据；spanserver 将数据提供给客户端。每个 zone 包含的 location proxy 用于客户端来定位能够提供数据的 spanserver。universe master 和 placement driver 目前都是单实例。universe master 主要作为一个控制台来展示所有 zone 的状态信息以用于交互式调试。placement driver 以分钟为单位处理跨 zone 的数据自动移动。placement driver 周期性的与 spanserver 通信，来寻找需要被移动的数据，以满足复制约束（replication constrain）被更新的情况或是负载均衡。篇幅考虑，我们将只详细描述 spanserver。
+
+## 2.1 Spanserver 软件栈
+
+{% asset_img figure-2.png %}
+
+​		这一节聚焦于 spanserver 的实现，以说明复制和分布式事务在基于 BigTable 的实现上是如何分层的。Figure 2 展示了软件栈。在最底层，每一个 spanserver 都负责 100 到 1000 个称为 tablet 的数据结构的实例。一个 tablet 类似于 BigTable 的 tablet 抽象，因为它实现了入下映射包（mapping bag）：
+
+​		`(key:string, timestamp:int64) → string`
+
+​		与 BigTable 不同，Spanner 会给数据分配时间戳，这使得 Spanner 更像是一个多版本数据库而不只是一个 k-v 存储。一个 tablet 的状态会被保存在类 B-Tree 结构的文件以及写前日志文件中（write-ahead log），所有这些文件都被存放在分布式文件系统 Colossus（Google File System 的继任者 [15]） 内。
+
+​		为了支持复制，每个 spanserver 都在每一个 tablet 上实现了一个 Paxos 状态机。（在 Spanner 的早期版本中，每个 tablet 能支持多个 Paxos 状态机，这能让复制配置更加灵活。但这种设计的复杂性让我们放弃了它。）每个状态机都将它的元数据以及日志存储在相关的 tablet 上。我们的 Paxos 实现支持基于时间租约的久存活（long-lived）leader，该租约默认为 10 秒。当前的 Spanner 实现会在日志中记录 Paxos 写两次：一次是在 tablet 的日志中，一次是在 Paxos 的日志中。这种选择是一个权宜之计，我们最终很可能会补救它。我们的 Paxos 实现是流水线的，以便在存在 WAN 延迟的情况下提升 Spanner 的吞吐；但是由 Paxos 应用的写入是按顺序的（我们将在第四节中依赖的一个事实）。
+
+​		Paxos 状态机用于实现对映射包的一致性复制。每个副本的 k-v 映射状态都存储在它对应的 tablet 中。对状态的写操作必须由 Paxos leader 发起；访问状态时则直接从任意足够新的副本中的 tablet 内读取。副本集共同组成一个 Paxos 组。
+
+​		在每个作为 leader 的副本中，spanserver 都实现了一个 lock table 用于并发控制。该 lock table 包含了两阶段锁（two-phase locking）的状态：他将一定范围的 key 映射到锁状态上。（注意一个久存活的 Paxos leader 对提升 lock table 的效率至关重要。）在 BigTable 和 Spanner 中，我们都是为久存活事务而设计的（例如生成报告，可能会需要以分钟为单位的顺序），这会导致当存在冲突时，乐观并发控制的性能较差。对需要同步的操作，例如事务读，会在 lock table 请求锁，其他按操作则会绕过 lock table。
+
+​		在每个作为 leader 的副本中，spanserver 也都实现了一个事务管理器来支撑分布式事务。事务管理器用于实现一个 leader 参与者；而组内的其他副本则被称为 slave 参与者。如果一个事务只引入了一个 Paxos 组（大多数事务都是这样），由于 lock table 和 Paxos 组共同提供了事务性，因此会自动绕过事务管理器。假如一个事务引入了多于一个 Paxos 组，这些组的 leader 就会协调进行两阶段提交。其中的某个参与组被选为协调者：该组的 leader 参与者会被成为 leader 协调者，而组内的其他 slave 就成了 slave 协调者。每个事务管理器的状态都保存在其下的 Paxos 组中（所以也会一并被复制）。
+
+## 2.2 目录和位置
 
