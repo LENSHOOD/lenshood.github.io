@@ -103,3 +103,34 @@ Figure 4 包含了一个 Spanner 为每一个用户及每一个相册存储图�
 ​		每个守护程序都会从多个 master 轮询数据 [29] 来降低任意 master 错误的可能性。一部分是从附近数据中心选取的 GPS master；其余的是较远的数据中心的 GPS master，还有一些是世界末日 master。守护程序应用 Marzullo 算法的一个变体来探测并拒绝假信息，并将本地机器时钟与正确的 master 同步。为了防止损坏本地时钟，那些显示频率偏移大于组件规格和操作环境的最坏情况边界的机器将被移除。
 
 ​		在同步间隔中，一个守护程序显示为缓慢的增加时间不确定性。*ε* 源于保守应用的最坏情况下的本地时钟漂移。*ε* 也依赖于 time master 的不确定性和与 time master 通信的延迟。在我们的生产环境，*ε* 通常是时间的锯齿函数，在每个轮询间隔内，从 1 到 7ms 不等。 因此 *(bar ε)* 在大多数情况下是 4ms。守护程序的轮询间隔目前是 30 秒，且目前应用的漂移率被设定为 200us/s， 这两个值共同构成了 0 到 6ms 的锯齿边界。剩下的 1ms 是从与 time master 的通信延迟而来。当出现故障时，这种锯齿可能会有偏差。例如，time master 的偶尔不可用会导致数据中心范围的 *ε* 的增加。同样的，过载的机器和网络连接也会导致 *ε* 的局部峰值。
+
+# 4 并发控制
+​		这一节描述 TrueTime 是如何用于保证并发控制属性的正确性，以及这些属性是如何用于实现类似外部一致性事务、无锁只读事务以及旧数据非阻塞读等特性的。这些特性能够使能例如保证在时间戳*t*下的全数据库审计读能看到截止*t*时提交的所有事务。
+
+​		进一步的，区分 Paxos 能看到的写（除非上下文清晰，否则我们称为 Paxos 写）与 Spanner 客户端产生的写是很重要的。例如，两阶段提交会在准备阶段生成一个 Paxos 写，而这个写操作与 Spanner 客户端写并没有关系。
+
+## 4.1 时间戳管理
+​		表 2 列出了Spanner 支持的操作类型。Spanner 支持了读写事务、只读事务（预声明快照隔离事务），以及快照读。单机写被实现为读写事务；非快照单机读被实现为只读事务。二者都会内部重试（客户端不需要再编写他们自己的重试循环）。
+只读事务是一种具有快照隔离 [6] 性能优势的事务。只读事务必须提前声明不包含任何写；并不能简单认为它是一种不包含写操作的读写事务。只读事务中的读会在系统选择的时间戳下无锁的执行，因此不会阻塞到来的写操作。在只读事务中执行的读操作可以在任意满足最新数据的副本上执行（4.1.3 节）。
+快照读是在过去的数据上执行无锁的读。客户端可以为快照读指定一个时间戳，也可以提供一个期望的过期时间戳的上界来让 Spanner 选择时间戳。这两种情况下快照读都可以在任意满足最新数据的副本上执行。
+无论是只读事务还是快照读，一旦选定了时间戳，提交就不可避免，除非是在该时间戳上的数据已经被垃圾回收了。因此，客户端可以避免在一个重试循环中暂存结果。当一个服务器失效时，客户端会在内部通过重复时间戳和当前读位置来继续将该操作执行在一个不同的服务器上。
+
+### 4.1.1 Paxos Leader 租约
+​		Spanner 的 Paxos 实现使用定时租约来实现 leader 久存活（默认10秒）。一个潜在的leader发送定时租约投票请求；在收到额定数量的租约投票时，leader就能知道它拥有了租约。在一次成功的写之后，副本会隐含的自动延长该租约投票，且当租约投票将要到期时，它会请求延长租约投票。当某个副本探测到它拥有了额定的租约投票数量时，就可定义一个 leader 租约期的开始，而当它不再拥有额定的租约投票时（因为有一些投票过期了）可定义 leader 租约期结束。
+Spanner 依赖如下离散不变性：对每个 Paxos 组，每个 Paxos leader 的租约期与其他 leader 的租约期不相交。附录 A 描述了这种不变性是如何强制保证的。
+Spanner 的实现允许一个 Paxos leader 通过释放 slave 的的租约投票来放弃 leader 角色。为了保持离散不变性，Spanner 会在放弃 leader 被允许时做出约束。定义 *Smax* 为 leader 使用的最大时间戳。后续章节会描述何时 *Smax* 会增加。在放弃 leader 之前，leader 必须等待 *TT.after(Smax)* 为 True。
+
+### 4.1.2 为读写事务分配时间戳
+​		事务读写使用两阶段锁。因此，可以在所有锁都被获取之后，以及任意锁被释放之前的任何时间点分配时间戳。对于给定的事务，Spanner 会给它分配 Paxos 分配给代表事务提交的 Paxos write 操作的时间戳。
+
+​		Spanner 依赖下述单调不变性：在每个 Paxos 组中，Spanner 都使用单调递增的顺序给 Paxos write 分配时间戳，哪怕是跨 leader 的情况。一个单 leader 的副本可以简单的按单调递增分配时间戳。这种不变性通过使用如下离散不变性来强制跨 leader：一个 leader 必须仅在它的租约期内分配时间戳。注意无论何时一个时间戳 *s* 被分配，*Smax* 都会被提升至 *s* 以此来保持离散性。
+
+​		Spanner 也强制如下外部一致不变性：如果一个事务 *T2* 在事务 *T1* 提交后开始，那么 *T2* 的提交时间戳必须要大雨 *T1* 的提交时间戳。定义事务 *Ti* 的开始和提交事件为 *e start i* 和 *e commit i*，*Ti* 的提交时间戳为 *si*。该不变性变为 *tabs(e commit 1 ) < tabs(e start 2 ) ⇒ s1 < s2*。执行事务和分配时间戳的协议服从两个规则，这两个规则会共同确保该不变性，详情下述。定义协调者 leader 的写事务 *Ti* 的提交请求到达事件为 *e server i*。
+
+​		**Start** 协调者 leader 给写事务 *Ti* 分配一个不比 *TT.now().latest* 的值小的时间戳 *si*，该时间戳在 *e server i* 之后计算。注意参与者 leader 在这里并不相关；4.2.1 节将会描述它们是如何在第二条规则内引入的。
+Commit Wait The coordinator leader ensures that clients cannot see any data committed by Ti until TT.after(si) is true. Commit wait ensures that si is less than the absolute commit time of Ti , or si < tabs(e commit i ). The implementation of commit wait is described in Section 4.2.1. Proof:
+
+​		**Commit Wait** 协调者 leader 确保客户端在 *TT.after(si) * 为 true 之前不会看到任何由 *Ti* 提交的数据。提交会等待确保 *si* 小于 *Ti* 的绝对提交时间，或 *si < tabs(e commit i )*。Commit Wait 的实现描述在4.2.1节。证明：
+```
+s1 < tabs(e commit 1 ) (commit wait) tabs(e commit 1 ) < tabs(e start 2 ) (assumption) tabs(e start 2 ) ≤ tabs(e server 2 ) (causality) tabs(e server 2 ) ≤ s2 (start) s1 < s2 (transitivity)
+```
