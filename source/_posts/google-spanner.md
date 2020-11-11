@@ -134,3 +134,13 @@ Commit Wait The coordinator leader ensures that clients cannot see any data comm
 ```
 s1 < tabs(e commit 1 ) (commit wait) tabs(e commit 1 ) < tabs(e start 2 ) (assumption) tabs(e start 2 ) ≤ tabs(e server 2 ) (causality) tabs(e server 2 ) ≤ s2 (start) s1 < s2 (transitivity)
 ```
+
+### 4.1.3  以时间戳读
+​		在4.1.2节描述的单调递增不变性允许Spanner正确确定副本的状态是否足够新以满足读取要求。每个副本都会跟踪一个称为安全时间点 *Tsafe* 的值，该值是副本最新的最大时间戳。一个副本可以满足一个在时间戳 *t < Tsafe* 的读取请求。定义 *tsafe = min(t Paxos safe , tTM safe)*， 每一个Paxos 状态机都包含一个安全时间点 *e t Paxos safe*，每个事务管理器都包含一个安全时间点 *e t TM safe*。*e t Paxos safe*更简单：它是应用做多的Paxos写的时间戳。由于时间戳单调递增切写按顺序执行，因此写不会在 *e t Paxos safe* 或其之后发生。
+
+​		当存在零个准备（但未提交）事务 -- 即两阶段提交中两个阶段之间的事务 -- 时，*t TM safe = ∞*。（对于参与者 slave，*t TM safe* 实际上指的是副本leader的事务管理器，slave 可以通过传递的元数据来推断其状态）。如果有任何这种事务，那么受到这些事务影响的状态是不确定的：一个参与者副本并不知道这种事务是否要提交。就像我们在4.2.1节讨论的，提交协议确保每一个参与者都知道准备好的事务的时间戳下界。每个参与者leader（对组 *g*）会给事务 *Ti* 为其准备阶段记录分配一个准备阶段时间戳 *s prepare i,g*。协调者leader确保该事务的提交时间戳在所有参与组 *g* 之间都满足 *si >= s prepare i,g* 。因此对于每一个在组 *g* 中的副本。。。。。。。。
+
+### 4.1.4 为RO事务分配时间戳
+​		一个只读事务分两个阶段执行：分配一个时间戳 *sread* [8]，之后以快照读在 *sread* 来执行事务读。快照读可以在任何满足最新时间戳要求的副本进行。
+
+​		在事务执行的任何时候，* sread = TT.now().latest* 的简单赋值通过一个类似4.1.2节中的写操作的参数来确保外部一致性。然而，假如 *tsafe* 不足够提前，这种时间戳也许需要在 *sread* 读数据的执行时阻塞。（此外，注意选择一个 *sread* 的值也有可能比 *smax* 提前来保持不连续性。）为了降低被阻塞的概率，Spanner 应该分配最旧的时间戳来保持外部一致性。4.2.2节解释了这种时间戳需要如何选择。
