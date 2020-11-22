@@ -1,5 +1,5 @@
 ---
-title: Spanner: Google 的全球分布式数据库
+title: Spanner：Google 的全球分布式数据库
 date: 2020-11-06 17:40:44
 tags:
 - database
