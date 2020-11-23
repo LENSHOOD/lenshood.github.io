@@ -358,3 +358,11 @@ We have built upon the work of the Bigtable and Megastore teams. The F1 team, an
 [42] VoltDB. VoltDB Resources. 2012
 
 # 附录 A：Paxos Leader 租约管理	
+
+​		确保 Paxos leader 租约的不连续性最简单的方法是，只要租约间隔被延长，leader 就发出一个同步 Paxos 写操作。后继 leader 会读取该间隔并等待直到间隔过后。
+
+When the ith leader receives a quorum of votes (event e quorum i ), it computes its lease interval as leasei = [TT.now().latest, minr(v leader i,r ) + 10]. The lease is deemed to have expired at the leader when TT.before(minr(v leader i,r ) + 10) is false. To prove disjointness, we make use of the fact that the ith and (i + 1)th leaders must have one replica in common in their quorums. Call that replica r0. Proof:
+
+​		TrueTime 可用于在不需要额外的日志写入时保证不连续性。潜在的第 *i* 个 leader 保持从副本 *r* 租约投票开始时的下限 *v leader i,r = TT.now().earliest*，在 *e send i,r * （定义为租约请求被 leader 发出的时刻）之前计算得到。每个副本 *r* 都在租约 *e grant i,r* 时获取租约，这会在 *e receive i,r* 之后发生（当副本收到一个租约请求时）；该租约在 *i,r = TT.now().latest + 10* 时终止，该时刻由 *e receive i,r* 计算得到。一个副本 *r* 服从**单一投票（single-vote）**规则：在 *TT.after(t end i,r ) == true* 之前它不会再授予其他租约。为了在不同的 *r* 中保证这一点，在副本授予租约之前，Spanner 会在日志中记录租约的投票；这种日志写入可以在现有的 Paxos 协议日志写入的基础上进行。当第 *i* 个 leader 收到投票 quorum 后（*e quorum i* 事件），它将自己的租约期计算为 *leasei = [TT.now().latest, minr(v leader i,r ) + 10]*。当 *TT.before(minr(v leader i,r ) + 10)  == false* 时，leader 上的租约被视为过期。为了证明不连续性，我们利用了第 *i* 个和第 *(i + 1)* 个 leader 在它们的 quorum 中必须有一个共同的副本这一事实。我们称该副本为 *r0*。证明：
+
+*leasei.end = minr(v leader i,r ) + 10 (by definition) minr(v leader i,r ) + 10 ≤ v leader i,r0 + 10 (min) v leader i,r0 + 10 ≤ tabs(e send i,r0) + 10 (by definition) tabs(e send i,r0) + 10 ≤ tabs(e receive i,r0 ) + 10 (causality) tabs(e receive i,r0 ) + 10 ≤ t end i,r0 (by definition) t end i,r0 < tabs(e grant i+1,r0 ) (single-vote) tabs(e grant i+1,r0 ) ≤ tabs(e quorum i+1 ) (causality) tabs(e quorum i+1 ) ≤ leasei+1.start (by definition)*
