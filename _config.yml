@@ -88,3 +88,11 @@ deploy:
 # Sitemap
 sitemap:
   path: sitemap.xml
+
+# Math
+math:
+  engine: 'mathjax' # or 'katex'
+  mathjax:
+    # src: custom_mathjax_source
+    config:
+      # MathJax config

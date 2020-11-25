@@ -144,14 +144,14 @@ $s_1 < s_2$  (transitivity)
 
 
 ### 4.1.3  以时间戳读
-在4.1.2节描述的单调递增不变性允许Spanner正确确定副本的状态是否足够新以满足读取要求。每个副本都会跟踪一个称为安全时间点 $T_{safe}$ 的值，该值是副本最新的最大时间戳。一个副本可以满足一个在时间戳 $t < T_{safe}$ 的读取请求。定义 $t_{safe} = min(t^{Paxos}_{safe} , t^{TM}_{safe})$， 每一个Paxos 状态机都包含一个安全时间点 *e t Paxos safe*，每个事务管理器都包含一个安全时间点 *e t TM safe*。*e t Paxos safe*更简单：它是应用做多的Paxos写的时间戳。由于时间戳单调递增切写按顺序执行，因此写不会在 *e t Paxos safe* 或其之后发生。
+在4.1.2节描述的单调递增不变性允许Spanner正确确定副本的状态是否足够新以满足读取要求。每个副本都会跟踪一个称为安全时间点 $T_{safe}$ 的值，该值是副本最新的最大时间戳。一个副本可以满足一个在时间戳 $t < T_{safe}$ 的读取请求。定义 $t_{safe} = min(t^{Paxos}_{safe} , t^{TM}_{safe})$， 每一个Paxos 状态机都包含一个安全时间点 $t^{Paxos}_{safe}$，每个事务管理器都包含一个安全时间点 $t^{TM}_{safe}$。$t^{Paxos}_{safe}$更简单：它是应用做多的Paxos写的时间戳。由于时间戳单调递增切写按顺序执行，因此写不会在 $t^{Paxos}_{safe}$ 或其之后发生。
 
-当存在零个准备（但未提交）事务 -- 即两阶段提交中两个阶段之间的事务 -- 时，*t TM safe = ∞*。（对于参与者 slave，*t TM safe* 实际上指的是副本leader的事务管理器，slave 可以通过传递的元数据来推断其状态）。如果有任何这种事务，那么受到这些事务影响的状态是不确定的：一个参与者副本并不知道这种事务是否要提交。就像我们在4.2.1节讨论的，提交协议确保每一个参与者都知道准备好的事务的时间戳下界。每个参与者leader（对组 *g*）会给事务 *Ti* 为其准备阶段记录分配一个准备阶段时间戳 *s prepare i,g*。协调者leader确保该事务的提交时间戳在所有参与组 *g* 之间都满足 *si >= s prepare i,g* 。因此对于每一个在组 *g* 中的副本。。。。。。。。
+当存在零个准备（但未提交）事务 -- 即两阶段提交中两个阶段之间的事务 -- 时，$t^{TM}_{safe} = ∞$。（对于参与者 slave，$t^{TM}_{safe}$ 实际上指的是副本leader的事务管理器，slave 可以通过传递的元数据来推断其状态）。如果有任何这种事务，那么受到这些事务影响的状态是不确定的：一个参与者副本并不知道这种事务是否要提交。就像我们在4.2.1节讨论的，提交协议确保每一个参与者都知道准备好的事务的时间戳下界。每个参与者leader（对组 $g$）会给事务 $T_i$ 为其准备阶段记录分配一个准备阶段时间戳 $s^{prepare}_{i,g}$。协调者leader确保该事务的提交时间戳在所有参与组 *g* 之间都满足 $s_i >= s^{prepare}_{i,g}$ 。因此对于每一个在组 *g* 中的副本，在 $g$ 准备的所有事务 $T_i$ 上，$t^{TM}_{safe} = mini(s^{prepare}_{i,g}) − 1$ 在 $g$ 准备的所有事务上。
 
 ### 4.1.4 为RO事务分配时间戳
 一个只读事务分两个阶段执行：分配一个时间戳 *sread* [8]，之后以快照读在 *sread* 来执行事务读。快照读可以在任何满足最新时间戳要求的副本进行。
 
-在事务执行的任何时候，* sread = TT.now().latest* 的简单赋值通过一个类似4.1.2节中的写操作的参数来确保外部一致性。然而，假如 *tsafe* 不足够提前，这种时间戳也许需要在 *sread* 读数据的执行时阻塞。（此外，注意选择一个 *sread* 的值也有可能比 *smax* 提前来保持不连续性。）为了降低被阻塞的概率，Spanner 应该分配最旧的时间戳来保持外部一致性。4.2.2节解释了这种时间戳需要如何选择。
+在事务执行的任何时候，$s_{read} = TT.now().latest$ 的简单赋值通过一个类似4.1.2节中的写操作的参数来确保外部一致性。然而，假如 $t_{safe}$ 不足够提前，这种时间戳也许需要在 $s_{read}$ 读数据的执行时阻塞。（此外，注意选择一个 $s_{read}$ 的值也有可能比 $s_{max}$ 提前来保持不连续性。）为了降低被阻塞的概率，Spanner 应该分配最旧的时间戳来保持外部一致性。4.2.2节解释了这种时间戳需要如何选择。
 
 ## 细节
 这一节解释了前文省略的读写事务与只读事务的实用细节，以及用于实现原子schema变更的特殊事务类型的实现。之后描述了一些基本方案的改进。
@@ -163,32 +163,32 @@ $s_1 < s_2$  (transitivity)
 
 一个非协调者、参与者leader会先获取写锁。之后选择一个准备时间戳，该时间戳必须比任何它给先前事务分配过的时间戳要大（为了保证单调递增），然后将准备记录通过 Paxos 进行log。之后每个参与者会通知该协调者它们的准备时间戳。
 
-协调者leader也会先获取写锁，但是跳过准备阶段。它在收取到所有其他参与者leader的时间戳之后，选择一个作为整个事务的时间戳。该提交时间戳 *s* 必须大于或等于所有的准备时间戳（为了满足4.1.3节所述的约束），在协调者收到它们的提交消息时大于 *TT.now().latest* ，且大于任何该leader曾经分配给先前事务的时间戳（还是为了保证单调递增）。协调者leader之后将提交记录通过 Paxos 进行log（或者在等待其他参与者时由于超时而被中断）。
+协调者leader也会先获取写锁，但是跳过准备阶段。它在收取到所有其他参与者leader的时间戳之后，选择一个作为整个事务的时间戳。该提交时间戳 *s* 必须大于或等于所有的准备时间戳（为了满足4.1.3节所述的约束），在协调者收到它们的提交消息时大于 $TT.now().latest$ ，且大于任何该leader曾经分配给先前事务的时间戳（还是为了保证单调递增）。协调者leader之后将提交记录通过 Paxos 进行log（或者在等待其他参与者时由于超时而被中断）。
 
-在允许任何协调者副本应用提交记录之前，协调者 leader 等待直到 *TT.after(s)*，以便遵循在4.1.2节描述的 commit-wait 规则。由于协调者 leader 基于 *TT.now().latest* 来选择 *s*，现在要等到该时间戳确保成为过去，所以期望的等待时间至少是 *2 ∗ *。这个等待通常会与和 Paxos 通信的时间相重合。在提交等待之后，协调者发送提交时间戳给客户端和其他所有的参与者 leader。每个参与者 leader 都将事务的结果通过Paxos进行log。所有参与者都在相同的时间戳应用事务之后释放锁。
+在允许任何协调者副本应用提交记录之前，协调者 leader 等待直到 $TT.after(s)$，以便遵循在4.1.2节描述的 commit-wait 规则。由于协调者 leader 基于 $TT.now().latest$ 来选择 $s$，现在要等到该时间戳确保成为过去，所以期望的等待时间至少是 $2 ∗ \bar{ε}$。这个等待通常会与和 Paxos 通信的时间相重合。在提交等待之后，协调者发送提交时间戳给客户端和其他所有的参与者 leader。每个参与者 leader 都将事务的结果通过Paxos进行log。所有参与者都在相同的时间戳应用事务之后释放锁。
 
 ### 4.2.2 只读事务
 分配一个时间戳需要一个在所有涉及到读的 Paxos 组之间的协商阶段。所以，Spanner 的每个只读事务都需要一个作用域表达式，来汇总所有将要在整个事务中被读取到的key。Spanner 会自动推断某个独立查询的作用域。
 
-假如作用域内的值只由单个 Paxos 组来提供，那么客户端会向该组的 leader 发起只读事务。（目前的 Spanner 的实现仅为 Paxos leader 上的只读事务选择一个时间戳。）该 leader 分配 *Sread* 并执行该读取。对单个站点的读而言，Spanner通常会比 *TT.now().latest* 做得更好。定义 *LastTS()* 为 Paxos 组中最后提交的时间戳。如果没有准备好的事务，赋值 *sread = LastTS()* 一般能满足外部一致性：事务能够看到最近的写的结果，因此会在其顺序之后。
+假如作用域内的值只由单个 Paxos 组来提供，那么客户端会向该组的 leader 发起只读事务。（目前的 Spanner 的实现仅为 Paxos leader 上的只读事务选择一个时间戳。）该 leader 分配 *Sread* 并执行该读取。对单个站点的读而言，Spanner通常会比 $TT.now().latest$ 做得更好。定义 $LastTS()$ 为 Paxos 组中最后提交的时间戳。如果没有准备好的事务，赋值 $s_{read} = LastTS()$ 一般能满足外部一致性：事务能够看到最近的写的结果，因此会在其顺序之后。
 
-假如作用域内的值由多个 Paxos 组提供，那么会有几种选择。最复杂的选择是在所有 Paxos 组的 leader 之间轮流通信来基于 *LastTS()* 协商 *Sread*。目前 Spanner 的实现选择了一个更简单的选项。客户端避免轮流协商，仅将读操作在 * sread = TT.now().latest* 时执行（也许会等待安全时间过后）。在事务内的所有读都可以被发给副本来满足更新。
+假如作用域内的值由多个 Paxos 组提供，那么会有几种选择。最复杂的选择是在所有 Paxos 组的 leader 之间轮流通信来基于 $LastTS()$ 协商 *Sread*。目前 Spanner 的实现选择了一个更简单的选项。客户端避免轮流协商，仅将读操作在 $sread = TT.now().latest$ 时执行（也许会等待安全时间过后）。在事务内的所有读都可以被发给副本来满足更新。
 
 ### 4.2.3 Schema 变更事务
 TrueTime 使 Spanner 能支持原子的 schema 变更。由于参与者的数量（数据库内组的数量）可能会有上百万，因此不可能使用标准事务。Bigtable 支持在单个数据中心内原子的进行 schema 变更，但它会阻塞所有操作。
 
-Spanner 的 schema 变更事务是一个通用的标准事务非阻塞变量。首先，在准备阶段，它显式的分配一个将来的时间戳。因此，跨数千个服务器的 schema 变更能在对其他并发的动作造成最小中断的情况下完成。之后，隐含依赖该 schema 的读写操作，与任意已注册的 schema 变更时间戳 *t* 相同步：当它们的时间戳先于 *t* 时它们可能会执行，但是假如他们的时间戳晚于 *t* 时，它们必须阻塞等待 schema 变更事务。如果没有 TrueTime，定义 schema 变更在 *t* 时发生将会没有意义。
+Spanner 的 schema 变更事务是一个通用的标准事务非阻塞变量。首先，在准备阶段，它显式的分配一个将来的时间戳。因此，跨数千个服务器的 schema 变更能在对其他并发的动作造成最小中断的情况下完成。之后，隐含依赖该 schema 的读写操作，与任意已注册的 schema 变更时间戳 *t* 相同步：当它们的时间戳先于 $t$ 时它们可能会执行，但是假如他们的时间戳晚于 $t$ 时，它们必须阻塞等待 schema 变更事务。如果没有 TrueTime，定义 schema 变更在 $t$ 时发生将会没有意义。
 
 ### 4.2.4 改进
-上述定义的 *t TM safe* 存在弱点，即单个准备好的事务会阻碍 *tsafe* 前进。因此，在之后的时间戳中不会有读操作发生，即使读操作与该事务并不冲突。这种错误的冲突可以通过从 key range 到准备好的事务时间戳的细粒度映射以扩大 * t TM safe* 来消除。这类信息可以保存在 lock 表中，lock 表已经将 key range 与锁元信息进行了映射。当读到来时，它只需要对 key range 的细粒度安全时间进行检查来确保没有读冲突。
+上述定义的 $t^{TM}_{safe}$ 存在弱点，即单个准备好的事务会阻碍 $t_{safe}$ 前进。因此，在之后的时间戳中不会有读操作发生，即使读操作与该事务并不冲突。这种错误的冲突可以通过从 key range 到准备好的事务时间戳的细粒度映射以扩大 $t^{TM}_{safe}$ 来消除。这类信息可以保存在 lock 表中，lock 表已经将 key range 与锁元信息进行了映射。当读到来时，它只需要对 key range 的细粒度安全时间进行检查来确保没有读冲突。
 
-上述定义的 *LastTS()* 也存在类似的弱点：假如一个事务刚刚提交，一个非冲突的只读事务也必须被分配 *Sread* 以便跟踪该事务。因此，读操作的执行可能会被延迟。这个弱点也可以通过从 key range 到准备好的事务时间戳的细粒度映射以扩大 *LastTS()* 来解决。（目前我们还没有实现该优化。）当一个只读事务到来时，可以通过为事务冲突的 key range 取 *LastTS()* 的最大值来分配时间戳，除非与准备好的事务有冲突。（可以通过细粒度的安全时间来确定。）
+上述定义的 $LastTS()$ 也存在类似的弱点：假如一个事务刚刚提交，一个非冲突的只读事务也必须被分配 $S_{read}$ 以便跟踪该事务。因此，读操作的执行可能会被延迟。这个弱点也可以通过从 key range 到准备好的事务时间戳的细粒度映射以扩大 $LastTS()$ 来解决。（目前我们还没有实现该优化。）当一个只读事务到来时，可以通过为事务冲突的 key range 取 $LastTS()$ 的最大值来分配时间戳，除非与准备好的事务有冲突。（可以通过细粒度的安全时间来确定。）
 
-上述定义的 *t Paxos safe* 存在弱点，它无法在缺失 Paxos 写的情况下前进。即一个在 *t* 的快照读无法在 Paxos 组的最后一次写发生在 *t* 之前的情况下执行。Spanner 通过 leader 租约之间的不连续性解决了这个问题。每个 Paxos leader 通过保持一个将来将要发生的写时间戳来保证 *t Paxos safe* 的前进：他维护了一个 Paxos 序列号 n 到可能会被分配给 Paxos 序列号 n+1 的最小时间戳的映射 *MinNextTS(n)*。当一个副本应用过 n 后，可以将 *t* 推进至 *MinNextTS(n) − 1*。
+上述定义的 $t^{Paxos}_{safe}$ 存在弱点，它无法在缺失 Paxos 写的情况下前进。即一个在 *t* 的快照读无法在 Paxos 组的最后一次写发生在 $t$ 之前的情况下执行。Spanner 通过 leader 租约之间的不连续性解决了这个问题。每个 Paxos leader 通过保持一个将来将要发生的写时间戳来保证 $t^{Paxos}_{safe}$ 的前进：他维护了一个 Paxos 序列号 $n$ 到可能会被分配给 Paxos 序列号 $n+1$ 的最小时间戳的映射 $MinNextTS(n)$。当一个副本应用过 $n$ 后，可以将 $t$ 推进至 $MinNextTS(n) − 1$。
 
-单个 leader 可以很容易的执行 * MinNextTS()* 承诺。因为 *MinNextTS()* 承诺的时间戳在一个 leader 租约期限内，不连续的不变量在 leader 之前强制 *MinNextTS()* 承诺。假如一个 leader 想要在租约结束之后推进 * MinNextTS()* ，它必须先扩展它的租约。注意 *Smax* 总是比 * MinNextTS()* 的最新值更新以保持离散性。
+单个 leader 可以很容易的执行 $MinNextTS()$ 承诺。因为 $MinNextTS()$ 承诺的时间戳在一个 leader 租约期限内，不连续的不变量在 leader 之前强制 $MinNextTS()$ 承诺。假如一个 leader 想要在租约结束之后推进 $MinNextTS()$ ，它必须先扩展它的租约。注意 $S_{max}$ 总是比 $MinNextTS()$ 的最新值更新以保持离散性。
 
-leader 默认每 8 秒推进一次 *MinNextTS()*。因此在准备好的事务缺失时，最坏情况下，空闲 Paxos 组中健康的 slave 可以在大于 8 秒的时间戳上执行读取。
+leader 默认每 8 秒推进一次 $MinNextTS()$。因此在准备好的事务缺失时，最坏情况下，空闲 Paxos 组中健康的 slave 可以在大于 8 秒的时间戳上执行读取。
 
 # 5 评估
 我们首先测量了关于 Spanner 的复制、事务、可用性的性能。之后我们提供了一些 TrueTime 的行为数据，以及一个场景来研究我们的首个客户，F1。
@@ -209,20 +209,20 @@ Table 4 展示了两阶段提交能扩大到一个合理的参与者数量：它
 ## 5.2 可用性
 {% asset_img figure-5.png %}
 
-Figure 5 展示了可用性能受益于在多个数据中心执行 Spanner。 它显示了在同一时间标度下的三种数据中心故障实验对吞吐量的影响。测试 universe 由 5 个 zone *Zi* 组成，每一个都包含 25 个 spanserver。测试数据库分片为 1250 个 Paxos 组，100 个客户端以 50K reads/second 的聚合速率不断地发起非快照读。所有的 leader 都被显式的指定在 *Z1*。在每次测试开始 5 秒后，一个 zone 的所有服务器被 kill 掉：non-leader 实验 kill *Z2*；leader-hard 实验 kill *Z1*；leader-soft 实验 kill *Z1*，但它先会给所有能够交接领导权的服务器发出提醒。
+Figure 5 展示了可用性能受益于在多个数据中心执行 Spanner。 它显示了在同一时间标度下的三种数据中心故障实验对吞吐量的影响。测试 universe 由 5 个 zone $Z_i$ 组成，每一个都包含 25 个 spanserver。测试数据库分片为 1250 个 Paxos 组，100 个客户端以 50K reads/second 的聚合速率不断地发起非快照读。所有的 leader 都被显式的指定在 $Z_1$。在每次测试开始 5 秒后，一个 zone 的所有服务器被 kill 掉：non-leader 实验 kill $Z_2$；leader-hard 实验 kill $Z_1$；leader-soft 实验 kill $Z_1$，但它先会给所有能够交接领导权的服务器发出提醒。
 
-kill *Z2* 对读吞吐没有影响。当给 leader 时间来交接领导权到其他 zone 后 kill *Z1*，仅造成了很小的影响：吞吐量的下降在图中难以察觉，但实际是大约 3-4%。另一方面，在没有警告的前提下直接 kill *Z1* 会造成严重的影响：完成率降低到接近 0，随着 leader 被重选，系统的吞吐量以大约 100K reads/second 的速率上升，这源于实验中的两个要素：系统有额外的容量，且操作会在 leader 不可用时排队。因此，系统的吞吐量会先上升，然后再以稳态速率稳定下来。
+kill $Z_2$ 对读吞吐没有影响。当给 leader 时间来交接领导权到其他 zone 后 kill $Z_1$，仅造成了很小的影响：吞吐量的下降在图中难以察觉，但实际是大约 3-4%。另一方面，在没有警告的前提下直接 kill $Z_1$ 会造成严重的影响：完成率降低到接近 0，随着 leader 被重选，系统的吞吐量以大约 100K reads/second 的速率上升，这源于实验中的两个要素：系统有额外的容量，且操作会在 leader 不可用时排队。因此，系统的吞吐量会先上升，然后再以稳态速率稳定下来。
 
 我们同时能看到 Paxos leader 的租约期设置为 10 秒所造成的影响。当我们 kill zone 的时候，组的 leader 租约过期时间应该均匀的在接下来的 10 秒内分布。不久后每个宕机 leader 的租约会过期，新的 leader 被选出。在 kill 过后大约 10 秒，所有的组都会再次拥有 leader，吞吐量恢复正常。更短的租约期能够在可用性上降低服务器宕机造成的影响，但是更频繁的租约刷新会导致增加大量的网络开销。我们正在设计开发一种机制，能够让 leader 失效时 slave 自动释放 Paxos leader 租约。
 
 ## 5.3 TrueTime
-关于 TrueTime，有两个问题必须要回答：ε 真的是时钟不确定性的边界吗，ε 到底有多糟糕？对于前者，最严重的问题是，假如本地时钟的漂移超过了 200us/sec：这会破坏 TrueTime 的假设。我们的机器统计数据显示 CPU 故障的可能性是时钟的 6 倍。即相比于其他严重的硬件故障，时钟问题发生的频率极低。因此，我们相信 TrueTime 的实现能够像 Spanner 的其他依赖软件一样值得信赖。
+关于 TrueTime，有两个问题必须要回答：$ε$ 真的是时钟不确定性的边界吗，$ε$ 到底有多糟糕？对于前者，最严重的问题是，假如本地时钟的漂移超过了 200us/sec：这会破坏 TrueTime 的假设。我们的机器统计数据显示 CPU 故障的可能性是时钟的 6 倍。即相比于其他严重的硬件故障，时钟问题发生的频率极低。因此，我们相信 TrueTime 的实现能够像 Spanner 的其他依赖软件一样值得信赖。
 
 {% asset_img figure-6.png %}
 
-Figure 6 展示了在距离最多 2200km 的数据中心之间的数千个 spanserver 中获取的 TrueTime 数据。它绘制了 90，99 和 99.9 分位的 ε，在 timeslave 守护程序从 timemaster 拉取时间后立即从  timeslave 中采样。由于本地时钟的不确定性，采样忽略了 ε 中的锯齿。因此是 timemaster 的不确定性（通常为 0）与通信延迟之和。
+Figure 6 展示了在距离最多 2200km 的数据中心之间的数千个 spanserver 中获取的 TrueTime 数据。它绘制了 90，99 和 99.9 分位的 $ε$，在 timeslave 守护程序从 timemaster 拉取时间后立即从  timeslave 中采样。由于本地时钟的不确定性，采样忽略了 $ε$ 中的锯齿。因此是 timemaster 的不确定性（通常为 0）与通信延迟之和。
 
-数据显示前述两种因子在确定基准值时通常不是个问题。然而，它们可能会产生显著的尾部延迟问题而导致 ε 的值升高。从3月30日开始，由于网络改进暂时降低了网络连接拥塞使得从3月30日开始尾部延迟有所降低。4月13日大约一小时的升高，是因为例行维护而关闭了两台 timemaster 导致的。我们将继续调查并消除 TrueTime 峰值的原因。
+数据显示前述两种因子在确定基准值时通常不是个问题。然而，它们可能会产生显著的尾部延迟问题而导致 $ε$ 的值升高。从3月30日开始，由于网络改进暂时降低了网络连接拥塞使得从3月30日开始尾部延迟有所降低。4月13日大约一小时的升高，是因为例行维护而关闭了两台 timemaster 导致的。我们将继续调查并消除 TrueTime 峰值的原因。
 
 ## 5.4 F1
 2011 年初，作为重写的 Google 广告后端 F1 [35] 的一部分，Spanner 开始在生产负载下进行实验性评估。该后端最初是基于 MySQL 的，并采用多种方式进行手动分片。未压缩的数据集有数十 TB 大，虽然对许多 NoSQL 实例来说这些数据并不多，但它已经足够大到使分片过的 MySQL 时造成困难。MySQL 会将 schema 分配给每个用户，且所有相关的数据都是分片固定的。这种布局允许在每个用户的基础上使用索引和复杂查询，但需要了解应用程序业务逻辑的分片。随着用户及其数据的增加，当在这种收入关键型数据库上进行重分片的成本非常高。最后一次重分片在两年时间内花费了巨大的努力，涉及了数十个团队的协调和测试以最小化风险。这种操作对于日常维护太过复杂：因此，团队需要通过将一些数据存储在 Bigtable 上来限制 MySQL 上的数据增长，但这损害了事务行为和跨数据查询的能力。
@@ -367,8 +367,22 @@ We have built upon the work of the Bigtable and Megastore teams. The F1 team, an
 
 确保 Paxos leader 租约的不连续性最简单的方法是，只要租约间隔被延长，leader 就发出一个同步 Paxos 写操作。后继 leader 会读取该间隔并等待直到间隔过后。
 
-When the ith leader receives a quorum of votes (event e quorum i ), it computes its lease interval as leasei = [TT.now().latest, minr(v leader i,r ) + 10]. The lease is deemed to have expired at the leader when TT.before(minr(v leader i,r ) + 10) is false. To prove disjointness, we make use of the fact that the ith and (i + 1)th leaders must have one replica in common in their quorums. Call that replica r0. Proof:
+TrueTime 可用于在不需要额外的日志写入时保证不连续性。潜在的第 $i$ 个 leader 保持从副本 $r$ 租约投票开始时的下限 $v^{leader}_{i,r} = TT.now().earliest$，在 $e^{send}_{i,r}$ （定义为租约请求被 leader 发出的时刻）之前计算得到。每个副本 $r$ 都在租约 $e^{grant}_{i,r}$ 时获取租约，这会在 $e^{receive}_{i,r}$ 之后发生（当副本收到一个租约请求时）；该租约在 $t^{end}_{i,r} = TT.now().latest + 10$ 时终止，该时刻由 $e^{receive}_{i,r}$ 计算得到。一个副本 $r$ 服从**单一投票（single-vote）**规则：在 $TT.after(t^{end}_{i,r}) == true$ 之前它不会再授予其他租约。为了在不同的 $r$ 中保证这一点，在副本授予租约之前，Spanner 会在日志中记录租约的投票；这种日志写入可以在现有的 Paxos 协议日志写入的基础上进行。
 
-TrueTime 可用于在不需要额外的日志写入时保证不连续性。潜在的第 *i* 个 leader 保持从副本 *r* 租约投票开始时的下限 *v leader i,r = TT.now().earliest*，在 *e send i,r * （定义为租约请求被 leader 发出的时刻）之前计算得到。每个副本 *r* 都在租约 *e grant i,r* 时获取租约，这会在 *e receive i,r* 之后发生（当副本收到一个租约请求时）；该租约在 *i,r = TT.now().latest + 10* 时终止，该时刻由 *e receive i,r* 计算得到。一个副本 *r* 服从**单一投票（single-vote）**规则：在 *TT.after(t end i,r ) == true* 之前它不会再授予其他租约。为了在不同的 *r* 中保证这一点，在副本授予租约之前，Spanner 会在日志中记录租约的投票；这种日志写入可以在现有的 Paxos 协议日志写入的基础上进行。当第 *i* 个 leader 收到投票 quorum 后（*e quorum i* 事件），它将自己的租约期计算为 *leasei = [TT.now().latest, minr(v leader i,r ) + 10]*。当 *TT.before(minr(v leader i,r ) + 10)  == false* 时，leader 上的租约被视为过期。为了证明不连续性，我们利用了第 *i* 个和第 *(i + 1)* 个 leader 在它们的 quorum 中必须有一个共同的副本这一事实。我们称该副本为 *r0*。证明：
+当第 $i$ 个 leader 收到投票 quorum 后（$e^{quorum}_i$ 事件），它将自己的租约期计算为 $lease_i = [TT.now().latest, min_r(v^{leader}_{i,r}) + 10]$。当 $TT.before(min_r(v^{leader}_{i,r}) + 10)  == false$ 时，leader 上的租约被视为过期。为了证明不连续性，我们利用了第 $i$ 个和第 $(i + 1)$ 个 leader 在它们的 quorum 中必须有一个共同的副本这一事实。我们称该副本为 $r0$。证明：
 
-*leasei.end = minr(v leader i,r ) + 10 (by definition) minr(v leader i,r ) + 10 ≤ v leader i,r0 + 10 (min) v leader i,r0 + 10 ≤ tabs(e send i,r0) + 10 (by definition) tabs(e send i,r0) + 10 ≤ tabs(e receive i,r0 ) + 10 (causality) tabs(e receive i,r0 ) + 10 ≤ t end i,r0 (by definition) t end i,r0 < tabs(e grant i+1,r0 ) (single-vote) tabs(e grant i+1,r0 ) ≤ tabs(e quorum i+1 ) (causality) tabs(e quorum i+1 ) ≤ leasei+1.start (by definition)*
+$lease_i.end = min_r(v^{leader}_{i,r}) + 10$  (by definition)
+
+$min_r(v^{leader}_{i,r}) + 10 ≤ v^{leader}_{i,r0} + 10$  (min) 
+
+$v^{leader}_{i,r0} + 10 ≤ t_{abs}(e^{send}_{i,r0}) + 10$  (by definition)
+
+$t_{abs}(e^{send}_{i,r0}) + 10 ≤ t_{abs}(e^{receive}_{i,r0}) + 10$ (causality)
+
+$t_{abs}(e^{receive}_{i,r0}) + 10 ≤ t^{end}_{i,r0}$  (by definition)
+
+$t^{end}_{i,r0} < t_{abs}(e^{grant}_{i+1,r0})$  (single-vote)
+
+$t_{abs}(e^{grant}_{i+1,r0}) ≤ t_{abs}(e^{quorum}_{i+1})$  (causality)
+
+$t_{abs}(e^{quorum}_{i+1}) ≤ lease_{i+1}.start$  (by definition)
