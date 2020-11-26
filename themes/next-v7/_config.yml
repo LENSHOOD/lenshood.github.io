@@ -581,8 +581,8 @@ comments:
 
 # Disqus
 disqus:
-  enable: false
-  shortname:
+  enable: true
+  shortname: lenshood
   count: true
   #post_meta_order: 0
 
@@ -676,10 +676,10 @@ google_analytics:
   only_pageview: false
 
 # Baidu Analytics
-baidu_analytics: # <app_id>
+baidu_analytics: 9838df2db88eb05f5159ca8e58b5f778
 
 # Growingio Analytics
-growingio_analytics: # <project_id>
+growingio_analytics: PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4
 
 # CNZZ count
 cnzz_siteid:
