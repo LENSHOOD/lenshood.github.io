@@ -13,6 +13,8 @@ install:
   - npm install
   - npm install hexo-deployer-git --save
   - npm install hexo-generator-baidu-sitemap --save
+  - npm uninstall hexo-renderer-marked
+  - npm install hexo-renderer-pandoc --save
 
 script:
   - hexo clean
