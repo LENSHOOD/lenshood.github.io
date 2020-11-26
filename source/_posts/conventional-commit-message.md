@@ -14,6 +14,8 @@ categories:
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
 [第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 
+<!-- more -->
+
 ---
 
 在先前的文章[Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)中我主要描述了什么样的提交是好的提交，也介绍了好的提交该如何做的几点原则。其中，有一点提到好的提交需要正确的编写 commit message。

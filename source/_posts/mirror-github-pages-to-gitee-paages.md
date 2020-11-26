@@ -19,7 +19,10 @@ categories:
 
 经过一些实验后，我成功的实现了把 Git Pages 镜像到 Gitee Pages 的需求。
 
+<!-- more -->
+
 ### Hexo 的 deploy 功能
+
 Hexo 的 Deployment 配置简单而强大：
 对于部署到 Git 仓库，直接配置：
 ```

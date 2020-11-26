@@ -10,6 +10,8 @@ categories:
 
 > 本文系对 Guava 用户手册的中文译文，原文详见 https://github.com/google/guava/wiki
 
+<!-- more -->
+
 ## 用户手册
 
 Guava 项包含了被 Google 的 Java 项目依赖的多个核心库：集合、缓存、基本类型支持、并发库、通用注解、字符串处理、I/O 等等。Googler 们每天都在生产服务中使用这些工具。

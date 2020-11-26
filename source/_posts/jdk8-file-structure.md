@@ -19,7 +19,10 @@ categories:
 - 开发相关的文件及目录
 - 其他文件及目录
 
+<!-- more -->
+
 #### Demos 和示例
+
 Demos 和示例展示如何在 Java 平台开发程序，相关文件可在 Java SE 下载页面独立下载，详见链接：http://www.oracle.com/technetwork/java/javase/downloads/index.html
 
 对应二进制文件我们提供了 .tar.z 和 .tar.gz 格式的压缩包。与其他的 Oracle Solaris 64位包类似，在 Oracle Solaris 下的 Demos 和示例包需要依赖安装其对应的32位包。

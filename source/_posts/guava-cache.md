@@ -26,6 +26,8 @@ LoadingCache<Key, Graph> graphs = CacheBuilder.newBuilder()
            });
 ```
 
+<!-- more -->
+
 ## 适用性
 
 缓存在许多场景下都有巨大的用处。比如，当计算或取值的操作比较耗费资源，或你需要多次使用对于给定输入的输出值时，我们都应该使用缓存。

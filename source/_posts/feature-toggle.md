@@ -16,6 +16,8 @@ categories:
 
 Feature Toggles 也被称为 Feature Flags， Feature Bits， 或 Feature Flippers。他们都是同一类技术的同义词。 在下文中我会交替使用 feature toggles 和 feature flags。
 
+<!-- more -->
+
 ## Toggling 小故事
 
 想象这样的场景。有一个复杂的城市规划仿真游戏项目，你供职于其多个项目组中的一个。你的团队负责核心仿真引擎。而你的任务是优化提升 Spline Reticulation 算法的效率。你心里清楚这种优化需要对现有实现进行相当大的改造，而这需要花费数周时间。同时，其他团队成员仍旧需要在与该算法相关的代码基础上继续一些正在进行中的工作。

@@ -47,7 +47,10 @@ categories:
 
 在 output 中，还包含了两部分“running x test”，第一部分是我们已有的测试，第二部分为文档测试，本文暂不涉及。
 
+<!-- more -->
+
 ### 断言
+
 rust 原生提供了几种简单的测试断言，能够满足基本的测试需求，以下是 rust 的测试断言与 junit 测试断言的对应表：
 
 rust | junit

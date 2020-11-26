@@ -10,6 +10,9 @@ categories:
 ---
 
 ### Logger.info() 在 debug level 下会对代码效率产生怎样的影响？
+
+<!-- more -->
+
 在代码中打 log 是开发人员用于获取运行状态信息的常用手段，回顾一下 log level：
 >- Trace - Only when I would be "tracing" the code and trying to find one part of a function specifically.
 >- Debug - Information that is diagnostically helpful to people more than just developers (IT, sysadmins, etc.).

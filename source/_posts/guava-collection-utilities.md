@@ -33,6 +33,8 @@ Interface    | JDK or Guava? | Corresponding Guava utility class
 ***在寻找变换、过滤等工具吗? 它们在我们的功能性语法下的
 [functional] 文章里.***
 
+<!-- more -->
+
 ## 静态构造器
 
 在 JDK7 以前，构造新的泛型集合需要难看的重复代码：

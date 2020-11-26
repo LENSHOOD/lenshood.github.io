@@ -13,6 +13,8 @@ Thanks for the github static site service - GithubPages - it's really easy to bu
 
 At the rest of this article, you could see how to build a personal blog site step by step, using GithubPages + Hexo + Travis CI.
 
+<!-- more -->
+
 ### GithubPages
 GithubPages is a free static site hosting service for personal/organization/project. Due to limited spaces, in this article we will only talk about personal pages.
 

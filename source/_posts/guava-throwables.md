@@ -11,7 +11,10 @@ categories:
 ## Throwables
 Guava 的[`Throwables`](http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Throwables.html)工具能经常简化与异常相关的操作。
 
+<!-- more -->
+
 ### 传播
+
 有些时候，当你捕获一个异常时，你想要将之再次抛出给下一个 try...catch 块。这种情况经常出现在遇到`RuntimeException`和`Error`的时候，这些异常不需要被捕获，但却仍会被 try...catch 块捕获，然而你并不想要这样做。
 
 Guava 提供了许多工具来简化异常传播。例如：

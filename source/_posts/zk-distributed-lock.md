@@ -18,7 +18,10 @@ categories:
 
 本文将讨论使用满足 CP 要求的 ZooKeeper 来实现强一致性的分布式锁。
 
+<!-- more -->
+
 ### Zookeeper 分布式锁原理
+
 结合 Redis 的分布式锁实现，我们能够想到最直接的 zk lock 实现方式，可能会是以 `ZNode` 来类比 redis 的 kv pair：创建一个 `ZNode`，通过判断其是否存在、以及其值是否与当前 client id 一致来尝试获取一个锁。
 
 然而，结合 zk 的诸多优秀特性，实际上我们能更优雅的实现这一过程：

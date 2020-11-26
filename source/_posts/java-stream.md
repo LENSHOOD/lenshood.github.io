@@ -12,6 +12,8 @@ categories:
 
 不仅仅是线程池，从 Java 8 开始引入的`Stream`也一样，它用代码构建了一套流水线体系，通过流水线环节的叠加来实现对流水线上元素的各种处理。
 
+<!-- more -->
+
 ### 流水线（Pipeline）
 
 在中文翻译中，我们时常会把 Assembly Line（装配线）以及 Pipeline（管线）都译为流水线，而在计算机领域，我们说的流水线通常都是 Pipeline，例如 CPU 的指令流水线（Instruction Pipeline）。

@@ -15,12 +15,12 @@ categories:
 2. **TiDB CPU Profile**
 5. **性能瓶颈分析与优化建议**
 
-
+<!-- more -->
 
 ## TiUP 部署最小集群
 为了确保与[官方文档中建议的环境](https://docs.pingcap.com/zh/tidb/stable/hardware-and-software-requirements)一致，我选择在 docker 容器中启动 centos7 环境，再借助 TiUP 部署本地集群。
 1. 给出 Dockerfile：
-  
+
   ```dockerfile
     ## 使用 centos7 作为基础镜像
     FROM centos:centos7

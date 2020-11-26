@@ -20,6 +20,8 @@ categories:
 
 
 
+<!-- more -->
+
 ### 借助 kind 在单机模拟集群
 
 [kind](https://kind.sigs.k8s.io/) 能通过容器技术来模拟 K8S 集群：在 docker 容器中运行 K8S Node，再在 Node 中创建容器环境，并管理 Pod，名副其实的 docker in docker。

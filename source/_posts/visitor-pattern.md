@@ -62,7 +62,10 @@ But again, as a OO programer, I can't take this, I want to deal with the scenari
 
 Then Uncle bob jump out again and say: try Vistor pattern! (you can find it at the footnote in page 96)
 
+<!-- more -->
+
 ### Define Vistor Pattern
+
 The Gang of Four defines the Visitor as:
 
 Represent an operation to be performed on elements of an object structure. Visitor lets you define a new operation without changing the classes of the elements on which it operates.

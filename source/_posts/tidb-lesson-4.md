@@ -9,6 +9,8 @@ categories:
 
 本次课程主要涉及 TiDB 中的 Executor 组件。
 
+<!-- more -->
+
 ### TiDB SQL 层
 
 在介绍 Executor 层之前，我们先从总体上来看一看 TiDB 的 SQL 架构，这里借用一张[官方博客的图](![SQL 层架构](https://download.pingcap.com/images/blog-cn/tidb-source-code-reading-2/2.png))：

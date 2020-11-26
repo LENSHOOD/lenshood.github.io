@@ -13,6 +13,8 @@ Java IO 系列：
 [第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
 [第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)
 
+<!-- more -->
+
 ---
 
 Java io 包用于操纵数据的输入输出，其主要采用流的概念（stream）为核心，通过装饰器模式（decorator）实现了对流的多种操作与功能。

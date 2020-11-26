@@ -13,6 +13,8 @@ categories:
 
 期望通过本文，能给诸位网友在遇到送老婆礼物难题时，提供一种方案。这样一方面可以节约大家的时间，另一方面也能涨姿势。
 
+<!-- more -->
+
 ### 送老婆礼物存在的问题
 对于我个人来讲，通常每逢纪念日、生日、节日等时间点，较为头疼的都是该给老婆送什么好。
 
@@ -114,7 +116,7 @@ categories:
 
 下文简要介绍几种精华。
 1. 雅诗兰黛小棕瓶
-  ![](https://www.esteelauder.com.cn/media/export/cms/products/558x768/el_sku_YF4E01_558x768_0.jpg)
+    ![](https://www.esteelauder.com.cn/media/export/cms/products/558x768/el_sku_YF4E01_558x768_0.jpg)
 - name：雅诗兰黛特润修护肌透精华露 Advanced Night Repair
   Synchronized Recovery Complex II
 - doc：https://www.esteelauder.com/product/681/26959/product-catalog/skincare/advanced-night-repair/synchronized-recovery-complex-ii（中文文档包含信息量较少）
@@ -132,7 +134,7 @@ categories:
     - Apply on clean skin before your moisturizer. Use several drops. Smooth in gently all over face and throat.
 
 2. 兰蔻小黑瓶
-  ![](https://res.lancome.com.cn/resources/2018/11/29/1543492611158980_920X920.jpg?version=20190307235740436)
+    ![](https://res.lancome.com.cn/resources/2018/11/29/1543492611158980_920X920.jpg?version=20190307235740436)
 - name：兰蔻小黑瓶精华肌底液 Advanced Genifique Youth Activating Concentrate
 - doc：https://www.lancome-usa.com/skin-care/collections/genifique/advanced-genifique-youth-activating-serum/1000302.html
 - price：
@@ -152,7 +154,7 @@ categories:
     3. Follow with a moisturizer. 
 
 3. 欧莱雅小黑瓶
-  ![](https://www.lorealparis.com.cn/Images/products/Images/G2940800_404.jpg)
+    ![](https://www.lorealparis.com.cn/Images/products/Images/G2940800_404.jpg)
 - name: 欧莱雅青春密码酵素精华肌底液 YOUTH CODE SKIN ACTIVATING FERMENT PRE-ESSENCE
 - doc https://www.loreal-paris.com.sg/products/skin-care/essence/youth-code-ferment-pre-essence-30ml
 - price
@@ -172,7 +174,7 @@ categories:
 > 从兰蔻和欧莱雅的小黑瓶成分来看，不考虑配比含量的前提下，成分几乎一致。再从售价来看，确实印证了欧莱雅小黑瓶是平民小黑瓶的说法。不过根据搜索情况来看，欧莱雅小黑瓶只在亚太地区的官网找得到。
 
 4. OLAY 小滴管
-  ![](https://image.olay.com.cn/zh-cn/-/media/Olay/Images/Products/CN/OLAY%20WHITE%20RADIANCE%20LIGHT%20PERFECTING%20ESSENCE%2030ml%203.jpg?w=1210&v=2-201608040908)
+    ![](https://image.olay.com.cn/zh-cn/-/media/Olay/Images/Products/CN/OLAY%20WHITE%20RADIANCE%20LIGHT%20PERFECTING%20ESSENCE%2030ml%203.jpg?w=1210&v=2-201608040908)
 - name: 水感透白光塑精华露 OLAY WHITE RADIANCE LIGHT PERFECTING ESSENCE
 - doc https://olay.com.ph/en-ph/skin-care-products/olay-white-radiance-cellucent-white-essence-serum （us官网名字不同，不知道是否是同一款）
 - price
@@ -189,7 +191,7 @@ categories:
 > https://zhuanlan.zhihu.com/p/32924885
 
 5. 倩碧淡斑小白瓶
-  ![](https://www.clinique.com.cn/media/export/cms/products/402x464/clq_ZX5401_402x464.png)
+    ![](https://www.clinique.com.cn/media/export/cms/products/402x464/clq_ZX5401_402x464.png)
 - name: 倩碧匀净卓研淡斑美白精华露 Even Better Clinical Dark Spot Corrector and Optimizer
 - doc https://www.clinique.com/product/4034/37399/skin-care/serums/even-better-clinicaltm-dark-spot-corrector-optimizer
 - price
@@ -210,7 +212,7 @@ categories:
 > 鉴于 VC 本身属于价格低廉的一类原料，因此可见 The Ordinary 的 Ascorbyl Glucoside。
 
 6. 小绿瓶
-  ![](http://www.helenarubinstein.cn/img/admin/0dae6a2e83347368b6db9929b37c32bd.jpg)
+    ![](http://www.helenarubinstein.cn/img/admin/0dae6a2e83347368b6db9929b37c32bd.jpg)
 - name: 赫莲娜明星「绿宝瓶」精华 Powercell Youth Grafter Serum（POWERCELL SKINMUNITY - THE SERUM）
 - doc https://www.helenarubinstein.com/int/skin-care/ranges/prodigy-powercell/powercell-skinmunity-the-serum.html
 - price
@@ -232,7 +234,7 @@ categories:
 > 有效成分包括 RUSCUS ACULEATUS ROOT EXTRACT 假叶树根提取物，Cholesterol 胆甾醇，Sodium Hyaluronate 玻尿酸钠等，但排名都比较靠后。不过根据网友的评测反馈等认为，绿宝瓶精华的效果还不错。
 
 7. 小灯泡
-  ![](https://res.cloudinary.com/mtree/image/upload/v1/SKII_CN/OP/img/product/genoptics-aura-essence/products/D_01_Etchouts_Front.jpg)
+    ![](https://res.cloudinary.com/mtree/image/upload/v1/SKII_CN/OP/img/product/genoptics-aura-essence/products/D_01_Etchouts_Front.jpg)
 - name: SK-II 肌因光蕴环采钻白精华露 GenOptics Aura Essence Serum
 - doc https://www.helenarubinstein.com/int/skin-care/ranges/prodigy-powercell/powercell-skinmunity-the-serum.html
 - price

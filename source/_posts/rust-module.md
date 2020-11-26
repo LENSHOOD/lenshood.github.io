@@ -14,7 +14,10 @@ rust 的 module system，类似 java 的 package，可以用于将代码分别�
 
 rust 对 module 的要求是任何 module 都应处在一颗以 root module 为根的 module tree 中。期望访问某个 module  时，能够找到一条通路从root一路向下直到该 module。
 
+<!-- more -->
+
 ### module 的定义
+
 module 通常可以有以下两种形式来定义：
 1. `mod {模块代码}`
     - 声明与实现放在一起

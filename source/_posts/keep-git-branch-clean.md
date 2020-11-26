@@ -16,6 +16,8 @@ categories:
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
 [第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 
+<!-- more -->
+
 ---
 
 ### 糟糕而难看的公共分支

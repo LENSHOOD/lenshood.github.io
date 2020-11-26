@@ -27,6 +27,8 @@ Joiner.on(",").join(Arrays.asList(1, 5, 7)); // returns "1,5,7"
 
 **注意**：joiner 实例是不可变的。因此 joiner 的配置方法总会返回一个新的 `Joiner`，并通过这种方式来获取所需语义的 joiner。这种特性让`Joiner`能够线程安全，并可以将之定义为一个`static final`的常量。
 
+<!-- more -->
+
 ## Splitter
 
 Java 内置的字符串分割器存在一些古怪的行为。例如：`String.split` 会默默地丢弃最尾部的分隔符，而 `StringTokenizer`只用五个空格来工作。（译者注：原文 “StringTokenizer respects exactly five whitespace characters and nothing else”。这里应该是指`StringTokenizer`默认采用`\n` `\r`, 空格，Tab 符，换页符这五种符号来分隔字符串，而这五种符号在字符串中都以类似“空格”的形式显示。）

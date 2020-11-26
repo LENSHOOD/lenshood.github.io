@@ -8,6 +8,9 @@ categories:
 - Guava
 ---
 ## 通用Object方法
+
+<!-- more -->
+
 ### equals
 假如你的对象成员变量可以为 `null`，那么实现 `Objec.equals`将会很痛苦，因为你得单独检查`null`的情况。使用[`Objects.equal`](http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Objects.html#equal-java.lang.Object-java.lang.Object-)可以让你采用 null 敏感的检查方式来实施`equals`，且不存在抛出`NullPointerException`的风险。
 

@@ -14,6 +14,8 @@ categories:
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
 [第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 
+<!-- more -->
+
 ---
 
 本系列前几篇文章讲了许多理论，如何保持分支整洁，如何撰写合理的 commit message 等等。本文不再多谈理论，而是将引入一项 git built-in 的强大功能 - **hooks**。

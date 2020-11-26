@@ -17,7 +17,10 @@ assertTrue(byLengthOrdering.reverse().isOrdered(list));
 
 一个`Ordering`实例的核心仅仅是一个特殊的`Comparator`实例。`Ordering`简单的取用一些依赖`Comparator`的静态方法（例如 `Collections.max`）将之改造为实例方法。此外，`Ordering`类还提供了链式方法来改进、增强现有的比较器。
 
+<!-- more -->
+
 ### 创建
+
 通用的排序实例可由静态方法提供：
 
 方法 | 描述

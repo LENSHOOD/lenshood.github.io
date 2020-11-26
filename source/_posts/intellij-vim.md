@@ -17,7 +17,10 @@ Intellij Idea 作为写 Java 最爽、最快、最智能的 IDE，其丰富的�
 
 实际上，IdeaVim 作为 IntellliJ Idea 的插件，能实现快速的在 Idea 中使用 Vim 的能力，结合二者的优势，让编码更顺滑。
 
+<!-- more -->
+
 ### 使用 IdeaVim
+
 1. 通常初次安装 idea 时推荐插件中就有 ideaVim，可见官方对其的认可，若初次安装时没有装，那么也可以进入 settings -> plugins 搜索ideaVim 下载安装重启后即可使用了。
 
 2. 开启/关闭 ideaVim 的按钮在 Tools -> Vim Emulator，默认情况下其快捷键为 option+command+v，如果你对 idea 很熟悉马上就会发现，这快捷键和 refactor 中的 extract variable 冲突了，那么我们就要更改一下 ideaVim 的开关快捷键。

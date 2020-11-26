@@ -11,6 +11,8 @@ categories:
 
 > 本文中涉及到的图片来源，都来自 PingCAP 官方网站。
 
+<!-- more -->
+
 ## Planer 概览
 
 Planer 构造执行计划的入口在 `compiler.go` 的 `Compile()` 函数，函数对传入的 `ast.StmtNode` 进行一番预处理、优化过后，会生成一个 `ExecStmt` 供下一步操作继续。

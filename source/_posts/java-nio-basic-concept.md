@@ -13,6 +13,8 @@ Java IO 系列：
 [第二篇： Java IO - 字符流](https://lenshood.github.io/2019/05/07/character-stream/)
 [第三篇： Java NIO - 基本概念](https://lenshood.github.io/2019/05/18/java-nio-basic-concept/)
 
+<!-- more -->
+
 ---
 
 ### IO ？ NIO ？

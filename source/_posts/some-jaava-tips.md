@@ -11,7 +11,10 @@ categories:
 # 一些 Java 语言 Tips
 本文包括一些 Java 语言在使用中常见的小错误以及不佳实践，他们收集自我的日常开发、Code Review、以及书中所见。持续更新...
 
+<!-- more -->
+
 ## 双括号初始化（DBI）
+
 在 Java 9 之前，想要在 Field 中初始化一个集合供其他方法使用，他的样子是尴尬而丑陋的：
 ```java
 private static List<String> initListBeforeJava9 = new ArrayList<>();
