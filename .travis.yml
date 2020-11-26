@@ -13,6 +13,8 @@ install:
   - npm install
   - npm install hexo-deployer-git --save
   - npm install hexo-generator-baidu-sitemap --save
+  - wget https://github.com/jgm/pandoc/releases/download/2.11.2/pandoc-2.11.2-1-amd64.deb
+  - sudo dpkg -i pandoc-2.11.2-1-amd64.deb
   - npm install hexo-renderer-pandoc --save
 
 script:
