@@ -11,6 +11,9 @@ before_install:
 
 install:
   - npm install
+  - npm install hexo-deployer-git --save
+  - npm install hexo-generator-baidu-sitemap --save
+  - npm install hexo-renderer-pandoc --save
 
 script:
   - hexo clean
