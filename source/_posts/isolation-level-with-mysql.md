@@ -57,7 +57,7 @@ ANSI SQL 标准的第一版发布于 1986 年，之后又陆续发布了多个�
 
 ### 基于锁的隔离
 
-为了实现事务之间的隔离，可以通过给读写分别加锁的方式进行并发控制，加锁又可以分为以下三种粒度：
+为了实现事务之间的隔离，可以通过给读写分别加锁的方式（读共享锁、写独占锁）进行并发控制，加锁又可以分为以下三种粒度：
 
 1. 不加锁
 2. 使用前加锁，使用完立即释放锁，称为 Short duration 锁
@@ -65,13 +65,13 @@ ANSI SQL 标准的第一版发布于 1986 年，之后又陆续发布了多个�
 
 在使用锁隔离的场景下，能够定义如下异象与隔离级别的关系：
 
-#### P0： $w_1[x]...w_2[x]...$ (($c_1$ or $a_1$)  and ($c_2$ or $a_2$) in any order) 
+#### P0： $w_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\  and\ (c_2\ or\ a_2)\ in\ any\ order)$ 
 
 P0 称为 **Dirty Write**，在读写均不加锁时可能发生 P0。这种异象会破坏数据库的一致性，因此是任何隔离级别都不可容忍的。
 
 禁止 P0 发生，隔离级别就能达到 READ UNCOMMITTED。
 
-#### P1：$w_1[x]...r_2[x]...$ (($c_1$ or $a_1$)  and ($c_2$ or $a_2$) in any order) 
+#### P1：$w_1[x]...r_2[x]...\ ((c_1\ or\ a_1)\ and\ (c_2\ or\ a_2)\ in\ any\ order) $
 
 P1 称为 **Dirty Read**，在读不加锁，写加 Long duration 锁时可能发生 P1。这种情况可能导致事务读取到未提交的脏数据。如下事务执行历史模拟了 P1 发生的情况：
 
@@ -81,7 +81,7 @@ $r_1[x=50]..w_1[x=10]..r_2[x=10]..r_2[y=50]..c_2..r_1[y=50]..w_1[y=90]..c_1$
 
 禁止 P1 发生，隔离级别就能达到 READ COMMITTED。
 
-#### P2：$r_1[x]...w_2[x]...$ (($c_1$ or $a_1$)  and ($c_2$ or $a_2$) in any order) 
+#### P2：$r_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\ and\ (c_2\ or\ a_2)\ in\ any\ order)$
 
 P2 称为 **Non-repeatable Read (Fuzzy Read)**，在读加 Short duration 锁，写加 Long duration 锁时可能发生 P2。这种情况可能导致同一事务中两次读取到的数据不一致。如下事务执行历史模拟了 P2 发生的情况：
 
@@ -91,7 +91,7 @@ $ r_1[x=50]..r_2[x=50]..w_2[x=10]..r_2[y=50]..w_2[y=90]..c_2..r_1[y=90]..c_1$
 
 禁止 P2 发生，隔离级别就能达到 REPEATABLE READ。
 
-#### P3： $r_1[P]...w_2[y \ in \ P]...$((c1 or a1) and (c2 or a2) any order)
+#### P3： $r_1[P]...w_2[y \ in \ P]...\ ((c_1\ or\ a_1)\ and\ (c_2\ or\ a_2)\ in\ any\ order)$
 
 P3 称为 **Phantom**，在读数据项加 Long duration 锁，读谓词（Predicate）加 Short duration 锁，写加 Long duration 锁时可能发生 P3。这种情况可能导致同一事务中两次读取到的数据量不一致。如下事务执行历史模拟了 P3 发生的情况：
 
@@ -101,19 +101,31 @@ $r_1[P]..w_2[insert\ y\ to\ P]..r_2[z]..w_2[z]..c_2..r_1[z]..c_1$
 
 禁止 P3 发生，隔离级别就能达到最高级 SERIALIZABLE。
 
+#### CURSOR STABILITY
+
 以上 P0 - P3 的描述相对比较符合 ANSI SQL-92 中对异象与隔离级别的描述。但论文作者认为 P0 - P3 还不足以更细致、完整的的描述异象与隔离级别的关系，因此文中继续定义了：
 
 #### P4：$r_1[x]...w_2[x]...w_1[x]...c1$
 
-P4 称为 **Lost Update**，在读数据项加基于游标（Cursor）的 Short duration 锁，读谓词（Predicate）加 Short duration 锁，写加 Long duration 锁时可能发生 P4。（相比读完数据立即释放的 Short duration 读锁，基于游标的锁会将持有时间扩展到游标移动到下一个位置前。）如下事务执行历史模拟了 P4 发生的情况：
+P4 称为 **Lost Update**，稍加观察就可以发现，如果禁止 P2 发生，那么 P4 也一定不会发生。因此可以得出 P4 也是在 READ COMMITTED 级别下可能发生的异象。如下事务执行历史模拟了 P4 发生的情况：
 
 $r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
 
-显而易见，事务 2 对 $x$ 进行的更新丢失了。如果以 ANSI SQL-92 的隔离级别进行划分，READ COMMITTED 级别下，P4 可能会发生（因为 P2 包含了 P4），由于引入了游标锁，我们将 P4 重新定义为 P4C：
+显而易见，事务 2 对 $x$ 进行的更新丢失了。
+
+现在，让我们引入游标：定义 $rc$ 为读游标， $wc$ 为写游标指向的数据项，那么存在游标时，P4 限定为 P4C：
 
 #### P4C：$rc_1[x]...w_2[x]...w_1[x]...c1$
 
-定义 $rc$ 为读游标， $wc$ 为写游标指向的数据项，那么存在游标锁时，P1 变为 
+假如在读数据项时加基于游标（Cursor）的 Short duration 锁，读谓词（Predicate）加 Short duration 锁，写加 Long duration 锁（相比读完数据立即释放的 Short duration 读锁，基于游标的锁会将持有时间扩展到游标移动到下一个位置前）。
+
+由于游标锁的存在，在 $rc_1$ 和 $wc_1$ 之间，一定不会插入 $wc_2$ （游标没有移动，锁一直存在），所以游标锁可以避免 P4C 的发生。
+
+基于上述讨论，引入一个新的隔离级别 **CURSOR STABILITY**，当禁止 P4C 发生时，隔离级别就能达到 CURSOR STABILITY。
+
+### 基于快照（版本）的隔离
+
+
 
 https://zhuanlan.zhihu.com/p/38334464
 
@@ -124,8 +136,6 @@ https://zhuanlan.zhihu.com/p/107659876
 https://zhuanlan.zhihu.com/p/38214642
 
 https://zhuanlan.zhihu.com/p/43621009
-
-### 基于快照（版本）的隔离
 
 ### 汇总图
 
