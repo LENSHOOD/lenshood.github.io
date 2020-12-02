@@ -125,6 +125,18 @@ $r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
 
 ### 基于快照（版本）的隔离
 
+为了在性能和一致性之间找到更好的平衡，许多数据库选择使用快照版本来进行并发控制（即 MVCC）。在事务开始时获取  *Start-Timestamp*，依据该时间戳读取最新的快照，读、写都基于快照进行，因此只读事务可以不被阻塞。
+
+对于这种基于版本的隔离方式，作者提出了一种新的隔离级别 **SNAPSHOT ISOLATION**。在这样的隔离下，读、写操作都会基于事务开始时选择的一个快照，在事务提交前，获取一个提交时间戳 *Commit-Timestamp*，假如提交时间戳比当前系统内所有存在的  *Start-Timestamp* 或  *Commit-Timestamp* 都要新，则事务提交成功，否则失败，这种机制称为 *First-committer-wins*，从而避免了 P4。进一步的，由于事务内读取当前快照，而不会读取到其他事务新提交的快照，因此 P2 也能够避免。从这个角度讲，SNAPSHOT ISOLATION 是比 READ COMMITTED 更高级别的隔离。
+
+为了将 SNAPSHOT ISOLATION 与 REPEATABLE READ 进行对比，引入了如下几种异象：
+
+#### A5A：$r_1[x]...w_2[x]...w_2[y]...c_2...r_1[y]...(c_1\ or\ a_1)$
+
+#### A5B：$r_1[x]...r_2[y]...w_1[y]...w_2[x]...(c_1\ and\ c_2\ occur)$
+
+#### A3：$r_1[P]...w_2[y\ in\ P]...c_2...r_1[P]...c_1$
+
 
 
 https://zhuanlan.zhihu.com/p/38334464
