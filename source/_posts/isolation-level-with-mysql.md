@@ -1,22 +1,23 @@
 ---
 title: Isolation Level 与 MySQL
 date: 2020-11-30 10:05:35
+mathjax: true
 tags:
 - database
 - isolation level
 - mysql
 categories:
 - MySQL
-
 ---
-One of the foundations of database processing. Isolation is the I in the acronym ACID; the isolation level is the setting that fine-tunes the balance between performance and reliability, consistency, and reproducibility of results when multiple transactions are making changes and performing queries at the same time.
-
 
 ## MySQL 的事务隔离级别
 在 [MySQL 8.0 Reference Manual](https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html) 中描述了 InnoDB 的隔离事务隔离介绍：
 > InnoDB 提供了 SQL-92 标准中描述的所有 4 种隔离级别的支持，它们是：READ UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。InnoDB 的默认隔离级别为 REPEATABLE READ。
 
+<!-- more -->
+
 其中对于 REPEATABLE READ 和 READ COMMITTED，Reference Manual 中描述：
+
 - REPEATABLE READ
 对于同一个事务中的[一致性读（即读取事务开始时的数据库快照，是 MySQL 读的默认行为）](https://dev.mysql.com/doc/refman/8.0/en/glossary.html#glos_consistent_read)会读取建立在第一次读的快照上。就是说如果在同一个事务中发起了多个非阻塞 SELECT，这些 SELECT 彼此之间是保持一致的。
 
@@ -127,7 +128,7 @@ $r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
 
 为了在性能和一致性之间找到更好的平衡，许多数据库选择使用快照版本来进行并发控制（即 MVCC）。在事务开始时获取  *Start-Timestamp*，依据该时间戳读取最新的快照，读、写都基于快照进行，因此只读事务可以不被阻塞。
 
-对于这种基于版本的隔离方式，作者提出了一种新的隔离级别 **SNAPSHOT ISOLATION**。在这样的隔离下，读、写操作都会基于事务开始时选择的一个快照，在事务提交前，获取一个提交时间戳 *Commit-Timestamp*，假如提交时间戳比当前系统内所有存在的  *Start-Timestamp* 或  *Commit-Timestamp* 都要新，则事务提交成功，否则失败，这种机制称为 *First-committer-wins*，从而避免了 P4。进一步的，由于事务内读取当前快照，而不会读取到其他事务新提交的快照，因此 P2 也能够避免。从这个角度讲，SNAPSHOT ISOLATION 是比 READ COMMITTED 更高级别的隔离。
+对于这种基于版本的隔离方式，作者提出了一种新的隔离级别 **SNAPSHOT ISOLATION**。在这样的隔离下，读、写操作都会基于事务开始时选择的一个快照，在事务提交前，获取一个提交时间戳 *Commit-Timestamp*，假如提交时间戳比当前系统内所有存在的  *Start-Timestamp* 或  *Commit-Timestamp* 都要新，则事务提交成功，否则失败，这种称为 *First-committer-wins* 的机制避免了 P4。进一步的，由于事务内读取当前快照，而不会读取到其他事务新提交的快照，因此 P2 也能够避免。从这个角度讲，SNAPSHOT ISOLATION 是比 READ COMMITTED 更高级别的隔离。
 
 为了将 SNAPSHOT ISOLATION 与 REPEATABLE READ 进行对比，引入了如下几种异象：
 
@@ -137,19 +138,21 @@ $r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
 
 #### A3：$r_1[P]...w_2[y\ in\ P]...c_2...r_1[P]...c_1$
 
+其中 A5A 与 A5B 合称 A5（数据项约束冲突），A5 属于 P2 的一个子集，区别是在 A5 下 $x$ 与 $y$ 存在约束关系。
 
+因此对于 A5A：$x$ 与 $y$ 存在约束关系，事务 1 中 $x$ 先被读取，由于事务 2 的提交，在事务 1 中随后读取的 $y$ 有可能已经不满足  $x$ 与 $y$ 的约束，A5A 又被成为 **Read Skew**。显然 A5A 在 SNAPSHOT ISOLATION 与 REPEATABLE READ 下都不会发生。
 
-https://zhuanlan.zhihu.com/p/38334464
+对于 A5B：$x$ 与 $y$ 存在约束关系，事务 1 和事务 2 分别读取了 $x$ 和  $y$ ，之后事务 1 更新了 $y$，最后事务 2 更新了 $x$。由于事务 2 更新 $x$ 时参考的 $y$ 已经不是最新值，因此 $x$ 与 $y$  的约束可能会被打破，这种异象称 **Write Skew**。显然，REPEATABLE READ 由于 Long duration 的读锁限制了 A5B 不可能发生，但在 SNAPSHOT ISOLATION 下由于事务 1、2 都读取满足各自时间戳的快照，所以 A5B 可能会发生。
 
-https://zhuanlan.zhihu.com/p/187597966
+A3 属于 P3 的一个子集，与 P3 的区别在于对事务的行为做了更多的限定。所以 A3 也属于一种 **Phantom**。 事务 1 基于条件谓词 $P$ 读取到的结果，由于事务 2 对符合 $P$ 的集合中新插入了数据，导致事务 1 再次按 $P$ 读取时读到了不同的结果集。由于 SNAPSHOT ISOLATION 读快照的特性，事务 2 版本的快照中对 $P$ 产生的影响，不会反映在事务 1 的快照中，因此  SNAPSHOT ISOLATION 下 A3 不可能发生，但显然 REPEATABLE READ 下由于对条件谓词的 Short duration 锁，A3 可能会发生。
 
-https://zhuanlan.zhihu.com/p/107659876
+基于上述分析，我们可以得出结论：SNAPSHOT ISOLATION 与 REPEATABLE READ 各有千秋，不分伯仲，无法简单比较谁更高。
 
-https://zhuanlan.zhihu.com/p/38214642
+### 完整的隔离级别与异象的关系
 
-https://zhuanlan.zhihu.com/p/43621009
+综合前文的所有分析，论文作者总结了下图：
 
-### 汇总图
+{% asset_img summary.png %}
 
-## MySQL 属于 Snapshot 还是 Repeatable？
+## MySQL 的 REPEATABLE READ 可以避免 Phantom ？
 
