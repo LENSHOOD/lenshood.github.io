@@ -182,3 +182,19 @@ $r_1[x=50]..r_2[x=50]..w_2[x=10]..r_2[y=50]..w_2[y=90]..c_2..r_1[y=90]..c_1$
 
 依据上述测试我们能够确信，默认情况下，MySQL 能够避免 P2。
 
+### P4
+
+仍旧以 P4 的例子作为测试：
+
+$r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
+
+{% asset_img p4.png %}
+
+很神奇，我们发现事务 1 在先开始，并在事务 2 已经修改了 x 的情况下仍能正常提交，也就是说 MySQL 在默认 
+
+REPEATABLE READ 的隔离级别下发生了 Lost Update。
+
+1. 假如 MySQL 是以 Long Duration 数据项读锁 + Long Duration 写锁来实现 REPEATABLE READ，那么在事务 1 正在读 $x$ 时，事务 2 对 $x$ 只可读而不可写；
+2. 假如 MySQL 是以 MVCC 来实现 SNAPSHOT ISOLATION，那么根据 *First-committer-wins* 原则，事务 1 先开始，后提交，提交时会发现 $x$ 已经被修改而提交失败。
+
+看来都不是。
