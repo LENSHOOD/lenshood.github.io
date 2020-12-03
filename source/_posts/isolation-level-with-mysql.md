@@ -154,5 +154,6 @@ A3 属于 P3 的一个子集，与 P3 的区别在于对事务的行为做了更
 
 {% asset_img summary.png %}
 
-## MySQL 的 REPEATABLE READ 可以避免 Phantom ？
+## MySQL 的 REPEATABLE READ 能够避免 Write Skew 吗？
 
+根据第一节的描述，MySQL 的默认隔离级别是 REPEATABLE READ （实际是 InnoDB 的隔离级别，考虑到 InnoDB 是 MySQL 默认的存储引擎，后文不再区分）。同时，根据 MySQL Reference Manual，InnoDB 使用了锁技术（行级锁）与 MVCC 技术（非阻塞读）来共同实现其事务模型，目标将传统的两阶段锁与多版本数据库的优势相结合。
