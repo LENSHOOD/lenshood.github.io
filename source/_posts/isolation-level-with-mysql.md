@@ -247,3 +247,9 @@ Phantom 的测试可以使用一个简单的例子：
 
 根据 MySQL 文档中关于[一致性读](https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)的描述，发生上述现象的一个原因是，当在事务内对数据进行 update 操作后，select 语句读取受 update 影响的数据行时会返回最新版本（也即 update 是对最新版本而不是快照版本进行的），因此如果同时有另一个事务也在操作时原事务中可能看到原先不存在的数据。
 
+## MySQL 的实现不好吗？
+
+按照上一节的描述，似乎 MySQL 对事务隔离的实现并不怎么好，它在默认隔离级别下会出现各种异象，其实现也难以准确的归类在  A Critique of ANSI SQL Isolation Levels  所述的几种隔离级别内。那么 MySQL 的事务隔离实现的不好吗？
+
+想想也不一定，在 MySQL 的实现下，事务提交失败回滚的几率相比标准的隔离级别实现要小很多，因此也就提升了并发性，对于相对简单的业务 MySQL 采用一致性读来支持更高的吞吐。而对于在一个事务中需要查询并更新数据时，常规的 select 并不能提供足够的防护，因此 MySQL 建议使用[上锁读](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html)（即我们熟悉的 `select ... for update`）来确保符合用户操作的真实意图。
+
