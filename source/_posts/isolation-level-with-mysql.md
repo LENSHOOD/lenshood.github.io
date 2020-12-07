@@ -227,3 +227,23 @@ REPEATABLE READ 的隔离级别下发生了 Lost Update。
 
 ### A3 Phantom
 
+Phantom 的测试可以使用一个简单的例子：
+
+{% asset_img a3.png %}
+
+上图的执行顺序是：$r_1[P:a=1]..w_2[insert\ (1, 50)]..c_2..r_1[P:a=1]$，结果表明事务 1 的两次条件查询结果一致，符合多版本的特性，因此 MySQL 默认情况下能够避免 A3 （Phantom 的一种）。
+
+但当我们继续做如下尝试时：
+
+{% asset_img p3.png %}
+
+事务 1 对条件 $a=1$ 的所有值 +1 时，事务 2 插入的数据突然出现，并且也被 +1 了，这表明发生了 Phantom。
+
+因此综合来看，默认情况下，MySQL 仍然不能避免 Phantom。
+
+### 更低的隔离级别
+
+依据上述例子，我们发现，MySQL 所谓默认的 REPEATABLE READ 级别，确实符合 ANSI SQL-92 中所定义的 “不会发生 Fuzzy Read，但可能发生 Phantom” 的描述。但实际上比 A Critique of ANSI SQL Isolation Levels 文中整理的  SNAPSHOT ISOLATION 和  REPEATABLE READ 都要低，因为 Lost Update、Write Skew、Phantom 都可能会发生。
+
+根据 MySQL 文档中关于[一致性读](https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)的描述，发生上述现象的一个原因是，当在事务内对数据进行 update 操作后，select 语句读取受 update 影响的数据行时会返回最新版本（也即 update 是对最新版本而不是快照版本进行的），因此如果同时有另一个事务也在操作时原事务中可能看到原先不存在的数据。
+
