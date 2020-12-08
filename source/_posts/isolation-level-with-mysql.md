@@ -1,5 +1,5 @@
 ---
-title: Isolation Level 与 MySQL
+title: MySQL(InnoDB) 独特的 Repeatable Read 隔离级别
 date: 2020-11-30 10:05:35
 mathjax: true
 tags:
@@ -11,15 +11,15 @@ categories:
 ---
 
 ## MySQL 的事务隔离级别
-在 [MySQL 8.0 Reference Manual](https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html) 中描述了 InnoDB 的隔离事务隔离介绍：
+在 [MySQL 8.0 Reference Manual](https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html) 中描述了 InnoDB 的事务隔离介绍：
 > InnoDB 提供了 SQL-92 标准中描述的所有 4 种隔离级别的支持，它们是：READ UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。InnoDB 的默认隔离级别为 REPEATABLE READ。
 
 <!-- more -->
 
-其中对于 REPEATABLE READ 和 READ COMMITTED，Reference Manual 中描述：
+对于 REPEATABLE READ 和 READ COMMITTED，Reference Manual 中描述到：
 
 - REPEATABLE READ
-对于同一个事务中的[一致性读（即读取事务开始时的数据库快照，是 MySQL 读的默认行为）](https://dev.mysql.com/doc/refman/8.0/en/glossary.html#glos_consistent_read)会读取建立在第一次读的快照上。就是说如果在同一个事务中发起了多个非阻塞 SELECT，这些 SELECT 彼此之间是保持一致的。
+对于同一个事务中的[一致性读（即读取事务开始时的数据库快照，是 MySQL 读的默认行为）](https://dev.mysql.com/doc/refman/8.0/en/glossary.html#glos_consistent_read)，MySQL 会基于事务开始的快照。就是说如果在同一个事务中发起了多个非阻塞 SELECT，这些 SELECT 彼此之间是保持一致的。
 
   对于 SELECT...FOR UPDATE（FOR SHARE)、UPDATE 、DELETE 语句，锁取决于语句是使用了具有唯一搜索条件的唯一索引，还是使用范围类型的搜索条件。
   - 对于唯一搜索条件的唯一索引，InnoDB 只锁住索引找到的记录，而不会包含 gap 锁
@@ -39,18 +39,20 @@ categories:
 ## ANSI Isolation Level 的扩展
 ANSI SQL 标准的第一版发布于 1986 年，之后又陆续发布了多个主版本和修订版本，最新的修订版是 SQL-2019。不过，其最新的主版本仍然是 1992 年发布的 SQL-92。
 
-如同 MySQL 文档中提到的，SQL-92 定义了四种隔离级别：READ UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。SQL-92 通过三个异象（phenomena）对这四种隔离级别做了描述。这三个异象分别是:
+如同 MySQL 文档中提到的，SQL-92 定义了四种隔离级别：READ UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。SQL-92 主要通过三种异象（phenomena）来对这四种隔离级别进行描述。这三种异象分别是:
 1. 脏读（Dirty Read）
 2. 不可重复读（Non-repetable Read）
 3. 幻象（Phantom）
 
-上面三种异象也是我们耳熟能详的数据库基础知识。不过，在 ANSI SQL 发布三年后的 1995 年，一篇文章对这种隔离级别的划分与描述方法提出了质疑：
+上面三种异象是我们耳熟能详的数据库基础知识。不过，在 ANSI SQL 发布三年后的 1995 年，一篇文章对这种隔离级别的划分与描述方法提出了质疑：
 
 在文章 [*A Critique of ANSI SQL Isolation Levels*](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf) 中，作者认为仅通过上述三种异象还不足以清晰的定义隔离级别。相应的，作者对 ANSI SQL 的异象与隔离级别做了扩展，重新定义了 8 种异象和 6 种隔离级别。后来，该文成为了理解数据库隔离性的重要论文之一。
 
+这一节我们将简单整理作者的理论。
+
 为了能更清晰的表述事务之间的操作关系，我们将操作简化为 $w$ (write)，$r$ (read) ，每个操作的下标 $n$ 代表执行操作的事务，例如 $r_1$ 代表事务 1 读，$w_2$ 代表事务 2 写。紧跟着操作的中括号 $[]$ 的内容代表当前操作所涉及的资源，例如 $w_1[x]$ 代表事务 1 写入了资源 $x$，$r_2[P]$ 代表事务 2 读取了满足谓词 $P$ 的资源。最后，使用 $c$ (commit) 和 $a$ (abort) 来表示提交与回滚。
 
-用一连串的操作来表示一段操作历史，即：
+因此我们就可以用一连串的操作来表示一段操作历史：
 
  $w_1[x]...r_2[x]...$ ($a_1$ and $c_2$ in any order) 
 
@@ -62,9 +64,9 @@ ANSI SQL 标准的第一版发布于 1986 年，之后又陆续发布了多个�
 
 1. 不加锁
 2. 使用前加锁，使用完立即释放锁，称为 Short duration 锁
-3. 使用前加锁，直到事务提交后释放锁，称为 Long duration 锁
+3. 使用前加锁，直到事务提交后释放锁，称为 Long duration 锁 （类似两阶段锁的实现）
 
-在使用锁隔离的场景下，能够定义如下异象与隔离级别的关系：
+在使用锁隔离的事务控制实现下，能够定义如下异象与隔离级别的关系：
 
 #### P0： $w_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\  and\ (c_2\ or\ a_2)\ in\ any\ order)$ 
 
@@ -140,13 +142,13 @@ $r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
 
 其中 A5A 与 A5B 合称 A5（数据项约束冲突），A5 属于 P2 的一个子集，区别是在 A5 下 $x$ 与 $y$ 存在约束关系。
 
-因此对于 A5A：$x$ 与 $y$ 存在约束关系，事务 1 中 $x$ 先被读取，由于事务 2 的提交，在事务 1 中随后读取的 $y$ 有可能已经不满足  $x$ 与 $y$ 的约束，A5A 又被成为 **Read Skew**。显然 A5A 在 SNAPSHOT ISOLATION 与 REPEATABLE READ 下都不会发生。
+因此对于 A5A：$x$ 与 $y$ 存在约束关系，事务 1 中 $x$ 先被读取，由于事务 2 的提交，在事务 1 中随后读取的 $y$ 有可能已经不满足  $x$ 与 $y$ 的约束。A5A 又被称为 **Read Skew**。显然 A5A 在 SNAPSHOT ISOLATION 与 REPEATABLE READ 下都不会发生。
 
 对于 A5B：$x$ 与 $y$ 存在约束关系，事务 1 和事务 2 分别读取了 $x$ 和  $y$ ，之后事务 1 更新了 $y$，最后事务 2 更新了 $x$。由于事务 2 更新 $x$ 时参考的 $y$ 已经不是最新值，因此 $x$ 与 $y$  的约束可能会被打破，这种异象称 **Write Skew**。显然，REPEATABLE READ 由于 Long duration 的读锁限制了 A5B 不可能发生，但在 SNAPSHOT ISOLATION 下由于事务 1、2 都读取满足各自时间戳的快照，所以 A5B 可能会发生。
 
 A3 属于 P3 的一个子集，与 P3 的区别在于对事务的行为做了更多的限定。所以 A3 也属于一种 **Phantom**。 事务 1 基于条件谓词 $P$ 读取到的结果，由于事务 2 对符合 $P$ 的集合中新插入了数据，导致事务 1 再次按 $P$ 读取时读到了不同的结果集。由于 SNAPSHOT ISOLATION 读快照的特性，事务 2 版本的快照中对 $P$ 产生的影响，不会反映在事务 1 的快照中，因此  SNAPSHOT ISOLATION 下 A3 不可能发生，但显然 REPEATABLE READ 下由于对条件谓词的 Short duration 锁，A3 可能会发生。
 
-基于上述分析，我们可以得出结论：SNAPSHOT ISOLATION 与 REPEATABLE READ 各有千秋，不分伯仲，无法简单比较谁更高。
+基于上述分析，可以得出结论：SNAPSHOT ISOLATION 与 REPEATABLE READ 各有千秋，不分伯仲，无法简单比较高低。
 
 ### 完整的隔离级别与异象的关系
 
@@ -170,7 +172,7 @@ A3 属于 P3 的一个子集，与 P3 的区别在于对事务的行为做了更
 
 上图的执行顺序是：$r_1[a]...w_2[a]...c_2...r_1[a]...c_1...r_1[a]$ 。
 
-显然，由于多版本的特性，事务 1 中读不阻塞，在事务 2 更新行并提交后，再次读取数据不变，直到事务 1 提交后，才会读取到最新值。
+由于多版本的特性，事务 1 中读不阻塞，在事务 2 更新行并提交后，再次读取数据不变，直到事务 1 提交后，才会读取到最新值。
 
 再以前文 P2 中的例子来测试：
 
@@ -180,19 +182,19 @@ $r_1[x=50]..r_2[x=50]..w_2[x=10]..r_2[y=50]..w_2[y=90]..c_2..r_1[y=90]..c_1$
 
 我们能看到在整个事务 1 中，始终保持 $x+y=100$ ，并没有出现 $x+y=140$ 的情况。
 
-依据上述测试我们能够确信，默认情况下，MySQL 能够避免 Non-repeatable Read。
+依据上述测试我们能够确信，默认情况下，MySQL 的“只读事务”（为什么是只读事务见下文）能够避免 Non-repeatable Read。
 
 ### P4 Lost Update
 
-仍旧以 P4 的例子作为测试：
+借用第二节 P4 的例子来测试：
 
 $r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1$
 
 {% asset_img p4.png %}
 
-很神奇，我们发现事务 1 在先开始，并在事务 2 已经修改了 x 的情况下仍能正常提交，也就是说 MySQL 在默认 
+神奇的是，我们发现事务 1 先开始，且在事务 2 已经修改了 x 的情况下仍能正常提交（不满足 *First-committer-wins*），也就是说 MySQL 在默认 
 
-REPEATABLE READ 的隔离级别下发生了 Lost Update。
+REPEATABLE READ 的隔离级别下发生了 Lost Update。可以分析：
 
 1. 假如 MySQL 是以 Long Duration 数据项读锁 + Long Duration 写锁来实现 REPEATABLE READ，那么在事务 1 正在读 $x$ 时，事务 2 对 $x$ 只可读而不可写；
 2. 假如 MySQL 是以 MVCC 来实现 SNAPSHOT ISOLATION，那么根据 *First-committer-wins* 原则，事务 1 先开始，后提交，提交时会发现 $x$ 已经被修改而提交失败。
@@ -207,7 +209,7 @@ REPEATABLE READ 的隔离级别下发生了 Lost Update。
 
 上图的执行顺序是：$r_1[x]..w_2[x]..w_2[y]..c_2..r_1[y]..c_1$
 
-与 P2 的例子类似，由于多版本的特性，事务 1 的两次读取，第一次读 $x$，第二次读 $y$，虽然两次读取了不同的内容，但其仍然保持在同一个版本下，满足了 $x+y=100$ 的约束。因此默认情况下，MySQL 能够避免 Read Skew。
+与 P2 的例子类似，由于多版本的特性，事务 1 的两次读取，第一次读 $x$，第二次读 $y$，虽然两次读取了不同的内容，但其仍然保持在同一个版本下，满足了 $x+y=100$ 的约束。因此默认情况下，MySQL 的只读事务能够避免 Read Skew。
 
 ### A5B Write Skew
 
@@ -215,7 +217,7 @@ REPEATABLE READ 的隔离级别下发生了 Lost Update。
 
 > 医院急诊科 24 小时都有医生值班，为此医院会安排医生轮班。为了防止值班医生临时有事，通常轮班计划会尽量多安排几位医生同时在岗。此外，无论如何排班，都需要确保同一时刻至少有一位医生在岗。
 >
-> 值班医生可以通过电脑系统请假，当请假时段内有除了该医生以外的其他医生在岗，就可以请假成功，否则失败。这能确保 “同一时刻至少一人在岗” 的约束条件。
+> 值班医生可以通过电脑系统请假，当请假时段内有除了该医生以外的其他医生在岗时，就可以请假成功，否则失败。这能确保 “同一时刻至少一人在岗” 的约束条件。
 >
 > 急诊科共有 a, b, c 三位医生。某时刻，医生 a 和 b 被安排值班，这时 a 医生有事需要请假，不巧 b 医生也想请假，此时系统的操作历史如下...
 
@@ -223,7 +225,7 @@ REPEATABLE READ 的隔离级别下发生了 Lost Update。
 
 上图的执行顺序是：$r_1[P:on\_call=true]..r_2[P:on\_call=true]..w_1[on\_call_a=false]..c_1..w_2[on\_call_b=false]..c_2$，结果是操作过后没有人值班，打破了约束。
 
-以上的例子是一个很常见的并发故障，由于没有对条件谓词查询加 Long Duration 锁，导致不同事物因为旧的条件查询结果执行了错误的操作。据此，默认情况下，MySQL 不能避免 Write Skew。
+以上的例子是一个很常见的并发故障，由于没有对条件谓词查询加 Long Duration 锁，导致不同事务因为旧的条件查询结果执行了错误的操作。据此，默认情况下，MySQL 不能避免 Write Skew。
 
 ### A3 Phantom
 
@@ -231,13 +233,13 @@ Phantom 的测试可以使用一个简单的例子：
 
 {% asset_img a3.png %}
 
-上图的执行顺序是：$r_1[P:a=1]..w_2[insert\ (1, 50)]..c_2..r_1[P:a=1]$，结果表明事务 1 的两次条件查询结果一致，符合多版本的特性，因此 MySQL 默认情况下能够避免 A3 （Phantom 的一种）。
+上图的执行顺序是：$r_1[P:a=1]..w_2[insert\ (1, 50)]..c_2..r_1[P:a=1]$，结果表明事务 1 的两次条件查询结果一致，符合多版本的特性，因此 MySQL 只读事务默认情况下能够避免 A3 （Phantom 的一种）。
 
-但当我们继续做如下尝试时：
+但当我们继续做如下尝试：
 
 {% asset_img p3.png %}
 
-事务 1 对条件 $a=1$ 的所有值 +1 时，事务 2 插入的数据突然出现，并且也被 +1 了，这表明发生了 Phantom。
+事务 1 对条件 $a=1$ 的所有值 +1 时，事务 2 插入的数据突然出现，并且也被 +1 了，这表明在读写事务中发生了 Phantom。
 
 因此综合来看，默认情况下，MySQL 仍然不能避免 Phantom。
 
@@ -245,11 +247,13 @@ Phantom 的测试可以使用一个简单的例子：
 
 依据上述例子，我们发现，MySQL 所谓默认的 REPEATABLE READ 级别，确实符合 ANSI SQL-92 中所定义的 “不会发生 Fuzzy Read，但可能发生 Phantom” 的描述。但实际上比 A Critique of ANSI SQL Isolation Levels 文中整理的  SNAPSHOT ISOLATION 和  REPEATABLE READ 都要低，因为 Lost Update、Write Skew、Phantom 都可能会发生。
 
-根据 MySQL 文档中关于[一致性读](https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)的描述，发生上述现象的一个原因是，当在事务内对数据进行 update 操作后，select 语句读取受 update 影响的数据行时会返回最新版本（也即 update 是对最新版本而不是快照版本进行的），因此如果同时有另一个事务也在操作时原事务中可能看到原先不存在的数据。
+根据 MySQL 文档中关于[一致性读](https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)的描述，发生上述现象的一个原因是，当在事务内对数据进行 update 操作后，当 select 语句读取受 update 影响的数据行时会返回最新版本（也即 update 是对最新版本而不是快照版本进行的），因此如果同时有另一个事务也在操作时原事务中可能看到原先不存在的数据。
 
 ## MySQL 的实现不好吗？
 
-按照上一节的描述，似乎 MySQL 对事务隔离的实现并不怎么好，它在默认隔离级别下会出现各种异象，其实现也难以准确的归类在  A Critique of ANSI SQL Isolation Levels  所述的几种隔离级别内。那么 MySQL 的事务隔离实现的不好吗？
+根据上一节的测试，似乎 MySQL 对事务隔离的实现并不怎么好，它在默认隔离级别下会出现各种异象，实现也难以准确的归类在  A Critique of ANSI SQL Isolation Levels  所述的几种隔离级别内。那么 MySQL 的事务隔离实现的不好吗？
 
-想想也不一定，在 MySQL 的实现下，事务提交失败回滚的几率相比标准的隔离级别实现要小很多，因此也就提升了并发性，对于相对简单的业务 MySQL 采用一致性读来支持更高的吞吐。而对于在一个事务中需要查询并更新数据时，常规的 select 并不能提供足够的防护，因此 MySQL 建议使用[上锁读](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html)（即我们熟悉的 `select ... for update`）来确保符合用户操作的真实意图。
+想想也不一定，事务隔离本身就是对一致性与性能的平衡。在 MySQL 的实现下，虽然会出现多种异象，但事务提交失败回滚的几率相比标准的隔离级别实现要小得多，因此也就提升了并发性。对于相对简单的只读事务 MySQL 采用一致性读来支持更高的吞吐，而对于需要同时查询并更新数据的读写事务，常规的 select 并不能提供足够的防护，因此 MySQL 建议使用[上锁读](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html)（即我们熟悉的 `select ... for update` 或 `select for share`）来确保符合用户操作的真实意图。
+
+InnoDB 在其事务模型实现中提到：`the goal is to combine the best properties of a multi-versioning database with traditional two-phase locking`，所以结合前文看， MySQL 的选择是默认采用多版本实现非阻塞读，同时提供了用户可选的两阶段锁实现更强的隔离性。这种实现直到最新的 MySQL 8.0 都没有改变过，从运行在 MySQL 上的多种应用，和其庞大的用户群来看，这种选择应该是合理的。
 
