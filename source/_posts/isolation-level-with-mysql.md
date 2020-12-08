@@ -247,13 +247,13 @@ Phantom 的测试可以使用一个简单的例子：
 
 依据上述例子，我们发现，MySQL 所谓默认的 REPEATABLE READ 级别，确实符合 ANSI SQL-92 中所定义的 “不会发生 Fuzzy Read，但可能发生 Phantom” 的描述。但实际上比 A Critique of ANSI SQL Isolation Levels 文中整理的  SNAPSHOT ISOLATION 和  REPEATABLE READ 都要低，因为 Lost Update、Write Skew、Phantom 都可能会发生。
 
-根据 MySQL 文档中关于[一致性读](https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)的描述，发生上述现象的一个原因是，当在事务内对数据进行 update 操作后，当 select 语句读取受 update 影响的数据行时会返回最新版本（也即 update 是对最新版本而不是快照版本进行的），因此如果同时有另一个事务也在操作时原事务中可能看到原先不存在的数据。
+根据 MySQL 文档中关于[一致性读](https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html)的描述，发生上述现象的原因是，InnoDB 在处理读写事务时，并不纯粹按照 “事务内的读写都作用于当前快照” 这一原则，而是采用另一种实现：**当在事务内对数据进行 update 操作后，再次 select 时，读取被 update 影响的数据行会返回最新版本的数据，（也即 update 会对最新版本而不是快照版本进行）。**所以如果同时有另一个事务也在操作时，原事务中就可能看到原先不存在的数据。
 
 ## MySQL 的实现不好吗？
 
 根据上一节的测试，似乎 MySQL 对事务隔离的实现并不怎么好，它在默认隔离级别下会出现各种异象，实现也难以准确的归类在  A Critique of ANSI SQL Isolation Levels  所述的几种隔离级别内。那么 MySQL 的事务隔离实现的不好吗？
 
-想想也不一定，事务隔离本身就是对一致性与性能的平衡。在 MySQL 的实现下，虽然会出现多种异象，但事务提交失败回滚的几率相比标准的隔离级别实现要小得多，因此也就提升了并发性。对于相对简单的只读事务 MySQL 采用一致性读来支持更高的吞吐，而对于需要同时查询并更新数据的读写事务，常规的 select 并不能提供足够的防护，因此 MySQL 建议使用[上锁读](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html)（即我们熟悉的 `select ... for update` 或 `select for share`）来确保符合用户操作的真实意图。
+其实并不一定，事务隔离本身就是对一致性与性能的平衡。在 MySQL 的实现下，虽然会出现多种异象，但事务提交失败回滚的几率相比标准的隔离级别实现要小得多，因此也就提升了并发性。对于相对简单的只读事务 MySQL 采用一致性读来支持更高的吞吐，而对于需要同时查询并更新数据的读写事务，常规的 select 并不能提供足够的防护，因此 MySQL 建议使用[上锁读](https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html)（即我们熟悉的 `select ... for update` 或 `select for share`）来确保符合用户操作的真实意图。
 
-InnoDB 在其事务模型实现中提到：`the goal is to combine the best properties of a multi-versioning database with traditional two-phase locking`，所以结合前文看， MySQL 的选择是默认采用多版本实现非阻塞读，同时提供了用户可选的两阶段锁实现更强的隔离性。这种实现直到最新的 MySQL 8.0 都没有改变过，从运行在 MySQL 上的多种应用，和其庞大的用户群来看，这种选择应该是合理的。
+InnoDB 在其事务模型实现中提到：`the goal is to combine the best properties of a multi-versioning database with traditional two-phase locking`，所以结合前文看， MySQL 的选择是默认采用多版本实现非阻塞读，同时提供了用户可选的两阶段锁实现更强的隔离性。这种实现直到最新的 MySQL 8.0 都没有改变过，从运行在 MySQL 上的多种应用，和其庞大的用户群来看，这种选择应该是有其内在合理性的。
 
