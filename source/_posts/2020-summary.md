@@ -21,9 +21,25 @@ If use one phrase to make a conclusion, I think it will be ”basically satisfie
 
 ## Improvement of Technical Ability
 
+### 1. Architecture of Software
 
+After about 4 years of coding practice, this year I start to look more high view of software: from the code architecture.
+
+I finally take a glance of why and how the code module compose like this but not like that.
+
+### 2. TiDB
+
+
+
+### 3. Fundamental
 
 ## Growth of Financial Condition
+
+### 1. Income Composition
+
+
+
+### 2. Mutual Fund
 
 ## Family
 
