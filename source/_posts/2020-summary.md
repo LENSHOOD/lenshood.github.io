@@ -23,9 +23,17 @@ If use one phrase to make a conclusion, I think it will be ”basically satisfie
 
 ### 1. Architecture of Software
 
-After about 4 years of coding practice, this year I start to look more high view of software: from the code architecture.
+After about 4 years of coding practice, this year I begin to look more high view of software: from the code architecture.
 
-I finally take a glance of why and how the code module compose like this but not like that.
+I made a simple exploration of software design that why and how the code module compose like this but not like that.
+
+Thanks to *Clean Architecture* and *Implementing domain-driven design*, I learned some basic concepts of software design from those books. Combined with daily work, the design of higher business cohesion and clearer module division can be output.
+
+Due to supporting candidate screening, I was tried to re-doing the recruiting homework, and realized that, back to the time when I was first doing the homework, no design, only very simple module split, full of anti-SOLID. Today's me may very likely reject the old me, because good design can be simply understood and agreed but I didn't have that.
+
+When I was reading some JDK library's implementation. I always praised such ingenious design that use as fundamental of many big system. They properly layered and carefully deliberated, reading that code make me feel so comfortable.
+
+Therefore, from the big system architecture to some few line of code library function, no matter huge or small, maybe the beauty of software is that can make people feel harmony.
 
 ### 2. TiDB
 
