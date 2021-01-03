@@ -47,7 +47,7 @@ I hope in the next year I can take and complete more difficult tasks of TiDB and
 
 With the continuous improving of my coding skills, I figure that the software fundamental knowledge become more and more important. Algorithm, operation system, database, network, jvm... none of them can be ignored. Hence I believe reading is the best way to learn them.
 
-In 2020, I read a few number of books, which contains *Refactor*, *JVM in depth*, *The design and source code of Redis*, *Java concurrency in practice*, *The architecture of large website*. But the good things is all of them are so helpful to me, I learned a lot in the books.
+In 2020, I only read a few number of books, which contains *Refactor*, *JVM in depth*, *The design and source code of Redis*, *Java concurrency in practice*, *The architecture of large website*. But the good things is all of them are so helpful to me, I learned a lot in the books.
 
 I hope I can read more books at 2021 than 2020, after all 2000 Yuan can buy many books thanks to the cheap book market in China. And the topic of book I wish can be closed to database, algorithm and architecture.
 
@@ -55,9 +55,20 @@ I hope I can read more books at 2021 than 2020, after all 2000 Yuan can buy many
 
 ### 1. Income Composition
 
+There's a story about how would you choose, for get 200, 000 yuan paid of income from the profit of your properties, or get one million yuan paid of income from your job. Many people will choose the first, to take the passive income rather than active income even if the active income are 5 times more than the active.
 
+Indeed, property makes money with no rest, that's good. But earn money from property also takes risk. I hope my income will composed by main part of passive and less part of active, then I can gradually set free from job and do what I really like.
+
+In 2020, thanks to the good performance of China Stock Market, I've got 3-to-2 of active-to-passive income composition. However, like I said, the passive income mainly come from good market, so I cannot ensure that income will continuously come to next year. 
 
 ### 2. Mutual Fund
 
+All my passive income were earned by mutual fund. And 2020 I earned rate of returns of almost 30%. 
+
+This year my strategy of select funds have some changes. In the past, most of  my funds are index fund, but now I believe the active fund managed by professional fund manager are better than the index fund. The reason is, I think, we should trust the professional people to do professional job, no matter the job is doctor, lawyer, software engineer or fund manager.
+
+As a well trained programmer, I deeply know the power of professional. Different level of programmer produce very different code. So I ask myself, how can I do better than fund manager? I have not enough knowledge, no time to research the market, no source of information, I better sit down and do what I good at -- coding, not investing.
+
 ## Family
 
+Miss my granny so much, hope she will have no pain in the heaven, and rest in peace.
