@@ -19,6 +19,8 @@ At the end of this year, I may say no matter it's a good year or bad year, the e
 
 If use one phrase to make a conclusion, I think it will be ”basically satisfied“.
 
+<!-- more -->
+
 ## Improvement of Technical Ability
 
 ### 1. Architecture of Software
