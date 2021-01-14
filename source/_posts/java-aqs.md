@@ -1,6 +1,6 @@
 ---
 title: 虚拟工厂：Java AQS 同步器
-date: 2020-05-24 22:50:50
+date: 2021-01-14 23:07:50
 tags:
 - java
 - aqs
@@ -35,28 +35,28 @@ public class Latch {
 }
 
 @Test
-    public void should_release_after_10_seconds() throws InterruptedException {
-        Latch latch = new Latch();
+public void should_release_after_10_seconds() throws InterruptedException {
+    Latch latch = new Latch();
 
-        Runnable waiter = () -> {
-            latch.await();
-            System.out.println(Thread.currentThread().getName() + " done");
-        };
-        Thread thread1 = new Thread(waiter);
-        Thread thread2 = new Thread(waiter);
+    Runnable waiter = () -> {
+        latch.await();
+        System.out.println(Thread.currentThread().getName() + " done");
+    };
+    Thread thread1 = new Thread(waiter);
+    Thread thread2 = new Thread(waiter);
 
-        System.out.println("Start at: " + System.currentTimeMillis());
+    System.out.println("Start at: " + System.currentTimeMillis());
 
-        thread1.start();
-        thread2.start();
-        Thread.sleep(10000);
+    thread1.start();
+    thread2.start();
+    Thread.sleep(10000);
 
-        latch.release();
-        thread1.join();
-        thread2.join();
+    latch.release();
+    thread1.join();
+    thread2.join();
 
-        System.out.println("End at: " + System.currentTimeMillis());
-    }
+    System.out.println("End at: " + System.currentTimeMillis());
+}
 ```
 
 上述例子描述了一个最简单的同步工具：闭锁。多个线程可以`await()`在其上，一旦闭锁`release()`时，所有线程得以释放。
