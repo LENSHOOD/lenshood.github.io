@@ -159,7 +159,9 @@ abstract static class Node {
 
 ### Try Lock State Machine
 
-当一个 client 确认某个访问线程需要排队等待获取资源时，AQS 根据当前
+当一个 client 确认某个访问线程需要排队等待获取资源时，AQS 会将访问线程封装为一个 CLH Node，并进入一个类似 State Machine 的循环，来根据当前等待队列的情况，采取不同的逻辑，状态转换图如下所示：
+
+
 
 ### Condition
 
