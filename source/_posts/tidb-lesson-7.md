@@ -178,5 +178,72 @@ Percolator 能够在不破坏数据完整性的情况下从故障中恢复，也
 
 ## 乐观事务实现
 
+TiDB 的乐观事务基本上是基于 Percolator 的事务模型来实现的，其基本原理完全一致，在具体的实现细节上做了许多优化。
+
+总体上可以由下图来描绘 TiDB 中执行一次完整的乐观事务的过程（[图源](https://pingcap.com/blog-cn/best-practice-optimistic-transaction/)）：
+
+{% asset_img optimize-txn.png %}
+
+从上图所见，一个完整个 TiDB 事务，需要涉及到 TiDB PD TiKV 三部分，其中，TiDB 一端与 client 交互，进行开启、提交事务；一端与 PD 交互，获得时间戳与数据所在 region 信息；一端与 TiKV 交互，执行 2PC。
+
+在 TiDB 中，对事务的的定义是 `kv.Transaction`，而由于事务操作都从 `session ` 中发起，因此还定义了 `session.Txn()` 来从 `session` 中获取当前的事务。
+
+如下代码片段以 `tables.Table.AddRecord()` 为例来展示在一次插入记录操作中，如何使用事务：
+
+```go
+func (t *TableCommon) AddRecord(sctx sessionctx.Context, r []types.Datum, opts ...table.AddRecordOption) (recordID kv.Handle, err error) {
+  // 获取当前 Txn （初始化 Txn 时已经放入了获取 start_ts 的 TSO future，会在如下方法首次调用时获取 future）
+  txn, err := sctx.Txn(true)
+  ...
+  // 启用 MemBuffer，在提交之前所有的改动都会暂存在其内
+  memBuffer := txn.GetMemBuffer()
+	sh := memBuffer.Staging()
+  ...
+  // 构造 key
+  key := t.RecordKey(recordID)
+  ...
+  // 获取 value
+  writeBufs.RowValBuf, err = tablecodec.EncodeRow(sc, row, colIDs, writeBufs.RowValBuf, writeBufs.AddRowValues, rd)
+  value := writeBufs.RowValBuf
+  ...
+  // 暂存
+  err = memBuffer.Set(key, value)
+  ...
+  // 在 MemBuffer 中发布
+  memBuffer.Release(sh)
+  ...
+}
+
+// 外层逻辑：tidb.finishStmt()
+func finishStmt(ctx context.Context, se *session, meetsErr error, sql sqlexec.Statement) error {
+	...
+  if se.txn.Valid() {
+			if meetsErr != nil {
+				se.StmtRollback()
+			} else {
+				se.StmtCommit()
+			}
+		}
+  ...
+  err := autoCommitAfterStmt(ctx, se, meetsErr, sql)
+  ...
+}
+
+func autoCommitAfterStmt(ctx context.Context, se *session, meetsErr error, sql sqlexec.Statement) error {
+  ...
+  if meetsErr != nil {
+  	...
+    se.RollbackTxn(ctx)
+    ...
+  }
+  ...
+  if err := se.CommitTxn(ctx); err != nil {
+    ...
+  }
+}
+```
+
+
+
 ## 悲观事务实现
 
