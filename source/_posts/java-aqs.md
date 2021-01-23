@@ -94,7 +94,7 @@ End at:   1590683054190
 
 在 API 层中，`acquireXXX` 与 `releaseXXX` 主要由当前访问的线程来触发，带`Shared` 后缀的方法都是共享访问方法，不带的是独占访问方法。`tryAcquire`与`tryRelease`由同步器的子类定义，通过对 `state` 进行操作和对比，来达到判断是否能获取/释放的目的。`state` 本身只是一个共享的 int 变量，用于帮助 API 层 `tryXXX` 方法记录、判断资源是否可获取。
 
-Core Logic 层中，CLH 队列变体存放所有排队等待的线程。Try Lock State Machine 根据当前排队状态来决定如何处置当前线程（是入队等待还是出队获取资源）。Condition 则是一种等待队列的条件谓词实现。
+Core Logic 层中，CLH 队列变体存放所有排队等待的线程。Try Lock Loop 根据当前排队状态来决定如何处置当前线程（是入队等待还是出队获取资源）。Condition 则是一种等待队列的条件谓词实现。
 
 Support 层基本由对 Unsafe 包提供的方法进行封装（或直接使用）来实现 CAS 和线程调度等支撑性功能。
 
@@ -153,15 +153,36 @@ abstract static class Node {
 
 定义了前驱、后继节点 `prev` 和 `next`（由于前驱后继节点通常都是由不同的线程来创建和访问，因此采用 `volatile` 语法确保不同线程访问的可见性），当前节点的实际内容有两个：a. 实际等待线程的引用。b. 当前节点的状态，状态定义为 `WATING` ，`CANCLELLED`，`COND`。
 
-`Node` 中提供了一些方法来对 field 进行操作，他们全部使用 `Unsafe` 提供的方法来实现（Jdk9 版本当中大都采用 `VarHandle` 实现，目前我还不清楚为什么在后续版本中又回到了 `Unsafe`）。其中有采用 CAS 的方法，也有单纯的 get/set 方法。其中的 `setXXXRelaxed` 方法实际上就是传统的 setter 方法（这里也要用 `Unsafe` 也许是为了与其他几个方法保持一致），Relaxed 后缀，是 JDK9 通过 `VarHandle`引入的 Memory Order 中的概念([Doug Lea 的解释](http://gee.cs.oswego.edu/dl/html/j9mm.html))，实际上应该多少借鉴了 [C++ 11 的 Memory Order 模型](https://www.zhihu.com/question/24301047)。
+`Node` 中提供了一些方法来对 field 进行操作，他们全部使用 `Unsafe` 提供的方法来实现（Jdk9 版本当中大都采用 `VarHandle` 实现，注释中提到，后续版本又回到 `Unsafe`的原因是 *"avoid potential VM bootstrap issues"* ）。其中有采用 CAS 的方法，也有单纯的 get/set 方法。其中的 `setXXXRelaxed` 方法实际上就是传统的 setter 方法（这里也要用 `Unsafe` 也许是为了与其他几个方法保持一致），Relaxed 后缀，是 JDK9 通过 `VarHandle`引入的 Memory Order 中的概念([Doug Lea 的解释](http://gee.cs.oswego.edu/dl/html/j9mm.html))，实际上应该多少借鉴了 [C++ 11 的 Memory Order 模型](https://www.zhihu.com/question/24301047)。
 
 对于 CLH 节点，在 AQS 中还定义了 `head`，`tail` 等概念，来维护一个完整的链表队列，其入队、出队的操作也都在 `acquire` 与 `release` 方法中实现。
 
-### Try Lock State Machine
+### Try Lock Loop
 
-当一个 client 确认某个访问线程需要排队等待获取资源时，AQS 会将访问线程封装为一个 CLH Node，并进入一个类似 State Machine 的循环，来根据当前等待队列的情况，采取不同的逻辑，状态转换图如下所示：
+当一个 client 确认某个访问线程需要排队等待获取资源时，AQS 会将访问线程封装为一个 CLH Node，并进入一个等锁的循环，来根据当前等待队列的情况，采取不同的逻辑（相关逻辑在 `final int acquire(Node node, int arg, boolean shared, boolean interruptible, boolean timed, long time)`方法中），流程转换图如下所示：
 
+{% asset_img try_lock_loop.png %}
 
+上图看似复杂，实际上只包括了如下几个过程：
+
+1. 创建 Node，入队
+2. 线程休眠等待
+3. 被唤醒（head 线程已经做完所有工作），位列第一，此时是除 head 节点外第一顺位的 Node
+4. 尝试获取资源，获取到后将自己设置为 head，并退出等锁循环，继续执行线程逻辑
+5. 若获取资源失败（被其他未排队的线程抢占，即非公平抢占）
+   - 自旋等待锁释放
+   - 若自旋太久重新进入 park（但顺位仍是 first）
+
+对比上述过程我们发现，实际的实现代码，是把 “创建 Node，入队，休眠等待” 这件事，拆成了多个阶段（创建，入队，设置 Waiting 状态），而在逐步进行这些阶段之间，在节点入队前会尽可能尝试 tryAcquire，这一点在类注释中讲到：
+
+`在队列中排名第一并不能保证获取到资源，这只代表获得了竞争的权利。我们平衡了吞吐、开销、公平性之后，允许线程在入队前“抢占”的尝试获取锁。`
+
+另一方面，在入队并休眠前，拆分阶段也使得当前节点对前驱节点取消的响应更加及时。不止如此，`acquire` 方法在实现过程中，考虑了许多优化点来提升性能：
+
+- 非公平性，假如持有锁的线程在释放后又立即 try lock，对于公平锁而言，它只能在队尾排队等待，而非公平锁允许它尝试抢占。这样就避免了入队后等待以及被唤醒的两次线程切换操作。（但非公平锁可能导致线程 "starving"，因此 ReentrantLock 就分别提供了公平、非公平的实现）
+
+- 为了让 GC 更易于回收，在入队前，Node 的 field 都默认为 `null`，因为 “在 Node 在被使用前就已经被丢弃的现象并不少见”
+- 对于 CLH 需要的一个 dummy head（哨兵节点），AQS 在创建的时候并不会将其一起创建出来，而是在出现第一次竞争时才创建，以减少无效的开销。（可能 AQS 被创建后很久，都没有遇到过竞争的情况）
 
 ### Condition
 
