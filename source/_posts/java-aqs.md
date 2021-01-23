@@ -184,7 +184,229 @@ abstract static class Node {
 - 为了让 GC 更易于回收，在入队前，Node 的 field 都默认为 `null`，因为 “在 Node 在被使用前就已经被丢弃的现象并不少见”
 - 对于 CLH 需要的一个 dummy head（哨兵节点），AQS 在创建的时候并不会将其一起创建出来，而是在出现第一次竞争时才创建，以减少无效的开销。（可能 AQS 被创建后很久，都没有遇到过竞争的情况）
 
+最后贴上代码实现：
+
+```java
+final int acquire(Node node, int arg, boolean shared,
+                      boolean interruptible, boolean timed, long time) {
+  Thread current = Thread.currentThread();
+  byte spins = 0, postSpins = 0;   // retries upon unpark of first thread
+  boolean interrupted = false, first = false;
+  Node pred = null;                // predecessor of node when enqueued
+
+  for (;;) {
+    if (!first && (pred = (node == null) ? null : node.prev) != null &&
+        !(first = (head == pred))) {
+      if (pred.status < 0) {
+        cleanQueue();           // predecessor cancelled
+        continue;
+      } else if (pred.prev == null) {
+        Thread.onSpinWait();    // ensure serialization
+        continue;
+      }
+    }
+    if (first || pred == null) {
+      boolean acquired;
+      try {
+        if (shared)
+          acquired = (tryAcquireShared(arg) >= 0);
+        else
+          acquired = tryAcquire(arg);
+      } catch (Throwable ex) {
+        cancelAcquire(node, interrupted, false);
+        throw ex;
+      }
+      if (acquired) {
+        if (first) {
+          node.prev = null;
+          head = node;
+          pred.next = null;
+          node.waiter = null;
+          if (shared)
+            signalNextIfShared(node);
+          if (interrupted)
+            current.interrupt();
+        }
+        return 1;
+      }
+    }
+    if (node == null) {                 // allocate; retry before enqueue
+      if (shared)
+        node = new SharedNode();
+      else
+        node = new ExclusiveNode();
+    } else if (pred == null) {          // try to enqueue
+      node.waiter = current;
+      Node t = tail;
+      node.setPrevRelaxed(t);         // avoid unnecessary fence
+      if (t == null)
+        tryInitializeHead();
+      else if (!casTail(t, node))
+        node.setPrevRelaxed(null);  // back out
+      else
+        t.next = node;
+    } else if (first && spins != 0) {
+      --spins;                        // reduce unfairness on rewaits
+      Thread.onSpinWait();
+    } else if (node.status == 0) {
+      node.status = WAITING;          // enable signal and recheck
+    } else {
+      long nanos;
+      spins = postSpins = (byte)((postSpins << 1) | 1);
+      if (!timed)
+        LockSupport.park(this);
+      else if ((nanos = time - System.nanoTime()) > 0L)
+        LockSupport.parkNanos(this, nanos);
+      else
+        break;
+      node.clearStatus();
+      if ((interrupted |= Thread.interrupted()) && interruptible)
+        break;
+    }
+  }
+  return cancelAcquire(node, interrupted, interruptible);
+}
+```
+
+
+
 ### Condition
+
+Condition 可以看做是对 `Object.wait()` 与 `Object.notify()` 的对象式封装。它的优点在于，我们可以根据不同的条件来创建不同的 Condition，而这些 Condition 能够共同作用与同一组资源竞争者，从而实现更为灵活的逻辑控制。
+
+AQS 将 Condition 的等待/唤醒调度也融合在了 CLH 队列中。它将与 Condition 相关的线程封装为一个单独的 `ConditionNode` 节点，与之对应的，还有 `ExclusiveNode` 和 `SharedNode`。只不过 `ConditionNode` 还实现了 `ForkJoinPool.ManagedBlocker` 接口：
+
+```java
+static final class ConditionNode extends Node
+  implements ForkJoinPool.ManagedBlocker {
+  ConditionNode nextWaiter;            // link to next waiting node
+
+  /**
+   * Allows Conditions to be used in ForkJoinPools without
+   * risking fixed pool exhaustion. This is usable only for
+   * untimed Condition waits, not timed versions.
+   */
+  public final boolean isReleasable() {
+    return status <= 1 || Thread.currentThread().isInterrupted();
+  }
+
+  public final boolean block() {
+    while (!isReleasable()) LockSupport.park();
+    return true;
+  }
+}
+```
+
+实现 `ForkJoinPool.ManagedBlocker`  的目的是为了在 `Condition.await()` 时交由 `ForkJoinPool` 来协助执行状态检查并控制当前线程进入等待。
+
+AQS 又设计了 `ConditionObject` 类，作为真正的条件对象。`Condition` 的通常使用场景是，由于不满足某个条件，某个线程被挂起，并由另外的线程在条件满足时将其唤醒。由于涉及到多个线程之间对于同一条件（也是一种资源）的操作，这显然是一个需要用到锁的场景，因此 AQS 在其内部实现了 `ConditionObject` ，能直接与条件判断逻辑中的锁关联在一起。
+
+所以，当应用程序期望使用 `Condition` 来调度线程时，需要的动作如下：
+
+1. 创建锁对象： `new Lock()`
+2. 创建一个或多个条件对象：`Lock.newCondition()`
+3. 判断条件前先获取锁，`Lock.lock()`
+4. 不满足条件，进入等待：`Condition.await()`，此时先前获取到的锁被自动释放
+5. 另一线程的动作导致条件被满足，重新唤醒：`Condition.singal()`，实际当中更多的会用`Condition.signalAll()` 防止[伪唤醒](https://lenshood.github.io/2020/04/04/some-jaava-tips/#%E4%BC%AA%E5%94%A4%E9%86%92-spurious-wakeup)
+6. 等待的线程被唤醒，在执行下一步动作之前，还需要再次获取锁，因为这部分逻辑是被锁包裹的
+7. 获取锁成功，继续执行
+
+基于上面的步骤，我们来看看 `ConditionObject` 真正的实现：
+
+```java
+public final void await() throws InterruptedException {
+  ...
+  ConditionNode node = new ConditionNode();
+  int savedState = enableWait(node);
+  ...
+  while (!canReacquire(node)) {
+    ...
+        ForkJoinPool.managedBlock(node);
+    ...
+  }
+  ...
+  acquire(node, savedState, false, false, false, 0L);
+  ...
+}
+
+private int enableWait(ConditionNode node) {
+  if (isHeldExclusively()) {
+    node.waiter = Thread.currentThread();
+    node.setStatusRelaxed(COND | WAITING);
+    ConditionNode last = lastWaiter;
+    if (last == null)
+      firstWaiter = node;
+    else
+      last.nextWaiter = node;
+    lastWaiter = node;
+    int savedState = getState();
+    if (release(savedState))
+      return savedState;
+  }
+  node.status = CANCELLED; // lock not held or inconsistent
+  throw new IllegalMonitorStateException();
+}
+
+private boolean canReacquire(ConditionNode node) {
+  // check links, not status to avoid enqueue race
+  return node != null && node.prev != null && isEnqueued(node);
+}
+```
+
+以上是 `await()` 相关的实现。我们可以看到，在创建了 `ConditionNode` 之后，会先通过 `enableWait()` 检查当前是否持有锁，并对 node 进行初始化。注意，这里我们发现，在 `ConditionObject` 里面，还维护了一个单独的 `ConditionNode` 队列，专门用于管理由于等待条件而挂起的线程。最后，在节点入队后，将当前的锁释放。
+
+`ForkJoinPool.managedBlock(node);` 这句话就是用 `ForkJoinPool` 来帮助维护挂起了，其执行逻辑，类似：
+
+```java
+while (!blocker.isReleasable())
+  if (blocker.block())
+    break;
+```
+
+可以看到，当前线程被重新唤醒后，仍然要进入 `acquire(node, savedState, false, false, false, 0L);`的流程，这就是重新获取锁的过程（所以如果这时有其他线程占用着锁，当前被唤醒的线程又会重新被挂起，这在 `signalAll` 时会出现）。
+
+```java
+public final void signal() {
+  ConditionNode first = firstWaiter;
+  if (!isHeldExclusively())
+    throw new IllegalMonitorStateException();
+  if (first != null)
+    doSignal(first, false);
+}
+
+private void doSignal(ConditionNode first, boolean all) {
+  while (first != null) {
+    ConditionNode next = first.nextWaiter;
+    if ((firstWaiter = next) == null)
+      lastWaiter = null;
+    if ((first.getAndUnsetStatus(COND) & COND) != 0) {
+      enqueue(first);
+      if (!all)
+        break;
+    }
+    first = next;
+  }
+}
+
+final void enqueue(Node node) {
+  if (node != null) {
+    for (;;) {
+      Node t = tail;
+      node.setPrevRelaxed(t);        // avoid unnecessary fence
+      if (t == null)                 // initialize
+        tryInitializeHead();
+      else if (casTail(t, node)) {
+        t.next = node;
+        if (t.status < 0)          // wake up to clean link
+          LockSupport.unpark(node.waiter);
+        break;
+      }
+    }
+  }
+}
+```
+
+以上是 `signal()` 相关的逻辑，在条件满足被 `signal()` 后，会选择先从 `firstWaiter` 开始唤醒，唤醒前将 `ConditionNode` 插入CLH等锁队列中。假如是 `signalAll()`则会在唤醒 `firstWatier` 之后继续唤醒下一个 `ConditionNode`。
 
 ## Unsafe 支撑
 
