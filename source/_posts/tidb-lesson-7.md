@@ -243,6 +243,212 @@ func autoCommitAfterStmt(ctx context.Context, se *session, meetsErr error, sql s
 }
 ```
 
+### 开启新事务
+
+在 `session.NewTxn()` 中，session 通过配置的 store 来开启一个事务：
+
+```go
+txn, err := s.store.BeginWithTxnScope(s.sessionVars.CheckAndGetTxnScope())
+```
+
+我们来看看 store 是如何开启事务的（以下都以 `tikvStore`为例 ）：
+
+```go
+func newTiKVTxn(store *tikvStore, txnScope string) (*tikvTxn, error) {
+	bo := NewBackofferWithVars(context.Background(), tsoMaxBackoff, nil)
+	startTS, err := store.getTimestampWithRetry(bo, txnScope)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return newTiKVTxnWithStartTS(store, txnScope, startTS, store.nextReplicaReadSeed())
+}
+
+func (s *tikvStore) getTimestampWithRetry(bo *Backoffer, txnScope string) (uint64, error) {
+  ...
+	for {
+		startTS, err := s.oracle.GetTimestamp(bo.ctx, &oracle.Option{TxnScope: txnScope})
+		...
+		if err == nil {
+			return startTS, nil
+		}
+		err = bo.Backoff(BoPDRPC, errors.Errorf("get timestamp failed: %v", err))
+		if err != nil {
+			return 0, errors.Trace(err)
+		}
+	}
+}
+
+func newTiKVTxnWithStartTS(store *tikvStore, txnScope string, startTS uint64, replicaReadSeed uint32) (*tikvTxn, error) {
+	ver := kv.NewVersion(startTS)
+	snapshot := newTiKVSnapshot(store, ver, replicaReadSeed)
+	newTiKVTxn := &tikvTxn{
+		snapshot:  snapshot,
+		us:        kv.NewUnionStore(snapshot),
+		store:     store,
+		startTS:   startTS,
+		startTime: time.Now(),
+		valid:     true,
+		vars:      kv.DefaultVars,
+	}
+	newTiKVTxn.SetOption(kv.TxnScope, txnScope)
+	return newTiKVTxn, nil
+}
+```
+
+我们可以看到，如同前一节 Percolator 的流程所述，所谓开启一个事务，其实只是从 TSO 拿了 `start_ts`，之后以 `start_ts` 作为版本号创建了对应 snapshot 的事务。因为乐观事务读不加锁，只在最终提交时才判断是否有冲突。
+
+### 事务内读写
+
+#### 读
+
+读操作主要通过构造合适的 `kv.Request` 并通过 `distSql.Select()`来进行查询。
+
+```go
+type Request struct {
+	// Tp is the request type.
+	Tp        int64
+	StartTs   uint64
+	Data      []byte
+	KeyRanges []KeyRange
+
+	// Concurrency is 1, if it only sends the request to a single storage unit when
+	// ResponseIterator.Next is called. If concurrency is greater than 1, the request will be
+	// sent to multiple storage units concurrently.
+	Concurrency int
+	// IsolationLevel is the isolation level, default is SI.
+	IsolationLevel IsoLevel
+	// Priority is the priority of this KV request, its value may be PriorityNormal/PriorityLow/PriorityHigh.
+	Priority int
+	// memTracker is used to trace and control memory usage in co-processor layer.
+	MemTracker *memory.Tracker
+	// KeepOrder is true, if the response should be returned in order.
+	KeepOrder bool
+	// Desc is true, if the request is sent in descending order.
+	Desc bool
+	// NotFillCache makes this request do not touch the LRU cache of the underlying storage.
+	NotFillCache bool
+	// SyncLog decides whether the WAL(write-ahead log) of this request should be synchronized.
+	SyncLog bool
+	// Streaming indicates using streaming API for this request, result in that one Next()
+	// call would not corresponds to a whole region result.
+	Streaming bool
+	// ReplicaRead is used for reading data from replicas, only follower is supported at this time.
+	ReplicaRead ReplicaReadType
+	// StoreType represents this request is sent to the which type of store.
+	StoreType StoreType
+	// Cacheable is true if the request can be cached. Currently only deterministic DAG requests can be cached.
+	Cacheable bool
+	// SchemaVer is for any schema-ful storage to validate schema correctness if necessary.
+	SchemaVar int64
+	// BatchCop indicates whether send batch coprocessor request to tiflash.
+	BatchCop bool
+	// TaskID is an unique ID for an execution of a statement
+	TaskID uint64
+	// TiDBServerID is the specified TiDB serverID to execute request. `0` means all TiDB instances.
+	TiDBServerID uint64
+}
+```
+
+可以看到，上述 request 中包含了 `StartTs`，因此会以该时间戳来进行查询。
+
+当然，上述通过 distSql 查询的方式主要用于复杂查询，对于简单查询例如直接通过主键查询的场景（`PointGetExec`）就可以通过 `Transaction` 的 `Get()` 来进行查询：
+
+```go
+val, err = e.txn.GetMemBuffer().Get(ctx, key)
+
+// 先尝试从本地 memdb 中读取，找不到，就通过 snapshot 从 tikv 读取
+func (us *unionStore) Get(ctx context.Context, k Key) ([]byte, error) {
+	v, err := us.memBuffer.Get(ctx, k)
+	if IsErrNotFound(err) {
+		v, err = us.snapshot.Get(ctx, k)
+	}
+	if err != nil {
+		return v, err
+	}
+	if len(v) == 0 {
+		return nil, ErrNotExist
+	}
+	return v, nil
+}
+```
+
+#### 写
+
+对于事务内写，我们从上一节已经了解到，所有的写操作都会暂存在本地，最后在提交时一并发出：
+
+```go
+memBuffer := txn.GetMemBuffer()
+err = memBuffer.Set(key, value)
+```
+
+### 提交事务
+
+我们直接来看看 `tikvTxn` 的 `Commit()`实现：
+
+```go
+func (txn *tikvTxn) Commit(ctx context.Context) error {
+	...
+  
+	// connID is used for log.
+	var connID uint64
+	val := ctx.Value(sessionctx.ConnID)
+	if val != nil {
+		connID = val.(uint64)
+	}
+
+	var err error
+	// If the txn use pessimistic lock, committer is initialized.
+	committer := txn.committer
+	if committer == nil {
+		committer, err = newTwoPhaseCommitter(txn, connID)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		txn.committer = committer
+	}
+	...
+
+	initRegion := trace.StartRegion(ctx, "InitKeys")
+	err = committer.initKeysAndMutations()
+	initRegion.End()
+	...
+  
+	// latches disabled
+	// pessimistic transaction should also bypass latch.
+	if txn.store.txnLatches == nil || txn.IsPessimistic() {
+		err = committer.execute(ctx)
+		if val == nil || connID > 0 {
+			txn.onCommitted(err)
+		}
+		logutil.Logger(ctx).Debug("[kv] txnLatches disabled, 2pc directly", zap.Error(err))
+		return errors.Trace(err)
+	}
+
+	// latches enabled
+	// for transactions which need to acquire latches
+	start = time.Now()
+	lock := txn.store.txnLatches.Lock(committer.startTS, committer.mutations.GetKeys())
+	commitDetail := committer.getDetail()
+	commitDetail.LocalLatchTime = time.Since(start)
+	if commitDetail.LocalLatchTime > 0 {
+		metrics.TiKVLocalLatchWaitTimeHistogram.Observe(commitDetail.LocalLatchTime.Seconds())
+	}
+	defer txn.store.txnLatches.UnLock(lock)
+	if lock.IsStale() {
+		return kv.ErrWriteConflictInTiDB.FastGenByArgs(txn.startTS)
+	}
+	err = committer.execute(ctx)
+	if val == nil || connID > 0 {
+		txn.onCommitted(err)
+	}
+	if err == nil {
+		lock.SetCommitTS(committer.commitTS)
+	}
+	logutil.Logger(ctx).Debug("[kv] txnLatches enabled while txn retryable", zap.Error(err))
+	return errors.Trace(err)
+}
+```
+
 
 
 ## 悲观事务实现
