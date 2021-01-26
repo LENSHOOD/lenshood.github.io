@@ -449,7 +449,195 @@ func (txn *tikvTxn) Commit(ctx context.Context) error {
 }
 ```
 
+（上面的 `latch` 是作为一个配置选项来进行开启的本地内存锁，默认关闭，文档中提到如果[本地事务冲突较多可以考虑开启](https://docs.pingcap.com/zh/tidb/stable/tidb-configuration-file#txn-local-latches)。）
 
+在对`twoPhaseCommitter` 进行初始化后，关键逻辑就是 `err = committer.execute(ctx)`。
+
+```go
+func (c *twoPhaseCommitter) execute(ctx context.Context) (err error) {
+	var binlogSkipped bool
+	...
+  
+	err = c.prewriteMutations(prewriteBo, c.mutations)
+	...
+  
+	newCommitTS, err := c.getCommitTS(ctx, commitDetail)
+
+	...
+	return c.commitTxn(ctx, commitDetail)
+}
+```
+
+不论是 `prewriteMutations` 还是 `commitTxn`，实现当中都调用了
+
+```go
+func (c *twoPhaseCommitter) doActionOnMutations(bo *Backoffer, action twoPhaseCommitAction, mutations CommitterMutations) error {
+	...
+	groups, err := c.groupMutations(bo, mutations)
+	...
+
+	return c.doActionOnGroupMutations(bo, action, groups)
+}
+```
+
+方法，先将本次提交所修改的 `mutations` 按照 `region`划分成组，之后根据不同的传入参数（分别是在 `prewrite.go`中的 `actionPrewrite{}` 以及 `commit.go` 中的 `actionCommit{}`）来执行具体的逻辑。
+
+#### Prewrite
+
+```go
+func (action actionPrewrite) handleSingleBatch(c *twoPhaseCommitter, bo *Backoffer, batch batchMutations) error {
+  ...
+	
+  txnSize := uint64(c.regionTxnSize[batch.region.id])
+	...
+
+	req := c.buildPrewriteRequest(batch, txnSize)
+	for {
+		sender := NewRegionRequestSender(c.store.regionCache, c.store.client)
+		resp, err := sender.SendReq(bo, req, batch.region, readTimeoutShort)
+		...
+    
+		prewriteResp := resp.Resp.(*pb.PrewriteResponse)
+		keyErrs := prewriteResp.GetErrors()
+		if len(keyErrs) == 0 {
+			if batch.isPrimary {
+				// After writing the primary key, if the size of the transaction is larger than 32M,
+				// start the ttlManager. The ttlManager will be closed in tikvTxn.Commit().
+				// In this case 1PC is not expected to be used, but still check it for safety.
+				if int64(c.txnSize) > config.GetGlobalConfig().TiKVClient.TTLRefreshedTxnSize &&
+					prewriteResp.OnePcCommitTs == 0 {
+					c.run(c, nil)
+				}
+			}
+			...
+      
+			return nil
+		}
+		var locks []*Lock
+		for _, keyErr := range keyErrs {
+			// Check already exists error
+			if alreadyExist := keyErr.GetAlreadyExist(); alreadyExist != nil {
+				key := alreadyExist.GetKey()
+				return c.extractKeyExistsErr(key)
+			}
+
+			// Extract lock from key error
+			lock, err1 := extractLockFromKeyErr(keyErr)
+			if err1 != nil {
+				return errors.Trace(err1)
+			}
+			...
+		}
+		start := time.Now()
+		msBeforeExpired, err := c.store.lockResolver.resolveLocksForWrite(bo, c.startTS, locks)
+		...
+	}
+}
+```
+
+`handleSingleBatch`() 会按照 `Region` 拆分为的多个 `batch`  并行执行，每个 `batch` 都会执行一次。
+
+显然，prewrite 请求会按照 `region` 发给对应的 tikv 来实际处理，具体处理流程见请见下一篇。
+
+最后注意`c.store.lockResolver.resolveLocksForWrite(bo, c.startTS, locks)` 操作用来尝试解锁，解锁的逻辑如注释中所述：
+
+```go
+// ResolveLocks tries to resolve Locks. The resolving process is in 3 steps:
+// 1) Use the `lockTTL` to pick up all expired locks. Only locks that are too
+//    old are considered orphan locks and will be handled later. If all locks
+//    are expired then all locks will be resolved so the returned `ok` will be
+//    true, otherwise caller should sleep a while before retry.
+// 2) For each lock, query the primary key to get txn(which left the lock)'s
+//    commit status.
+// 3) Send `ResolveLock` cmd to the lock's region to resolve all locks belong to
+//    the same transaction.
+```
+
+#### Commit
+
+```go
+func (actionCommit) handleSingleBatch(c *twoPhaseCommitter, bo *Backoffer, batch batchMutations) error {
+	keys := batch.mutations.GetKeys()
+	req := tikvrpc.NewRequest(tikvrpc.CmdCommit, &pb.CommitRequest{
+		StartVersion:  c.startTS,
+		Keys:          keys,
+		CommitVersion: c.commitTS,
+	}, pb.Context{Priority: c.priority, SyncLog: c.syncLog})
+
+	sender := NewRegionRequestSender(c.store.regionCache, c.store.client)
+	resp, err := sender.SendReq(bo, req, batch.region, readTimeoutShort)
+	...
+  
+	commitResp := resp.Resp.(*pb.CommitResponse)
+	// Here we can make sure tikv has processed the commit primary key request. So
+	// we can clean undetermined error.
+	if batch.isPrimary {
+		c.setUndeterminedErr(nil)
+	}
+	if keyErr := commitResp.GetError(); keyErr != nil {
+		if rejected := keyErr.GetCommitTsExpired(); rejected != nil {
+			...
+
+			// Do not retry for a txn which has a too large MinCommitTs
+			// 3600000 << 18 = 943718400000
+			if rejected.MinCommitTs-rejected.AttemptedCommitTs > 943718400000 {
+				err := errors.Errorf("2PC MinCommitTS is too large, we got MinCommitTS: %d, and AttemptedCommitTS: %d",
+					rejected.MinCommitTs, rejected.AttemptedCommitTs)
+				return errors.Trace(err)
+			}
+
+			// Update commit ts and retry.
+			commitTS, err := c.store.getTimestampWithRetry(bo, c.txn.GetUnionStore().GetOption(kv.TxnScope).(string))
+			if err != nil {
+				logutil.Logger(bo.ctx).Warn("2PC get commitTS failed",
+					zap.Error(err),
+					zap.Uint64("txnStartTS", c.startTS))
+				return errors.Trace(err)
+			}
+
+			c.mu.Lock()
+			c.commitTS = commitTS
+			c.mu.Unlock()
+			return c.commitMutations(bo, batch.mutations)
+		}
+
+		c.mu.RLock()
+		defer c.mu.RUnlock()
+		err = extractKeyErr(keyErr)
+		if c.mu.committed {
+			// No secondary key could be rolled back after it's primary key is committed.
+			// There must be a serious bug somewhere.
+			hexBatchKeys := func(keys [][]byte) []string {
+				var res []string
+				for _, k := range keys {
+					res = append(res, hex.EncodeToString(k))
+				}
+				return res
+			}
+			logutil.Logger(bo.ctx).Error("2PC failed commit key after primary key committed",
+				zap.Error(err),
+				zap.Uint64("txnStartTS", c.startTS),
+				zap.Uint64("commitTS", c.commitTS),
+				zap.Strings("keys", hexBatchKeys(keys)))
+			return errors.Trace(err)
+		}
+		// The transaction maybe rolled back by concurrent transactions.
+		logutil.Logger(bo.ctx).Debug("2PC failed commit primary key",
+			zap.Error(err),
+			zap.Uint64("txnStartTS", c.startTS))
+		return err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	// Group that contains primary key is always the first.
+	// We mark transaction's status committed when we receive the first success response.
+	c.mu.committed = true
+	return nil
+}
+```
+
+与 prewrite 阶段类似，commit 阶段也是按照 `region` 向 tikv 发送了 commit 请求，方法中大量的操作都是在处理可能返回的提交错误，包括重试，返回错误等等方式。
 
 ## 悲观事务实现
 
