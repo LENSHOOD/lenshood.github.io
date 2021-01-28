@@ -56,13 +56,50 @@ categories:
 
 然而这样做，似乎失去了多核存在的意义，由于缓存的限制，多个核心在读写指令上被强制串行化了，这就好像给读写指令加了一把独占锁，导致性能很差。
 
-### 分布式缓存
+### CPU 核私有缓存
 
 如果不能同时访问同一个 Cache，那么我们索性将 Cache 拆分开，给每个 core 都分配一块缓存：
 
 {% asset_img n-ncache.png %}
 
+这样每个 core 都能愉快的与自己私有的 Cache 通信，而 Cache 与 Memory 之间通过一条总线连接。有了私有缓存，CPU 不同 core 之间不再需要互相等待了，因此能够高效的并行执行程序。
+
+但同时问题也来了：假如 core 1 在自己的缓存里保存了共享变量 `a = 1`，并且对其进行 `+1` 操作，那么在 core 1 的视角来看，现在`a = 2`。这时候，core 2 也想执行同样的 `+1` 操作，由于 core 2 对 `a` 的读取没有命中，因此从 Memory 中读取出 `a = 1`，之后也执行了 `a = a+1` 。这种情况下，假如 core 2 的缓存优先回写到了 Memory 中，那么 core 1 的更新操作就丢失了。
+
+上述问题在我们日常编程当中经常遇到，解决的办法通常是加锁，通过牺牲一定的效率来确保正确性。那么在 CPU 中呢？
+
+也一样，在这种缓存架构下，为了保证数据的正确性，提出了**缓存一致性协议（Cache Coherence）**来解决问题。
+
+#### Cache Coherence
+
+通常，缓存一致性协议分两类：
+
+- Snoopy 嗅探协议：每个 Cache 上产生的任何操作，都会在总线中广播，而其他 Cache 可以嗅探总线上的消息，从而做出反应
+- Directory 目录协议：Snoopy 协议由于有大量的广播消息占用总线，在 core 数量 > 8~16 时会产生严重拥堵。基于目录的协议是选择某一个 core 作为 host，来通过一张目录表保存当前缓存内容的全局状态。但基于目录的协议开销大，速度慢。
+
+#### MESI
+
+MESI 协议是一种经典的 Snoopy 一致性协议，他给所有缓存中保存的值（这里的值指的是以[缓存行Cache Line](https://medium.com/software-design/why-software-developers-should-care-about-cpu-caches-8da04355bb8a#:~:text=A%20cache%20line%20is%20the,region%20is%20read%20or%20written.)为单位）都指定了状态，共有四种：
+
+- **I**nvalid：处于该状态下的数据要么在 Cache 中不存在，要么是存在但已经过期。Invalid 的数据会被 Cache 直接忽略。
+- **S**hared：处于该状态下的数据是对 Memory 中数据的干净拷贝（clean copy）。Shared 的数据可以被多个 Cache 所拥有，但只可读，不可写。
+- **E**xclusive：处于该状态的数据也是对 Memory 中数据的干净拷贝，但与 Shared 不同的是，Exclusive 下的数据，一定只会被某一个 core 独占。而假如其他 Cache 中可能存在相同的数据，那么当它被某个 core 独占后，其他相同的数据都会变成 Invalid。
+
+- **M**odified：该状态标记的数据是脏数据（dirty）。表明数据在 Cache 内被修改，与 Exclusive 一样，任何与之相同的数据，都会变为 Invalid。此外，Modified 的数据必须在失效之前被写回 Memory。
+
+与单核单缓存 write-back 策略的架构比较，我们发现，I、S、M 状态都能找到相应映射，而 MESI 的独特之处就在于 E 状态。Exclusive 解决了某个 Cache 在需要修改数据之前需要先通知其他 Cache 的问题：当数据处于 E 或 M 时，表明当前的这份数据是唯一有效的，那么我们就能大胆的对其进行修改了。
+
+{% asset_img mesi.png %}
+
+从上面的状态图（[图源](http://www.broadview.com.cn/article/347)）中我们可以看到：
+
+1. 初始状态下，内存地址映射到 Cache 的数据（Cache Line）的状态是 Invalid，当任一 core 1 对该地址进行读取后，状态转至 Exclusive。如果这时有另一个 core 2 对相同地址发起读请求，则 core 1 嗅探到请求后，会复制数据给 core 2，此时两个 Cache 中的数据状态都变为 Shard。
+2. 假如 core 1 想要对某初始状态的数据进行修改，则状态会从 Invalid 转至 Modified。假如这时 core 2 想读取该数据，则 core 1 会先将数据 Write-Back，然后复制一份交给 core 2，状态此时变为 Shard。
+3. 但如果 2 中的 core 2 不是读，而是想要修改，那么 core 1 也会先拦截 core 2 的这一动作，将数据 Write-Back，之后将数据状态改为 Invalid。之后 core 2 就可以以正常的流程来修改数据。
+
 ### 还是不够快
+
+
 
 ## CPU 实在太快了
 
