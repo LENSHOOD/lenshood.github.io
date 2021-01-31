@@ -22,7 +22,7 @@ categories:
 
 通常 CPU 是无法直接访问内存的，物理结构上，CPU 和内存之间，还隔着一层缓存（Cache）。缓存的目的与我们在应用服务与数据库之间隔一层缓存的目的一样：CPU 和内存的速度差距太大了。而且为了能平滑连接高速设备与低速设备，缓存层通常会分出 L1 L2 L3 层，容量逐层递增，访问速度逐层递减，最后才是内存、硬盘，整体结构像一座金字塔。
 
-{% asset_img cache-spped.png %}
+{% asset_img cache-spped.jpeg %}
 
 上面这幅图（[来源](https://www.quora.com/How-fast-can-the-L1-cache-of-a-CPU-reach)）展示了缓存与内存的速度对比，可以看到，L1 Cache 的 latency 只有 0.8ns，而 Memory 有 45.5ns，速度相差 57 倍之多，试想如果 CPU 直接与 Memory 交互，整个世界估计都会变慢。
 
@@ -127,7 +127,101 @@ MESI 协议是一种经典的 Snoopy 一致性协议，他给所有缓存中保�
 
 ### 指令重排
 
+#### Memory reordering
+
+从前文中我们能够知道，CPU 通过操作缓存来优化性能，而为了保持缓存间的一致性，需要通过类似 MESI 的一致性协议来确保缓存中不存在错误的数据。
+
+但是由于 Invalidation Queue 与 Store Buffer 的影响，有些时候：
+
+- 如果在 Invalidation Queue 中暂存的失效事件，被 Cache 响应之前，受影响的数据又被 CPU 读取，导致读到了过期的数据
+- 由于 Store Buffer 的存在，Store 的真实执行时间也许会比看起来要晚
+
+由于上述可能发生的场景，导致真实的执行顺序看起来与指令顺序不一致。
+
+#### Compiler Reordering
+
+通常，在程序编译阶段，编译器也会做出大量的优化，其中就包括了对语句的简化，其简化的主要手段就是对相互不依赖的语句进行优化。
+
+比如，对于语句 `a = 1; b = 2; x = a + b;`而言，第三条语句依赖前两条语句的结果，因此他一定要在前两条语句之后执行，才能保证程序的正确性。但对于互相之间没有依赖的语句，就可以随意的进行重排、合并、省略等等操作了，因为他们不会影响到最终程序执行的结果，例如：
+
+```go
+a := p.x
+...
+b := p.x
+```
+
+可能会被优化为：
+
+```go
+a := p.x
+...
+b := a
+```
+
+但是编译器的优化都只针对单线程程序，多线程程序之间的依赖性，编译器难以获悉。因此假如上述程序的实际执行是这样的：
+
+```go
+thread-1:     |    thread-2:
+a := p.x			|    ...
+...						|		 p.x = p.x + 1
+b := p.x			|    ...
+```
+
+那么如果还是按照前面的办法进行优化 `b := a`，则真实程序的执行顺序看起来就会像是 `p.x = p.x + 1` 在 `b := p.x` 之后才执行。
+
+#### CPU Reordering
+
+我们都知道现代 CPU 在执行指令时，是以指令流水线的模式来运行的。由于执行每一条指令的过程，都可以大致分解为如下阶段：
+
+取指（Fetch，IF）、译码（Decode，ID）、执行（Execute，EX）、存取（Memory，MEM）、写回（Write-Back， WB）
+
+在 CPU 中不同的执行阶段会涉及到不同的功能部件，那么只要我们将指令阶段拆分开，尽量让每一个部件都不空闲的持续运行，就能使性能达到最优：
+
+{% asset_img five-stage-pipeline.png %}
+
+但现实并不总是我们期望的，假如当出现相互依赖的指令时，例如上述的例子： `a = 1; b = 2; x = a + b;`，由于 `x = a + b` 依赖于 `a` 与 `b` 的加载，那么当该指令在流水线中执行时，发现它依赖的数据还没有准备好，就会将流水线中断，中断会导致流水线中所有的环节开始等待，很影响性能。
+
+因此，既然要等待，我们不如将等待的时间用来执行其他的指令，这样就能最大化的减少中断。指令重排序就能实现这一目的。
+
 ### Memory Barries
+
+上一节提到的各个层面的 Reordering，的确能够对性能提升起到极大的帮助，但同时也带来了很多问题。
+
+在多线程场景下，线程间如果存在对共享变量的操作，那么无论是在编译器层面、CPU 层面还是 Cache 层面，如果不做特殊处理，它们都无法保证程序的正确性。
+
+基于此，Memory Barrier 的概念被引入。
+
+Memory Barrier（也称 Memory Fence）是一类 CPU 指令，它能够影响编译器的编译和 CPU 的执行，使得所有在 Memory Barrier 之后的指令，一定不会在 Barrier 之前执行。因此可以认为，Memory Barrier 的引入，能够抑制所有编译器、CPU 以及其他设备的各种优化手段，包括重排序、内存操作的延迟和组合、预测执行、分支预测等等技术。Memory Barrier 能让 CPU 老老实实的按指令顺序执行，当然也就导致了性能的下降，因此通常只有在不得已的情况下才会使用它。
+
+如下几种 Memory Barriers:
+
+1. Write (or store) memory barriers:
+
+   - 只作用于 store 指令。确保所有在 barrier 之前的 store 操作在所有 barrier 之后的 store 操作**之前发生（happen before）**。
+
+   - 从 CPU 的角度看，在所有 barrier 之前的 store 将数据存入内存之后，barrier 后面的 store 才会开始执行。
+
+   - Write memory barrier 通常会与后面将会提到的 Read、Data Dependency barrier 一同使用。
+
+2. Data dependency barriers:
+   - 两个有依赖关系的 load 操作，barrier 之前的 load 会在之后的 load 之前发生。
+   - 在单 CPU 内相互依赖的 load 似乎没有必要加 barrier，但由于 Invalidation Queue 和 Store Buffer 导致缓存一致性协议只能保证最终一致性，因此其他 CPU 的 Cache 可能会先感知到后面的 load，再感知到前面的 load，导致程序错误。
+3. Read (or load) memory barriers:
+   - 只作用于 load 指令。确保所有在 barrier 之前的 load 操作在所有 barrier 之后的 load 操作**之前发生（happen before）**。
+   - Read barrier 隐含了 data dependency barrier。
+4. General memory barriers:
+   - 确保所有在 barrier 之前的 load/store 操作在所有 barrier 之后的 load/store 操作**之前发生（happen before）**。
+   - 是最强的 barrier，它隐含了所有前三种 barriers。
+
+如下是两种隐含类型，
+
+5. ACQUIRE operations（等同于 LOCK）:
+   - 确保所有在 ACQUIRE 之后的内存操作看起来一定在 ACQUIRE 之后发生。
+   - 但 ACQUIRE 之前的内存操作也可能在 ACQUIRE 之后发生
+6. RELEASE operations（等同于 UNLOCK）:
+   - 确保所有在 RELEASE 之前的内存操作看起来一定在 RELEASE 之前发生。
+   - 但 RELEASE 之后的内存操作也可能在 RELEASE 之前发生
+   - 与 ACQUIRE 操作结合，就不再需要内存屏障
 
 ## JMM 的抽象
 
