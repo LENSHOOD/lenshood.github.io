@@ -225,7 +225,27 @@ Memory Barrier（也称 Memory Fence）是一类 CPU 指令，它能够影响编
 
 ## JMM 的抽象
 
+内存模型（Memory Model）是用于在多处理器环境下定义当前处理器对内存的写入是否对其他处理器可见，以及其他处理器对内存的写入是否对当前处理器可见的充分或必要条件。
+
+不同的 CPU 可能会定义不同的内存模型，通常可以分两类：
+
+1. 强内存模型
+
+   支持强内存模型的 CPU （如 x86 系列）通常会持续追踪正在进行中而未完成的内存操作。即强内存模型的 CPU 能够了解他们所定义的内存模型，并可以当某些操作破坏了其内存模型时回滚数据。因此强内存模型的 CPU 设计起来更复杂，但对编码而言更简单。
+
+2. 弱内存模型
+
+   支持弱内存模型的 CPU（如 ARM， POWER 等）为其重排 load/store 操作提供了更大的空间。并且在多核环境下更容易改变程序原本的意图。因此这种内存模型的 CPU 设计起来更简单，但对编码要求更高（通常需要更多的插入 Memory Barrier 来纠正 CPU 的行为）。
+
 ### 抽象的内存划分
+
+Java 语言是运行在 JVM 上的语言，因此 JVM 在设计中需要考虑不同平台下 Java 程序执行的一致性。
+
+因此 Java 在语言层面定义了 Java 的内存模型（Java Memory Model），映射为不同线程之间，哪些操作是合法的，以及线程之间如何通过内存来进行交互。从编译器设计的角度看，JMM 定义了一套规则来约束在什么条件下，不允许对 field 或 monitor 的某些操作指令进行重排序。
+
+通过定义一套语言层面的内存模型，无论 JVM 运行在什么平台下，Java 多线程程序的运行结果都是可以预测的。
+
+
 
 ### Volatile
 
@@ -233,3 +253,10 @@ Memory Barrier（也称 Memory Fence）是一类 CPU 指令，它能够影响编
 
 ## Lock-Free 编程
 
+## Reference
+
+1. [Cache coherency primer](https://fgiesen.wordpress.com/2014/07/07/cache-coherency/)
+2. [The Java Memory Model](http://www.cs.umd.edu/~pugh/java/memoryModel/)
+3. [The JSR-133 Cookbook for Compiler Writers](http://gee.cs.oswego.edu/dl/jmm/cookbook.html)
+4. [既然CPU有缓存一致性协议（MESI），为什么JMM还需要volatile关键字？](https://www.zhihu.com/question/296949412)
+5. [LINUX KERNEL MEMORY BARRIERS](https://www.kernel.org/doc/Documentation/memory-barriers.txt)
