@@ -193,7 +193,7 @@ b := p.x			|    ...
 
 Memory Barrier（也称 Memory Fence）是一类 CPU 指令，它能够影响编译器的编译和 CPU 的执行，使得所有在 Memory Barrier 之后的指令，一定不会在 Barrier 之前执行。因此可以认为，Memory Barrier 的引入，能够抑制所有编译器、CPU 以及其他设备的各种优化手段，包括重排序、内存操作的延迟和组合、预测执行、分支预测等等技术。Memory Barrier 能让 CPU 老老实实的按指令顺序执行，当然也就导致了性能的下降，因此通常只有在不得已的情况下才会使用它。
 
-如下几种 Memory Barriers:
+如下几种 Memory Barriers（来自 Linux Kernel 对 Memory Barriers 的定义）:
 
 1. Write (or store) memory barriers:
 
@@ -245,9 +245,65 @@ Java 语言是运行在 JVM 上的语言，因此 JVM 在设计中需要考虑�
 
 通过定义一套语言层面的内存模型，无论 JVM 运行在什么平台下，Java 多线程程序的运行结果都是可以预测的。
 
+因此在 JMM 中定义了一些线程间可能会发生的 Actions：
 
+- *Read*
+- *Write*
+- *Synchronization actions*
+  - *Volatile Read*
+  - *Volatile Write*
+  - *Lock*
+  - *Unlock*
+  - *The (synthetic) first and last action of a thread*
+  - *Actions that start a thread or detect that a thread has terminated*
+- *External Actions*
+- *Thread divergence actions*
 
-### Volatile
+同时定义了这些 action 之间的 *happens-before* 关系：
+
+- **unlock** *happens-before* 之后的 **lock**
+- **write** volatile *happens-before* 对该 volatile 后续的 **read** 
+- 调用线程的 **`start()`** *happens-before* 该线程中任意的操作
+- 一个线程的所有操作 *happens-before* 任何对该线程 `join()` 返回前的其他线程的操作
+- 任何对象的默认初始化操作 *happens-before* 该对象的其他操作
+
+只要两个操作之间满足 *happens-before* 原则，他们的顺序就是确定的，不会被 reordering，因此就可以说这两个操作之间不存在数据竞争（data race），而当需要满足顺序一致性（sequentially consistent）的操作之间不存在数据竞争时，我们就可以讲这些操作被正确的同步了（correctly synchronized）。
+
+我们对比来看可以发现，实际上满足 *happens-before* 关系的操作，大多数都属于 *Synchronization actions*。
+
+所以要满足 *happens-before* 关系，我们就必须要限制操作之间的 reordering。
+
+### 限制 Reorderings
+
+在 Doug Lea 的 [*The JSR-133 Cookbook for Compiler Writers*](http://gee.cs.oswego.edu/dl/jmm/cookbook.html) 中，作者将 Volatiles 和 Monitors（管程）与普通操作之间可能会发生重排序的情况做了梳理：
+
+| **Can Reorder**                | 2nd                          | -                              | operation                      |
+| ------------------------------ | ---------------------------- | ------------------------------ | ------------------------------ |
+| *1st operation*                | Normal Load<br/>Normal Store | Volatile Load<br/>MonitorEnter | Volatile Store<br/>MonitorExit |
+| Normal Load<br/>Normal Store   |                              |                                | No                             |
+| Volatile Load<br/>MonitorEnter | No                           | No                             | No                             |
+| Volatile Store<br/>MonitorExit |                              | No                             | No                             |
+
+单元格中值为 No 的操作，都需要满足 *happens-before*。
+
+作者又定义了四种 Memory Barriers，并描述了如何使用这四种 Memory Barriers 来实现上表的要求。
+
+- **LoadLoad**：Load1; **LoadLoad**; Load2，使 Load1 的数据在 Load2 及其后所有 Load 操作之前完成装载
+- **StoreStore**：Store1; **StoreStore**; Store2，使 Store1 的数据在 Store2 及其后所有 Store 操作之前完成存储
+- **LoadStore**：Load1; **LoadStore**; Store2，使 Load1 的数据在 Store2 及其后所有 Store 操作之前完成装载
+- **StoreLoad**：Store1; **StoreLoad**; Load2，使 Store1 的数据在 Load2 及其后所有 Load 操作之前完成存储
+
+与前文 Linux Kernel 中的 Memory Barriers 定义相比，Doug Lea 的定义其实也只是另一种划分方法，本质还是类似的。
+
+上述 Memory Barriers 与前表的要求对应后，得到：
+
+| **Can Reorder**                | 2nd         | -            | -                              | operation                      |
+| ------------------------------ | ----------- | ------------ | ------------------------------ | ------------------------------ |
+| *1st operation*                | Normal Load | Normal Store | Volatile Load<br/>MonitorEnter | Volatile Store<br/>MonitorExit |
+| Normal Load<br/>               |             |              |                                | LoadStore                      |
+| Normal Store<br/>              |             |              |                                | StoreStore                     |
+| Volatile Load<br/>MonitorEnter | LoadLoad    | LoadStore    | LoadLoad                       | LoadStore                      |
+| Volatile Store<br/>MonitorExit |             |              | StoreLoad                      | StoreStore                     |
 
 ### Memory Order
 
