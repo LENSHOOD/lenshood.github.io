@@ -277,7 +277,7 @@ Java 语言是运行在 JVM 上的语言，因此 JVM 在设计中需要考虑�
 
 在 Doug Lea 的 [*The JSR-133 Cookbook for Compiler Writers*](http://gee.cs.oswego.edu/dl/jmm/cookbook.html) 中，作者将 Volatiles 和 Monitors（管程）与普通操作之间可能会发生重排序的情况做了梳理：
 
-| **Can Reorder**                | 2nd                          | -                              | operation                      |
+| **Can Reorder**                | 2nd operation                | 2nd operation                  | 2nd operation                  |
 | ------------------------------ | ---------------------------- | ------------------------------ | ------------------------------ |
 | *1st operation*                | Normal Load<br/>Normal Store | Volatile Load<br/>MonitorEnter | Volatile Store<br/>MonitorExit |
 | Normal Load<br/>Normal Store   |                              |                                | No                             |
@@ -288,22 +288,36 @@ Java 语言是运行在 JVM 上的语言，因此 JVM 在设计中需要考虑�
 
 作者又定义了四种 Memory Barriers，并描述了如何使用这四种 Memory Barriers 来实现上表的要求。
 
-- **LoadLoad**：Load1; **LoadLoad**; Load2，使 Load1 的数据在 Load2 及其后所有 Load 操作之前完成装载
-- **StoreStore**：Store1; **StoreStore**; Store2，使 Store1 的数据在 Store2 及其后所有 Store 操作之前完成存储
-- **LoadStore**：Load1; **LoadStore**; Store2，使 Load1 的数据在 Store2 及其后所有 Store 操作之前完成装载
-- **StoreLoad**：Store1; **StoreLoad**; Load2，使 Store1 的数据在 Load2 及其后所有 Load 操作之前完成存储
+- **LoadLoad**：
+  - Load1; **LoadLoad**; Load2
+  - 使 Load1 的数据在 Load2 及其后所有 Load 操作之前完成装载
+  - 类似于前文的 Read Barrier
+- **StoreStore**：
+  - Store1; **StoreStore**; Store2
+  - 使 Store1 的数据在 Store2 及其后所有 Store 操作之前完成存储
+  - 类似于前文的 Write Barrier
+- **LoadStore**：
+  - Load1; **LoadStore**; Store2
+  - 使 Load1 的数据在 Store2 及其后所有 Store 操作之前完成装载
+  - 类似于前文的 Read + Write Barrier
+- **StoreLoad**：
+  - Store1; **StoreLoad**; Load2
+  - 使 Store1 的数据在 Load2 及其后所有 Load 操作之前完成存储
+  - 类似于前文的 Write + Read Barrier
 
-与前文 Linux Kernel 中的 Memory Barriers 定义相比，Doug Lea 的定义其实也只是另一种划分方法，本质还是类似的。
+与前文 Linux Kernel 中的 Memory Barriers 定义相比，作者的定义其实也只是另一种划分方法，本质还是类似的。
 
 上述 Memory Barriers 与前表的要求对应后，得到：
 
-| **Can Reorder**                | 2nd         | -            | -                              | operation                      |
-| ------------------------------ | ----------- | ------------ | ------------------------------ | ------------------------------ |
-| *1st operation*                | Normal Load | Normal Store | Volatile Load<br/>MonitorEnter | Volatile Store<br/>MonitorExit |
-| Normal Load<br/>               |             |              |                                | LoadStore                      |
-| Normal Store<br/>              |             |              |                                | StoreStore                     |
-| Volatile Load<br/>MonitorEnter | LoadLoad    | LoadStore    | LoadLoad                       | LoadStore                      |
-| Volatile Store<br/>MonitorExit |             |              | StoreLoad                      | StoreStore                     |
+| **Can Reorder**                | 2nd operation | 2nd operation | 2nd operation                  | 2nd operation                  |
+| ------------------------------ | ------------- | ------------- | ------------------------------ | ------------------------------ |
+| *1st operation*                | Normal Load   | Normal Store  | Volatile Load<br/>MonitorEnter | Volatile Store<br/>MonitorExit |
+| Normal Load<br/>               |               |               |                                | LoadStore                      |
+| Normal Store<br/>              |               |               |                                | StoreStore                     |
+| Volatile Load<br/>MonitorEnter | LoadLoad      | LoadStore     | LoadLoad                       | LoadStore                      |
+| Volatile Store<br/>MonitorExit |               |               | StoreLoad                      | StoreStore                     |
+
+
 
 ### Memory Order
 
