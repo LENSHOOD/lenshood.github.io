@@ -317,9 +317,51 @@ Java 语言是运行在 JVM 上的语言，因此 JVM 在设计中需要考虑�
 | Volatile Load<br/>MonitorEnter | LoadLoad      | LoadStore     | LoadLoad                       | LoadStore                      |
 | Volatile Store<br/>MonitorExit |               |               | StoreLoad                      | StoreStore                     |
 
+只要遵循上表的要求来插入合适的 Memory Barriers，就能够保证 Volatile 与 Monitor 的 *happens-before* 要求。可见如下示例：
+
+```java
+class X {
+  int a, b;
+  volatile int v, u;
+  void f() {
+    int i, j;
+   
+    i = a;	// load a
+    j = b;	// load b
+    i = v;	// load v
+   					// ### LoadLoad
+    j = u;	// load u
+      			// ### LoadStore
+    a = i;  // store a
+    b = j;  // store b
+      			// ### StoreStore
+    v = i;  // store v
+      			// ### StoreStore
+    u = j;  // store u
+      			// ### StoreLoad
+    i = u;	// load u
+      			// ### LoadLoad
+      			// ### LoadLoad
+    j = b;	// load b
+    a = i;  // store a
+  }
+}
+```
+
 
 
 ### Memory Order
+
+终于要说到 `VarHandle`了！
+
+前面说了那么多内容，其核心有两点：
+
+1. 为了 CPU 更高效的运行，设计者采用独立的 Cache、乱序的指令流水线、编译器优化等多种方式来让 CPU 尽量少等待，多执行。但也因此给并发程序的编写带来了诸多麻烦，可能会导致并发程序的执行结果不符合预期。
+2. 为了应对这种麻烦，设计者又通过 Cache Coherence 协议、Memory Barriers 等技术来尝试解决问题。
+
+伴随着处理器技术的发展，Java 在并发编程的设计上也愈发成熟。从最早的 Monitor 锁，到 volatile 语法，再到更灵活的锁对象以及支持 CAS 操作等等，逐步完善了并发编程的体系。但 Java 的设计者发现，仍然存在许多过度同步的程序（会使程序运行变慢），以及同步不足的程序（会使程序出错），还有些程序会使用与特定的 JVM 或硬件绑定的非标准程序（会使程序变得难以移植）。这些程序的存在让 Java 的设计者考虑引入更多的模型来处理通用的并发编程问题。
+
+所以从 JDK9 开始，引入了几种从弱到强的 Memory Order 来允许程序员更细致的控制程序的同步。
 
 ## Lock-Free 编程
 
@@ -330,3 +372,4 @@ Java 语言是运行在 JVM 上的语言，因此 JVM 在设计中需要考虑�
 3. [The JSR-133 Cookbook for Compiler Writers](http://gee.cs.oswego.edu/dl/jmm/cookbook.html)
 4. [既然CPU有缓存一致性协议（MESI），为什么JMM还需要volatile关键字？](https://www.zhihu.com/question/296949412)
 5. [LINUX KERNEL MEMORY BARRIERS](https://www.kernel.org/doc/Documentation/memory-barriers.txt)
+6. [Using JDK 9 Memory Order Modes](http://gee.cs.oswego.edu/dl/html/j9mm.html)
