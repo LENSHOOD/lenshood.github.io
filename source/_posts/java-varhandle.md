@@ -1,8 +1,9 @@
 ---
-title: 使用 VarHandle 进行更细致 lock-free 编程
+title: Java 9 引入的 Memory Order
 date: 2021-01-27 22:45:22
 tags: 
 - java
+- Memory Order
 - VarHandle
 categories:
 - Java
@@ -341,18 +342,16 @@ class X {
       			// ### StoreLoad
     i = u;	// load u
       			// ### LoadLoad
-      			// ### LoadLoad
+      			// ### LoadStore
     j = b;	// load b
     a = i;  // store a
   }
 }
 ```
 
-
+我们发现，在涉及 `volatile`变量的语句（不论是相同还是不同的的 `volatile` 变量）之间，其代码顺序就是执行顺序。也就是说编译器和 CPU 都无法打乱 `volatile` 的顺序。
 
 ### Memory Order
-
-终于要说到 `VarHandle`了！
 
 前面说了那么多内容，其核心有两点：
 
@@ -361,7 +360,167 @@ class X {
 
 伴随着处理器技术的发展，Java 在并发编程的设计上也愈发成熟。从最早的 Monitor 锁，到 volatile 语法，再到更灵活的锁对象以及支持 CAS 操作等等，逐步完善了并发编程的体系。但 Java 的设计者发现，仍然存在许多过度同步的程序（会使程序运行变慢），以及同步不足的程序（会使程序出错），还有些程序会使用与特定的 JVM 或硬件绑定的非标准程序（会使程序变得难以移植）。这些程序的存在让 Java 的设计者考虑引入更多的模型来处理通用的并发编程问题。
 
-所以从 JDK9 开始，引入了几种从弱到强的 Memory Order 来允许程序员更细致的控制程序的同步。
+所以从 JDK9 开始，引入了几种从弱到强的 Memory Order 来允许程序员更细致的控制程序的同步，它们是：**Plain**，**Opaque**，**Acquire/Release**，**Volatile**，其中 Plain 与 Volatile 的语义兼容了 JDK9 之前的形式（即普通与 volatile）。
+
+JDK9 中，主要通过 `VarHandle` 来实现对变量以不同 Memory Order 来进行访问。
+
+#### VarHandle
+
+`VarHandle`的使用比较简单，只需要将其定义为类的一个静态成员，之后就能通过该 `VarHandle` 来以特定模式访问其他成员变量了：
+
+```java
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+class Point {
+   volatile int x, y;
+   private static final VarHandle X;
+   static {
+     try {
+       X = MethodHandles.lookup().
+           findVarHandle(Point.class, "x",
+                         int.class);
+     } catch (ReflectiveOperationException e) {
+       throw new Error(e);
+     }
+   }
+   // ...
+}
+```
+
+如上所示，`X` 就代表了创建了一个 `VarHandle` 来实现对成员变量 `x` 的访问。
+
+#### Plain
+
+Plain Mode 实际上就是 jdk9 之前对共享变量的常规访问模式。为了四种 Memory Order 的完整性，`VarHandle` 提供了`get()`、`set()` 方法来表示以 Plain 的语义访问变量。
+
+就如果前文所述的，Plain 模式下的指令顺序，除了线程内有依赖关系的语句外，其他都可自由的被重排，例如语句：
+
+```java
+d = (a + b) * (c + b);
+```
+
+从人脑理解角度，可能会被编译为如下机器指令：
+
+```asm
+  1: load a, r1
+  2: load b, r2
+  3: add r1, r2, r3
+  4: load c, r4
+  5: load b, r5
+  6: add r4, r5, r6
+  7: mul r3, r6, r7
+  8: store r7, d
+```
+
+但实际上编译器完全可以将之编译为可乱序的形式：
+
+```asm
+ load a, r1 | load b, r2 | load c, r4 | load b, r5
+ add r1, r2, r3 | add r4, r5, r6
+ mul r3, r6, r7
+ store r7, d
+```
+
+其中 `|` 代表了其左右的指令可以任意交换。
+
+#### Opaque
+
+Opaque 模式提供了比 Plain 稍多一点点的语义限制，即：
+
+- 先行无环：限定对 Opaque 模式访问的变量先行偏序
+
+  ```java
+   r1 = x 
+   x = r2     
+   
+   // 由于 CPU 的流水线执行，x = r2 可能在 r1 = x 之前执行完成，r1 = r2，看起来像是未来的操作影响到了过去
+   // Opaque 模式的读写会避免这种乱序
+  ```
+
+- 一致性：任意对变量的重写操作有序
+
+  ```java
+  int a = 1;
+  int a = 2;
+  
+  // 可能会被优化为
+  int a = 2;
+  
+  // 在 Opaque 模式下不会被优化
+  ```
+
+- 行进：写操作最终会可见
+
+  ```java
+   volatile boolean flag = false; 
+   
+   Thread 1                        |    Thread 2
+   FLAG.setOpaque(this, true)      |    while (!FLAG.getOpaque(this)) {};
+  
+  // 注意，假如 thread-2 以 !FLAG.get(this) 作为条件，while 循环可能会被优化为：
+  // while (!true) {}; 因为编译器并不知道会有另一个线程来修改 flag
+  ```
+
+- 位（bitwise）原子性：对于 `long`、`double` 等 64 bit 长度的类型，Opaque 模式能够让其原子的写入，而不是采用高低位的方式多次写入
+
+#### Release/Acquire (RA)
+
+RA Mode 代表如下语义：
+
+- 假如读/写操作 `A` 在代码中的位置先于 Release 模式的写操作 `W`，那么在线程内 `A` 一定先于 `W` 发生。即在线程内任何内存操作都不能被重排到 Release 写之后。
+- 假如 Acquire 模式的读操作 `R` 在代码中的位置先于读/写操作 `A`，那么在线程内 `R` 一定先于 `A` 发生。即在线程内任何内存操作都不能被重排到 Acquire 读之前。
+
+RA 语义的主旨与许多因果一致性（*causally consistent*）系统是类似的。因果关系在大多数通信形式中必不可少。
+
+举例说明（[来源](http://gee.cs.oswego.edu/dl/html/j9mm.html)）：
+
+“我做了晚餐，之后我告诉你晚餐就绪了，你听到了我的话，所以你能确定存在一份晚餐”。
+
+```java
+ volatile int ready; // Initially 0, with VarHandle READY
+ int dinner;         // mode does not matter here
+
+ Thread 1                   |  Thread 2
+ dinner = 17;               |  if (READY.getAcquire(this) == 1)
+ READY.setRelease(this, 1); |    int d = dinner; // sees 17
+```
+
+假如在更弱的模式下， Thread-2 可能会读取到 `dinner = 0`。
+
+通常我们并不会专门使用一个 `ready` 信号，而是生产者将数据写入一个引用，之后消费者来读取这个引用：
+
+```java
+ class Dinner {
+   int desc;
+   Dinner(int d) { desc = d; }
+ }
+ volatile Dinner meal; // Initially null, with VarHandle MEAL
+
+ Thread 1                   |  Thread 2
+ Dinner f = new Dinner(17); |  Dinner m = MEAL.getAcquire();
+ MEAL.setRelease(f);        |  if (m != null)
+                            |    int d = m.desc; // sees 17
+```
+
+RA 模式的因果关系保证在生产/消费设计、消息传递设计等等很多地方都会用到。但 RA 模式在多个线程写入同一个共享变量的场景下提供足够强的同步保证。RA 模式更多的用于 *ownership* 模型，即只有 *owner* 才能写，其他线程只能读。
+
+#### Volatile
+
+Volatile 模式就是 `volatile` 修饰的变量的默认读写模式。其语义很简单：
+
+- Volatile 模式的内存访问（读写）是完全有序的（*totally ordered*）。
+
+```java
+volatile int x, y; // initially zero, with VarHandles X and Y
+
+Thread 1               |  Thread 2
+X.setM(this, 1);       |  Y.setM(this, 1);
+int ry = Y.getM(this); |  int rx = X.getM(this);
+```
+
+对于上述代码，假如 `M = Volatile`，那么 `rx` 或 `ry` 一定至少有一个为 `1`，因为 Volatile 模式确保两个线程内的语句顺序不会改变。
+
+但假如 `M = Acquire/Release`，则有可能出现  `rx == ry == 0`，因为在 Thread-1 中 `X.setRelease(this, 1);`  只保证在其之前的内存操作不会重排到其后，但却不能阻止 `int ry = Y.getAcquire(this);`  被重排到它之前，Thread-2 亦然。所以可能两个线程执行的第一条语句都是 `get` 语句，导致 `rx == ry == 0`。
 
 ## Lock-Free 编程
 
