@@ -162,10 +162,10 @@ b := a
 但是编译器的优化都只针对单线程程序，多线程程序之间的依赖性，编译器难以获悉。因此假如上述程序的实际执行是这样的：
 
 ```go
-thread-1:     |    thread-2:
-a := p.x			|    ...
-...						|		 p.x = p.x + 1
-b := p.x			|    ...
+thread-1:    |    thread-2:
+a := p.x     |    ...
+...          |		p.x = p.x + 1
+b := p.x     |    ...
 ```
 
 那么如果还是按照前面的办法进行优化 `b := a`，则真实程序的执行顺序看起来就会像是 `p.x = p.x + 1` 在 `b := p.x` 之后才执行。
@@ -330,19 +330,19 @@ class X {
     i = a;	// load a
     j = b;	// load b
     i = v;	// load v
-   					// ### LoadLoad
+            // ### LoadLoad
     j = u;	// load u
-      			// ### LoadStore
+            // ### LoadStore
     a = i;  // store a
     b = j;  // store b
-      			// ### StoreStore
+            // ### StoreStore
     v = i;  // store v
-      			// ### StoreStore
+            // ### StoreStore
     u = j;  // store u
-      			// ### StoreLoad
+            // ### StoreLoad
     i = u;	// load u
-      			// ### LoadLoad
-      			// ### LoadStore
+            // ### LoadLoad
+            // ### LoadStore
     j = b;	// load b
     a = i;  // store a
   }
@@ -430,10 +430,13 @@ Opaque 模式提供了比 Plain 稍多一点点的语义限制，即：
 - 先行无环：限定对 Opaque 模式访问的变量先行偏序
 
   ```java
-   r1 = x 
-   x = r2     
+   X3 = X1 / X2
+   X5 = X4 * X3
+   X4 = X0 + X6    
    
-   // 由于 CPU 的流水线执行，x = r2 可能在 r1 = x 之前执行完成，r1 = r2，看起来像是未来的操作影响到了过去
+   // WAR Hazard
+   // 由于 CPU 的流水线执行，multiply 操作要比 add 操作慢，导致 X4 = X0 + X6 先于前两句执行完成，
+   // 使得 X5 = X4 * X3 中的 X4 已经不是程序本意想要读取的值了，看起来像是未来的操作影响到了过去（大多数 CPU 中不会出现这种现象）
    // Opaque 模式的读写会避免这种乱序
   ```
 
