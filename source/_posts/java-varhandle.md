@@ -464,7 +464,8 @@ Opaque 模式提供了比 Plain 稍多一点点的语义限制，即：
   // while (!true) {}; 因为编译器并不知道会有另一个线程来修改 flag
   ```
 
-- 位（bitwise）原子性：对于 `long`、`double` 等 64 bit 长度的类型，Opaque 模式能够让其原子的写入，而不是采用高低位的方式多次写入
+- 位（bitwise）原子性：包括 `long`、`double` 等 8 Byte 长度的类型以及其他类型，Opaque 模式能够确保对其进行原子的读写。
+  根据不同的 CPU 实现，单个 load/store 操作有可能会被拆分，例如在处理某些过长类型，或是内存未对齐时。Opaque 能确保 load/store 原子。
 
 #### Release/Acquire (RA)
 
