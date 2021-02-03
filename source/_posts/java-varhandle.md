@@ -164,7 +164,7 @@ b := a
 ```go
 thread-1:    |    thread-2:
 a := p.x     |    ...
-...          |		p.x = p.x + 1
+...          |    p.x = p.x + 1
 b := p.x     |    ...
 ```
 
@@ -327,11 +327,11 @@ class X {
   void f() {
     int i, j;
    
-    i = a;	// load a
-    j = b;	// load b
-    i = v;	// load v
+    i = a;  // load a
+    j = b;  // load b
+    i = v;  // load v
             // ### LoadLoad
-    j = u;	// load u
+    j = u;  // load u
             // ### LoadStore
     a = i;  // store a
     b = j;  // store b
@@ -340,10 +340,10 @@ class X {
             // ### StoreStore
     u = j;  // store u
             // ### StoreLoad
-    i = u;	// load u
+    i = u;  // load u
             // ### LoadLoad
             // ### LoadStore
-    j = b;	// load b
+    j = b;  // load b
     a = i;  // store a
   }
 }
