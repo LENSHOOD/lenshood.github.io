@@ -19,6 +19,8 @@ categories:
 
 那么，该如何理解 `VarHandle` 、Memory Order、lock-free 这些概念之间的关系呢？接下来我们会从底层说起，一步步将他们串起来。
 
+<!-- more -->
+
 ## CPU 缓存的麻烦
 
 通常 CPU 是无法直接访问内存的，物理结构上，CPU 和内存之间，还隔着一层缓存（Cache）。缓存的目的与我们在应用服务与数据库之间隔一层缓存的目的一样：CPU 和内存的速度差距太大了。而且为了能平滑连接高速设备与低速设备，缓存层通常会分出 L1 L2 L3 层，容量逐层递增，访问速度逐层递减，最后才是内存、硬盘，整体结构像一座金字塔。
@@ -527,6 +529,131 @@ int ry = Y.getM(this); |  int rx = X.getM(this);
 但假如 `M = Acquire/Release`，则有可能出现  `rx == ry == 0`，因为在 Thread-1 中 `X.setRelease(this, 1);`  只保证在其之前的内存操作不会重排到其后，但却不能阻止 `int ry = Y.getAcquire(this);`  被重排到它之前，Thread-2 亦然。所以可能两个线程执行的第一条语句都是 `get` 语句，导致 `rx == ry == 0`。
 
 ## Lock-Free 编程
+
+什么是 lock-free 编程呢？下面这张图诠释的很好（[来源](https://preshing.com/20120612/an-introduction-to-lock-free-programming/)）：
+
+{% asset_img lock-free.png %}
+
+因此对于有对共享内存做交互的多线程程序中，不使用类似互斥量（mutex）这样的技术来阻塞或调度线程的编程技术，就是 lock-free 编程了。
+
+在 lock-free 编程中，会有一些技术点，可见下图：
+
+{% asset_img lock-free-techniques.png %}
+
+###VarHandle 实现的 lock-free 队列
+
+我们看一看在 jdk 源码中 `AbstractQueuedSynchronizer`是如何使用 `VarHandle` 来实现 lock-free 的 CLH 队列的：
+
+```java
+/**
+ * Definition of CLH Node
+ */
+static final class Node {
+
+  volatile int waitStatus;
+  volatile Node prev;
+  volatile Node next;
+  volatile Thread thread;
+  Node nextWaiter;
+
+  ... ...
+
+  /** CASes next field. */
+  final boolean compareAndSetNext(Node expect, Node update) {
+    return NEXT.compareAndSet(this, expect, update);
+  }
+
+  final void setPrevRelaxed(Node p) {
+    PREV.set(this, p);
+  }
+
+  // VarHandle mechanics
+  private static final VarHandle NEXT;
+  private static final VarHandle PREV;
+  private static final VarHandle THREAD;
+  private static final VarHandle WAITSTATUS;
+  static {
+    try {
+      MethodHandles.Lookup l = MethodHandles.lookup();
+      NEXT = l.findVarHandle(Node.class, "next", Node.class);
+      PREV = l.findVarHandle(Node.class, "prev", Node.class);
+      THREAD = l.findVarHandle(Node.class, "thread", Thread.class);
+      WAITSTATUS = l.findVarHandle(Node.class, "waitStatus", int.class);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
+}
+
+/**
+ * CLH Queue
+ */
+private static final VarHandle STATE;
+private static final VarHandle HEAD;
+private static final VarHandle TAIL;
+
+static {
+  try {
+    MethodHandles.Lookup l = MethodHandles.lookup();
+    STATE = l.findVarHandle(AbstractQueuedSynchronizer.class, "state", int.class);
+    HEAD = l.findVarHandle(AbstractQueuedSynchronizer.class, "head", Node.class);
+    TAIL = l.findVarHandle(AbstractQueuedSynchronizer.class, "tail", Node.class);
+  } catch (ReflectiveOperationException e) {
+    throw new ExceptionInInitializerError(e);
+  }
+
+  // Reduce the risk of rare disastrous classloading in first call to
+  // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
+  Class<?> ensureLoaded = LockSupport.class;
+}
+
+/**
+ * Enqueue
+ */
+private Node addWaiter(Node mode) {
+  Node node = new Node(mode);
+
+  for (;;) {
+    Node oldTail = tail;
+    if (oldTail != null) {
+      node.setPrevRelaxed(oldTail);
+      if (compareAndSetTail(oldTail, node)) {
+        oldTail.next = node;
+        return node;
+      }
+    } else {
+      initializeSyncQueue();
+    }
+  }
+}
+
+private final boolean compareAndSetTail(Node expect, Node update) {
+  return TAIL.compareAndSet(this, expect, update);
+}
+
+private final void initializeSyncQueue() {
+  Node h;
+  if (HEAD.compareAndSet(this, null, (h = new Node())))
+    tail = h;
+}
+
+/**
+ * Dequeue
+ */
+private void setHead(Node node) {
+  head = node;
+  node.thread = null;
+  node.prev = null;
+}
+```
+
+由于在 AQS 中，enqueue 操作可能会由多个线程触发，而 dequeue 操作只有在被唤醒的线程中才会触发，因此不需要额外的同步。
+
+从 enqueue 中我们发现，由于多线程间的竞争，代码中使用了 CAS 来设置 `tail`。但除此之外我们应该注意到，由于 `tail` 以及 Node 内部的 `next` 被定义为 `volatile`， 因此从开始的  `Node oldTail = tail;` 到之后的 `oldTail.next = node;`都能确保所有线程可见，且不会被重排序。
+
+但对于我们新创建的 `node`，由于其本身还没有发布，因此设置 `prev` 的时候并不需要 `volatile` 这么强的语义，所以采用了 Plain 模式。
+
+最后，由于该每个线程对应一个独立的 Node，再加上 GC 环境下，同一地址所指向的一定是同一个对象，因此不再需要考虑 ABA 问题了。
 
 ## Reference
 
