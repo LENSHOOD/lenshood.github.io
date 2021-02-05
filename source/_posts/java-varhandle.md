@@ -118,9 +118,12 @@ MESI 协议是一种经典的 Snoopy 一致性协议，他给所有缓存中保�
 
 如果不采取等待的策略，那么：
 
-- 在 Cache 繁忙时接收到的 Invalidation 事件可以通过一个队列保存，在 Cache 空闲后一一处理。那么就需要在 Cache 中增加一个 **Invalidation Queue**
+- 对于 Cache 的写操作，即 store 操作，相比 load 操作要复杂一些，是一个两阶段的过程：首先想要 store 的 core 必须先拿到 Exclusive 状态的所有权（发出 invalid event，并确保收到其他 core 返回的 invalid response），之后再进行写入动作。
+  - 第一步涉及到一个与其他 core 协商的过程。协商需要等待，因此为了性能考虑，将等待协商的写操作也放入一个队列中，直到可以开始写为止。因此我们需要在 Cache 中增加一个 **Store Buffer**。
+  - 进入 store buffer 的数据被认为已经写入成功了，但当 CPU 想要读取刚刚写入的数据时，Cache 里面可能还没有，所以重新进行设计，让 CPU 可以直接从 store buffer 读取数据，这种设计称为 store forwarding
 - CPU 无需等待 IO 操作完成，而是在这段时间里执行其他的操作以至于不会浪费周期进行空转。这样的话，从指令执行的角度看，CPU 的执行顺序，可能会与程序指令顺序不一致，即乱序执行。
-- 对于 Cache 的写操作，即 store 操作，相比 load 操作要复杂一些，是一个两阶段的过程：首先想要 store 的 core 必须先拿到 Exclusive 状态的所有权，之后再进行写入动作。第一步涉及到一个与其他 core 协商的过程。协商需要等待，因此为了性能考虑，将等待协商的写操作也放入一个队列中，直到可以开始写为止。因此我们还需要在 Cache 中增加一个 **Store Buffer**
+  - 有些情况下我们需要防止这种乱序执行，因此需要通过 memory barrier 来使写入有序，那么，在 barrier 之后的写操作，无论是不是 Shared 状态（不是就不需要和其他 core 协商，可以直接写 Cache），都需要按顺序写入 store buffer 中
+- 如果 store buffer 中积攒的待协商写请求太多，又会导致 store buffer 被占满，而 store buffer 积压的主要原因就是每个 core 的 Cache 都需要将自己对应的数据进行 invalid，之后再发出 invalid response，这在 Cache 繁忙时就太慢了。所以，考虑 Cache 可以将接收到的 Invalidation 事件通过一个队列保存，然后就发出 invalid response，并在 Cache 空闲后一一处理。那么就需要在 Cache 中增加一个 **Invalidation Queue**
 
 最后，我们的 CPU 缓存架构变成了这样：
 
