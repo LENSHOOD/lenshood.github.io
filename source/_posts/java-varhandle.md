@@ -658,6 +658,12 @@ private void setHead(Node node) {
 
 最后，由于该每个线程对应一个独立的 Node，再加上 GC 环境下，同一地址所指向的一定是同一个对象，因此不再需要考虑 ABA 问题了。
 
+### StampedLock 中的 AcquireFence
+
+`StampedLock` 提供了对资源的无锁读、加锁读和加锁写，用这种方式来降低在普通读写锁读多写少的场景下产生的写“饥饿”的情况。
+
+
+
 ## Reference
 
 1. [Cache coherency primer](https://fgiesen.wordpress.com/2014/07/07/cache-coherency/)
