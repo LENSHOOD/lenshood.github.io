@@ -662,7 +662,62 @@ private void setHead(Node node) {
 
 `StampedLock` 提供了对资源的无锁读、加锁读和加锁写，用这种方式来降低在普通读写锁读多写少的场景下产生的写“饥饿”的情况。
 
+通常使用 `StampedLock` 来进行无锁读的使用如下（完整例子源码见 `StampedLock` jdk11 版类注释）：
 
+```java
+class Point {
+  private double x, y;
+  private final StampedLock sl = new StampedLock();
+
+  ... ...
+    
+  // a read-only method
+  // upgrade from optimistic read to read lock
+  double distanceFromOrigin() {
+    long stamp = sl.tryOptimisticRead();
+    try {
+      retryHoldingLock: for (;; stamp = sl.readLock()) {
+        if (stamp == 0L)
+          continue retryHoldingLock;
+        // possibly racy reads
+        double currentX = x;
+        double currentY = y;
+        if (!sl.validate(stamp))
+          continue retryHoldingLock;
+        return Math.hypot(currentX, currentY);
+      }
+    } finally {
+      if (StampedLock.isReadLockStamp(stamp))
+        sl.unlockRead(stamp);
+    }
+  }
+  
+  ... ...
+  
+}
+```
+
+先通过 `tryOptimisticRead` 获取当前 stamp，然后直接读数据，之后用 `validate(stamp)` 来判断当前是否有写操作进行中，如果有则重新尝试读。由于是乐观读，所以并没有加锁，那么对数据的读取与 `validarte` 之间也就不存在 `happens-before` 的关系（注意 `x, y` 并没有被声明为 `volatile`）。
+
+我们来看看 `validate` 的源码：
+
+```java
+private transient volatile long state;
+
+... ...
+
+public boolean validate(long stamp) {
+  VarHandle.acquireFence();
+  return (stamp & SBITS) == (state & SBITS);
+}
+```
+
+我们发现：
+
+1. 添加了一个 AcquireFence
+2. `state` 被定义为`volatile`
+
+回到前面 JMM 的章节我们知道，在 NormalLoad 与 VolatileLoad 之间是不会插入任何 MemoryBarrier 的，因此如果不加 `VarHandle.acquireFence();`这一句，前面的 `double currentX = x; double currentY = y;` 很可能被 reordering 到 `validate` 之后。假如这时有写操作开始写入并修改了 `x, y`，那么读到的当前 stamp 的值就是错误的。
 
 ## Reference
 
