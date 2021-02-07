@@ -543,7 +543,7 @@ int ry = Y.getM(this); |  int rx = X.getM(this);
 
 {% asset_img lock-free-techniques.png %}
 
-###VarHandle 实现的 lock-free 队列
+### VarHandle 实现的 lock-free 队列
 
 我们看一看在 jdk 源码中 `AbstractQueuedSynchronizer`是如何使用 `VarHandle` 来实现 lock-free 的 CLH 队列的：
 
