@@ -410,9 +410,85 @@ final void enqueue(Node node) {
 
 ## Unsafe 支撑
 
+作为 AQS 中对 CLH 队列的操作（包括 lock-free 的入队以及对线程的控制等）的支撑，`jdk.internal.misc.Unsafe` 类承担了绝大多数的职责。
+
+AQS 通过如下语句来获取 `Unsafe`：
+
+```java
+private static final Unsafe U = Unsafe.getUnsafe();
+```
+
 ### CAS
 
+CAS 即 compare and set 或 compare and swap，在 lock-free 编程中有着广泛的应用。
+
+多数 CPU 都提供了具有 CAS 语义的指令，将 compare and set 这样的动作在一条指令中原子的执行，`Unsafe` 中包装了一些 CAS 方法：
+
+- `compareAndSetXXX(Object o, long offset, Object expected, Object x)`：在对象 o 的 offset 处判断当前值是否为 expected，如果是则将其设置为 x，并返回 true，否则返回 false。其中 expected 与 x 根据具体不同的方法，也可以是 primitive 类型
+- `compareAndExchangeXXX(Object o, long offset, Object expected, Object x)`：与 `compareAndSet` 类似的语义。
+- `weakCompareAndSetXXX(Object o, long offset, Object expected, Object x)`：与 `compareAndSet` 类似的语义，但提供了更弱的内存语义，因此在即使实际值与 expected 一致时，也可能会由于内存竞争而失败。
+
+因此，CLH 队列在入队时，由于可能同时有很多个线程尝试入队，因此采用了 CAS 的方法来设置队尾：
+
+```java
+} else if (pred == null) {          // try to enqueue
+  node.waiter = current;
+  Node t = tail;
+  node.setPrevRelaxed(t);         // avoid unnecessary fence
+  if (t == null)
+    tryInitializeHead();
+  else if (!casTail(t, node))
+    node.setPrevRelaxed(null);  // back out
+  else
+    t.next = node;
+}
+```
+
+而由于出队的时候，只会有一个线程参与操作，就不需要 CAS 了：
+
+```java
+if (acquired) {
+  if (first) {
+    node.prev = null;
+    head = node;
+    pred.next = null;
+    node.waiter = null;
+    if (shared)
+      signalNextIfShared(node);
+    if (interrupted)
+      current.interrupt();
+  }
+  return 1;
+}
+```
+
 ### Thread 调度
+
+`Unsafe` 也提供了对线程的调度操作：
+
+```java
+// block current thread
+public native void park(boolean isAbsolute, long time);
+
+// unblock the given thread
+public native void unpark(Object thread);
+```
+
+可以看到，上面的方法可以实现对线程进行 block 或 unblock。这里要回顾一下线程的状态：
+
+- NEW：Thread 还未启动
+- RUNNABLE：从 JVM 的角度看，Thread 正在执行中。但在操作系统层面可能处于等待资源的状态
+- BLOCKED：正在等待 monitor lock 的 Thread。可代表正在等待 `synchronized` 块的 Thread 状态。
+- WAITING：等待其他线程执行动作。如下操作后，Thread 可以进入 WAITING 状态：
+  - `Object.wait()`
+  - `Thread.join()`
+  - `LockSupport.park()`：LockSupport 在 `park()` 中调用了 `Unsafe.park()`
+- TIMED_WAITING：与 WAITING 类似，只不过调用的方法都带有 `wait time`参数
+- TERMINATED：Thread 已经终止。
+
+因此，在`Unsafe.park` 之后，线程就进入了 WAITING 状态。所以在 AQS `acquire` 方法的最后，就是将线程 park。
+
+AQS 中实际使用的 `LockSupport.park()` 与 `Unsfae.park()` 的主要区别在于，`LockSupport.park` 提供了包装逻辑来在等待线程中设置被等待的对象：`blocker` 。`blocker` 可以用于调试、监控等目的。	  
 
 ## 多样的同步器示例
 
