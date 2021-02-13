@@ -489,15 +489,3 @@ public native void unpark(Object thread);
 因此，在`Unsafe.park` 之后，线程就进入了 WAITING 状态。所以在 AQS `acquire` 方法的最后，就是将线程 park。
 
 AQS 中实际使用的 `LockSupport.park()` 与 `Unsfae.park()` 的主要区别在于，`LockSupport.park` 提供了包装逻辑来在等待线程中设置被等待的对象：`blocker` 。`blocker` 可以用于调试、监控等目的。	  
-
-## 多样的同步器示例
-
-### ReentrantLock
-
-### ReadWriteLock
-
-### CountDownLatch
-
-### CyclicBarrier
-
-### Semaphore
