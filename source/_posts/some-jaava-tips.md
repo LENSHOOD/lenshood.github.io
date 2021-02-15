@@ -70,7 +70,10 @@ private static List<String> java9CollectionInit =
             List.of("Dopey", "Doc", "Bashful", "Happy", "Grumpy", "Sleepy", "Sneezy");
 ```
 
+
+
 ## 伪唤醒 （Spurious Wakeup）
+
 首先看一段代码：
 ```java
 public class SpuriousWakeup {
@@ -139,7 +142,10 @@ void correctWaiter() throws InterruptedException {
 > 1. **所有等待线程的类型都相同**：只有一个条件谓词与条件队列相关，并且每个线程在从 wait 返回后将执行相同的操作。
 > 2. **单进单出**: 在条件变量上的每次通知，最多只能唤醒一个线程来执行。
 
+
+
 ## 慎用 Stream.peek()
+
 工作中我经常会遇到这种情况：在使用 Stream 对某个对象集合进行 mapping 时，想要顺便修改其中的数据，例如，想要对一个 list 中对象的某个 field 统一赋值，并取第一个对其进行 mapping：
 ```java
 class SomeClass {
@@ -168,3 +174,104 @@ Optional<OtherClass> first = somelist.stream().peek((e -> e.setA(someA))).map(Ot
 2. 即使使用是正确的，也保不齐在peek之后的终止阶段会因为什么特殊的原因只处理 Stream 中的几个元素。就如同上面的例子，代码的本意可能是对所有元素都setA，并输出第一个，但实际上，只有第一个元素的a值被set了。
 
 基于上述的原因，我们还是按照代码中的 “方法1” 来写逻辑，更加健壮（即使不够简洁）。
+
+
+
+## 伪共享
+
+现代 CPU 都配置了多级 Cache 来提升 Memory 读写的速度（见[Java 9 引入的 Memory Order](https://lenshood.github.io/2021/01/27/java-varhandle/#cpu-%E7%BC%93%E5%AD%98%E7%9A%84%E9%BA%BB%E7%83%A6)第一节）。但 CPU 在从 Memory 中存取数据时，并不是 byte by byte 来存取的，而是通过一个最小的传输单元：Cache Line 来进行操作。
+
+通常大多数 CPU 的 Cache Line Size 都是 64KB，在 Mac terminal 中执行：
+
+```shell
+> sysctl -a | grep cacheline
+hw.cachelinesize: 64
+```
+
+可以得到当前硬件的 Cache Line Size。
+
+以 Cache Line 作为传输单元意味着，假如想要存取某个地址内任意的 1byte 数据，都会一次性操作当前地址所计算出的 Cache Line 空间内的全部 64KB 数据。
+
+Cache Line 的初衷是为了提升程序的性能（类似 prefetch），但同时也可能会导致一些不容易察觉的性能问题。
+
+如下例子中，创建一个非常简单的类：
+
+```java
+public class FalseSharing {
+  volatile long l0;
+  volatile long l8;
+}
+```
+
+我们尝试用两个线程，分别读取不相干的两个共享变量 `l0` 和 `l8`：
+
+```java
+@Test
+public void should_test_performance() throws InterruptedException {
+  int round = 1000 * 1000 * 1000;
+  FalseSharing falseSharing = new FalseSharing();
+
+  Runnable t1 = () -> {
+    int r = round;
+    while (r-- > 0) {
+      falseSharing.l0 = r;
+    }
+  };
+
+  Runnable t2 = () -> {
+    int r = round;
+    while (r-- > 0) {
+      falseSharing.l8 = r;
+    }
+  };
+
+  Thread thread1 = new Thread(t1);
+  Thread thread2 = new Thread(t2);
+
+  long start = System.currentTimeMillis();
+  thread1.start();
+  thread2.start();
+  thread1.join();
+  thread2.join();
+  long end = System.currentTimeMillis();
+
+  System.out.printf("Time consuming: %d\n", end - start);
+}
+```
+
+分别测量 5 次，取平均值得到平均时间消耗：**4677.8ms**
+
+修改被测类为：
+
+```java
+public class FalseSharing {
+  volatile long l0;
+  long l1, l2, l3, l4, l5, l6, l7;
+  volatile long l8;
+}
+```
+
+再进行测试，取 5 次平均值得到平均时间消耗：**1018.2ms**
+
+如果单纯从代码角度，上述现象是讲不通的，但从 Cache Line 的角度来看，多余的 `l1 ~ l7` 这 7 个成员变量，将 `l0` 补齐至完整的一个 Cache Line（Java `long` 类型占 8byte，从 `l0 ~ l7` 正好 8 * 8 = 64 byte，占满了一个 Cache Line）。
+
+在最开始的类中，`l8` 与 `l0` 共享一个 Cache Line，那么当线程 1 （假设在 CPU0 执行）对 `l0` 进行操作时，由于 `volatile` 强制 Cache Flush，导致线程 1（假设在 CPU1 执行）中的 Cache Line 整体失效，因此线程 1 想要操作完全不相干的 `l8` 时，也会强制从内存中读取数据，由于 Memory 与 Cache 巨大的速度差，导致了性能急剧下降。
+
+当我们定义了  `l1 ~ l7`  这几个专门用于 “padding” 的成员变量之后，`l0` 和 `l8` 分属两个不同的 Cache Line，`l0` 的修改也就不会影响到 `l8` 所在 Cache Line 的失效了（虽然定义的`l1 ~ l7` 完全没有被使用，有可能被编译器优化，但我在 openjdk-11 中没有遇到类似的情况）。
+
+#### @Contended
+
+不过为了解决问题，强行增加多个没有程序意义的成员变量，毕竟不够优雅，所以从 java 8 开始，提供了 `@Contended` 注解，来告诉编译器自动 padding。
+
+（在 jdk11 中）`@Contended`位于 `jdk.internal.vm.annotation` 包下，需要在编译参数中增加 `--add-exports java.base/jdk.internal.vm.annotation={Module-Name}` 标志才能正确编译。
+
+最终得到的类如下：
+
+```java
+public class FalseSharing {
+  @jdk.internal.vm.annotation.Contended
+  volatile long l0;
+  volatile long l8;
+}
+```
+
