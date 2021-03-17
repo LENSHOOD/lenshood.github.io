@@ -19,6 +19,8 @@ categories:
 
 作者们使用了一种由 [Leonard Richardson](http://www.crummy.com/) 在 [QCon 大会上介绍 ](http://www.crummy.com/writing/speaking/2008-QCon/act3.html)的“restful 成熟度模型” ，来帮助解释 web-style 系统的特定属性。该模型是理解如何使用这类技术的一个好办法，因此我想尝试用自己的方式来解释它。（这里用到的协议示例仅仅用于展示，我并不觉得它值得用代码和测试来表述，因此在细节上可能存在些许问题。）
 
+<!-- more -->
+
 ### Level 0
 
 成熟度模型的起点，是将 HTTP 用作远程交互的手段，而并不引入任何 web 机制。本质上，在这一层你只是把 HTTP 当做一个管道用在自己的远程交互机制中（通常基于 [Remote Procedure Invocation](http://www.eaipatterns.com/EncapsulatedSynchronousIntegration.html)）。
@@ -226,7 +228,7 @@ Web 所能支持的关键元素是安全操作（如 GET）和非安全操作之
 
 
 
-## Level 3 - Hypermedia Controls
+### Level 3 - Hypermedia Controls
 
 最后一层介绍了一些你经常会听到的东西，其丑陋的缩写是 HATEOAS（作为应用状态引擎的超文本）。它解决了一个问题，即如何从一个时间段列表中获悉如何去预定时间段。
 
@@ -309,7 +311,7 @@ Location: http://royalhope.nhs.uk/slots/1234/appointment
 
 
 
-## The Meaning of the Levels
+### The Meaning of the Levels
 
 我应当强调一下，RMM 虽然是一个思考 REST 元素的好方法，但却并不是 REST 本身层级的定义。Roy Fielding 已经清楚地说过[RMM level 3 是实现 REST 的一个先决条件](http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven)。就像其他很多软件术语一样，REST 有许多种定义，但既然是 Roy Fielding 创造的这个术语，那么他自己的定义应该更有力一些。
 
