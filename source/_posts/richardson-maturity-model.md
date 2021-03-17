@@ -12,7 +12,7 @@ categories:
 
 最近我正在阅读一本我的几个同事一直在写的书的草稿，书名叫 [Rest In Practice](https://www.amazon.com/gp/product/0596805829?ie=UTF8&tag=martinfowlerc-20&linkCode=as2&camp=1789&creative=9325&creativeASIN=0596805829)。他们写这本书的目的，是为了解释怎么样用 Restful web 服务来处理企业中经常面对的许多集成问题。这本书的核心概念是，web 是一种对大规模可扩展分布式系统能够工作良好的一个真实证明，并且，我们能够从中总结出一些如何更简单的构建集成系统的想法。
 
-![img](https://martinfowler.com/articles/images/richardsonMaturityModel/overview.png)
+![](https://martinfowler.com/articles/images/richardsonMaturityModel/overview.png)
 
 *图 1：走向 REST*
 
@@ -23,7 +23,7 @@ categories:
 
 成熟度模型的起点，是将 HTTP 用作远程交互的手段，而并不引入任何 web 机制。本质上，在这一层你只是把 HTTP 当做一个管道用在自己的远程交互机制中（通常基于 [Remote Procedure Invocation](http://www.eaipatterns.com/EncapsulatedSynchronousIntegration.html)）。
 
-![img](https://martinfowler.com/articles/images/richardsonMaturityModel/level0.png)
+![](https://martinfowler.com/articles/images/richardsonMaturityModel/level0.png)
 
 *图 2：Level 0 的一个例子*
 
@@ -96,7 +96,7 @@ HTTP/1.1 200 OK
 
 RMM（Richardson Maturity Model）通往 REST 荣光之路的第一步，是引入资源（resources）。因此相较于之前我们将所有的请求都发往一个相同的 endpoint，现在我们开始讨论单独的资源。
 
-![img](https://martinfowler.com/articles/images/richardsonMaturityModel/level1.png)
+![](https://martinfowler.com/articles/images/richardsonMaturityModel/level1.png)
 
 *图 3：Level 1 添加资源*
 
@@ -154,7 +154,7 @@ HTTP/1.1 200 OK
 
 在 level 0 和 1 的交互过程当中，我已经用到了 HTTP POST 动词，有些人也可能会用 GET 来实现。不过在这两层用哪一种动词都无关紧要，因为他们都是被当做隧道机制通过 HTTP 来承载你的交互动作的。Level 2 更进一步，将 HTTP 动词以尽可能接近于 HTTP 本身的用法来使用。
 
-![img](https://martinfowler.com/articles/images/richardsonMaturityModel/level2.png)
+![](https://martinfowler.com/articles/images/richardsonMaturityModel/level2.png)
 
 *图 4：Level 2 添加 HTTP 动词*
 
@@ -230,7 +230,7 @@ Web 所能支持的关键元素是安全操作（如 GET）和非安全操作之
 
 最后一层介绍了一些你经常会听到的东西，其丑陋的缩写是 HATEOAS（作为应用状态引擎的超文本）。它解决了一个问题，即如何从一个时间段列表中获悉如何去预定时间段。
 
-![img](https://martinfowler.com/articles/images/richardsonMaturityModel/level3.png)
+![](https://martinfowler.com/articles/images/richardsonMaturityModel/level3.png)
 
 *图5：Level 3 添加超媒体控件*
 
