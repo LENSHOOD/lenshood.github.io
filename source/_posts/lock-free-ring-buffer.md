@@ -8,6 +8,8 @@ categories:
 - Go
 ---
 
+> 本文涉及到的代码见：https://github.com/LENSHOOD/go-lock-free-ring-buffer
+
 ## Ring Buffer
 
 Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特性：
@@ -183,11 +185,53 @@ func (r *ring) isFull(tail uint64, head uint64) bool {
 
 
 
-## 非同步下的各种问题
+## 非同步下不可控的调度产生的问题
 
-### 不可控的调度
+由于我们的代码中完全没有用到任何锁或同步块，因此单线程（或正确同步）下的一些代码假设就不再成立：
 
-### ABA
+- 实时性：某两行代码，执行完第一行，下一行会立即执行
+- Happens-before：第一行一定在第二行之前执行（只有添加了 memory barrier 的操作才会限制编译器、CPU 的重排序）
+
+所以上一节的代码看似没问题，实际上是无法通过并发测试的，当我们拿多个线程一边写一边读时，很可能会出现如下两种情况：
+
+1. 结果错误：写入的数据和读出的数据对不上，要么读出的少了，要么同一个值读出好几次
+2. 死锁：致命的问题，用户在使用 ring buffer 时，通常的做法是当 `Offer`/`Poll` 失败后立即重试（或者让出 CPU 等待下一次调度），由于 lock-free，线程没有 park，死锁会导致 CPU 飙升
+
+本节提到的并发测试代码可以见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc_concurrency_test.go)。
+
+### 场景 1：CAS 与 Read/Write Value 不同步
+
+
+
+### 场景 2：Load Tail/Head 与 CAS 不同步（即 ABA）
+
+
+
+### 场景 3：Load Tail 与 Load Head 不同步 
+
+从原理上讲，`tail < head` 这种情况绝对不可能发生（除了边界点 `head=capacity-1`，`tail=0`），但不同线程的视角看到的结果很可能不同：
+
+{% asset_img 2.png %}
+
+正如上图所示，`Consumer 0` 在读取了 `tail=5` 后，本应继续读取 `head`，但由于被调度器出让 cpu，在一段时间内其他几个线程已经执行了数次操作，等到 `Consumer 0` 再次获得 cpu 后，它读到 `head==7`，因此在 `Consumer 0`的视角看，此时的 ring buffer 出现了”不可能“ 情况：`tail==5, head==7`。
+
+重要的是：目前实际上 `tail==head`，表示 buffer 已经全部被读取，不包含有效数据了。但显然在 `Consumer 0` 看来 `tail - head != 0`，所以它不认为 buffer 已经为空，这时它继续工作：
+
+```go
+newHead := (oldHead+1) & r.mask
+if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
+  return nil, false
+}
+
+headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
+```
+
+一切都顺利的执行完成，之后会导致两个结果：
+
+1. 由于 `Poll()` 在读取结束后并没有清空的动作，因此 `Consumer 0` 会读取到已经被读过一次的数据，产生重复消费。
+2. 由于 `CAS(head++)` 正常执行完毕，现在 `head==0`，而 `tail==7`，于是很诡异，`tail - head == capacity-1`， 代表 buffer 已满，所有的`Prouder`都停止工作，然后某个 `Consumer` 再错误的读取一次数据（使`head==1`）然后`Producer` 才能继续工作。
+
+
 
 
 
