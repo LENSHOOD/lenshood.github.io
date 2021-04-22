@@ -201,17 +201,137 @@ func (r *ring) isFull(tail uint64, head uint64) bool {
 
 ### 场景 1：CAS 与 Read/Write Value 不同步
 
+最简单且可能发生的问题就是 `head`/`tail` 已经被更新，但值迟迟没有写入：
 
+{% asset_img 2.png %}
+
+如上图所示，开始状态 buffer 为空，`Consumer` 因为空而停止消费。这时 `Produer` 开始送入数据，显然，图中`Producer` 的 CAS 操作已经成功，`tail++`已经发布给 `Consumer` 。意味着 `Consumer`已经被授权可以继续消费数据了。
+
+但问题在于 `Producer` 并没有完成值的写入，而是被调度暂停。在这期间 `Consumer` 已经完成了数据的读取，那么显然读到了错误的数据。
+
+要解决这样的问题，就在于需要在 `element[]` 的 slot 中告诉 `Producer`/`Consumer` 当前的值是否可用（已被发布/读取）：
+
+```go
+func (r *ring) Offer(v interface{}) bool {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isFull(oldTail, oldHead) {
+		return false
+	}
+
+	newTail := (oldTail+1) & r.mask
+  // ----------- BEGIN --------------
+  tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail])))
+	if tailNode != nil {
+		return false
+	}
+  // ----------- END --------------
+	if !atomic.CompareAndSwapUint64(&r.tail, oldTail, newTail) {
+		return false
+	}
+
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail])), unsafe.Pointer(&v))
+	return true
+}
+
+func (r *ring) Poll() (v interface{}, success bool) {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isEmpty(oldTail, oldHead) {
+		return nil, false
+	}
+
+	newHead := (oldHead+1) & r.mask
+  // ----------- BEGIN --------------
+  headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
+  if headNode == nil {
+		return nil, false
+	}
+  // ----------- END --------------
+	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
+		return nil, false
+	}
+
+  // ----------- BEGIN --------------
+  atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])), nil)
+  // ----------- END --------------
+	return *(*interface{})(headNode), true
+}
+```
+
+`Consumer` 每次读取数据，都要判断是否为 `nil`，如果是则说明新值还有没写入；对应的，`Producer` 在写入之前也要判断值是否不为`nil`，如果是就说明还没有被消费完毕。
+
+`nil` 值就像一道闸门，隔开了生产和消费的过程。
 
 ### 场景 2：Load Tail/Head 与 CAS 不同步（即 ABA）
 
+ABA 问题算是 lock-free 中的经典问题了，讲的就是在 CAS 的时候，需要比较旧值和新值，但当值变化了数次之后，恰巧又变为与旧值相同的值时，CAS 是没法判断到底中间有没有变化的。
 
+{% asset_img 3.png %}
+
+上面的图是说：`Producer 0` 顺利的通过了 `isFull` ，`value == nil` 的检查，准备 CAS，但这时被调度出让执行权，之后其他的 `Producer` 和 `Consumer` 欢快的执行了一整圈，然后 `Producer 0` 又拿到 CPU，开始执行 CAS。
+
+按道理，过了这么久，CAS 必然会执行失败。但很悬的就是，`tail` 转了一圈，现在又恰巧和 `Produer 0` 先前读到的 `oldTail` 一样了，所以 CAS 顺利的执行完成，`Producer 0` 也愉快的写入了他本该在很早以前就写入的值。
+
+但万万没想到的是，`Producer 0` 写入的数据，覆盖掉了原本存在，但没有被读取到的数据，因此 `Consumer 0` 在不知情的情况下读到了重复的数据。这就是典型的 ABA 问题。
+
+怎么解决呢？
+
+通常规避 ABA 问题就是引入版本号或者戳（stamp），这样在实现上让绕了一圈回到旧值的情况不可能或极难发生，就避免了 ABA：
+
+```go
+func (r *ring) Offer(value interface{}) (success bool) {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isFull(oldTail, oldHead) {
+		return false
+	}
+
+	newTail := oldTail + 1
+	tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])))
+	// not published yet
+	if tailNode != nil {
+		return false
+	}
+	if !atomic.CompareAndSwapUint64(&r.tail, oldTail, newTail) {
+		return false
+	}
+
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&value))
+	return true
+}
+
+func (r *ring) Poll() (value interface{}, success bool) {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isEmpty(oldTail, oldHead) {
+		return nil, false
+	}
+
+	newHead := oldHead + 1
+	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])))
+	// not published yet
+	if headNode == nil {
+		return nil, false
+	}
+	if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
+		return nil, true
+	}
+	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead & r.mask])), nil)
+
+	return *(*interface{})(headNode), true
+}
+```
+
+和前文对比看，其实改动很小，原本计算 `tail/head` 是通过对其加一之后按位与 `mask` 来限制其值不会超限。现如今我们不限制`head/tail` 让它们可以无限制的加一，直到达到 `uint64` 的最大值后归零。
+
+但在读写`element[]` 的时候对索引值进行按位与 `mask`，我们可以知道不论 `head/tail` 有多大，按位与 `mask` 之后的索引值一定不会超限导致 `out of range`。看起来似乎逻辑上和先前没差，但实际上由于 `head/tail` 的极限值被极大的增大了，现在再想要发生 ABA 问题，线程调度间隔之间要执行 `2^64` 次读/写，这几乎不可能。
 
 ### 场景 3：Load Tail 与 Load Head 不同步 
 
 从原理上讲，`tail < head` 这种情况绝对不可能发生（除了边界点 `head=capacity-1`，`tail=0`），但不同线程的视角看到的结果很可能不同：
 
-{% asset_img 2.png %}
+
 
 正如上图所示，`Consumer 0` 在读取了 `tail=5` 后，本应继续读取 `head`，但由于被调度器出让 cpu，在一段时间内其他几个线程已经执行了数次操作，等到 `Consumer 0` 再次获得 cpu 后，它读到 `head==7`，因此在 `Consumer 0`的视角看，此时的 ring buffer 出现了”不可能“ 情况：`tail==5, head==7`。
 
