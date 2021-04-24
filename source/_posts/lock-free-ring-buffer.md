@@ -192,12 +192,12 @@ func (r *ring) isFull(tail uint64, head uint64) bool {
 - 实时性：某两行代码，执行完第一行，下一行会立即执行
 - Happens-before：第一行一定在第二行之前执行（只有添加了 memory barrier 的操作才会限制编译器、CPU 的重排序）
 
-所以上一节的代码看似没问题，实际上是无法通过并发测试的，当我们拿多个线程一边写一边读时，很可能会出现如下两种情况：
+所以上一节的代码看似没问题，实际上是无法通过并发测试的（并发测试代码可以见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc_concurrency_test.go)），当我们拿多个线程一边生产一边消费时，很可能会出现如下两种异常情况：
 
-1. 结果错误：写入的数据和读出的数据对不上，要么读出的少了，要么同一个值读出好几次
-2. 死锁：致命的问题，用户在使用 ring buffer 时，通常的做法是当 `Offer`/`Poll` 失败后立即重试（或者让出 CPU 等待下一次调度），由于 lock-free，线程没有 park，死锁会导致 CPU 飙升
+1. 重复消费：已经消费过的数据又一次被消费
+2. 覆盖生产：数据还没有被消费，就被新一次的生产所覆盖
 
-本节提到的并发测试代码可以见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc_concurrency_test.go)。
+上述两种异常都会导致生产的总数据与消费的总数据对不上，产生错误。本节会详细的讨论可能发生上述异常的三个场景，并给出了解决办法。
 
 ### 场景 1：CAS 与 Read/Write Value 不同步
 
@@ -321,6 +321,14 @@ func (r *ring) Poll() (value interface{}, success bool) {
 
 	return *(*interface{})(headNode), true
 }
+
+func (r *ring) isEmpty(tail uint64, head uint64) bool {
+	return tail - head == 0
+}
+
+func (r *ring) isFull(tail uint64, head uint64) bool {
+	return tail - head == r.capacity - 1
+}
 ```
 
 和前文对比看，其实改动很小，原本计算 `tail/head` 是通过对其加一之后按位与 `mask` 来限制其值不会超限。现如今我们不限制`head/tail` 让它们可以无限制的加一，直到达到 `uint64` 的最大值后归零。
@@ -329,36 +337,210 @@ func (r *ring) Poll() (value interface{}, success bool) {
 
 ### 场景 3：Load Tail 与 Load Head 不同步 
 
-从原理上讲，`tail < head` 这种情况绝对不可能发生（除了边界点 `head=capacity-1`，`tail=0`），但不同线程的视角看到的结果很可能不同：
+从原理上讲，`tail < head` 这种情况绝对不可能发生，但不同线程的视角看到的结果很可能不同：
 
+{% asset_img 4.png %}
 
+正如上图所示，`Consumer 0` 在读取了 `tail=3` 后，本应继续读取 `head`，但由于被调度器出让 cpu，在一段时间内其他几个线程已经执行了数次操作，等到 `Consumer 0` 再次获得 cpu 后，它读到 `head==4`，因此在 `Consumer 0`的视角看，此时的 ring buffer 出现了”不可能“ 情况：`tail==3, head==4`。
 
-正如上图所示，`Consumer 0` 在读取了 `tail=5` 后，本应继续读取 `head`，但由于被调度器出让 cpu，在一段时间内其他几个线程已经执行了数次操作，等到 `Consumer 0` 再次获得 cpu 后，它读到 `head==7`，因此在 `Consumer 0`的视角看，此时的 ring buffer 出现了”不可能“ 情况：`tail==5, head==7`。
+重要的是：目前实际上 `tail==head`，表示 buffer 已经全部被读取，不包含有效数据了。但显然在 `Consumer 0` 看来 `tail - head != 0`，所以它不认为 buffer 已经为空，这时它继续工作，只要前一次对 `head=4` 的消费还没有彻底结束（还未将值设置为 `nil`），`Consumer 0` 就会读到错误的数据，产生重复消费。
 
-重要的是：目前实际上 `tail==head`，表示 buffer 已经全部被读取，不包含有效数据了。但显然在 `Consumer 0` 看来 `tail - head != 0`，所以它不认为 buffer 已经为空，这时它继续工作：
+因此我们要修改 `isEmpty`：
 
 ```go
-newHead := (oldHead+1) & r.mask
-if !atomic.CompareAndSwapUint64(&r.head, oldHead, newHead) {
-  return nil, false
+func (r *ring) isEmpty(tail uint64, head uint64) bool {
+	return (tail < head) || (tail - head == 0)
 }
-
-headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
 ```
 
-一切都顺利的执行完成，之后会导致两个结果：
+反过来，从`Producer`的角度看，实际上 `Offer()` 的过程中，也同样会出现 `tail < head` 的情况，但不同的是 `Offer()` 的 CAS 是对 `tail++`，因此只要不是最新的 `tail`，都无法成功的 CAS。 所以 `Offer()` 的时候不会因为 `tail < head` 而写入新数据覆盖旧数据。
 
-1. 由于 `Poll()` 在读取结束后并没有清空的动作，因此 `Consumer 0` 会读取到已经被读过一次的数据，产生重复消费。
-2. 由于 `CAS(head++)` 正常执行完毕，现在 `head==0`，而 `tail==7`，于是很诡异，`tail - head == capacity-1`， 代表 buffer 已满，所有的`Prouder`都停止工作，然后某个 `Consumer` 再错误的读取一次数据（使`head==1`）然后`Producer` 才能继续工作。
+但是由于我们可以预见到但凡 `tail < head` 那么 `Offer()` 一定不会成功，所以 CAS 之前的操作也没必要再做，因此可以再修改 `isFull()`：
 
-
+```go
+func (r *ring) isFull(tail uint64, head uint64) bool {
+	return tail - head >= r.capacity - 1
+}
+```
 
 
 
 ## 性能测试
 
+经过前一节的改造之后，我们的 lock free ring buffer 在并发访问上已经没有问题了，那么接下来我们就会思考：
+
+搞了这么半天，lock-free 的实现与常规的有锁队列相比，性能是否有提升？提升了多少？
+
+由于 ring buffer 本身通常只会作为系统中的一小部分，其性能表现和使用方有很大关系，因此我们在性能测试中，应做好如下的准备：
+
+1. 性能测试代码应尽量排除外部因素的干扰
+2. 需要提供一个比较基准，作为对照组
+
+### 测试本体
+
+完整的测试代码请见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/performance_test.go)。
+
+```go
+func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+	ints := setup()
+
+	counter := int32(0)
+	go manage(b, threadCount, trueCount)
+	b.RunParallel(func(pb *testing.PB) {
+		producer := <-controlCh
+		wg.Wait()
+		for i := 1; pb.Next(); i++ {
+			if producer {
+				buffer.Offer(ints[(i & (len(ints) - 1))])
+			} else {
+				if _, success := buffer.Poll(); success {
+					atomic.AddInt32(&counter, 1)
+				}
+			}
+		}
+	})
+
+	b.StopTimer()
+	b.Logf("Success handover count: %d", counter)
+}
+
+var controlCh = make(chan bool)
+var wg sync.WaitGroup
+func manage(b *testing.B, threadCount int, trueCount int) {
+	wg.Add(1)
+	for i := 0; i < threadCount; i++ {
+		if trueCount > 0 {
+			controlCh <- true
+			trueCount--
+		} else {
+			controlCh <- false
+		}
+	}
+
+	b.ResetTimer()
+	wg.Done()
+}
+```
+
+使用 `go-bench` 的并行测试来测试性能，`manage()` 函数用于通过一个 `controlCh` 来控制实际创建的 `go-routine` 到底是 producer 还是 consumer，我们可以用 `threadCount` 和 `trueCount` 两个参数来控制实际创建的 `go-routine` 总数以及其中 producer 和 consumer 的比例。
+
+对于 producer，生产的数据从一个预先创建好的数组中依次获取。对于 consumer，为了最大程度的排除消费速度对生产速度的限制，consumer 直接将读到的数据丢弃，此外还维护一个 counter，来记录所有消费线程总共成功消费的次数，该 counter 使用 `atomic.AddInt32(&counter, 1)` 实现。
+
+因此，对于性能测试结果的比较，counter 值越大，说明在相同时间内完成的 ”生产 - 消费“ 过程次数越多，性能也就越好。
+
 ### 基准
+
+我们直接将 `go channel` 包装为一个基准 buffer，来作为对比。我们知道 `channel` 的底层是用一个 `mutex` 互斥锁来保护数据的，因此在发生竞争时竞争失败的线程会排队等待。
+
+包装后的`channel`如下所示：
+
+```go
+type fakeBuffer struct {
+	capacity uint64
+	ch chan interface{}
+}
+
+func (r *fakeBuffer) Offer(value interface{}) (success bool) {
+	select {
+	case r.ch <- value:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *fakeBuffer) Poll() (value interface{}, success bool) {
+	select {
+	case v := <-r.ch:
+		return v, true
+	default:
+		return nil, false
+	}
+}
+```
 
 ### 对比
 
+lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试代码，执行 10s，分别执行 10 次取平均值。
+
+对比结果如下：
+
+| Type                  | Counts          |
+| --------------------- | --------------- |
+| Lock-free ring buffer | 181, 470, 790.7 |
+| Channel               | 31, 548, 282.8  |
+
+显然，性能测试表明，限定在前述代码的场景下，我们的 lock-free 方式比有锁方式快 6 倍。
+
 ### 对比另一种实现
+
+除了本文的实现以外，还有一种类似的[实现方式](https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)，将每个元素抽象为一个 `Node` 节点，节点中包含一个计数器，类似于该节点的一个 stamp，每次读/写都会修改对应节点内的 stamp，这样在 `Offer()` 和 `Poll()` 的时候就无须判断整个 buffer 是否 full/empty，而是直接判断当前节点的 stamp 是否与 `head/tail` 相等，若相等就表明可以操作，反之亦然。
+
+对应的 go 代码可见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc.go)。
+
+我们可以注意到在这种实现中，结构定义里通过一些 `_padding` 来与 CPU 的 cache line 对齐，由于这种实现的特点，`Offer()` 的时候只需要读写 `tail`，`Poll()` 的时候只需要读写 `head`，因此将`tail` 与 `head` 分布在不同的 cache line 中有利于更高效的利用 CPU 缓存。
+
+但相比于本文的实现中，`head/tail` 是同时读，分别写，并且由于各种检查条件的存在，读的次数远多于写。因此`head`和`tail`处于同一个 cache line 内反而可以提升读性能（性能测试表明，对于采用 `node` 方式的实现，`_padding` 能够提升大约 12%，而本文实现中，`_padding` 会导致性能降低 13% 左右），因此也就不需要 `_padding` 了。
+
+### 不同参数下的性能对比
+
+
+
+
+
+## MPSC 与 SPMC
+
+在很多场景下，我们面对的可能是 MPSC（multi-producer single-consumer）或是 SPMC （single-producer milti-consumer）的场景。我们可以利用这些特定的场景，来简化一些不必要的操作，从而达到提高性能的目的。
+
+修改 ring buffer，分别得到上述两种场景下的实现方案：
+
+```go
+func (r *hybrid) SingleProducerOffer(valueSupplier func() (v interface{}, finish bool)) {
+	oldTail := r.tail
+	oldHead := atomic.LoadUint64(&r.head)
+	if r.isFull(oldTail, oldHead) {
+		return
+	}
+
+	newTail := oldTail + 1
+	for ; newTail - oldHead < r.capacity; newTail++ {
+		tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])))
+		// not published yet
+		if tailNode != nil {
+			break
+		}
+
+		v, finish := valueSupplier()
+		if finish {
+			break
+		}
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newTail & r.mask])), unsafe.Pointer(&v))
+	}
+	atomic.StoreUint64(&r.tail, newTail - 1)
+}
+
+
+func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
+	oldTail := atomic.LoadUint64(&r.tail)
+	oldHead := r.head
+	if r.isEmpty(oldTail, oldHead) {
+		return
+	}
+
+	currHead := oldHead + 1
+	for ; currHead <= oldTail; currHead++ {
+		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead & r.mask])))
+		// not published yet
+		if currNode == nil {
+			break
+		}
+		valueConsumer(*(*interface{})(currNode))
+		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[currHead & r.mask])), nil)
+	}
+
+	atomic.StoreUint64(&r.head, currHead - 1)
+}
+```
+
+### 性能对比
+
