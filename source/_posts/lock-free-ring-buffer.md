@@ -20,6 +20,8 @@ Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特�
 
 {% asset_img 1.png %}
 
+<!-- more -->
+
 ### Ideology
 
 原理上 Ring Buffer 简单优雅：
@@ -484,9 +486,15 @@ lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试�
 
 ### 不同参数下的性能对比
 
+1. Producer : Consumer = 1:1， capacity 从 2~512 个 slot 的对比：
 
+   {% asset_img 5.png %}
 
+2. capacity = 16， Producer : Consumer = [5:1, 3:1, 2:1, 1:1, 1:2, 1:3, 1:5]  
 
+   {% asset_img 6.png %}
+
+   
 
 ## MPSC 与 SPMC
 
@@ -543,4 +551,18 @@ func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
 ```
 
 ### 性能对比
+
+| Type | Optimization Counts | Original Counts |
+| ---- | ------------------- | --------------- |
+| MPSC | 61469341.2          | 42751717.8      |
+| SPMC | 66424493.3          | 142472264.4     |
+
+有趣的是在 MPSC 的场景下，优化后比优化前性能提升了约 1.5 倍，然而在 SPMC 的场景下，性能却下降了一倍多。
+
+结合前面的性能测试我们能够发现，我们的方案在 producer 数量多于 consumer 时，性能会急剧下降，反之却影响不大。而专门针对 mpsc/spmc 场景优化的代码实际上在两种场景下性能差不多（都是 6000k 左右），因此想要搞清楚得到上面测试结果的原因，还是应该更细致的分析初始方案在 MPSC 下性能差的原因，不过目前这部分工作还没有进展，本文会持续更新。
+
+## Reference
+
+1. [Bounded MPMC queue](https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)
+2. [Bounded Buffer from Caffeine](https://github.com/ben-manes/caffeine/blob/master/caffeine/src/main/java/com/github/benmanes/caffeine/cache/BoundedBuffer.java)
 
