@@ -28,40 +28,40 @@ Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特�
 
 ```go
 type ring struct {
-	head int,
+  head int,
   tail int,
-	element []interface{},
+  element []interface{},
   capacity int
 }
 
 func (r *ring) Offer(value interface{}) {
   // full
-  if tail - head == capacity-1 || tail - head == -1 {
+  if r.tail - r.head == r.capacity-1 || r.tail - r.head == -1 {
     return
   }
   
-  tail++
+  r.tail++
   
   // turn around
-  if tail == capacity-1 {
-  	tail = 0;
-	}
+  if r.tail == r.capacity-1 {
+    r.tail = 0;
+  }
   
-  element[tail] = value
+  element[r.tail] = value
 }
 
 func (r *ring) Poll() interface{} {
   // enpty
-  if (tail == head) {
+  if (r.tail == r.head) {
     return nil
   }
   
-  v := element[head]
-  head++
+  v := element[r.head]
+  r.head++
   
   // turn around
-  if head == capacity-1 {
-  	head = 0;
+  if r.head == r.capacity-1 {
+    r.head = 0;
   }
   return v
 }
@@ -100,7 +100,7 @@ C++ 和 Java 都提供了较为细粒度的 memory order 抽象（[c++ memory or
 ```go
 // 以下的 “XXX” 代表各种不同的类型如：uint32、int64、uintptr、unsafe.Pointer 等等
 func LoadXXX(addr *XXX) (val XXX)
-func StoreInt64(addr *XXX, val XXX)
+func StoreXXX(addr *XXX, val XXX)
 func CompareAndSwapXXX(addr *XXX, old, new XXX) (swapped bool)
 ```
 
@@ -172,16 +172,16 @@ func (r *ring) Poll() (v interface{}, success bool) {
 		return nil, false
 	}
 
-  headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
+	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&r.element[newHead])))
 	return *(*interface{})(headNode), true
 }
 
 func (r *ring) isEmpty(tail uint64, head uint64) bool {
-	return (tail - head) & r.mask == 0
+	return tail == head
 }
 
 func (r *ring) isFull(tail uint64, head uint64) bool {
-	return (tail - head)  & r.mask == r.capacity - 1
+	return tail - head == r.capacity-1 || tail - head == -1
 }
 ```
 
