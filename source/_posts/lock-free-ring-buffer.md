@@ -463,38 +463,46 @@ func (r *fakeBuffer) Poll() (value interface{}, success bool) {
 
 ### 对比
 
-lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试代码，执行 10s，分别执行 10 次取平均值。
+lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试代码（capacity = 16， thread = 12），执行 10s，分别执行 10 次取平均值。
 
 对比结果如下：
 
-| Type                  | Counts          |
-| --------------------- | --------------- |
-| Lock-free ring buffer | 181, 470, 790.7 |
-| Channel               | 31, 548, 282.8  |
+| Type                  | Counts         |
+| --------------------- | -------------- |
+| Lock-free ring buffer | 51, 094, 383.9 |
+| Channel               | 31, 563, 965.2 |
 
-显然，性能测试表明，限定在前述代码的场景下，我们的 lock-free 方式比有锁方式快 6 倍。
+可以看到，性能测试表明，限定在前述代码的场景下，我们的 lock-free 方式比有锁方式快约 1.6 倍。
 
 ### 对比另一种实现
 
-除了本文的实现以外，还有一种类似的[实现方式](https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)，将每个元素抽象为一个 `Node` 节点，节点中包含一个计数器，类似于该节点的一个 stamp，每次读/写都会修改对应节点内的 stamp，这样在 `Offer()` 和 `Poll()` 的时候就无须判断整个 buffer 是否 full/empty，而是直接判断当前节点的 stamp 是否与 `head/tail` 相等，若相等就表明可以操作，反之亦然。
+除了本文的实现以外，还有一种改进的[实现方式（来自 Dmitry Vyukov，golang 的抢占式调度器的贡献者）](https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)，将每个元素抽象为一个 `Node` 节点，节点中包含一个计数器，类似于该节点的一个 stamp，每次读/写都会修改对应节点内的 stamp，这样在 `Offer()` 和 `Poll()` 的时候就无须判断整个 buffer 是否 full/empty，而是直接判断当前节点的 stamp 是否与 `head/tail` 相等，若相等就表明可以操作，反之亦然。
 
 对应的 go 代码可见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc.go)。
 
-我们可以注意到在这种实现中，结构定义里通过一些 `_padding` 来与 CPU 的 cache line 对齐，由于这种实现的特点，`Offer()` 的时候只需要读写 `tail`，`Poll()` 的时候只需要读写 `head`，因此将`tail` 与 `head` 分布在不同的 cache line 中有利于更高效的利用 CPU 缓存。
+我们可以注意到在这种实现中，结构定义里通过一些 `_padding` 来与 CPU 的 cache line 对齐，由于这种实现的特点，`Offer()` 的时候只需要读写 `tail`，`Poll()` 的时候只需要读写 `head`，因此将`tail` 与 `head` 分布在不同的 cache line 中有利于更高效的利用 CPU 缓存（stamp 和 value 都包含在 `Node` 中，也能得益于 cacheline 快速读取）。
 
 但相比于本文的实现中，`head/tail` 是同时读，分别写，并且由于各种检查条件的存在，读的次数远多于写。因此`head`和`tail`处于同一个 cache line 内反而可以提升读性能（性能测试表明，对于采用 `node` 方式的实现，`_padding` 能够提升大约 12%，而本文实现中，`_padding` 会导致性能降低 13% 左右），因此也就不需要 `_padding` 了。
 
 ### 不同参数下的性能对比
 
-1. Producer : Consumer = 1:1， capacity 从 2~512 个 slot 的对比：
+1. Threads = 12，Producer : Consumer = 1:1，Capacity = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 
    {% asset_img 5.png %}
 
-2. capacity = 16， Producer : Consumer = [5:1, 3:1, 2:1, 1:1, 1:2, 1:3, 1:5]  
+2. Threads = 12，Capacity = 16， Producer : Consumer = [5:1, 3:1, 2:1, 1:1, 1:2, 1:3, 1:5]  
 
    {% asset_img 6.png %}
 
-   
+3. Capacity = 16， Producer : Consumer = 1:1，Thread = [2, 4, 6, 8, 10, 12]
+
+   {% asset_img 7.png %}
+
+可以看出改进版方案显然更胜一筹，进一步的测试表明，对 Cacheline 的优化起到了显著的效果，下图是 NodeBasedLFRB 不进行 Cacheline 优化时的性能对比：
+
+{% asset_img 7.png %}
+
+显然没有优化过的性能与本文方案不相伯仲。
 
 ## MPSC 与 SPMC
 
@@ -552,14 +560,17 @@ func (r *hybrid) SingleConsumerPoll(valueConsumer func(interface{})) {
 
 ### 性能对比
 
+Threads = 12 （SPSC 下 Thread = 2），Capacity = 16
+
 | Type | Optimization Counts | Original Counts |
 | ---- | ------------------- | --------------- |
-| MPSC | 61469341.2          | 42751717.8      |
-| SPMC | 66424493.3          | 142472264.4     |
+| MPSC | 56168349.1          | 40081057.2      |
+| SPMC | 12947559.1          | 14480503.2      |
+| SPSC | 44195353.5          | 111587717.1     |
 
-有趣的是在 MPSC 的场景下，优化后比优化前性能提升了约 1.5 倍，然而在 SPMC 的场景下，性能却下降了一倍多。
+有趣的是在 MPSC 的场景下，优化后比优化前性能提升了约 1.4 倍，然而在 SPMC / SPSC 的场景下，性能却有所下降（SPSC 竟然下降了约1.5倍）。
 
-结合前面的性能测试我们能够发现，我们的方案在 producer 数量多于 consumer 时，性能会急剧下降，反之却影响不大。而专门针对 mpsc/spmc 场景优化的代码实际上在两种场景下性能差不多（都是 6000k 左右），因此想要搞清楚得到上面测试结果的原因，还是应该更细致的分析初始方案在 MPSC 下性能差的原因，不过目前这部分工作还没有进展，本文会持续更新。
+结合前面的性能测试我们能够发现，我们的方案在 producer 数量少于 consumer 时，性能会急剧下降，反之却影响不大。因此想要搞清楚得到上面测试结果的原因，还是应该更细致的分析初始方案在 producer 更少的情况下性能差的原因，不过目前这部分工作还没有进展，本文会持续更新。
 
 ## Reference
 
