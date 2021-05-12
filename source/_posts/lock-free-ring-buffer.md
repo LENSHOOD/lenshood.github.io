@@ -498,9 +498,9 @@ lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试�
 
    {% asset_img 7.png %}
 
-可以看出改进版方案显然更胜一筹，进一步的测试表明，对 Cacheline 的优化起到了显著的效果，下图是 NodeBasedLFRB 不进行 Cacheline 优化时的性能对比：
+可以看出改进版方案显然更胜一筹，进一步的测试表明，对 Cacheline 的优化起到了显著的效果，下图是 NodeBasedLFRB 不进行 Cacheline 优化时的性能对比（图未完成）：
 
-{% asset_img 7.png %}
+<-- {% asset_img 7.png %} -->
 
 显然没有优化过的性能与本文方案不相伯仲。
 
