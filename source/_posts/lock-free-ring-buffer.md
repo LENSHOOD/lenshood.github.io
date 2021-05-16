@@ -498,11 +498,13 @@ lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试�
 
    {% asset_img 7.png %}
 
-可以看出改进版方案显然更胜一筹，进一步的测试表明，对 Cacheline 的优化起到了显著的效果，下图是 NodeBasedLFRB 不进行 Cacheline 优化时的性能对比（图未完成）：
+可以看出改进版方案显然更胜一筹，进一步的测试表明，对 Cacheline 的优化起到了显著的效果，下图是 NodeBasedLFRB 不进行 Cacheline 优化时的性能对比（本文的实现作为对照）：
 
-<-- {% asset_img 7.png %} -->
+<-- {% asset_img 8.png %} -->
 
 显然没有优化过的性能与本文方案不相伯仲。
+
+不论是从 go 代码，还是从编译后的汇编代码来看，改进版和初始版实现之间的主要区别都在于改进版通过多记录了每个节点的 `step` 从而减少了一次 `if..else..`（可以减少一些分支预测错误导致的时间惩罚），除此之外并无区别。但正因为 `step` 的存在隔离了 `head` 与 `tail` 的读写，因此得以采用 Cacheline 来优化对这些共享变量的读写。
 
 ## MPSC 与 SPMC
 
