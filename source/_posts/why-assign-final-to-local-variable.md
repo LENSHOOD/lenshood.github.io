@@ -31,7 +31,7 @@ Why Doug Lea(the code writer) did like that? It make no sense!
 
 After some Google, there's one guy said at [StackOverflow](https://stackoverflow.com/questions/2785964/in-arrayblockingqueue-why-copy-final-member-field-into-local-final-variable):
 
-{% asset_img pic-1.png %}
+{% asset_img pic-2.png %}
 
 And open the [thread](http://mail.openjdk.java.net/pipermail/core-libs-dev/2010-May/004165.html), we can see it says it's an "extreme optimization" and can make the compiler to "produces the smallest bytecode".
 
