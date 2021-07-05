@@ -7,7 +7,7 @@ tags:
 - isolation level
 - mysql
 categories:
-- MySQL
+- DB
 ---
 
 ## MySQL 的事务隔离级别
@@ -26,8 +26,8 @@ categories:
   - 对于其他的搜索条件，InnoDB 会锁住整个范围，使用 gap 锁或 next-key 锁来阻塞其他会话对被覆盖范围数据的插入。
 
 - READ COMMITTED
-对于一致性读，设置或读取记录的最新版本快照。
-对于 SELECT...FOR UPDATE（FOR SHARE)、UPDATE 、DELETE 语句，InnoDB 只锁索引记录，不使用 gap 锁。由于不使用 gap 锁，可能会出现幻读（phantom）现象。
+  对于一致性读，设置或读取记录的最新版本快照。
+  对于 SELECT...FOR UPDATE（FOR SHARE)、UPDATE 、DELETE 语句，InnoDB 只锁索引记录，不使用 gap 锁。由于不使用 gap 锁，可能会出现幻读（phantom）现象。
 
   额外影响：
   - 对于 UPDATE 、DELETE 语句，InnoDB 只持有被修改或删除的行的锁。对于未匹配到的记录的锁，会在执行完 WHERE 条件后释放。这极大地降低了（但未消除）死锁发生的概率。
