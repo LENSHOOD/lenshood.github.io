@@ -72,7 +72,27 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
 假如是 `clustering index` （聚集索引）的实现，由于 node 之间的有序性，最佳情况下其数据在磁盘中的实际存储位置也是顺序存储的，那么顺序访问就会非常高效。
 
+当然，如果 leaf node 只是指向了文件 offset，那么对 leaf node 的顺序访问并不代表对文件的顺序访问，这种情况下我们可以将范围内的 leaf node 按 offset 重排序之后再访问，因为多数查询并不要求结果集有序（“无序是关系模型之美” -- Andy Pavlo 如是说），这样就能顺序访问文件了。
+
 #### Insertion
+
+插入动作是一个多步判断的过程：
+
+{% asset_img 4.jpg %}
+
+1. 无论插入的是 internal 还是 leaf node，只要 node 中包含的 key 数量没有超过 `N-1`，那么就可以简单的将其插入：
+
+   {% asset_img 5.jpg %}
+
+2. 一旦插入的 node 已满，这个时候就需要先将 key 插入，之后将 node 从中间一分为二，且：
+
+   - 假如 node 本身是 leaf node，则将分裂出新节点的最左 key 作为新值，插入他们的 parent node
+
+     {% asset_img 6.jpg %}
+
+   - 假如 node 本身是 internal node，则将分裂出新节点的最左 key 移除，插入他们的 parent node
+
+     {% asset_img 7.jpg %}
 
 #### Deletion
 
