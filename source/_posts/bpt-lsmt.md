@@ -150,3 +150,38 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
 ### B+ Tree 与 Buffer Pool
 
+基于前文的描述，我们会发现，B+ Tree 最大的优势，如同其他平衡树一样，就是增删查改的时间复杂度都是`O(logn)` ，这很优秀。我们需要进一步考虑的是，为什么要用 B+ Tree，而不是其他的类似红黑树（甚至是跳表）之类的数据结构呢？
+
+根源主要还是在于存储介质。
+
+磁盘相对来讲还是太慢了。假如数据都仅仅存储在内存中，那么哈希表、树、跳表等结构都完全可以，因为读写数据所花费的时间（相对于磁盘而言）非常快。而在面向磁盘（disk-oriented）的数据库设计中，I/O 开销是需要重点考虑的部分。
+
+{% asset_img 14.png %}
+
+根据上图([来源](https://15445.courses.cs.cmu.edu/fall2019/slides/03-storage1.pdf))的数据，mem 的速度可以达到 disk（hdd）的上万倍。
+
+{% asset_img 15.jpg %}
+
+在根据上图（[来源](https://queue.acm.org/detail.cfm?id=1563874)）从更细分的 sequential 和 random 的角度看，sequential 下 mem 的速度只比 disk 快 10 倍以内，而 random 下差距瞬间扩大到 10 万倍！
+
+鉴于通常我们都无法将数据库中的数据完整的放在 mem 中，因此针对磁盘 I/O 特性而对存储结构进行优化是必须的，通常我们可以想到如下几种方法：
+
+- 缓存层：最容易想到，使用效果通常也最立竿见影。其本质思想就是将热点数据缓存在内存中，以提高访问速度
+- 尽量使用sequential I/O：鉴于 sequential 与 random 巨大的速度差异，我们当然期望尽可能多的将读写都以 sequential I/O 的形式来实施
+- 尽量减少 I/O 次数：每执行一次 I/O 除了操作磁盘本身的开销外，系统调用相关的开销也很可观，因此用 10 次 I/O 每次读取 1 byte 和 1 次 I/O 读取 10 bytes 相比一定慢得多
+
+与操作系统一样，数据库对磁盘数据的管理也是以 `Page` 为单位的，一个 `Page` 的容量从 4kb ~ 64kb 不等，在 B+ Tree 的实现中通常一一个 `Page` 用以代表一个 node，由于 `Page` 容量较大，因此大多数情况下 insert 和 delete 都不会涉及到 split 或 merge。同样的，由于 spilt 和 merge 较少发生，整个 B+ Tree 的层数也就相对较低。
+
+再考虑 B+ Tree 的查找过程，我们会发现从 root 开始逐层向下搜索，每下一层都会读取一个不同的 node，产生一次 I/O，我们无法保证不同 node 能紧凑的存放，因此这种 I/O 是 random I/O。
+
+基于此，**层数越低，I/O 次数越少**。
+
+还记得 leaf node 之间存在前后指针，在理想情况下，leaf node 间的范围读取，可以全部以 sequential 的方式进行，而不需要再通过树来搜索。但随着 B+ Tree 中数据的不断变化，leaf node 之间将逐渐失去顺序的特性，产生**碎片**，这会导致 sequential I/O 逐渐退化为 random I/O，因此需要做碎片整理。
+
+最后，为了尽可能的减少不必要的 disk 访问，引入 Buffer Pool 来做缓存层，代理所有的 disk 访问请求。由于 B+ Tree 的 internal node 只存放 key 和 pointer，占用空间非常小，所以一个 `Page` 中能存放大量 key-pointer pair，这也让 Buffer Pool 中存放下所有的 internal node 成为可能。
+
+假设 Buffer Pool 中存放了所有 internal node，那么每一次点查（point search）**最多**只需要一次 random I/O。
+
+#### Buffer Pool
+
+ {% asset_img 16.png %}
