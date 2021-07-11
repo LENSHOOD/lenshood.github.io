@@ -1,5 +1,5 @@
 ---
-title: 对比 B+ Tree 与 LSM Tree
+title: 对比 B+ Tree 文件组织 / LSM Tree 文件组织（第一篇：B+ Tree）
 date: 2021-07-05 22:42:59
 tags:
 - b+ tree
@@ -22,7 +22,7 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
 首先我们应当知道的是：B+ Tree 中保存的数据是有序的，我们通过 B+ Tree，可以实施查询、顺序访问、插入、删除的操作。
 
-下图所示的就是一颗 B+ Tree （省略了具体的 value 值，下同）：
+下图所示的就是一颗 B+ Tree （只保留 key，省略了具体的 value 值，下同）：
 
 {% asset_img 2.jpg %}
 
@@ -68,7 +68,7 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
 #### Sequential Access
 
-由于 leaf node 中包含了指向下一个 leaf node 的指针，因此对于类似 `select * from tbl where i > 5`这样的 顺序访问，只要找到第一个满足条件的 leaf node 后，就可以直接通过尾指针来定位下一个 node。
+由于 leaf node 中包含了指向下一个 leaf node 的指针，因此对于类似 `select * from tbl where i > 5`这样的 顺序访问，只要找到第一个满足条件的 leaf node 后，就可以直接通过 next 指针来定位下一个 node。
 
 假如是 `clustering index` （聚集索引）的实现，由于 node 之间的有序性，最佳情况下其数据在磁盘中的实际存储位置也是顺序存储的，那么顺序访问就会非常高效。
 
@@ -148,11 +148,13 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
        {% asset_img 13.jpg %}
 
-### B+ Tree 与 Buffer Pool
+### B+ Tree 结合 Buffer Pool 优化性能
 
-基于前文的描述，我们会发现，B+ Tree 最大的优势，如同其他平衡树一样，就是增删查改的时间复杂度都是`O(logn)` ，这很优秀。我们需要进一步考虑的是，为什么要用 B+ Tree，而不是其他的类似红黑树（甚至是跳表）之类的数据结构呢？
+基于前文的描述，我们会发现，B+ Tree 最大的优势，如同其他平衡树一样，就是增删查改的时间复杂度都是`O(logn)` ，这很优秀。
 
-根源主要还是在于存储介质。
+我们需要进一步考虑的是，为什么要用 B+ Tree，而不是其他的类似红黑树（甚至是跳表）之类的数据结构呢？根源主要还是在于存储介质。
+
+#### 优化 B+ Tree 的速度
 
 磁盘相对来讲还是太慢了。假如数据都仅仅存储在内存中，那么哈希表、树、跳表等结构都完全可以，因为读写数据所花费的时间（相对于磁盘而言）非常快。而在面向磁盘（disk-oriented）的数据库设计中，I/O 开销是需要重点考虑的部分。
 
@@ -178,10 +180,54 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
 还记得 leaf node 之间存在前后指针，在理想情况下，leaf node 间的范围读取，可以全部以 sequential 的方式进行，而不需要再通过树来搜索。但随着 B+ Tree 中数据的不断变化，leaf node 之间将逐渐失去顺序的特性，产生**碎片**，这会导致 sequential I/O 逐渐退化为 random I/O，因此需要做碎片整理。
 
+同样的，如果按主键序插入，则都是顺序 I/O（无论是否是 clusterring index），插入效率就会很高（UUID 做主键的另一个弊端）。
+
 最后，为了尽可能的减少不必要的 disk 访问，引入 Buffer Pool 来做缓存层，代理所有的 disk 访问请求。由于 B+ Tree 的 internal node 只存放 key 和 pointer，占用空间非常小，所以一个 `Page` 中能存放大量 key-pointer pair，这也让 Buffer Pool 中存放下所有的 internal node 成为可能。
 
 假设 Buffer Pool 中存放了所有 internal node，那么每一次点查（point search）**最多**只需要一次 random I/O。
 
 #### Buffer Pool
 
- {% asset_img 16.png %}
+{% asset_img 17.png %} {% asset_img 16.png %} 
+
+如上图（[来源](https://15445.courses.cs.cmu.edu/fall2019/slides/05-bufferpool.pdf)）所示，Buffer Pool 正好处于 disk 和 mem 之间，负责代理上层应用对 disk 数据的读写。其下层的 DiskManager 可以作为 Buffer Pool 的一个组件，而 B+ Tree 位于上层的 Access Method 中，因此 B+ Tree 的操作与 Buffer Pool 并不属于同一个层级。
+
+Buffer Pool 的应用，能够为数据库读写带来如下改善：
+
+1. READ：能够极大的降低 read I/O。对于需要被反复访问的热点数据，良好的算法与合理的 Buffer Pool 容量可以使其尽可能地待在内存中，以降低 disk I/O，理想情况下，甚至可以完全避免访问磁盘。
+2. WRITE：与 read 不同，持久化要求 write 操作迟早要落盘，因此 Buffer Pool 能做的更多的是延缓 write 而不能像消除 read I/O 一样消除 write I/O。但正因为延缓了 write，这能让随机的 write 操作被尽量的集中、合并。对同一块数据的多次写入可以仅在内存中完成，最后再刷盘。不同随机块的数据也许在一段时间后满足了顺序写入的要求，可以一次写入完成。
+
+Buffer Pool 可以由如下几个组件构成：
+
+- Page Array：Buffer Pool 的主体，是一大块以 `Page` 为操作单位（称为 Frame）的内存，用于存放数据
+- Free List：用于管理 Page Array 中空闲 Frame 的线性表，期望从 Page Array 中申请 Frame 时优先从 Free List 中获取
+- Page Table：Page id 与 Page Array 中 index（称为 frame id）的映射关系，用于通过 Page id 快速查找数据
+- Disk Manager：和 disk 交互，进行磁盘读写，它可以持有一些 I/O 线程来专门负责 I/O 操作
+- Replacer：当 Page Array full 的时候需要将一些数据换出，以便于换入新数据。替换算法通常有 LRU、Clock 等
+
+有趣的是，在事务型数据库中，为了保证 ACID 事务的 A 和 D，对 Buffer Pool 刷写数据和替换策略的设计上，有如下几种实现方式：
+
+- 换入换出:
+  - No Steal： 某个事务中对 Page 的 uncommitted 修改，在 commit 之前都仅保持在 mem 中，而绝不落盘
+  - Steal：在事务执行过程中，Page 可以随时被换出并落盘
+- 刷写数据：
+  - Force：在某个事务提交时，所有事务中修改的数据都应全部落盘
+  - No Force：事务提交后，其修改也可能还未落盘
+
+为了保证 AD，最简单的实现方式就是 **No Steal + Force**：未提交的事务在 crash 后一定会丢失（因为未落盘），已提交的事务在 crash 后一定会存在（提交时同步落盘）。
+
+但性能会大受影响：
+
+- 由于未提交事务中的 Page 不能被换出，则 Buffer Pool 中需要持有所有当前正在执行事务的 Page，导致同时执行的事务数受限
+- 由于事务提交时都要同步刷盘，则会导致大量的随机 I/O
+
+因此更好的策略是 **Steal + No Force**：Page 可以被随时换入换出，也可以在任意时刻落盘，与事务脱钩。这样性能就可以大幅提升。
+
+为了实现这一点，就需要额外的工作：
+
+- 为了实现 Steal，需要 UNDO log：假如事务还未提交，其修改的值就已经落盘，此时发生 crash，在恢复后需要用 UNDO log 来回滚该执行了一半的事务。
+- 为了实现 No Force，需要 REDO log：假如事务已经提交，但数据还未落盘，此时发生 crash，在恢复后需要用 REDO log 来重做未落盘的事务。
+
+总结下来就是下图（[来源](https://dsf.berkeley.edu/jmh/cs186/f02/lecs/lec25_6up.pdf)）：
+
+{% asset_img 18.png %}
