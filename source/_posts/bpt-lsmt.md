@@ -188,9 +188,11 @@ B+ Tree 是我们比较熟悉的一种数据结构，它以节点（node）为�
 
 #### Buffer Pool
 
-{% asset_img 17.png %} {% asset_img 16.png %} 
+{% asset_img 16.png %} 
 
-如上图（[来源](https://15445.courses.cs.cmu.edu/fall2019/slides/05-bufferpool.pdf)）所示，Buffer Pool 正好处于 disk 和 mem 之间，负责代理上层应用对 disk 数据的读写。其下层的 DiskManager 可以作为 Buffer Pool 的一个组件，而 B+ Tree 位于上层的 Access Method 中，因此 B+ Tree 的操作与 Buffer Pool 并不属于同一个层级。
+如上图（[来源](https://15445.courses.cs.cmu.edu/fall2019/slides/05-bufferpool.pdf)）所示，Buffer Pool 正好处于 disk 和 mem 之间，负责代理上层应用对 disk 数据的读写。其下层的 DiskManager 可以作为 Buffer Pool 的一个组件，而 B+ Tree 位于上层的 Access Method 中，因此 B+ Tree 的操作与 Buffer Pool 并不属于同一个层级。(如下图)
+
+{% asset_img 17.png %} 
 
 Buffer Pool 的应用，能够为数据库读写带来如下改善：
 
