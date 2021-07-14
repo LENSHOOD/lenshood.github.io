@@ -201,6 +201,8 @@ Buffer Pool 的应用，能够为数据库读写带来如下改善：
 
 Buffer Pool 可以由如下几个组件构成：
 
+{% asset_img 18.jpg %}
+
 - Page Array：Buffer Pool 的主体，是一大块以 `Page` 为操作单位（称为 Frame）的内存，用于存放数据
 - Free List：用于管理 Page Array 中空闲 Frame 的线性表，期望从 Page Array 中申请 Frame 时优先从 Free List 中获取
 - Page Table：Page id 与 Page Array 中 index（称为 frame id）的映射关系，用于通过 Page id 快速查找数据
