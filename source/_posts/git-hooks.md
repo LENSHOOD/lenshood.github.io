@@ -9,9 +9,13 @@ categories:
 ---
 
 规范 Git 系列：
+
 [第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
+
 [第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
+
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
+
 [第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 
 <!-- more -->
@@ -46,7 +50,6 @@ git hooks 作为 git 的内置功能，无需额外安装。具体的脚本存�
 	
 2. post-rewrite，post-checkout，post-merge
 	以上三个 post-xxx 的 hook 分别会在1. 对 message 进行修改后 2. checkout 后 3. merge 后 被触发。通常都用于做一些命令完成后的工作，例如设置环境，移动文件，清空目录等。
-	
 ## Any examples ?
 1. 提交前静态检查
 
@@ -225,12 +228,4 @@ BUILD FAILED in 0s
 ## Reference
 https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks
 https://githooks.com/
-
----
-
-规范 Git 系列：
-[第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
-[第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
-[第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
-[第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 

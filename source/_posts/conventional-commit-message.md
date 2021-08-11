@@ -9,9 +9,13 @@ categories:
 ---
 
 规范 Git 系列：
+
 [第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
+
 [第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
+
 [第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
+
 [第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
 
 <!-- more -->
@@ -244,10 +248,3 @@ closes issue #12
 5. [Angular Commit Message Guidelines](https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines)
 6. [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/) 
 
----
-
-规范 Git 系列：
-[第一篇：如何保持公共开发分支的整洁](https://lenshood.github.io/2019/04/08/keep-git-branch-clean/)
-[第二篇：Good Git Commit](https://lenshood.github.io/2019/04/21/good-git-commit/)
-[第三篇：Good Commit Message](https://lenshood.github.io/2019/04/21/conventional-commit-message/)
-[第四篇：Git Hooks](https://lenshood.github.io/2019/05/30/git-hooks/)
