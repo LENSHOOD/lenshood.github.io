@@ -84,7 +84,8 @@ git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git
     	"git config core.hooksPath ./git-hooks".execute()
 	}
 ```
-	> 为什么要这么做呢？ 根据上文，默认情况下 hooks 文件是存放于 .git/hooks 下的，因此存在一个严重的问题，他不会随代码一同提交至远程仓库，因此我们采用改变 hooks 文件目录的形式用于提交。
+
+	为什么要这么做呢？ 根据上文，默认情况下 hooks 文件是存放于 .git/hooks 下的，因此存在一个严重的问题，他不会随代码一同提交至远程仓库，因此我们采用改变 hooks 文件目录的形式用于提交。
 - 在 git-hooks 目录下创建新文件：pre-commit
 ``` shell
     #!/bin/sh

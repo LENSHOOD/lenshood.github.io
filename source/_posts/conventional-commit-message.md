@@ -108,6 +108,7 @@ Date:   Thu Dec 13 14:08:46 2018 +0800
 以下举两个开源项目的规范，作为例子：
 
 1. Spring Boot
+
 > Capitalized, short (50 chars or less) summary
 > 摘要部分大写，尽量短(50 个字符以内)
 >
@@ -142,6 +143,7 @@ Date:   Thu Dec 13 14:08:46 2018 +0800
 
 
 2. OpenStack
+
 > Provide a brief description of the change in the first line.
 > 在第一行提供对修改的简短描述。
 > 
