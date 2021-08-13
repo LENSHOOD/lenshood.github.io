@@ -162,5 +162,86 @@ $S_1 =  $ $C_1$ 的 leaf level 的 size，（以 MByte 计）
 
 
 
-## LevelDB 中的 LSM-Tree
+## 现代 LSM-Tree 实现
+
+*Patrick O'Neil* 等人的论文通过提出 LSM-Tree，开创性的解决了 log 结构存在的问题。但看一看如今的各种数据库中对 LSM-Tree 的实现，似乎都没有采用文中所提到的滚动合并的办法。其原因主要在于实现起来太过复杂。
+
+但 LSM-Tree 本身的 memory + disk 存储的结构、以追加文件的方式提升写性能、证明层级之间保持比例一致等等概念与原则已经影响到了后续所有的 LSM-Tree 实现与改进。
+
+### 数据结构与合并策略
+
+从前文可知，在最初提出的 LSM-Tree 的滚动合并策略中，其 Disk Component 会不断地被更新，因此这种处理方式会增加并发控制与故障恢复的复杂度。
+
+因此在现代的实现中，数据结构大都采用如下的实现：
+
+- Mem Component：使用并发安全的数据结构如 skiplist、B+Tree 等
+- Disk Component：B+Tree 或 SSTable（Sorted String Table），其中 SSTable 使用的会更多
+  - SSTable 通常包含两部分，data block 和 index block，分别用于顺序存放 k-v pair 与对 pair 进行索引
+  - Disk Component 通常是不可变的，因此只可以新增或删除，不允许修改（简化并发控制）
+
+#### 合并
+
+正因为随着各种操作的不断实施，Component 的内容会不断增多，因此需要采用循序渐进的合并，来消除重复数据，减少数据总量。
+
+前面已经讲到，为了降低并发控制和故障恢复的成本，现代的 LSM-Tree 其 disk component 都被限制为不可变，那么也就无法使用最初论文中提到的滚动合并。因此有了如下两种合并策略：
+
+##### 1. Leveling
+
+leveling 策略下，与最初的 disk component 类似，每一层（level）只存在一个 component，它不可修改，只能在容量达到阈值时向下合并。
+
+其中，$Level_{L}$ 的容量是  $Level_{L-1}$ 的 $T$ 倍，因此 $Level_{L}$ 层的 component 将会被来自 $Level_{L-1}$ 层的 component 合并数次，直到其容量达到 $Level_{L}$ 层的最大阈值。
+
+{% asset_img 9.png %}
+
+就如同上图中所示，其中 component 上的标注表示了当前 component 中存放 key 的 range。$Level_0$ 尝试向 $Level_1$ 合并，合并后，$Level_1$  变大，但还未达到其阈值，因此不再向 $Level_2$ 合并。
+
+##### 2. Tiering   
+
+tiering 策略下，每一层都可能存在最多 $T$ 个 components，一旦 components 的数量达到 $T$ ，那么这 $T$ 个 component 将会一并合入下一层。同样的，每一个 component 都不可变。
+
+{% asset_img 10.png %}
+
+如上图所示，$Level_0$ 的 component 数量达到了最大阈值，因此共同合并成为 $Level_1$ 的新的一个 component。
+
+
+
+ ### 优化方案
+
+通过前面的描述，我们或许会发现一些问题：
+
+- 即使存在 Mem Component，但对于冷数据的查询，仍然需要从 Disk Component 中查找，对于一个 n 层的 LSM-Tree，最坏情况下要 n 次随机 IO（查找的 key 不存在时的情况也一样）
+- 如果不只是用作 index 结构，而是直接作为存放数据的结构，数据量会大很多，那么在合并时就可能产生很多问题，比如反复在 memory 与 disk 之间交换数据、阻塞正常操作请求等
+
+基于以上的问题，常见的优化方案有：
+
+##### Bloom Filter
+
+通过布隆过滤器，我们能够用极其少的空间消耗，来表明 key 的不存在性（可以确保不存在，但无法确保存在）。
+
+其主要思想是通过 n 不同的 hash 函数计算同一个输入，得到 n 个位置点，当有查找需求时，如果待查找的 key 通过这 n 个 hash 函数后并没有得到相同的 n 个位置点，那么就能证明该 key 一定不存在与当前数据结构中，反之则不一定。
+
+{% asset_img 11.png %}
+
+我们知道布隆过滤器不存在假阴性（false negative），但会存在假阳性（false positive），对于其假阳性的概率有如下公式计算：
+
+$(1-e^{-kn/m})^k$
+
+其中，$k$ 是 hash 函数的数量，$n$ 是 key 的数量，$m$ 是 bit-slot 的数量。
+
+所以对满足最小假阳性的参数，有：
+
+$k = \frac mnln2$
+
+在实际当中多数系统采用了 $10\ bit/key$ 的设置，那么代入公式后就能得出这种设置的假阳性率仅为 1% 。
+
+由于布隆过滤器非常小的空间占用，以及高效的查询效率，他能极大地提升查询性能。
+
+##### Partitioning
+
+
+
+## Reference
+
+1. [*The Log-Structured Merge-Tree (LSM-Tree)*](https://www.cs.umb.edu/~poneil/lsmtree.pdf) 
+2. [*LSM-based Storage Techniques: A Survey*](https://arxiv.org/pdf/1812.07527.pdf)
 
