@@ -238,6 +238,29 @@ $k = \frac mnln2$
 
 ##### Partitioning
 
+前面提到了，随着层数的增加，Component 逐渐变大导致合并变得低效与缓慢。
+
+分区正是这样一种优化，它讲大的 Component 分解为数个小的部分，这样一来：
+
+- 可以限制合并操作对空间、时间的要求。最早 LSM-Tree 实际上就通过滚动合并实现了对合并数据的限制，分区可以看做是对滚动合并的简化
+- 每一个分区都可以设置特定的 key range，那么我们就可以仅对具有 key 重叠的分区进行合并，这对一些顺序插入或偏斜更新（skewed update）的场景很有用。
+  - 由于不存在重叠，顺序插入甚至不需要合并，只要将足够大的分区向下层移动；
+  - 而对于偏斜更新，不涉及到更新范围的 “冷分区”，其合并的频次也非常低。
+
+leveling 策略下的 partition 方案，是将单个 Component 拆分成多个固定大小的 SSTable，每一个 SSTable 都标记了自己所存储的 key range。
+
+{% asset_img 12.png %}
+
+由于 $Level_0$ 的产生是由 mem component 直接复制得到，因此比较特殊，没有分 key range，其余 $Level$  都按 key range 进行分区。
+
+在进行合并时，选择需要合并 $Level_i$ 的 partition（选择策略可以是任意算法，如 round robin），之后选择 $Level_{i+1}$ 的所有被 key range 覆盖到的 partition，合并后产生 $Level_{i+1}$  新的 SSTable。
+
+对于 tiering 策略的 partitioning，可参见 [*LSM-based Storage Techniques: A Survey*](https://arxiv.org/pdf/1812.07527.pdf)。
+
+
+
+### LevelDB 的实现
+
 
 
 ## Reference
