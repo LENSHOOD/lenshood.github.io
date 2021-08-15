@@ -261,7 +261,43 @@ leveling 策略下的 partition 方案，是将单个 Component 拆分成多个�
 
 ### LevelDB 的实现
 
+Google 在其 [BigTable](https://static.googleusercontent.com/media/research.google.com/en//archive/bigtable-osdi06.pdf) 的论文当中，描述了 BigTable 这种分布式结构化数据存储系统，其 Tablet Server 的存储结构正式采用了 LSM-Tree 来实现。但文中并没有详细的讲述设计细节。
 
+在这之后，Google 的 Sanjay Ghemawat 和 Jeff Dean 两位计算机科学家，共同编写并开源了一个单机版的 k-v 数据库 LevelDB，其设计思想与 BigTable 中所提到的存储设计十分相似。这给了外界对其 LSM-Tree 实现一窥究竟的机会。
+
+LevelDB 用 C++ 编写，代码量不大，实现清晰、简洁。其 API 也十分简单：
+
+- `Put(key,value)`
+- `Get(key)`
+- `Delete(key)`
+
+#### 存储架构
+
+LevelDB 的整体存储架构如下图所示：
+
+{% asset_img 12.png %}
+
+如上图所示，整个架构中，主要由 `MemTable`、`ImmutableMemTable`、`TableCache`、`SSTable`、`WAL`、`FileMeta` 这几种组件构成。
+
+通常写的动作会同时进入 `WAL` 与 `MemTable`。而后续的 `MemTable -> ImmutableMemTable -> SSTable` 的过程，都会在后台线程中完成。
+
+读操作会在 `MemTable`、`ImmutableMemTable`、`TableCache` 中进行，其中 `TableCache` 可以看做是缓存层，当未命中时会在磁盘文件中继续查找。
+
+#### 写入操作
+
+在实际写入之前，首先会判断当前写入空间是否足够，若不足则需要等待。大致的流程见下图：
+
+
+
+#### 读取操作
+
+
+
+#### Compaction
+
+
+
+#### Log、MemTable 与  SST
 
 ## Reference
 
