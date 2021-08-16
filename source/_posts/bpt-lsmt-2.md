@@ -275,7 +275,7 @@ LevelDB 用 C++ 编写，代码量不大，实现清晰、简洁。其 API 也�
 
 LevelDB 的整体存储架构如下图所示：
 
-{% asset_img 12.png %}
+{% asset_img 13.png %}
 
 如上图所示，整个架构中，主要由 `MemTable`、`ImmutableMemTable`、`TableCache`、`SSTable`、`WAL`、`FileMeta` 这几种组件构成。
 
@@ -283,21 +283,94 @@ LevelDB 的整体存储架构如下图所示：
 
 读操作会在 `MemTable`、`ImmutableMemTable`、`TableCache` 中进行，其中 `TableCache` 可以看做是缓存层，当未命中时会在磁盘文件中继续查找。
 
+#### Log、MemTable 与 SST
+
+下文的所有数据结构，都包含了一个基础的数据结构：`Slice`。
+
+`Slice` 可以存放任何类型的数据，唯一的不同是，`Slice` 的定义：
+
+```c++
+class Slice {
+  public:
+    ... ...
+  
+  private:
+    const char* data_;
+    size_t size_;
+}
+```
+
+可见除了数据本身以外，还包含了数据长度信息。
+
+之后的数据结构中，所提到的 “数据”，都指的是 `Slice`。
+
+##### Log File Format
+
+{% asset_img 15.png %}
+
+如上图所示，Log file 是由一个又一个 log-block 构成，每一个 block 的 size 为 32 kiB （最后一个 block 除外）。
+
+每个 block 都包含一个 7 byte 的 header，其中前 4 byte 存放该 block 中数据的 CRC，第 5、6 byte 存放数据长度，第 7 byte 存放数据类型。
+
+其类型包括如下：
+
+- `kFullType`：待插入的数据长度小于当前 block 剩余空间，可以直接完整的插入
+- `kFirstType`：待插入数据长度大于当前 block 剩余空间，且当前 block 放置的是待插入数据的第一部分
+- `kMiddleType`：待插入数据长度大于当前 block 剩余空间，且当前 block 放置的是待插入数据的中间部分
+- `kLastType`：待插入数据长度小于当前 block 剩余空间，但当前 block 放置的是待插入数据的最后一部分
+
+此外，图中的 padding，是因为若当前 block 剩余空间小于 header 的 7 bytes，则直接进行 padding。
+
+##### MemTable
+
+`MemTable` 由于是内存中的数据结构，因此其对具体的空间占用要求并不严格，见如下定义：
+
+```c++
+class MemTable {
+  public:
+   ... ...
+  private:
+    KeyComparator comparator_;
+    int refs_;
+    Arena arena_;
+    SkipList<const char*, KeyComparator> table_;
+}
+```
+
+显然，`MemTable` 实际上是用跳表来存储数据的。从插入、查找效率上讲，跳表与红黑树区别不大，但实现更简单。
+
+properties：
+
+- `comparator_`是当前 `MemTable` 中 key 的比较器
+- `refs_` 是引用计数，用于并发控制
+- `arena_` 跳表实际使用的内存空间
+- `table_`跳表的引用
+
+##### SSTable
+
+
+
 #### 写入操作
 
 在实际写入之前，首先会判断当前写入空间是否足够，若不足则需要等待。大致的流程见下图：
 
+{% asset_img 14.png %}
 
+我们能看到，假如 `MemTable(mem)` 空间不足，会判断是否已经存在 `ImmutableMemTable(imm)`，如果不存在，会把当前 `mem` 转换为 `imm`，并创建一个新的 `mem` 用于本次以及后续的写入。此时会同步触发后台的 `Compaction`，因此 `imm` 主要用于延迟从 memory 到 disk 的合并，提升写入速度。
+
+那么很显然，如果在 `MemTable(mem)` 空间不足的同时，`imm` 也存在，就代表当前已经有 `Compaction` 进行中，所以需要等待。
 
 #### 读取操作
 
+读取操作虽然在代码实现上内容不少（涉及到多种查找动作），但原理上相对简单：
 
+{% asset_img 15.png %}
+
+先在 `mem` 查找，找不到就到 `imm` 查找，再找不到就需要去 `SST` 中查找 （这里隐藏了 `TableCache` 作为缓存层的实现细节）。
 
 #### Compaction
 
 
-
-#### Log、MemTable 与  SST
 
 ## Reference
 
