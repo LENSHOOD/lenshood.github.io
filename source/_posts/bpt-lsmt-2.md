@@ -308,7 +308,7 @@ class Slice {
 
 {% asset_img 15.png %}
 
-如上图所示，Log file 是由一个又一个 log-block 构成，每一个 block 的 size 为 32 kiB （最后一个 block 除外）。
+如上图所示，Log file 是由一个又一个 log-block 构成，每一个 block 的 size 为 32 KB （最后一个 block 除外）。
 
 每个 block 都包含一个 7 byte 的 header，其中前 4 byte 存放该 block 中数据的 CRC，第 5、6 byte 存放数据长度，第 7 byte 存放数据类型。
 
@@ -348,7 +348,41 @@ properties：
 
 ##### SSTable
 
+`SSTable` 的全称是 `Sorted String Table`，因此顾名思义，这种文件结构中存储的是有序的 Strings。
 
+下图描述了 `SSTable` 的文件结构：
+
+{% asset_img 17.png %}
+
+`SST` 的默认大小是2 MB。可以看到 `SST` 中除了 `Footer` 以外，主要存放的就是各种类型的 `Block`。`Block` 可以理解为一次磁盘操作所传输的数据量，类似于 `Page`，默认是 4 KB。
+
+对于 `Block`，有如下结构：
+
+{% asset_img 18.png %}
+
+其结构相对简单，除了数据以外，就是 `type` 与 `CRC`，而 `type` 目前只有是/否压缩两种状态。
+
+对于`SST`中的各种组成部分：
+
+- `DataBlock` 中按顺序放置了实际的数据
+
+- `FilterMetaBlock` 中放置的是各种 filter，如最常见的 Bloom Filter，也可以放置其他用户自定义的 filter
+
+- `MetaIndexBlock` 只有单个 block，其中放置的是各种 filter 数据的具体起始位置
+
+- `IndexBlock` 中存放了每一个 key 的大小与位置，以 `BlockHandle` 结构来表示，其中 `BlockHandle`：
+
+  - ```c++
+    class BlockHandle {
+      public:
+       ... ...
+      private:
+        uint64_t offset_;
+        uint64_t size_;
+    }
+    ```
+
+- `Footer` 中也存放了两个 `BlockHandle` 结构，分别指示了 `MetaIndex` 与 `Index` block 的 size 与在文件中的 offset 信息 
 
 #### 写入操作
 
