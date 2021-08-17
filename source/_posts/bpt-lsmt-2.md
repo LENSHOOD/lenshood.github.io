@@ -1,5 +1,6 @@
 ---
 title: 对比 B+ Tree 文件组织 / LSM Tree 文件组织（第二篇：LSM Tree）
+mathjax: true
 date: 2021-07-18 22:54:52
 tags:
 - b+ tree
@@ -283,6 +284,14 @@ LevelDB 的整体存储架构如下图所示：
 
 读操作会在 `MemTable`、`ImmutableMemTable`、`TableCache` 中进行，其中 `TableCache` 可以看做是缓存层，当未命中时会在磁盘文件中继续查找。
 
+对于 `SSTable` 的结构，单个文件最大 2MB。$Level_0$ 由于是从内存中直接转换而来，比较特殊，默认 4 个文件，超出后就开始尝试合并（Compaction），最多不能超过 12 个文件。
+
+$Level_1$ 的层最大容量限制是 10MB，从 $Level_1$ 开始，每增加一层，其最大容量是上一层的 10 倍。
+
+最大层数默认是 7 层。
+
+根据上述我们就能简单的计算出：$Level_6$ 的最大容量是 $10 * 10^5 = 1000000 MB = 1 TB$ ，而所有层都达到最大的情况下，其空间利用率（数据量/实际存储量）约为 90%。
+
 #### Log、MemTable 与 SST
 
 下文的所有数据结构，都包含了一个基础的数据结构：`Slice`。
@@ -404,10 +413,28 @@ properties：
 
 #### Compaction
 
+{% asset_img 19.png %}
+
+Compaction 的动作，是独立的在一个后台线程中进行的，但每一次 Compact，都是由各种逻辑主动触发。
+
+Compaction 线程通过一个 queue 来获取任务，而这个 “任务”，其实就是执行 Compaction 的函数指针和参数。在没有任务要执行时，后台线程处于 Wait 状态。
+
+根据前文的配置限定，在某一层的总容量超出阈值时，就会从左至右依次选择一个 `SST` 准备向下合并。
+
+这里的 $Level_0$ 层会与其他不同， $Level_0$ 的数据都来自 `ImmutableMemTable`，因此会先将 `imm` 的数据生成一个  $Level_0$ 层的 `SST`，之后由于已经落盘，之前 WAL 中与 `imm` 有关的 log 不再需要了，因此将之删除。在执行完成 $Level_0$ 的 Compaction 后，后台线程会再发送一个触发 Compaction 的任务回到任务队列。
+
+假如 Compaction 发现不存在 `imm` 则正常进行其他 $Level$ 的合并工作：
+
+1. 寻找合适的 $Level$ ，寻找标准就是总容量是否超出阈值
+2. 按顺序（round robin）选取待合并  $Level_n$ 的一个 `SST`，同时根据 overlap 的情况选取 $Level_{n+1}$ 中的数个文件，准备进行合并
+3. 若不存在 overlap，那么就可以简单的将这个 `SST` 挪到下一层即可完成，这种情况称作 `TrivialMove`
+4. 否则，将 `SST` 中的数据根据 range 的实际情况，与$Level_{n+1}$ 中的 `SST` 进行合并即可，过程中可能涉及到创建新的 `SST`
+5. 最后删除无用的文件，完成 Compaction
+
 
 
 ## Reference
 
 1. [*The Log-Structured Merge-Tree (LSM-Tree)*](https://www.cs.umb.edu/~poneil/lsmtree.pdf) 
 2. [*LSM-based Storage Techniques: A Survey*](https://arxiv.org/pdf/1812.07527.pdf)
-
+3. [LevelDB Source](https://github.com/google/leveldb)
