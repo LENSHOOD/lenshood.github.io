@@ -205,8 +205,7 @@ tiering 策略下，每一层都可能存在最多 $T$ 个 components，一旦 c
 如上图所示，$Level_0$ 的 component 数量达到了最大阈值，因此共同合并成为 $Level_1$ 的新的一个 component。
 
 
-
- ### 优化方案
+### 优化方案
 
 通过前面的描述，我们或许会发现一些问题：
 
@@ -315,7 +314,7 @@ class Slice {
 
 ##### Log File Format
 
-{% asset_img 15.png %}
+{% asset_img 16.png %}
 
 如上图所示，Log file 是由一个又一个 log-block 构成，每一个 block 的 size 为 32 KB （最后一个 block 除外）。
 
