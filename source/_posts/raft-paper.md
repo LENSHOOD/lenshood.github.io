@@ -79,35 +79,38 @@ Paxos的第二个问题是它没有为构建实际的实现提供良好的基础
 
 由于这些问题，我们得出结论，Paxos 并不能为构建系统或教学而提供一个好的基础。鉴于共识算法在大规模软件系统中的重要性，我们决定尝试看看是否能自己设计一个更好的替代算法。Raft 就是这一尝试的结果。
 
+
+
 ## 4 为了易懂性而设计
 
-We had several goals in designing Raft: it must provide a complete and practical foundation for system building, so that it significantly reduces the amount of design work required of developers; it must be safe under all conditions and available under typical operating conditions; and it must be efficient for common operations. But our most important goal—and most difficult challenge—was understandability. It must be possible for a large audience to understand the algorithm comfortably. In addition, it must be possible to develop intuitions about the algorithm, so that system builders can make the extensions that are inevitable in real-world implementations
+我们在设计 Raft 中有几点目标：它必须能为构建系统提供一个完整的和实际的基础，这样就能极大的减少对开发者的设计工作要求；他必须能在所有条件下安全，且能在典型的操作条件下可用；它必须在通用操作下高效。不过，我们最重要的目的（也是最困难的挑战）是易懂性。它必须能让大多数人能舒服的理解其算法本质。此外，它还必须能够培养对算法的直觉，使系统构建者可以实施在真实世界当中不可避免的扩展。
 
+在设计 Raft 的过程中，我们存在大量的要点需要在各种替代方案中进行选择。在这种场景下，我们评估替代方案就是基于易懂性：对每一种替代方案，它到底有多难解释（例如，其状态空间有多复杂，是否包含有不清晰的含义？），以及对于读者，完全的理解这种方法及其含义有多容易？
 
+我们意识到在这种分析当中存在很高的主观性；尽管如此，我们使用了两种普适的技术。第一种技术是众所周知的问题拆分法：只要可能，我们就将问题拆成独立的可解决、可解释、可相对独立进行理解的片段。例如，在 Raft 中我们将 leader 选举、log 复制、安全性以及成员变更进行了拆分。
 
-There were numerous points in the design of Raft where we had to choose among alternative approaches. In these situations we evaluated the alternatives based on understandability: how hard is it to explain each alternative (for example, how complex is its state space, and does it have subtle implications?), and how easy will it be for a reader to completely understand the approach and its implications?
-
-
-
-We recognize that there is a high degree of subjectivity in such analysis; nonetheless, we used two techniques that are generally applicable. The first technique is the well-known approach of problem decomposition: wherever possible, we divided problems into separate pieces that could be solved, explained, and understood relatively independently. For example, in Raft we separated leader election, log replication, safety, and membership changes.
-
-
-
-Our second approach was to simplify the state space by reducing the number of states to consider, making the system more coherent and eliminating nondeterminism where possible. Specifically, logs are not allowed to have holes, and Raft limits the ways in which logs can become inconsistent with each other. Although in most cases we tried to eliminate nondeterminism, there are some situations where nondeterminism actually improves understandability. In particular, randomized approaches introduce nondeterminism, but they tend to reduce the state space by handling all possible choices in a similar fashion (“choose any; it doesn’t matter”). We used rando
+我们的第二个方法是通过减少需要考虑的状态数量来简化状态空间，让系统更加连贯且尽可能的消除不确定性。特别的，log 中不允许存在空洞，Raft 也限制了让 log 之间可能变得不连续的途径。尽管我们尽可能的在多数场景下消除了不确定性，但在某些场景下，不确定性实际上提升了易懂性。在实际当中，随机性方法引入了不确定性，但这却趋向于通过以同一种方法处理所有可能的选择，从而减少了状态空间（“选择任何一种，这无关紧要”）。我们采用随机化来简化 Raft 的 leader 选举算法。
 
 
 
 ## 5 Raft 共识算法
 
-Raft is an algorithm for managing a replicated log of the form described in Section 2. Figure 2 summarizes the algorithm in condensed form for reference, and Figure 3 lists key properties of the algorithm; the elements of these figures are discussed piecewise over the rest of this section.
+Raft 是一种以第二节中描述的形式来管理 log 复制的算法。图 2 以简明的形式总结了该算法以供参考，图 3 列举了该算法的关键属性；这些图中的元素将在本节的其余部分中分段讨论。
 
+Raft 通过首先选举出一个重要的 leader，并让该 leader 全权负责管理 log 复制，来实现共识。leader 从客户端处接受 log entries，将其复制到其他服务器上，并且通知它们何时将 log entries 应用到状态机中是安全的。拥有一个 leader 简化了对 log 复制的管理。比如，leader可以在不咨询其他服务器的情况下决定在日志中放置新条目的位置，数据以简单的方式从leader流向其他服务器。leader 可能会失效或与其他服务器断开连接，这时，新的 leader 将被选举出来。
 
+鉴于这种 leader 的方法，Raft 将共识问题分解成了三个相对独立的小问题，将在一下小节中进行讨论：
 
-Raft implements consensus by first electing a distinguished leader, then giving the leader complete responsibility for managing the replicated log. The leader accepts log entries from clients, replicates them on other servers, and tells servers when it is safe to apply log entries to their state machines. Having a leader simplifies the management of the replicated log. For example, the leader can decide where to place new entries in the log without consulting other servers, and data flows in a simple fashion from the leader to other servers. A leader can fail or become disconnected from the other servers, in which case a new leader is elected. 
+- **leader 选举**：当现存的 leader 失效时，一个新的 leader 必须要被选出。（5.2 小节）
+- **log 复制**：leader 必须从客户端接受 log entries 并且将其在整个集群之间复制，强制其他的 log 与自己的保持一致（5.3 小节）
+- **安全**：Raft 的关键安全属性是图 3 中的 “State Machine Safety Property”：假如任何服务器已经将某个特定的 log entry 应用于其状态机上，那么任何其他的服务器都不可能再在同一个 log index 上应用一个不同的命令了。5.4 小节描述了 Raft 是怎么确保这一属性的；解决方案涉及了一个在5.2 节描述的选举机制上的额外的限制。
 
+在展示了共识算法之后，这一节将讨论可用性问题以及时间在系统中的作用。
 
+{% asset_img 2.png %}
 
-Given the leader approach, Raft decomposes the consensus problem into three relatively independent subproblems, which are discussed in the subsections that follow:
+**图 2**：Raft 共识算法的一个简明总结（除了成员变更与 log 压缩）。左上框中的服务器行为描述为一组独立且重复触发的规则。章节编号，如§5.2，表明讨论特定特性的位置。一个正式的规范[31]更精确地描述了该算法。
 
+{% asset_img 3.png %}
 
-
+**图 3**：Raft 保证这些属性中的每一个在所有时间里都为 true。小节编号表明每一个属性讨论的具体位置。
