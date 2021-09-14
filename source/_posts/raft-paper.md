@@ -266,55 +266,35 @@ broadcastTime 和 MTBF 属于底层系统的属性，而 electionTimeout 则必�
 
 为了保证安全，配置变更必须使用两阶段的方式。有很多具体的实现方法可以实施两阶段。比如，一些系统（例如, [22]）在第一个阶段禁用旧配置，因此这时集群无法响应客户端请求；然后在第二个阶段使新配置生效。在 Raft 中，集群首先切换到一种过度配置，我们称之为联合共识（joint consensus）；一旦联合共识被成功提交，之后系统就可以转换为新的配置。联合共识阶段合并了旧配置与新配置：
 
-• Log entries are replicated to all servers in both configurations.
+- log entries 会复制到所有两种配置找你哥指定的服务器上。
 
-• Any server from either configuration may serve as leader. 
+- 两种配置中的任一服务器可能会成为 leader。
 
-• Agreement (for elections and entry commitment) requires separate majorities from both the old and new configurations.
+- 为了达成一致（用于选举和 entry 提交），要求分别获得旧的和新的配置中的大多数。
 
+联合共识允许单个服务器在不同的时间与不同的配置之间转换，而不会影响安全性。此外，联合共识允许整个集群在配置变更的过程中依然能服务客户端请求。
 
+集群的配置通过 log 复制特殊的 entries 来进行存储与传递；图 11 展示了配置变更的过程。当 leader 收到一个将配置从 $C_{old}$ 变更到 $C_{new}$ 的请求时，它将其作为用于联合共识（图中的 $C_{old, new}$ ）的配置存储为 log entry 然后将这个 entry 采用之前描述过的机制进行复制。一旦某个服务器将这个新的配置 entry 添加到其 log 中后，它就将这个配置应用到所有未来的决策当中（服务器总是会使用其 log 当中最近的配置，无论该配置 entry 是否被提交）。这意味着 leader 将会使用 $C_{old, new}$ 中的规则来决定 $C_{old, new}$ 中的 log entry 在何时会被提交。假如该 leader 崩溃了，一个新的 leader 将会基于  $C_{old}$ 或  $C_{old, new}$  的配置来被选举，这主要依赖于获胜的服务器是否已经接收到了  $C_{old, new}$ 的配置。在任何情况下， $C_{new}$ 都不能在此期间做出单方面的决定。
 
-The joint consensus allows individual servers to transition between configurations at different times without compromising safety. Furthermore, joint consensus allows the cluster to continue servicing client requests throughout the configuration change
+{% asset_img 11.png %}
 
+**图 11**：配置变更时间线。虚线显示已创建但未提交的配置 entry，实线显示最近提交的配置 entry。leader 首先在其自己的 log 中创建了 $C_{old, new}$  配置 entry，然后将其提交到 $C_{old, new}$ （$C_{old}$  的大多数和 $C_{new}$  的大多数）。之后它创建了 $C_{new}$  的 entry 并且将之提交到$C_{new}$  的大多数中。并不存在任何一个 $C_{old}$  和 $C_{new}$  都能独立的做出决定的时间点。
 
+一旦 $C_{old, new}$  被提交后，不论是 $C_{old}$  还是 $C_{new}$ 都不能在拿到对方的许可前做出任何决定， 而 Leader Completeness Property 则确保了只有处于 $C_{old, new}$ 配置下的服务器，才能被选为 leader。现在当 leader 创建 $C_{new}$ 的 log entry 并尝试复制到集群是，就是安全的了。同样，一旦看到此配置，它将在每个服务器上生效。当新配置根据 $C_{new}$ 的规则被提交后，旧的配置就无关了，而未处于新配置中的服务器就可以被关闭。如图 11 所示，$C_{old}$ 和 $C_{new}$ 都不能单方面做出决定；这保证了安全。
 
-Figure 11: Timeline for a configuration change. Dashed lines show configuration entries that have been created but not committed, and solid lines show the latest committed configuration entry. The leader first creates the Cold,new configuration entry in its log and commits it to Cold,new (a majority of Cold and a majority of Cnew). Then it creates the Cnew entry and commits it to a majority of Cnew. There is no point in time in which Cold and Cnew can both make decisions independently
+对于重新配置，还有三个问题需要解决。第一个问题是，新加入的服务器可能还没有初始化存储任何 log entries。假如它就以这样的状态加入集群，那么需要很长一段时间才能赶上其他的服务器，在此期间可能无法提交新的 log entries。为了避免这种可用性缺口，Raft 在配置变更前引入了一个额外的阶段，来让新的服务器以非投票成员的角色加入集群（leader 仍然会复制 log 给它们，但它们不会被认为是大多数中的一员）。一旦这个新服务器赶上了集群中其他的服务器，配置变更过程就能够按先前描述的方式进行。
 
+第二个问题是，集群的 leader 也许并不是新配置中的一员。在这种情况下，一旦当 leader 的  $C_{new}$ log entry 被提交之后，它就会退出（回到 follower 状态）。这意味着会有一段时间里（在 leader 提交  $C_{new}$ 的这段时间），有一个不属于集群的 leader，在管理着整个集群；它一边在复制 log，而复制过程中自己却不被计算在大多数中。当  $C_{new}$ 被提交后，leader 过渡将开始，因为这是新配置可以独立运行的第一个时间点（总是能从 $C_{new}$ 中选举一个 leader）。在这个时间点以前，可能只有来自 $C_{old}$ 的服务器才能当选领导人。
 
+第三个问题是，移除服务器（不在  $C_{new}$ 当中的）可能会扰乱整个集群。这些服务器将不再会收到心跳，因此他们会超时，并发起新的选举。之后他们会发送包含了新的 term 编号的 RequestVote RPC，这将导致当前的 leader 被迫回退到 follower 状态。一个新的 leader 最终将被选出，但这些被移除的服务器会再次超时，而这样的流程会不断的重复，最终导致可用性变差。
 
-Cluster configurations are stored and communicated using special entries in the replicated log; Figure 11 illustrates the configuration change process. When the leader receives a request to change the configuration from Cold to Cnew, it stores the configuration for joint consensus (Cold,new in the figure) as a log entry and replicates that entry using the mechanisms described previously. Once a given server adds the new configuration entry to its log, it uses that configuration for all future decisions (a server always uses the latest configuration in its log, regardless of whether the entry is committed). This means that the leader will use the rules of Cold,new to determine when the log entry for Cold,new is committed. If the leader crashes, a new leader may be chosen under either Cold or Cold,new, depending on whether the winning candidate has received Cold,new. In any case, Cnew cannot make unilateral decisions during this period.
-
-
-
-OnceCold,new has been committed, neitherCold norCnew can make decisions without approval of the other, and the Leader Completeness Property ensures that only servers with the Cold,new log entry can be elected as leader. It is now safe for the leader to create a log entry describing Cnew and replicate it to the cluster. Again, this configuration will take effect on each server as soon as it is seen. When the new configuration has been committed under the rules of Cnew, the old configuration is irrelevant and servers not in the new configuration can be shut down. As shown in Figure 11, there is no time when Cold and Cnew can both make unilateral decisions; this guarantees safety.
-
-
-
-There are three more issues to address for reconfiguration. The first issue is that new servers may not initially store any log entries. If they are added to the cluster in this state, it could take quite a while for them to catch up, during which time it might not be possible to commit new log entries. In order to avoid availability gaps, Raft introduces an additional phase before the configuration change, in which the new servers join the cluster as non-voting members (the leader replicates log entries to them, but they are not considered for majorities). Once the new servers have caught up with the rest of the cluster, the reconfiguration can proceed as described above.
-
-
-
-The second issue is that the cluster leader may not be part of the new configuration. In this case, the leader steps down (returns to follower state) once it has committed the Cnew log entry. This means that there will be a period of time (while it is committingCnew) when the leader is managing a cluster that does not include itself; it replicates log entries but does not count itself in majorities. The leader transition occurs when Cnew is committed because this is the first point when the new configuration can operate independently (it will always be possible to choose a leader from Cnew). Before this point, it may be the case that only a server from Cold can be elected leader.
-
-
-
-The third issue is that removed servers (those not in Cnew) can disrupt the cluster. These servers will not receive heartbeats, so they will time out and start new elections. They will then send RequestVote RPCs with new term numbers, and this will cause the current leader to revert to follower state. A new leader will eventually be elected, but the removed servers will time out again and the process will repeat, resulting in poor availability.
-
-
-
-To prevent this problem, servers disregard RequestVote RPCs when they believe a current leader exists. Specifically, if a server receives a RequestVote RPC within the minimum election timeout of hearing from a current leader, it does not update its term or grant its vote. This does not affect normal elections, where each server waits at least a minimum election timeout before starting an election. However, it helps avoid disruptions from removed servers: if a leader is able to get heartbeats to its cluster, then it will not be deposed by larger term numbers.
-
-
+为了避免这一问题，当服务器认为当前 leader 存在时，会忽略掉 RequestVote RPC。特别的，如果某个服务器在接收到当前 leader 的消息的最小选举超时时间内收到了一个 RequestVote RPC，它讲不会更新自己的 term 以及为其投票。这并不影响正常的选举，每一个服务器在发起选举之前，都至少会等待足够的最小选举超时时间。然而，这种办法能帮助避免由已被移除的服务器带来的干扰：如果一个 leader 能够从它的集群中获得心跳，那么它就不会被更大的 term 编号推翻。
 
 
 
 ## 7 Log compaction
 
-Raft’s log grows during normal operation to incorporate more client requests, but in a practical system, it cannot grow without bound. As the log grows longer, it occupies more space and takes more time to replay. This will eventually cause availability problems without some mechanism to discard obsolete information that has accumulated in the log.
+Raft的 log 在正常操作期间会增长，以包含更多的客户端请求，但在实际系统中，它不能不受限制地增长。随着 log 的不断边长，它会占用更多的空间，并需要花费更多的时间来重放（replay）。如果没有某种机制来丢弃 log 中积累的过时信息，这最终会导致可用性问题。
 
-
-
-Snapshotting is the simplest approach to compaction. In snapshotting, the entire current system state is written to a snapshot on stable storage, then the entire log up to that point is discarded. Snapshotting is used in Chubby and ZooKeeper, and the remainder of this section describes snapshotting in Raft.
-
-
+快照是实现压缩的最简单的方法。当进行快照时，整个当前系统的状态会被写入一个稳定存储的快照中，之后该点以前的所有日志都会被丢弃。在 Chubby 和 ZooKeeper 中都用到了快照技术，本节接下来的内容就会描述 Raft 中的快照。
 
