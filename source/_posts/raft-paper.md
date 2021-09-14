@@ -1,5 +1,6 @@
 ---
-title: 译文: 一种易于理解的共识算法的研究（In Search of an Understandable Consensus Algorithm）
+title: （译文）一种易于理解的共识算法的研究（In Search of an Understandable Consensus Algorithm）
+mathjax: true
 date: 2021-09-13 17:57:50
 tags: 
 - raft
@@ -45,7 +46,7 @@ Raft 在许多地方都与现存的共识算法有相似之处（尤其是 Oki a
 
 复制状态机通常采用 log 复制来实现，见图1。每个服务器都保存了一个包含一系列命令的 log，而状态机会按顺序执行该 log。每一个 log 都包含了相同顺序的相同命令，因此每一个复制状态机都能按照相同的顺序来执行命令。由于状态机是确定的，因此每个状态机都计算相同的状态并输出相同的序列。
 
-{% asset_img 1.png Figure 1: Replicated state machine architecture. The consensus algorithm manages a replicated log containing state machine commands from clients. The state machines process identical sequences of commands from the logs, so they produce the same outputs. %}
+{% asset_img 1.png %}
 
 **图 1**：复制状态机架构。共识算法管理的一个 log 复制包含从客户端获得的状态机命令。状态机以相同的顺序执行 log 中的命令，因此他们会产生相同的输出。
 
@@ -114,3 +115,206 @@ Raft 通过首先选举出一个重要的 leader，并让该 leader 全权负责
 {% asset_img 3.png %}
 
 **图 3**：Raft 保证这些属性中的每一个在所有时间里都为 true。小节编号表明每一个属性讨论的具体位置。
+
+### 5.1 Raft 基础
+
+一个 Raft 集群包含了许多个服务器；五是一个典型数量，它允许整个系统可以容忍两个服务器失效。在任意时间，每一个服务器都会处于如下三种状态中的一种：leader，follower，candidate。在正常运行时只会存在一个 leader，剩余服务器都是 follower。follower 是被动的：他们自己不主动发其请求，而是简单地对从 leader 和 follower 到来的请求做出响应。leader 处理所有的客户端请求（假如客户端连接了一个 follower，那么该 follower 就会将此请求重定向到 leader）。第三种状态 candidate，是用于选举新的 leader 的，这将在 5.2 节描述。图 4 展示了状态及其流转；如何流转将在下文讨论。
+
+{% asset_img 4.png %}
+
+**图 4**：服务器状态。follower 仅仅对从其他服务器到来的请求做出响应。假如一个 follower 无法正常通信，它便转换为一个 candidate 并发起一次选举。当一个 candidate 收到了集群中大多数的选票时，它就变成了 leader。leader 通常会一直运行直到它失效为止。
+
+Raft 将时间分割成任意长度的*term（任期）*，如图 5 所示。term 使用连续的整数编号。每个 term 都从一场选举开始，其中一名或多名 candidate 将会尝试变成 5.2 节将描述的 leader。假如某个 candidate 在这次选举中胜出，那么在这个 term 之后的时间里它都以 leader 的身份服务。在某些场景下，选举可能最终会得到分裂的投票结果。那么这一个 term 将以无 leader 而结束；一个新的 term 马上会开始（包含一次新的选举）。Raft 确保在一个给定的 term 中至多存在一个 leader。
+
+{% asset_img 5.png %}
+
+**图 5**：时间被分割成为 term，每一个 term 都以一次选举为开始。在选举成功之后，一个单独的 leader 一直管理整个集群直到 term 结束。假如某些情况下选举失败了，那么这个 term 就将以没有 leader 而结束。term 之间的转换，在不同的服务器上可能会被观察到发生在不同的时间点。
+
+不同的服务器可能会在不同的时间点上观察到 term 的转换，且在某些情况下一个服务器可能无法观察到一次选举或甚至是整个 term。term 扮演了逻辑时钟[14]的角色，它们允许服务器观察到已过时的信息，例如一个已经过时的 leader。每个服务器都保存着 *current term（当前的 term）* 编号，该编号是单调递增的。current term 会在一切的通信之间被传递；假如某一个服务器的 current term 小于其他的服务器，那么他将会将自己的 current term 更新为更大的 term 值。如果某个 candidate 或者 leader 发现他自己的 term 过期了，那么他会立即回退为 follower 状态。假如一个服务器收到了一个包含了过时的 term 号的请求，它便会拒绝该请求。
+
+Raft 服务器通过远程过程调用（RPC）来互相通信，基本的共识算法只需要两类 RPC。RequestVote RPC 是由 candidate 在选举时发起（见 5.2 节），而 AppendEntries RPC 则是由 leader 发起用于 log 复制以及心跳（见 5.3 节）。第七节增加了第三种 RPC 用于在服务器之间传递快照（snapshot）。假如服务器没有及时地收到响应，那么它就会尝试重发，服务器都采用并行的方式发送 RPC 以达到最佳性能。
+
+### 5.2 leader 选举
+
+Raft 使用心跳机制来触发选举。当服务器启动时，它们都是 follower。只要服务器收到了其他 leader 或 candidate 的有效 RPC，那么它就保持为 follower。leader 会定期的发送心跳（不包含任何 log entries 的空 AppendEntries RPC）给所有 follower 来维持自己的 leader 权威。假如一个 follower 在一段时间内都没有收到任何的通信信息，那么就会发生选举超时（election timeout），之后它就会假定目前没有一个有效的 leader，并开启一次选举来选出一个新的 leader。
+
+为了开启一次选举，follower 会将自己的 current term 增加，之后转换为 candidate 状态。然后，它先投票给自己，之后并行的给其他集群内的服务器发起 RequestVote RPC。一个 candidate 会保持自己的状态直到如下三件事发生：（a）它赢得了选举，（b）另一个服务器将自己确立为 leader，（c）一段时间过后，仍然没有赢家。下文各段将分别讨论这些结果。
+
+当一个 candidate 收到了同一集群在同一 term 内的大多数的选票，即认为选举获胜。每个服务器在一个 term 期间都会基于先到先服务的原则（注意，在 5.4 节对投票增加了一种额外的限制），至多给一个 candidate 投票。大多数原则确保了在一个特定的 term 内（见图 3 的 Election Safety Property）至多只能有一个 candidate 赢得选举。一旦某个 candidate 赢得了选举，它便是 leader。之后它会给其他所有的服务器发送心跳消息来建立自己的权威，并且阻止新的选举的发生。
+
+在等待投票时，candidate 可能会收到从其他已经声称自己为 leader 的服务器发来的 AppendEntries RPC 消息。如果这个 leader 的 term（包含在 RPC 消息内）至少与 candidate 当前的 current term 一样大，那么这个 candidate 就会意识到这个 leader 是合法的，因此将自己回退到 follower 状态。但如果这个 RPC 中包含的 term 小于该 candidate 的 current term，那么它就会拒绝该 RPC 并且继续保持自己的 candidate 状态。
+
+第三种可能发生的情形是某个 candidate 既没有赢得也没有输掉当前的选举：假如有许多 follower 都同时变成了 candidate，那么选票就可能分裂导致没有一个 candidate 能获得大多数选票。当这种情况发生时，每个candidate 都将超时，然后通过增加自己的 term 并且给其他服务器发送一轮 RequestVote RPC 来开启一次新的选举。然而，如果不采取额外的措施，这种投票分裂的情况可能会无限的持续下去。
+
+Raft 采用了选举超时随机的方式来确保投票分裂罕有发生并且在发生时能快速的解决掉。为了在一开始就防止投票分裂（译者注：在大家都是 follower 的时候），选举的超时时间在一个固定的范围内随机选取（比如 150~300ms）。这将会把服务器分散开，以便在大多数情况下只有一台服务器会超时；它将会赢得选举，并且在其他服务器超时之前发送心跳。相同的机制被用于处理投票分裂。每个 candidate 都会在开启一轮选举之前随机的重置自己的选举超时计时，它会等待该超时时间流逝完毕，然后再启动下一轮选举；这降低了在新的选举中再次出现投票分裂的可能性。9.3 节展示了这种方法能快速的选出 leader。
+
+选举正是一种展现我们以易懂性来指导在各种设计替代之间做出选择的例子。最开始我们计划使用一种评级系统：每个 candidate 都被指定为一个特定的等级，用于在 candidate 之间评比选择。假如某个 candidate 发现有其他 candidate 的评级比它高，那么它就会回退为 follower 状态因此更高评级的 candidate 会更容易在下一次选举中胜出。我们发现这种办法会围绕可用性产生一些细微的问题（一个低评级的服务器也许需要在某个高评级服务器失效时超时并尝试再次转变为 candidate，但假如这个时间过短，它就可能会重置某个选举过程）。我们对这个算法做了多次调整，但每一次调整都会出现新的极端情况。最终我们总结得出，随机重试的办法才是最明确也最易懂的。
+
+### 5.3 log 复制
+
+一旦一个 leader 被选出，他就开始服务客户端请求。每个客户端请求都包含一个能被复制状态机执行的命令（command）。leader 将该命令追加到它自己的 log 最后面，作为一个新的 log entry，之后并行的给所有其他服务器发送 AppendEntries RPC 来复制该 entry。当这个 log entry 被安全的复制之后（这将在下面详述），leader 将这个 log entry 应用于他自己的状态机中，并将执行结果返回给客户端。假如 follower 崩溃或者运行迟缓，以及发生网络丢包时，leader 会无限的重发 AppendEntries RPC（即使它已经给客户端返回了结果）直到所有的 follower 最终都存储了所有 log entries。
+
+log 以图 6 的格式组织。当每一条 log entry 被 leader 接受到时，其内部 entry 都保存了一个状态机命令和它当前所处的 term 号。term 号用于探测不同 log 之间的不一致性来确保图 3 中的某些属性。每个 log entry 还包含一个整数的索引（index）来定位它在 log 当中的位置。
+
+{% asset_img 6.png %}
+
+**图 6**：log 以 entry 组成，并以顺序编号。每个 entry 都包含创建它时的 term 号（每个框中的数字）以及状态机的命令。当一个 entry 被安全的应用在状态机之后，就认为它已经 *committed（被提交）*。
+
+leader 能够决定何时将 log entry 应用到状态机上是安全的；这样的 entry 成为 committed 的。Raft 确保 committed entries 是持久的并且最终能够被所有可用的状态机执行。一旦当 leader 将一个由当前 leader 创建的 log entry 复制到了大多数服务器，那么该 entry 就是 committed 的（例如图 6 中的 entry 7）。这样会将 leader log 中之前的所有 entries 提交，包括由之前的 leader 所创建的 entries。5.4 节讨论了在 leader 变更之后，应用这一规则过程中的一些细节，同时也表明对于提交的定义是安全的。leader 会持续跟踪他所知道的将要被 committed 的 entry 的最高 index，然后它将这个 index 包含在未来的 AppendEntries RPC 中（包括心跳）以便其他服务器最终发现。一旦某个 follower 发觉到某个 log entry 已经 committed，它就会将之应用到它自己本地的状态机中（以 log 的顺序）。
+
+我们设计了 Raft 日志机制，以保持不同服务器上日志之间的高度一致性。这不仅简化了系统行为使其更易于预测，他还成为了确保安全的一个重要组件。Raft 维护着如下的属性，它们共同组成了图 3 中的 “Log Matching Property”（日志匹配属性）：
+
+- 假如不同 log 中的两个 entry 拥有相同的 term 和 index，那么它们一定保存了相同的命令。
+
+- 假如不同 log 中的两个 entry 拥有相同的 term 和 index，那么所有该 entry 前面的 log 也都是相同的。
+
+第一个属性源于这样一种事实，leader 在给定的 term 和给定的 log index 上，最多只能创建一条 entry，且 log entries 绝不会改变它们在 log 当中的位置。而第二个属性由 AppendEntries 执行的简单的一致性检查来保证。当发送一条 AppendEntries RPC 时，leader 会将紧跟着当前新 entry 的前导 entry 的 term 以及 index 信息包含在请求体中。假如 follower 在它自己的 log 中相同 term，相同 index 的位置上，找不到这一前导 entry，那么它讲拒绝这个新增的 entry。这种一致性检查就如同一个归纳步骤：日志的初始空状态满足Log Matching Property，并且一致性检查在日志扩展时能继续延续 Log Matching Property。最终，无论 AppendEntries 是否返回成功，leader 总是能通过新的 entry 来确认其 follower 的 log 与自己的相同。
+
+在正常运行中，leader 和 follower 的 log 保持一致，因此 AppendEntries 的一致性检查绝不会失败。然而，leader 崩溃则会导致 log 发生不一致（旧 leader 可能还没有完全将其 log 复制到其他 follower）。这种不一致会在一系列的 leader 和 follower 崩溃中持续加剧。图 7 展示了 follower 的 log 与新 leader 的 log 不同的几种情况。一个 follower 有可能会缺失当前 leader 中存在的 entries，它也可能拥有当前 leader 的 log 中不存在的额外 entries，或二者皆存在。日志中丢失的和无关的条目可能跨越多个 term。
+
+{% asset_img 7.png %}
+
+**图 7**：当最顶部的 leader 生效时，在如下 follower 场景（a~f）中的任意一种都有可能发生。每个框代表一条 log entry；框中的数字代表 term。一个 follower 有可能丢失 entry（a~b），有可能拥有额外的未提交 entries（c~d），也可能都有（e~f）。举例说明，在场景 f 中，该 server 可能在 term2 时是 leader，添加了许多 entries 到自己的 log 中，接着就在提交这些 entries 之前崩溃了；它很快重启，变成了 term3 的 leader，并且添加了少量新的 entries 到自己的 log 中；在任何不论是 term2 还是 term3 中的 entries 被提交之前，它又崩溃了，并且在后续的几个 term 中持续崩溃。
+
+在 Raft 中，leader 处理不一致的方式是强迫 follower 复制它自己的 leader log。这意味着在 follower 中存在冲突的 entries 会被来自 leader 的 log 所覆盖。第5.4节将说明，当再加上一个限制时，这是安全的。
+
+为了使 follower 的 log 与其自己的 log 保持一致，leader 必须找到最近的两个 log 一致的 entry 位置点，删除该点之后 follower 日志中的所有 entries，并在该点之后将 leader 的所有 entries 发送给 follower。所有这些都发生在响应 AppendEntries RPC 的一致性检查时。leader 会维护每一个 follower 的 *nextIndex（下一个索引）*，即下一个 leader 将会发给 follower 的 log entry 的 index。当 leader 刚开始生效时，它将所有 nextIndex 初始化为它自己的最后一个 log entry 的下一个值（图 7 中的值是 11）。假如某个 follower 的 log 与 leader 不一致，那么 AppendEntries 的一致性检查在下一次 AppendEntries RPC 时就会失败。经过一次 rejection（请求拒绝），leader 会将该 follower 的 nextIndex 减少，然后重发 AppendEntries RPC。最终 nextIndex 将会到达一个 leader 和 follower 的 log 匹配的点。此时，AppendEntries 就会成功，并且会删除该 follower log 中任何发生冲突的 entries 然后将 leader log 中的新 entries （如果有的话）追加在自己的 log 后面。一旦 AppendEntries 成功后，follower 的 log 就与 leader 一致了，并且会在接下来的 term 中持续的一致下去。
+
+> 如果需要，该协议可以被优化来减少被 reject 的 AppendEntries RPC 的数量。比如，当 rejecting 一个 AppendEntries 请求时，follower 可以将其发生冲突的 entry 的 term 以及它的 log 中该 term 的第一条 index，包含在响应中。当获得了这一信息后，leader 就能在减少 nextIndex 是直接跳过所有当前 term 中发生冲突的 entries，而不是通过一个个的 RPC 来减少。实际当中，我们怀疑这一优化的必要性，因为错误的发生是低频的且一般也不太会存在大量不一致的 entries。
+
+以这种机制，当 leader 生效时，它就不需要采用任何特殊的手段来恢复 log 一致性。它只要开始正常运行，log 就会在响应 AppendEntries 一致性检查失败后自动收敛。leader 绝不覆盖或删除它自己的 log （图 3 中的 “Leader Append-Only Property” leader 仅追加属性）。
+
+这种 log 复制机制具有第2节中描述的理想的一致性属性：只要大多数服务器是有效的，Raft 就能够接收、复制并应用新的 log entries；在通常情况下一个新的 entry 可以通过一轮 RPC 复制到集群的大多数中；并且单个缓慢的 follower 不影响整体性能。
+
+### 5.4 安全性
+
+前面的章节描述了 Raft 如何进行 leader 选举与 log 复制。然而，目前所描述的机制并不足以确保每个状态机都能恰好以相同的顺序执行相同的命令。比如，当 leader 提交一些 log entries 的时候，某 follower 也许不可用，之后该 follower 可能会被选举为 leader，并且用新的 entries 来覆盖原先的 entries；结果，不同的状态机就有可能执行不同的命令序列。
+
+本节通过添加对哪些服务器可以当选为 leader 进行限制来完善 Raft 算法。这一限制确保了对任意给定的 term，其 leader log 中需要包含所有在之前的 term 中已提交的 entries（即图 3 中的 “Leader Completeness Property” leader 完整性属性）。基于选举限定，我们将提交规则变得更加精确。最后，我们给出了一个对 Leader Completeness Property 的简要证明并且展示了它是如何引导复制状态机的正确行为的。
+
+#### 5.4.1 选举的限定
+
+在任何基于 leader 的共识算法中，leader 最终都必须保存所有已提交的 log entries。在一些共识算法中，例如 Viewstamped Replication [22]，即使最开始不包含所有的已提交 entries，某个服务器也可以被选举为 leader。这些算法中包含了一些额外的机制来定位缺失的 entries 然后将其传递到新的 leader 中，这一过程可能发生在选举期间，也可能在选举结束后的段时间内完成。不幸的是，这需要引入相当复杂的额外机制。Raft 使用了一种更简单的方法来确保所有先前 term 中已提交的 entries 都能够在选举时就存在于每一个新的 leader 当中，而不需要将 entries 传送给 leader。这意味着 log entries 将只会向单一的方向流动，即从 leader 到 follower，而 leader 绝不会覆盖其 log 中已存在的 entries。
+
+Raft 通过一个投票过程来防止 log 中没有包含所有已提交 entries 的 candidate 赢得选举。为了获得选票，candidate 必须要与集群中的大多数取得联系，这就意味着每一个已提交的 entry 都必须至少在一个服务器当中存在。假如该 candidate 的 log 至少与大多数中的任何其他 log 一样是最新的（之后会精确的定义这种 “最新”），那么它就持有了所有已提交的 entries。RequestVote RPC 中实现了这一限制：该请求中包含了当前 candidate 的 log，假如投票人的 log 比收到 RequestVote RPC 中的 log 更新，那么将拒绝给它投票。
+
+Raft 通过比较 log 中最后的 entries 的 term 和 index 来判断两组 log 谁是最新。如果这两组 log 最后 entries 的 term 不同，那么谁的 term 更大则更新。而如果是相同的 term，就需要比较哪组 log 更长，则更新。
+
+#### 5.4.2 提交先前 term 中的 entries
+
+在 5.3 节中已经讲过，当一个 entry 被存储在大多数服务器上之后，leader 就能知道当前 term 中的这个 entry 是已提交的了。假如一个 leader 在提交一条 entry 之前就崩溃了，那么新的 leader 就会尝试去完成这条 entry 的复制。然而，leader 并不能立即得出这样的结论，即前一个 term 中的 entry 一旦存储在大多数服务器上，就会被提交。图 8 展示了一种场景，一个旧的 log entry 已经在多数服务器上存储，但仍旧被新的 leader 覆盖掉了。
+
+{% asset_img 8.png %}
+
+**图 8**：一个时间序列展示了为什么 leader 不能通过旧的 term 中的 entry 来决定是否提交。在（a）中 S1 是 leader，并且部分复制了index 2 的 entry。 在（b）中 S1 崩溃了；S5 通过 S3 S4 和它自己的选票，被选为 term3 的 leader，然后接收了一个在 index 2 处不同的 entry。到了（c），S5 崩溃了；S1 又重启，且被选定为 leader，继续复制。这时 term2 的 log entry 已经被复制到大多数服务器上，但还没有提交（译者注：因为 term4 的 entry 还没有被复制到大多数）。假如这时 S1 又在（d）崩溃了，S5 就有可能被选为 leader （通过 S2，S3，S4 的选票）并且会用他自己的 term3 的 entry 覆盖到所有其他服务器上。然而，假如 S1 在崩溃之前，已经成功的将它 current term 中的 entry 复制到大多数，就如同（e）所展示的，那么这个 entry 就会被提交（这时 S5 就不能赢得选举了）。这时，所有先前的 entries 也就都被提交了。
+
+为了消除图 8 中存在的问题，Raft 不会通过计算副本数量来提交先前 term 中的 log entries。只有 leader 当前 term 的 log entries，会以副本计数的方式来判定提交；一旦当前 term 中的某个 entry 以这种方式成功提交，则所有先前的 entries 也就由于  Log Matching Property 而被间接提交。在某些情况下，leader 确实可以安全的认为旧的 log entries 都已经提交了（例如，一个 entry 在所有的服务器上都存在），但 Raft 为了简单，而采用了更保守的方法。
+
+Raft 在提交规则中引入了额外的复杂度，其原因是当 leader 复制先前 term 中的 entries 时，这些 log entries 中包含的是原先的 term 号。在其他的共识算法中，假如一个新的 leader 从先前的 term 中重新复制了 entries，那么这些 entries 就必须使用新的 term 号。Raft 的方法中，由于 log entries 的 term 号不会随着时间的变化以及 log 之间的交互而改变，因此更容易进行推理。此外，Raft 中的新 leader 相比其他算法会发送更少的先前 term 中的 log entries（其他算法必须要发送冗余的 log entries 并在它们可被提交之前重新编号）。
+
+#### 5.4.3 安全论证
+
+基于完整的 Raft 算法，我们现在可以更加精确的论证 Leader Completeness Property 是成立的（这种论证是基于将在 9.2 节讨论的安全性证明）。如果我们假设 Leader Completeness Property 不成立，然后我们证明其矛盾性，即可。假定 term T 的 leader （ leaderT）从它自己的 term 中提交了一个 log entry，但这个 log entry 在未来的 term 中并没有被存储。考虑大于 T 的最小的 term U 的 leader （leaderU ）没有存储这一 entry。
+
+{% asset_img 9.png %}
+
+**图 9**：如果 S1 （term T 的 leader）从自己的 term 中提交了一个新的 log entry，然后 S5 在之后的 term U 中胜选成为 leader，那么就一定存在至少一个服务器（S3），即接受了该 log entry，又投票给了 S5。
+
+1. 已提交的 entry 在被选中时必须不在 leaderU 的 log 中（因为 leaderU 从不删除或覆盖 entry）。
+2. leaderT 在大多数集群中复制了该 entry，leaderU 则获得了大多数集群的投票。因此，至少有一个服务器（“投票者”）都接受了leaderT 的条目并投票给 leaderU，如图9所示。选民是达成矛盾的关键。
+3. 投票人必须在投票给 leaderU 之前接受 leaderT 的 entry committed；否则，它将拒绝 leaderT 的 AppendEntries 请求（由于其 current term 高于 T）。
+4. 投票人在投票给 leaderU 时仍然存储该 entry，因为每个介入的 leader 都包含 entry（根据假设），leader 从不删除条目，而 follower 只有在与 leader 发生冲突时才会删除 entries。
+5. 选民将投票给了 leaderU，因此 leaderU 的 log 必须与选民的 log 一样是最新的。这导致了两个矛盾中的一个。
+6. 首先，如果投票者和 leader 共享相同的最后一个 log entry，那么 leader 的 log 必须至少与投票者的 log 一样长，因此其 log 包含投票者 log 中的每个 entries。这是就是一个矛盾，因为投票者包含了提交的 entries，而 leader 则被认为没有。
+7. 否则，leaderU 的最后一个 term 肯定比投票者的任期长。此外，它也比 T 大，因为投票者的最后一个 log entry 至少是 T（它包含来自 T 的已提交 entry）。创建 leaderU 最后一个 log entry 的较早的 leader 必须在其 log 中包含已提交的 entry（根据假设）。然后，根据 Log Matching Property，leaderU 的 log 还必须包含已提交的 entry，这是一个矛盾。
+8. 这就完成了矛盾。因此，所有 term 都大于 T 的 leader 必须包含在 term T 中已提交的来自 term T 的所有 entry。
+9. Log Matching Property 保证未来的 leader 也将包含间接提交的 entries，如图8（d）中的 index 2。
+
+>  通过 Leader Completeness Property，我们能证明图 3 中的 State Machine Safety Property，即假如一个服务器已经在状态机应用了一个给定 index 的 log entry，那么其他服务器就不能再在其状态机上应用一个相同 index 的不同的 log entry 了。在服务器应用 log entry 到其状态机时，其 log 必须与 leader 的 log 在直到这一条 entry 时是相同的，且该 entry 必须已被提交。现在考虑任何服务器应用给定log index 的最小 term；Log Completeness Property 保证所有更高 term 的 leader 都将存储相同的 log entry，因此在之后 term 中应用该 index 的服务器将会应用相同的值。故，State Machine Safety Property也成立。
+>
+> 
+>
+> 最后，Raft 要求服务器按照 log index 的顺序来应用 entries。与  State Machine Safety Property 结合起来，这就意味着所有的服务器都会在其状态机中已完全相同的顺序，应用完全相同的一组 log entries
+
+#### 5.5 Follower 和 candidate 崩溃
+
+到现在为止，我们已经讨论过了 leader 失效的问题。而 follower 和 candidate 崩溃的处理则相对而言简单得多，而且它们也都采用相同的方式来处理。假如一个 follower 或 candidate 崩溃了，那么之后发往它的 RequestVote 和 AppendEntries RPC 都将失败。Raft 对这种问题的处理办法就是无线重试；假如崩溃的服务器重启了，那么 RPC 就能正常响应。如果一个服务器在完成 RPC 但在返回响应之前崩溃，那么它将会在重启之后再次收到相同的 RPC。Raft 的 RPC 是幂等的，因此这不会产生什么危害。比如，假如一个 follower 收到了一个 AppendEntries 请求，该请求包含的 log entries 已经存在于其自己的 log 中了，那么它就会忽略这些 entries。
+
+#### 5.6 时间与可用性
+
+我们对 Raft 的一个要求就是，安全性一定不能依赖于时间：系统一定不能仅仅因为一些事件发生的比预期过快或过慢就产生错误的结果。然而，可用性（系统及时响应客户的能力）则不可避免的依赖于时间。例如，如果消息交换比服务器崩溃之间的典型时间还要长，那么 candidate 就没法保持足够长的时间来赢得选举；没有一个稳定的 leader，Raft 就无法工作。
+
+leader 选举，是 Raft 中时间最为关键的一面。只要系统满足如下对时间的要求，那么 Raft 就能够实施选举，并维护一个稳定的 leader：
+
+$broadcastTime ≪ electionTimeout ≪ MTBF$
+
+在这个不等式中，broadcastTime 是一个服务器并行的给集群中所有的服务器发送 RPC，并收到它们的响应所花费的平均时间；electionTimeout 是 5.2 节所描述的选举超时时间；MTBF 则是单个服务器两次失效的平均时间间隔。broadcastTime 应该比 electionTimeout 小一个数量级，以便 leader 能够可靠地发送阻止 follower 开始选举所需的心跳信息；由于 electionTimeout 采用了随机数的方法，这个不等式也能使得投票分裂变得不太可能发生。electionTimeout 应该比 MTBF 小几个数量级，以便系统稳定地进行。当 leader 崩溃时，系统将在差不多 electionTimeout 的时间内不可用；我们希望这只代表总时间的一小部分。
+
+broadcastTime 和 MTBF 属于底层系统的属性，而 electionTimeout 则必须由我们来选定。Raft 的 RPC 通常要求接收者将信息持久保存到稳定的存储中，因此 broadcast 可能在 0.5ms 到 20ms 之间，具体取决于存储技术。所以，electionTimeout 可能会从 10ms 到 500ms 之间选取。典型的服务器 MTBF 是几个月或更久，因此很容易满足时间要求。
+
+
+
+## 6 集群成员变更
+
+到目前为止，我们仍假设集群的配置（参与共识算法的服务器集合）是固定的。在实际中，偶尔需要修改该配置，比如替换掉失效的服务器，或是修改复制等级。即使者能够通过将整个集群下线，更新配置，再重启集群的方式完成，但这会导致在更改配置的过程中集群不可用。此外，任何手工的步骤都存在操作员出错的风险。为了避免这些问题，我们决定将配置更改自动化，并且将其合并到 Raft 共识算法内。
+
+为了确保配置变更机制的安全性，在过渡期间不得出现两个 leader 在同一 term 内当选的情况。不幸的是，任何尝试将服务器直接从旧配置切换为新配置的尝试都是不安全的。我们不可能自动的一次性切换所有的服务器，因为这样集群可能会在转换时被分裂成两个独立的大多数（如图 10）。
+
+{% asset_img 10.png %}
+
+**图 10**：直接将一种配置切换为另一种配置是不安全的，因为不同的服务器会在不同的时间点发生切换。在这个例子中，集群从三主机切换为五主机。不幸的是，在某个时间点，有两个不同的 leader 能够在同一个 term 内被选举，一个是在旧配置（$C_{old}$）下的大多数，另一个则是新配置（$C_{new}$）下的大多数。
+
+为了保证安全，配置变更必须使用两阶段的方式。有很多具体的实现方法可以实施两阶段。比如，一些系统（例如, [22]）在第一个阶段禁用旧配置，因此这时集群无法响应客户端请求；然后在第二个阶段使新配置生效。在 Raft 中，集群首先切换到一种过度配置，我们称之为联合共识（joint consensus）；一旦联合共识被成功提交，之后系统就可以转换为新的配置。联合共识阶段合并了旧配置与新配置：
+
+• Log entries are replicated to all servers in both configurations.
+
+• Any server from either configuration may serve as leader. 
+
+• Agreement (for elections and entry commitment) requires separate majorities from both the old and new configurations.
+
+
+
+The joint consensus allows individual servers to transition between configurations at different times without compromising safety. Furthermore, joint consensus allows the cluster to continue servicing client requests throughout the configuration change
+
+
+
+Figure 11: Timeline for a configuration change. Dashed lines show configuration entries that have been created but not committed, and solid lines show the latest committed configuration entry. The leader first creates the Cold,new configuration entry in its log and commits it to Cold,new (a majority of Cold and a majority of Cnew). Then it creates the Cnew entry and commits it to a majority of Cnew. There is no point in time in which Cold and Cnew can both make decisions independently
+
+
+
+Cluster configurations are stored and communicated using special entries in the replicated log; Figure 11 illustrates the configuration change process. When the leader receives a request to change the configuration from Cold to Cnew, it stores the configuration for joint consensus (Cold,new in the figure) as a log entry and replicates that entry using the mechanisms described previously. Once a given server adds the new configuration entry to its log, it uses that configuration for all future decisions (a server always uses the latest configuration in its log, regardless of whether the entry is committed). This means that the leader will use the rules of Cold,new to determine when the log entry for Cold,new is committed. If the leader crashes, a new leader may be chosen under either Cold or Cold,new, depending on whether the winning candidate has received Cold,new. In any case, Cnew cannot make unilateral decisions during this period.
+
+
+
+OnceCold,new has been committed, neitherCold norCnew can make decisions without approval of the other, and the Leader Completeness Property ensures that only servers with the Cold,new log entry can be elected as leader. It is now safe for the leader to create a log entry describing Cnew and replicate it to the cluster. Again, this configuration will take effect on each server as soon as it is seen. When the new configuration has been committed under the rules of Cnew, the old configuration is irrelevant and servers not in the new configuration can be shut down. As shown in Figure 11, there is no time when Cold and Cnew can both make unilateral decisions; this guarantees safety.
+
+
+
+There are three more issues to address for reconfiguration. The first issue is that new servers may not initially store any log entries. If they are added to the cluster in this state, it could take quite a while for them to catch up, during which time it might not be possible to commit new log entries. In order to avoid availability gaps, Raft introduces an additional phase before the configuration change, in which the new servers join the cluster as non-voting members (the leader replicates log entries to them, but they are not considered for majorities). Once the new servers have caught up with the rest of the cluster, the reconfiguration can proceed as described above.
+
+
+
+The second issue is that the cluster leader may not be part of the new configuration. In this case, the leader steps down (returns to follower state) once it has committed the Cnew log entry. This means that there will be a period of time (while it is committingCnew) when the leader is managing a cluster that does not include itself; it replicates log entries but does not count itself in majorities. The leader transition occurs when Cnew is committed because this is the first point when the new configuration can operate independently (it will always be possible to choose a leader from Cnew). Before this point, it may be the case that only a server from Cold can be elected leader.
+
+
+
+The third issue is that removed servers (those not in Cnew) can disrupt the cluster. These servers will not receive heartbeats, so they will time out and start new elections. They will then send RequestVote RPCs with new term numbers, and this will cause the current leader to revert to follower state. A new leader will eventually be elected, but the removed servers will time out again and the process will repeat, resulting in poor availability.
+
+
+
+To prevent this problem, servers disregard RequestVote RPCs when they believe a current leader exists. Specifically, if a server receives a RequestVote RPC within the minimum election timeout of hearing from a current leader, it does not update its term or grant its vote. This does not affect normal elections, where each server waits at least a minimum election timeout before starting an election. However, it helps avoid disruptions from removed servers: if a leader is able to get heartbeats to its cluster, then it will not be deposed by larger term numbers.
+
+
+
+
+
+## 7 Log compaction
+
+Raft’s log grows during normal operation to incorporate more client requests, but in a practical system, it cannot grow without bound. As the log grows longer, it occupies more space and takes more time to replay. This will eventually cause availability problems without some mechanism to discard obsolete information that has accumulated in the log.
+
+
+
+Snapshotting is the simplest approach to compaction. In snapshotting, the entire current system state is written to a snapshot on stable storage, then the entire log up to that point is discarded. Snapshotting is used in Chubby and ZooKeeper, and the remainder of this section describes snapshotting in Raft.
+
+
+
