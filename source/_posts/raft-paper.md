@@ -334,6 +334,8 @@ Raft 的客户端会将所有的请求都发给 leader。当客户端启动时�
 
 只读操作可以不用给 log 添加任何信息而直接处理 。然而，如果没有额外的措施，这将有返回过期数据的风险，因为响应请求的 leader 可能已在其不知情的情况下被新 leader 取代了。线性化读取不能返回陈旧数据，Raft 需要两个额外的预防措施，而不是用 log 来保证这一点。首先，leader 必须拥有最新的哪些 entries 已经被提交的信息。 Leader Completeness Property 能保证 leader 拥有所有已提交的 entries，但在其 term 刚开始时，它可能并不知道这些已提交的 entries 都是谁。为了搞清楚这一点，leader 需要提交一个它当前 term 的 entry。Raft 通过让每个 leader 在 term 刚开始时都向其自己的 log 提交一个空操作的 entry 来解决这个问题。之后，leader 在处理一个只读请求前，必须要检查自己是否被罢免了（假如一个更近的 leader 刚刚被选举，那么它自己的信息就可能是过期的）。Raft通过让 leader 在响应只读请求之前与集群的大多数成员交换心跳消息来处理此问题。或者，leader 可以依赖心跳机制来提供一种 lease（租约）[9]，但为了安全，这将依赖于时间（假定时钟偏移是有限的）。
 
+
+
 ## 9 实现和评估
 
 我们已经实现了 Raft 用于为 RAMCloud [33] 保存配置信息的复制状态机的一部分，来协助 RAMCloud 协调器的故障转移。这一 Raft 实现包含了除测试，注释，空行以外的大约 2000 行 C++ 代码。源码可以免费获取[23]。现在也有大约 25 个独立的基于本文草稿的第三方 Raft 开源实现[34]，它们处于多个开发阶段中。同样的，很多公司也都部署了基于 Raft 的系统[34]。本节后面的内容会采用三个关键点来评估 Raft：易懂性，正确性和性能。
@@ -382,3 +384,120 @@ Raft 的性能与其他共识算法如 Paxos 类似。对性能而言，最重�
 
 图 16 中的底部图表显示，可以通过减少选举超时来减少停机时间。当选举超时时间处于 12-24 毫秒时，leader 选举平均只需 35 毫秒（最长一次时间为 152 毫秒）。然而，将超时时间降低到低于这一点会违反 Raft 的时间要求：在其他服务器开始新的选举之前，leader 很难广播心跳。这可能会导致不必要的 leader 变更，降低总体系统可用性。我们建议使用保守的选举超时，如 150–300 毫秒；此类超时不太可能导致不必要的 leader 变更，并且仍将提供良好的可用性。
 
+
+
+## 10 相关的工作
+
+有非常多于共识算法相关的出版物，它们大多数都能归到以下的类目中：
+
+- Lamport 对 Paxos 最早的描述[15]，以及尝试将之解释的更清楚[16, 20, 21]。
+- 对 Paxos 的详细说明，填补了缺失的细节，对算法进行了修改来为实现算法提供更好的基础[26, 39, 13]。
+- 实现了共识算法的系统，例如 Chubby [2, 4]， ZooKeeper [11, 12]， 和 Spanner [6]。Chubby 和 Spanner 的算法细节并没有公开，但它们都声称自己基于 Paxos。ZooKeeper 的算法已经公开了许多细节，但和 Paxos 还是有许多不同。
+- 能够应用在 Paxos 上的性能优化 [18, 19, 3, 25, 1, 27]。
+- Oki 和 Liskov 的 Viewstamped Replication (VR)，与 Paxos 相同时期的共识算法替代。其最初的描述[29] 与分布式事务的协议交织在一起，不过在后续的一次更新中，其核心共识协议被拆分开了[22]。VR 使用基于 leader 的方式，且和 Raft 有许多相似的地方。
+
+Raft 与 Paxos 最大的不同就是 Raft 的强领导性（strong leadership）：Raft 将 leader 选举作为共识协议中的基础部分，并且它尽可能的专注于 leader。这种方式得到了一个更简单、更易于理解的算法。例如，在 Paxos 中，leader 选举与基本的共识协议之间是正交的：它只是一种性能优化的手段而对达成共识而言并不是必须的。然而，这就导致了需要额外的机制：Paxos 在基本的共识协议中包含了两阶段协议，而又有一个额外独立的机制用于 leader 选举。相反，Raft 将 leader 选举直接融入共识算法中而且将其用于两阶段共识的第一个阶段当中。这就得到了比 Paxos 更少的机制。
+
+和 Raft 一样，VR 和 ZooKeeper 也是基于 leader 的，因此与 Paxos 相比，Raft 有许多优势。然而，Raft 的机制少于 VR 或ZooKeeper，因为它将非 leader 的功能最小化。比如，Raft 中，log entries 的流向是单向的：只从 leader 的 AppendEntries RPC 流出。VR 的 log entries 是双向流动的（leader 能在选举流程里接收 log entries）；这就导致了额外的机制和复杂度。ZooKeeper 已经公开的描述中也提到会将 log entries 进/出 leader，但其实现看起来更像 Raft[35]。
+
+据我们了解，Raft 的消息类型比任何其他基于共识的 log 复制算法都要少。比如，我们计算了 VR 和 ZooKeeper 用于基本共识以及成员变更的消息类型（除了 log 压缩和客户端交互）。VR 和 ZooKeeper 都定义了 10 种不同的消息类型，而 Raft 只有 4 种（两种 RPC 请求，以及它们的响应）。Raft 的消息内容相对其他算法更丰富一点，但它们都比较简单。此外，VR 和 ZooKeeper 的描述中，leader 变更时将会传输完整的 log；因此需要额外的消息类型来优化这些机制，使其实用。
+
+Raft 的 strong leadership 机制简化了算法，但一些性能优化方法就会被排除在外。例如，在 leaderless 的条件下，Egalitarian Paxos (EPaxos) 能实现更高的性能。EPaxos 利用了命令中的可交换性。任何服务器都可以只通过一轮通信来提交一个命令，只要有其他正在并发提交的命令能够与让它承载。但是，如果并发提交的命令不能互相承载，EPaxos 需要额外的一轮通信。因为任何服务器都可能会提交命令，EPaxos 就能很好的负载均衡并且能够实现在 WAN 下比 Raft 更低的延迟。然而，这极大的增加了 Paxos 的复杂性。
+
+对集群成员变更，有许多不同的方法被提出，或在一些其他的工作中被应用，包括 Lamport 最初的提案[15]，VR[22]，以及 SMART[24]。我们为 Raft 选择了联合共识方法是因为它利用了共识协议的其余部分，所以只需要增加少量的额外机制，就能实现成员变更。Raft 不能选择 Lamport 的 α-based 方法，因为它假定可以在没有 leader 的情况下达成共识。而相比于 VR 和 SMART，Raft 的重配置算法的优点在于成员变更可以不受限的在处理任何普通请求时发生；相比之下，VR 会在配置变更时停止所有正常的工作，而 SMART 对未完成请求的数量施加了类似 α 的限制。
+
+
+
+## 11 总结
+
+算法的主要设计目标通常要考虑正确性、效率和/或简洁性。尽管这些都是非常有价值的目标，但我们认为易懂性同样重要。只有当开发者将算法转化为实际的实现，上述的的目标才能实现，这将不可避免地偏离和扩展已发布的形式。除非开发者对算法有着深刻的认识，并能对其产生直觉，否则对开发者而言，很难在实现过程中保留其可取的特性。
+
+在这篇文章中我们讨论了分布式共识问题，其中一个被广泛接受但难以理解的算法 Paxos 多年来一直在挑战学生和开发人员。我们开发了一种新的算法，Raft，我们已经展示了他比 Paxos 更加易懂。同时我们也相信 Raft 为系统构建提供了一个更好的基础。让易懂性成为首要目标，改变了我们设计 Raft 的方式；随着设计的进行，我们发现自己重复使用了一些技术，例如问题分解以及简化状态空间。这些技术不仅提升了 Raft 的易懂性，也让我们更容易相信它的正确性。
+
+
+
+## 12 致谢
+
+没有如下同仁的支持，我们的用户调研是不可能完成的。他们是：Ali Ghodsi, David Mazieres, 以及 Berkeley 的 CS 294-91 和 Stanford 的 CS 240 的同学们。 Scott Klemmer 帮助我们设计了用户调研，Nelson Ray 为我们提供统计分析方面的建议。用于用户调研的 Paxos 演示文稿深度借鉴了 Lorenzo Alvisi 最初创建的演示文稿。特别感谢 David Mazieres 和 Ezra Hoch 细致的找到了 Raft 的一些 bug。许多人都提供了对本文以及用户调研材料很有帮助的反馈，他们包括 Ed Bugnion，Michael Chan，Hugues Evrard，Daniel Giffin，Arjun Gopalan，Jon Howell，Vimalkumar Jeyakumar， Ankita Kejriwal，Aleksandar Kracun，Amit Levy，Joel Martin，Satoshi Matsushita，Oleg Pesok，David Ramos，Robbert van Renesse，Mendel Rosenblum， Nicolas Schiper，Deian Stefan，Andrew Stone，Ryan Stutsman，David Terei，Stephen Yang，Matei Zaharia，24名匿名会议评论员（有重复），特别是我们的导师 Eddie Kohler。Werner Vogels 在推特上发了一条链接，链接到了一份早期的草稿，这给了 Raft 很大的曝光率。这项工作得到了 Gigascale 系统研究中心和 Multiscale 系统中心的支持，这两个研究中心是由半导体研究公司 Focus Center Research Program 资助的六个研究中心中的两个，Focus Center Research Program 由 STARnet 资助，Focus Center Research Program 由 MARCO 和 DARPA 赞助，由国家科学基金会授予第 0963859 号资助，并由Facebook、Google、Mellanox、NEC、NETAPP、SAP 和三星赠款。Diego Ongaro 得到了Junglee Corporation 斯坦福研究生奖学金的支持。
+
+
+
+## References
+
+[1] BOLOSKY, W. J., BRADSHAW, D., HAAGENS, R. B., KUSTERS, N. P., AND LI, P. Paxos replicated state machines as the basis of a high-performance data store. In Proc. NSDI’11, USENIX Conference on Networked Systems Design and Implementation (2011), USENIX, pp. 141–154.
+
+[2] BURROWS, M. The Chubby lock service for looselycoupled distributed systems. In Proc. OSDI’06, Symposium on Operating Systems Design and Implementation (2006), USENIX, pp. 335–350. 
+
+[3] CAMARGOS, L. J., SCHMIDT, R. M., AND PEDONE, F. Multicoordinated Paxos. In Proc. PODC’07, ACM Symposium on Principles of Distributed Computing (2007), ACM, pp. 316–317.
+
+[4] CHANDRA, T. D., GRIESEMER, R., AND REDSTONE, J. Paxos made live: an engineering perspective. In Proc. PODC’07, ACM Symposium on Principles of Distributed Computing (2007), ACM, pp. 398–407.
+
+ [5] CHANG, F., DEAN, J., GHEMAWAT, S., HSIEH, W. C., WALLACH, D. A., BURROWS, M., CHANDRA, T., FIKES, A., AND GRUBER, R. E. Bigtable: a distributed storage system for structured data. In Proc. OSDI’06, USENIX Symposium on Operating Systems Design and Implementation (2006), USENIX, pp. 205–218. 
+
+[6] CORBETT, J. C., DEAN, J., EPSTEIN, M., FIKES, A., FROST, C., FURMAN, J. J., GHEMAWAT, S., GUBAREV, A., HEISER, C., HOCHSCHILD, P., HSIEH, W., KANTHAK, S., KOGAN, E., LI, H., LLOYD, A., MELNIK, S., MWAURA, D., NAGLE, D., QUINLAN, S., RAO, R., ROLIG, L., SAITO, Y., SZYMANIAK, M., TAYLOR, C., WANG, R., AND WOODFORD, D. Spanner: Google’s globally-distributed database. In Proc. OSDI’12, USENIX Conference on Operating Systems Design and Implementation (2012), USENIX, pp. 251–264.
+
+[7] COUSINEAU, D., DOLIGEZ, D., LAMPORT, L., MERZ, S., RICKETTS, D., AND VANZETTO, H. TLA+ proofs. In Proc. FM’12, Symposium on Formal Methods (2012), D. Giannakopoulou and D. M´ery, Eds., vol. 7436 of Lecture Notes in Computer Science, Springer, pp. 147–154. 
+
+[8] GHEMAWAT, S., GOBIOFF, H., AND LEUNG, S.-T. The Google file system. In Proc. SOSP’03, ACM Symposium on Operating Systems Principles (2003), ACM, pp. 29–43. 
+
+[9] GRAY, C., AND CHERITON, D. Leases: An efficient faulttolerant mechanism for distributed file cache consistency. In Proceedings of the 12th ACM Ssymposium on Operating Systems Principles (1989), pp. 202–210. 
+
+[10] HERLIHY, M. P., AND WING, J. M. Linearizability: a correctness condition for concurrent objects. ACM Transactions on Programming Languages and Systems 12 (July 1990), 463–492. 
+
+[11] HUNT, P., KONAR, M., JUNQUEIRA, F. P., AND REED, B. ZooKeeper: wait-free coordination for internet-scale systems. In Proc ATC’10, USENIX Annual Technical Conference (2010), USENIX, pp. 145–158. 
+
+[12] JUNQUEIRA, F. P., REED, B. C., AND SERAFINI, M. Zab: High-performance broadcast for primary-backup systems. In Proc. DSN’11, IEEE/IFIP Int’l Conf. on Dependable Systems & Networks (2011), IEEE Computer Society, pp. 245–256. 
+
+[13] KIRSCH, J., AND AMIR, Y. Paxos for system builders. Tech. Rep. CNDS-2008-2, Johns Hopkins University, 2008. 
+
+[14] LAMPORT, L. Time, clocks, and the ordering of events in a distributed system. Commununications of the ACM 21, 7 (July 1978), 558–565. 
+
+[15] LAMPORT, L. The part-time parliament. ACM Transactions on Computer Systems 16, 2 (May 1998), 133–169. 
+
+[16] LAMPORT, L. Paxos made simple. ACM SIGACT News 32, 4 (Dec. 2001), 18–25. 
+
+[17] LAMPORT, L. Specifying Systems, The TLA+ Language and Tools for Hardware and Software Engineers. AddisonWesley, 2002. 
+
+[18] LAMPORT, L. Generalized consensus and Paxos. Tech. Rep. MSR-TR-2005-33, Microsoft Research, 2005.
+
+[19] LAMPORT, L. Fast paxos. Distributed Computing 19, 2 (2006), 79–103. 
+
+[20] LAMPSON, B. W. How to build a highly available system using consensus. In Distributed Algorithms, O. Baboaglu and K. Marzullo, Eds. Springer-Verlag, 1996, pp. 1–17. 
+
+[21] LAMPSON, B. W. The ABCD’s of Paxos. In Proc. PODC’01, ACM Symposium on Principles of Distributed Computing (2001), ACM, pp. 13–13. 
+
+[22] LISKOV, B., AND COWLING, J. Viewstamped replication revisited. Tech. Rep. MIT-CSAIL-TR-2012-021, MIT, July 2012. 
+
+[23] LogCabin source code. http://github.com/ logcabin/logcabin
+
+[24] LORCH, J. R., ADYA, A., BOLOSKY, W. J., CHAIKEN, R., DOUCEUR, J. R., AND HOWELL, J. The SMART way to migrate replicated stateful services. In Proc. EuroSys’06, ACM SIGOPS/EuroSys European Conference on Computer Systems (2006), ACM, pp. 103–115. 
+
+[25] MAO, Y., JUNQUEIRA, F. P., AND MARZULLO, K. Mencius: building efficient replicated state machines for WANs. In Proc. OSDI’08, USENIX Conference on Operating Systems Design and Implementation (2008), USENIX, pp. 369–384. 
+
+[26] MAZIERES , D. Paxos made practical. http: //www.scs.stanford.edu/˜dm/home/ papers/paxos.pdf, Jan. 2007. 
+
+[27] MORARU, I., ANDERSEN, D. G., AND KAMINSKY, M. There is more consensus in egalitarian parliaments. In Proc. SOSP’13, ACM Symposium on Operating System Principles (2013), ACM. 
+
+[28] Raft user study. http://ramcloud.stanford. edu/˜ongaro/userstudy/. 
+
+[29] OKI, B. M., AND LISKOV, B. H. Viewstamped replication: A new primary copy method to support highly-available distributed systems. In Proc. PODC’88, ACM Symposium on Principles of Distributed Computing (1988), ACM, pp. 8–17. 
+
+[30] O’NEIL, P., CHENG, E., GAWLICK, D., AND ONEIL, E. The log-structured merge-tree (LSM-tree). Acta Informatica 33, 4 (1996), 351–385. 
+
+[31] ONGARO, D. Consensus: Bridging Theory and Practice. PhD thesis, Stanford University, 2014 (work in progress).http://ramcloud.stanford.edu/˜ongaro/ thesis.pdf. 
+
+[32] ONGARO, D., AND OUSTERHOUT, J. In search of an understandable consensus algorithm. In Proc ATC’14, USENIX Annual Technical Conference (2014), USENIX. 
+
+[33] OUSTERHOUT, J., AGRAWAL, P., ERICKSON, D., KOZYRAKIS, C., LEVERICH, J., MAZIERES ` , D., MITRA, S., NARAYANAN, A., ONGARO, D., PARULKAR, G., ROSENBLUM, M., RUMBLE, S. M., STRATMANN, E., AND STUTSMAN, R. The case for RAMCloud. Communications of the ACM 54 (July 2011), 121–130. 
+
+[34] Raft consensus algorithm website. http://raftconsensus.github.io. 
+
+[35] REED, B. Personal communications, May 17, 2013. 
+
+[36] ROSENBLUM, M., AND OUSTERHOUT, J. K. The design and implementation of a log-structured file system. ACM Trans. Comput. Syst. 10 (February 1992), 26–52. 
+
+[37] SCHNEIDER, F. B. Implementing fault-tolerant services using the state machine approach: a tutorial. ACM Computing Surveys 22, 4 (Dec. 1990), 299–319. 
+
+[38] SHVACHKO, K., KUANG, H., RADIA, S., AND CHANSLER, R. The Hadoop distributed file system. In Proc. MSST’10, Symposium on Mass Storage Systems and Technologies (2010), IEEE Computer Society, pp. 1–10. 
+
+[39] VAN RENESSE, R. Paxos made moderately complex. Tech. rep., Cornell University, 2012.
