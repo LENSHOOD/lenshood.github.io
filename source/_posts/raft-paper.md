@@ -206,7 +206,7 @@ Raft 通过比较 log 中最后的 entries 的 term 和 index 来判断两组 lo
 
 {% asset_img 8.png %}
 
-**图 8**：一个时间序列展示了为什么 leader 不能通过旧的 term 中的 entry 来决定是否提交。在（a）中 S1 是 leader，并且部分复制了index 2 的 entry。 在（b）中 S1 崩溃了；S5 通过 S3 S4 和它自己的选票，被选为 term3 的 leader，然后接收了一个在 index 2 处不同的 entry。到了（c），S5 崩溃了；S1 又重启，且被选定为 leader，继续复制。这时 term2 的 log entry 已经被复制到大多数服务器上，但还没有提交（译者注：因为 term4 的 entry 还没有被复制到大多数）。假如这时 S1 又在（d）崩溃了，S5 就有可能被选为 leader （通过 S2，S3，S4 的选票）并且会用他自己的 term3 的 entry 覆盖到所有其他服务器上。然而，假如 S1 在崩溃之前，已经成功的将它 current term 中的 entry 复制到大多数，就如同（e）所展示的，那么这个 entry 就会被提交（这时 S5 就不能赢得选举了）。这时，所有先前的 entries 也就都被提交了。
+**图 8**：一个时间序列展示了为什么 leader 不能通过旧的 term 中的 entry 来决定是否提交。在（a）中 S1 是 leader，并且部分复制了index 2 的 entry。 在（b）中 S1 崩溃了；S5 通过 S3 S4 和它自己的选票，被选为 term3 的 leader，然后接收了一个在 index 2 处不同的 entry。到了（c），S5 崩溃了；S1 又重启，且被选定为 leader，继续复制。这时 term2 的 log entry 已经被复制到大多数服务器上，但还没有提交。假如这时 S1 又在（d）崩溃了（译者注：leader 先追加了新的 Cmd - Term4，之后收到了 S3 已完成 Term2 复制的消息，但还没有来得及执行 committed 的代码就崩溃了，导致 S1 的 committed 仍然是 Term1），S5 就有可能被选为 leader （通过 S2，S3，S4 的选票）并且会用他自己的 term3 的 entry 覆盖到所有其他服务器上。然而，假如 S1 在崩溃之前，已经成功的将它 current term 中的 entry 复制到大多数，就如同（e）所展示的，那么这个 entry 就会被提交（这时 S5 就不能赢得选举了）。这时，所有先前的 entries 也就都被提交了。
 
 为了消除图 8 中存在的问题，Raft 不会通过计算副本数量来提交先前 term 中的 log entries。只有 leader 当前 term 的 log entries，会以副本计数的方式来判定提交；一旦当前 term 中的某个 entry 以这种方式成功提交，则所有先前的 entries 也就由于  Log Matching Property 而被间接提交。在某些情况下，leader 确实可以安全的认为旧的 log entries 都已经提交了（例如，一个 entry 在所有的服务器上都存在），但 Raft 为了简单，而采用了更保守的方法。
 
