@@ -478,7 +478,7 @@ lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试�
 
 除了本文的实现以外，还有一种改进的[实现方式（来自 Dmitry Vyukov，golang 的抢占式调度器的贡献者）](https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)，将每个元素抽象为一个 `Node` 节点，节点中包含一个计数器，类似于该节点的一个 stamp，每次读/写都会修改对应节点内的 stamp，这样在 `Offer()` 和 `Poll()` 的时候就无须判断整个 buffer 是否 full/empty，而是直接判断当前节点的 stamp 是否与 `head/tail` 相等，若相等就表明可以操作，反之亦然。
 
-对应的 go 代码可见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc.go)。
+对应的 go 代码可见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/node_based.go)。
 
 我们可以注意到在这种实现中，结构定义里通过一些 `_padding` 来与 CPU 的 cache line 对齐，由于这种实现的特点，`Offer()` 的时候只需要读写 `tail`，`Poll()` 的时候只需要读写 `head`，因此将`tail` 与 `head` 分布在不同的 cache line 中有利于更高效的利用 CPU 缓存（stamp 和 value 都包含在 `Node` 中，也能得益于 cacheline 快速读取）。
 
