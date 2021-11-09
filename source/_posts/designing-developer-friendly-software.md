@@ -156,7 +156,35 @@ ORDER BY word;
 
 ### 单一控制来源
 
-1. 反例，spring boot 配置，难用：，很多不同的方式都可以达到同样的结果
+用户通常期望我们的软件能提供来源清晰，行为一致的配置，如果有很多种不同的方式都能达到类似的配置效果，用户就会感到困惑。
+
+Spring 框架在发展了这些年后，因其出色的灵活性，反过来也会导致用户的理解困难。
+
+比如 Spring Security 中想要配置自定义的认证时，可以：
+
+```java
+// 1. 自定义一个 UserDetialService 的实现，基本的方式
+@Bean
+public CustomUserDetailsService getUserDetailsService() {
+    return new CustomUserDetailsService();
+}
+
+// 2. 自定义一个 AuthenticationProvider 的实现，更灵活
+@Bean
+public CustomAuthenticationProvider getAuthenticationProvider() {
+    return new CustomAuthenticationProvider();
+}
+
+// 3. 自定义一个 OncePerRequestFilter 的子类，不太符合 Spring Security 的设计初衷，但也能用
+@Bean
+public CustomFilter getCustomFilter() {
+    return new CustomFilter();
+}
+```
+
+上面这三种方式都可以满足认证的要求，包括官方文档在内的诸多资料都会尝试使用其中的一种或两种方式来配置认证，如果用户对其设计原理不甚了解（比如刚刚上手），看到多种不同的配置方法，就很容易会产生不解与慌乱。
+
+
 
 ### 统一语言
 
@@ -164,7 +192,15 @@ ORDER BY word;
 
 ### 无二义性
 
-1. tidb mpp 配置， on off auto，（可观测性与可交互性 by 黄东旭）
+某些情况下，用户在使用我们的软件时必须要对某些配置进行设定。从用户的角度看，对于配置项，用户期望的是最好能一眼就看出来该配置的内涵是什么，假如配置项存在二义性，就会让用户摸不着头脑。
+
+这里引用一个讨论 TiDB 可交互性文章中的例子：
+
+在 TiDB 5.0 版本中引入了一个配置开关：`tidb_allow_mpp = ON|OFF (default=ON)`，该配置的本意是如果设置为 OFF，则禁止优化器使用 TiFlash 来执行查询，但假如设置为 ON，那么优化器会自行选择是否使用 TiFlash 。
+
+所以虽然配置的是 ON，但其实到底有没有用 TiFlash，还得看优化器的判断。就像是房间里控制灯光的开关，关掉灯一定不会亮，而打开后灯却不一定会亮。
+
+引文中给出的修改建议是：`tidb_allow_mpp = ON|OFF|AUTO`，多了的这个 AUTO 让用户一目了然。
 
 ### 遵循约定
 
