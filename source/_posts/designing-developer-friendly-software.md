@@ -55,6 +55,8 @@ go run()
 
 类似 C++、Rust 语言所提供的一些零成本抽象的特性（Trait、Future 等等），让对性能敏感的用户无需担心为了提升代码设计引入的抽象可能会导致额外的开销，这让用户可以更加有信心的进行代码抽象而不用担心性能问题。
 
+*programmer should not have to pay for a feature they do not use*
+
 
 
 ### 灵活
@@ -202,9 +204,49 @@ public CustomFilter getCustomFilter() {
 
 引文中给出的修改建议是：`tidb_allow_mpp = ON|OFF|AUTO`，多了的这个 AUTO 让用户一目了然。
 
-### 遵循约定
+https://dave.cheney.net/2019/09/24/be-wary-of-functions-which-take-several-parameters-of-the-same-type
 
-1. go ctx 并发
+### 遵循惯例
+
+有很多设计上的、语言层面的或是领域方面的惯例和规范，通常软件开发者们都会默认去遵循这些惯例和规范。
+
+```javascript
+function getTotalOutstandingAndSendBill() {
+  const result = customer.invoices.reduce((total, each) => each.amount + total, 0);
+  sendBill();
+  return result;
+}
+```
+
+这里引用了重构 2 中查询和修改分离的例子，某些时候方法命名甚至直接省略了后面，变为 `getTotalOutstanding()`。
+
+通常遇到以 `getXXX` 开头的函数，用户大都会默认该函数具有幂等性，假如使用后发现调用动作竟然产生了某些副作用，就会让用户费解。（Rust 很棒的一点就是当发现 `get_xxx(&mut self)` 这种方法定义时会自动高亮警告 ）
+
+另有一例：
+
+```go
+// good
+func Move(from string, to string) error {
+  ... ...
+}
+
+// bad
+func Move(to string, from string) error {
+  ... ...
+}
+```
+
+通常类似上述的 “移动” 操作，都是 from / src 在前，to / target 在后，而如果我们的函数是反过来的，就是在坑用户了。
+
+不过，考虑到上述操作的两个参数都属于同一类型，我们没办法限制用户一定会按照先 from 后 to 的形式传参（也许用户钟爱 intel 汇编语法？），那么更好的方式是：
+
+```go
+type Source string
+
+func (src Source) MoveTo(dest string) error {
+	... ...
+}
+```
 
 
 
