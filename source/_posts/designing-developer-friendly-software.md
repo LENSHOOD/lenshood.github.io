@@ -204,8 +204,6 @@ public CustomFilter getCustomFilter() {
 
 引文中给出的修改建议是：`tidb_allow_mpp = ON|OFF|AUTO`，多了的这个 AUTO 让用户一目了然。
 
-https://dave.cheney.net/2019/09/24/be-wary-of-functions-which-take-several-parameters-of-the-same-type
-
 ### 遵循惯例
 
 有很多设计上的、语言层面的或是领域方面的惯例和规范，通常软件开发者们都会默认去遵循这些惯例和规范。
@@ -252,10 +250,33 @@ func (src Source) MoveTo(dest string) error {
 
 ## Guide, not Blame
 
-### 错那了，怎么办
+### 报错了，然后呢？
 
-1. rust compiler 报错信息
-2. hateoas
+当用户执行了误操作后，我们的软件理应将详细的错误信息反馈给用户，但除此之外，还能做些什么？
+
+```shell
+error[E0106]: missing lifetime specifier
+  --> src/container/hash/linear_probe_hash_table.rs:17:26
+   |
+17 |     buffer_pool_manager: &mut BufferPoolManager,
+   |                          ^ expected named lifetime parameter
+   |
+help: consider using the `'a` lifetime
+   |
+17 |     buffer_pool_manager: &'a mut BufferPoolManager,
+   |                          ~~~
+```
+
+上面展示的是 Rust 编译器的编译报错，从上到下分别是：
+
+1. 告诉我们错误原因是 “缺少生命周期标志”，错误码是 E0106
+2. 指出是 “linear_probe_hash_table.rs” 文件的第 17:26 个字符出错
+3. 又用剪头指明了代码错误的位置
+4. “help” 部分告诉我们 “可以考虑使用 ``a` 符号”，最后用波浪线给出了改正后的结果
+
+虽然有人说写 Rust 是 “compiler-driven development”，但就起编译器这种保姆级的报错信息，开发体验一定是极好的。
+
+
 
 ### 清晰准确的文档
 
@@ -263,9 +284,38 @@ func (src Source) MoveTo(dest string) error {
 
 ### 帮助识别而不是记忆
 
-1. terraform init plan apply
-2. dry-run
+在一些较复杂、步骤较多的操作之后，直接执行用户心里可能没底，我们的软件应该帮用户检查并识别问题（即 dry-run 的能力），从而降低错误发生的概率。
 
-#### 交互式体验
+我们知道 Terraform 的工作流是 `Write -> Plan -> Apply`。
 
-1. 反馈
+在编写完成 tf 文件和执行操作之前的 `Plan` 阶段就是用于告知客户接下来将要执行操作的执行计划，以及可能产生的影响。
+
+```shell
+$ terraform plan
+An execution plan has been generated and is shown below.
+ 
+Resource actions are indicated with the following symbols:
+  + create
+ 
+Terraform will perform the following actions:
+ 
+  # aws_ebs_volume.iac_in_action will be created
+  + resource "aws_ebs_volume" "iac_in_action" {
+        + arn               = (known after apply)
+        + availability_zone = "us-east-1a"
+        + encrypted         = (known after apply)
+        + id                = (known after apply)
+        + iops              = 1000
+        + kms_key_id        = (known after apply)
+        + size              = 100
+        + snapshot_id       = (known after apply)
+        + tags              = {
+                + "Name" = "Terraform-managed EBS Volume for IaC in Action"
+            }
+            + type              = "io1"
+    }
+ 
+Plan: 1 to add, 0 to change, 0 to destroy.
+```
+
+`Plan` 会根据当前资源的状态和用户期望状态作对比，给出执行计划，并且不会对系统产生任何实际的影响。
