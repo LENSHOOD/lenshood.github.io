@@ -9,7 +9,7 @@ categories:
 - Software Engineering
 ---
 
-{% asset_img 8.png %}
+{% asset_img 8.png 200 200 %}
 
 面向开发者用户的软件，相比普通用户仅在限定的场景下使用外，还可能会被集成、扩展、二次开发等等，因此在代码或设计层面也要尽可能的考虑对开发者友好。
 
@@ -29,7 +29,7 @@ categories:
 
 开发者就需要从 API、设计、协作等多个方面确保简单，而简单很难。
 
-{% asset_img 7.jpeg %}
+{% asset_img 7.jpeg 400 300 %}
 
 
 
@@ -39,45 +39,43 @@ categories:
 
 我们会去主页看 README，但人的耐心通常很有限...
 
-比如某人想要尝试 Prometheus，TA 会找到如下的页面：
+{% asset_img 1.png 439 463 %} {% asset_img 2.png 490 381 %}
 
-{% asset_img 1.png %}
+左边图是 Prometheus 的安装页，右边是 RustUp 的安装页
 
-要说这个页面里虽然字儿多，但几处重点也都用不同的颜色突出了，主要一上来就列这么一篇配置文件让人有点生畏。
+相比起来，左边不仅存在大段的文字，甚至还有配置文件，给用户造成了不晓得心理负担。而右边，一眼就能看到深色背景的命令，任何人都可以零负担的进行尝试。
 
-而假如某人想要装个 rust？
-
-{% asset_img 2.png %}
-
-只要执行一下一眼就能看到的深色背景的命令，一切就只剩下等待了。
+README 或者 Home 页是通常是用户第一次接触我们的软件的地方，怎么样抓住用户的好奇心需要仔细研究。
 
 
 
 ### 简洁就是美
 
+简洁之美，就是能优雅的解决问题。
+
 Golang 中启动一个 go-routine 的操作可谓极致简洁：
+
+{% asset_img code-0.png %}
 
 ```go
 go run()
 ```
 
-不需要 import 任何包，没有其他与之相关的 key word 要理解，甚至连对 go-routine 本身的引用都不给返回（怎么管理 go-routine 是另一故事了）；正式这种非常简单易用的设计，使程序员在 golang 中启动一个 go-routine 毫无负担。
-
-
+不需要 import 任何包，没有其他与之相关的 key word 要理解和记忆，甚至连对 go-routine 本身的引用都不给返回（怎么管理 go-routine 是另一故事了）；正是这种简单易用的设计，使程序员想要启动一个 go-routine 时毫无负担。
 
 
 
 ### 我不需要我不需要的
 
-> C++ implementations obey the zero-overhead principle: What you don't use, you don't pay for [Stroustrup, 1994]. And further: What you do use, you couldn't hand code any better.
+>  *C++ implementations obey the zero-overhead principle: What you don't use, you don't pay for [Stroustrup, 1994]. And further: What you do use, you couldn't hand code any better.*
 >
-> -- Stroustrup
+> *-- Stroustrup*
 
-类似 C++、Rust 语言所提供的一些零成本抽象的特性（Trait、Future 等等），让对性能敏感的用户无需担心为了提升代码设计引入的抽象可能会导致额外的开销，这让用户可以更加有信心的进行代码抽象而不用担心性能问题。
+在 C++ 中，用户用不到的功能一定不会产生任何开销，而使用到的功能所产生的开销，也一定不会比用户自己去手写更高。
 
-*programmer should not have to pay for a feature they do not use*
+这一原则直截了当的给出用户十分明确的选择，零成本原则也是 C++能作为系统级语言的一个重要原因。
 
-
+类似 C++、Rust 语言所提供的零成本抽象的特性（Trait、Future 等等），让对性能敏感的用户无需担心为了提升代码设计引入的抽象可能会导致额外的开销，这让用户可以更加有信心的进行代码抽象而不用担心性能问题。
 
 
 
@@ -85,9 +83,11 @@ go run()
 
 将环境、配置，以约定默认的方式自动设置，这样就减少使用者在最开始需要做出决定的数量，也就降低了上手难度和用户的心理负担。
 
-Ruby on Rails 相对较早的实践了这一概念，并在其框架内应用了大量约定来，来降低初学者的使用门槛，和提升专家的生产效率。
+Ruby on Rails 相对较早的实践了这一概念，并在其框架内应用了大量约定，来降低初学者的使用门槛，和提升专家的生产效率。
 
 Spring Boot 甚至完全就是为了方便用户使用 Spring 框架而创造的。通过一系列的自动化配置、条件配置等方法，让用户只需要非常少量的配置（甚至零配置）就可以 “Just Run”。
+
+而对于不同的使用场景下用户可能会选择不同的额外自定义配置项，这时候如何优雅的让用户只关心自己想要的配置呢？
 
 ##### Functional Options
 
@@ -97,6 +97,8 @@ Spring Boot 甚至完全就是为了方便用户使用 Spring 框架而创造的
 - 传入一个配置类（结构）
 
 上述方法都存在一些[问题](https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis)，更好的办法是以可变参数的形式进行配置，以创建 grpc server 为例：
+
+{% asset_img code-1.png %}
 
 ```go
 // default
@@ -126,31 +128,44 @@ func NewServer(opt ...ServerOption) *Server {
 
 描述你想要的结果，而不是告诉我要怎么做。
 
-```scala
-val textFile = sc.textFile("hdfs://...")
-val counts = textFile.flatMap(line => line.split(" "))
-                 .map(word => (word, 1))
-                 .reduceByKey(_ + _)
-counts.saveAsTextFile("hdfs://...")
+```java
+class Pair {
+    String word;
+    int count;
+}
+
+Map<String, Integer> wordCounts = wordList.stream()
+        .map(word -> Pair.of(word, 1))
+        .collect(groupingBy(
+                pair -> pair.word,
+                summingInt(pair -> pair.count)));
 ```
+
+{% asset_img code-2.png %}
+
+
+
+上述代码是描述用 java 语言来计算 word count 的实现，先将单词映射为 (word, count) pair，之后对相同的 word 进行聚合最后得到结果。这是过程式的办法。
+
+而如果用 SQL 这种声明式的办法，可见下图。SQL 语言只描述了用户想要的结果，至于去获取这一结果中所要经历的过程，用户无需过问。
 
 
 
 ```sql
-CREATE TABLE FILES (line STRING);
-
-LOAD DATA INPATH 'docs' OVERWRITE INTO TABLE FILES;
-
-CREATE TABLE word_counts AS
-SELECT word, count(1) AS count FROM
-(SELECT explode(split(line, ' ')) AS word FROM FILES) w
+SELECT
+    word, count(1) AS count
+FROM
+    word_list
 GROUP BY word
-ORDER BY word;
 ```
 
-声明式 API 的抽象层次显然要比命令式 API 要高，但这也意味着声明式 API 通常更难以实现。
+{% asset_img code-3.png %}
 
-常见的声明式 API 的实现大都基于解决特定领域的问题，而不具备图灵完备性。但即使是能解决限定领域内的所有问题，也不容易设计与实现。
+
+
+声明式 API 的抽象层次显然要比过程式要高，但这也意味着声明式 API 通常更难以实现。
+
+常见的声明式 API 的实现大都基于解决特定领域的问题，并不具备图灵完备性。但即使是能解决限定领域内的所有问题，也不容易设计与实现。
 
 
 
@@ -198,6 +213,8 @@ public CustomFilter getCustomFilter() {
 }
 ```
 
+{% asset_img code-4.png %}
+
 上面这三种方式都可以满足认证的要求，包括官方文档在内的诸多资料都会尝试使用其中的一种或两种方式来配置认证，如果用户对其设计原理不甚了解（比如刚刚上手），看到多种不同的配置方法，就很容易会产生不解与慌乱。
 
 
@@ -228,6 +245,8 @@ function getTotalOutstandingAndSendBill() {
 }
 ```
 
+{% asset_img code-5.png %}
+
 这里引用了重构 2 中查询和修改分离的例子，某些时候方法命名甚至直接省略了后面，变为 `getTotalOutstanding()`。
 
 通常遇到以 `getXXX` 开头的函数，用户大都会默认该函数具有幂等性，假如使用后发现调用动作竟然产生了某些副作用，就会让用户费解。（Rust 很棒的一点就是当发现 `get_xxx(&mut self)` 这种方法定义时会自动高亮警告 ）
@@ -246,6 +265,8 @@ func Move(to string, from string) error {
 }
 ```
 
+{% asset_img code-6.png %}
+
 通常类似上述的 “移动” 操作，都是 from / src 在前，to / target 在后，而如果我们的函数是反过来的，就是在坑用户了。
 
 不过，考虑到上述操作的两个参数都属于同一类型，我们没办法限制用户一定会按照先 from 后 to 的形式传参（也许用户钟爱 intel 汇编语法？），那么更好的方式是：
@@ -257,6 +278,8 @@ func (src Source) MoveTo(dest string) error {
 	... ...
 }
 ```
+
+{% asset_img code-7.png %}
 
 
 
@@ -290,6 +313,8 @@ help: consider using the `'a` lifetime
 17 |     buffer_pool_manager: &'a mut BufferPoolManager,
    |                          ~~~
 ```
+
+{% asset_img code-8.png %}
 
 上面展示的是 Rust 编译器的编译报错，从上到下分别是：
 
@@ -337,6 +362,8 @@ Terraform will perform the following actions:
  
 Plan: 1 to add, 0 to change, 0 to destroy.
 ```
+
+{% asset_img code-9.png %}
 
 `Plan` 会根据当前资源的状态和用户期望状态作对比，给出执行计划，并且不会对系统产生任何实际的影响。
 
