@@ -1,5 +1,5 @@
 ---
-title: 浅谈程序员友好型（developer-friendly）软件的设计
+title: 浅谈对开发者友好的（developer-friendly）软件设计
 date: 2021-11-07 17:00:01
 tags:
 - user interface
@@ -9,27 +9,31 @@ categories:
 - Software Engineering
 ---
 
-前言
+{% asset_img 8.png %}
+
+面向开发者用户的软件，相比普通用户仅在限定的场景下使用外，还可能会被集成、扩展、二次开发等等，因此在代码或设计层面也要尽可能的考虑对开发者友好。
+
+本文从：
+
+- Keep It Simple, Stupid
+- Least Surprise
+- Guide, Not Blame
+
+三个不同的角度，尝试阐述哪些设计是对开发者友好的。
 
 <!-- more -->
 
 ## Keep It Simple, Stupid
 
-### 简洁
+用户想要我们的软件易用，易懂，易扩展。
 
-如今这个开源软件盛行，每个小领域都有好几种不同的解决方案的时代，简洁的设计，不仅能让使用者眼前一亮，迅速被吸引，还能降低认知上的负担，使开发者乐于尝试体验。
+开发者就需要从 API、设计、协作等多个方面确保简单，而简单很难。
 
-##### 零负担使用
+{% asset_img 7.jpeg %}
 
-Golang 中启动一个 go-routine 的操作可谓极致简洁：
 
-```go
-go run()
-```
 
-不需要 import 任何包，没有其他与之相关的 key word 要理解，甚至连对 go-routine 本身的引用都不给返回（怎么管理 go-routine 是另一故事了）；正式这种非常简单易用的设计，使程序员在 golang 中启动一个 go-routine 毫无负担。
-
-##### README 的寿命只有 10 秒
+### 耐心与好奇心成反比
 
 当我们尝试使用一种新的包、工具等等时，首先面临的就是如何引用、安装的问题。
 
@@ -47,7 +51,23 @@ go run()
 
 只要执行一下一眼就能看到的深色背景的命令，一切就只剩下等待了。
 
-##### 别让我权衡
+
+
+### 简洁就是美
+
+Golang 中启动一个 go-routine 的操作可谓极致简洁：
+
+```go
+go run()
+```
+
+不需要 import 任何包，没有其他与之相关的 key word 要理解，甚至连对 go-routine 本身的引用都不给返回（怎么管理 go-routine 是另一故事了）；正式这种非常简单易用的设计，使程序员在 golang 中启动一个 go-routine 毫无负担。
+
+
+
+
+
+### 我不需要我不需要的
 
 > C++ implementations obey the zero-overhead principle: What you don't use, you don't pay for [Stroustrup, 1994]. And further: What you do use, you couldn't hand code any better.
 >
@@ -59,9 +79,9 @@ go run()
 
 
 
-### 灵活
 
-##### 约定大于配置
+
+### 约定大于配置
 
 将环境、配置，以约定默认的方式自动设置，这样就减少使用者在最开始需要做出决定的数量，也就降低了上手难度和用户的心理负担。
 
@@ -100,7 +120,9 @@ func NewServer(opt ...ServerOption) *Server {
 
 这样的设计能够方便使用者灵活的选择想要的配置，甚至是自定义的配置项。
 
-##### 声明式 API
+
+
+### 关注结果，不关注过程
 
 描述你想要的结果，而不是告诉我要怎么做。
 
@@ -129,16 +151,6 @@ ORDER BY word;
 声明式 API 的抽象层次显然要比命令式 API 要高，但这也意味着声明式 API 通常更难以实现。
 
 常见的声明式 API 的实现大都基于解决特定领域的问题，而不具备图灵完备性。但即使是能解决限定领域内的所有问题，也不容易设计与实现。
-
-
-
-### 易懂
-
-我们的软件不只是会被使用，它还会被不断地迭代、修改、更新。因此从设计层面讲，软件的易懂性就很重要，这体现在：
-
-- 清晰的架构设计
-- 明确的抽象层级
-- 依赖管理
 
 
 
@@ -248,7 +260,7 @@ func (src Source) MoveTo(dest string) error {
 
 
 
-## Guide, not Blame
+## Guide, Not Blame
 
 RTFM，是老人对新人的谆谆教诲？还是软件作者对伸手党的有声控诉？
 
