@@ -17,7 +17,7 @@ I spend such a good leisure time almost whole year. Due to lack of project in my
 
 It's no big deal for my "self promotion" part. The key words maybe contains read some books, dabble some techs, open source some code, write some articles, get real "promotion"(only title but maybe not pay) and try some new job contents.
 
-I think it's quite common to say I'm anxious about my life while 2021 it's my first year over 30-year-old. The more deep dive to software development field, I can feel more regret to go into this industry in my 25 rather than 18! If I choose CS in my collage, I'm sure I can do better than today's me, I spent 7 years at my EE major, I feel good about it, but I don't love it. After graduation I meet many excellent people, they're good at coding, have passion in software technology, and love to share. But the most important thing is they're all so young and still have a lot of years to explore and improve.
+I think it's quite common to say I'm anxious about my life while 2021 it's my first year over 30-year-old. The more deep dive to software development field, I can feel more regret to go into this industry in my 25 rather than 18! If I choose CS in my collage, I'm sure I can do better than today's me. I spent 7 years at my EE major, I feel good about it, but I don't love it. After graduation I meet many excellent people, they're good at coding, have passion in software technology, and love to share. But the most important thing is they're all so young and still have a lot of years to explore and improve.
 
 
 
@@ -29,7 +29,7 @@ Golang's easy-to-learn and simple-to-use attributes let me prefer to use it to b
 
 Early this year I was plan to write a simple local cache as a golang learning project. However, after compared the performance of my implementation with the famous Java cache *caffeine*, I realized that there's so many tech points to care about inside a simple local cache. So I stopped develop my go cache, turned to write a ring buffer by golang. It was so much fun to try write a high performance ring buffer, I learned a lot, include lock-free programing, cache line optimization, performance test in go, etc. Now my implementation already got a dozen of stars! :)
 
-The ring buffer implementation strengthen my confidence, so after that I began to take a further step: implement the raft algorithm. At first I translate the whole raft paper and preliminary understand the concept of raft, then I spent few hours to made a quick design of the whole architecture. After that, coding part takes me several hours, and I finished the first version (thanks to the good beach time). Then the testing and correctness verification spend me a lot of time, and I still working on this part.
+The ring buffer implementation strengthen my confidence, so after that I began to take a further step: implement the raft algorithm. At first I translate the whole raft paper and preliminary understand the concept of raft, then I spent few hours to made a quick design of the whole architecture. After that, coding part takes me several days, then I finished the first version (thanks to the good beach time). Then the testing and correctness verification spend me a lot of time, and I still working on this part.
 
 The latest go project of mine is a task control and monitor agent, which included in my recent consulting work. The whole design is like some sort of very lite version of *kubelet*, we call it *vmlet*, haha.
 
@@ -55,11 +55,24 @@ With the CMU 15-445, I also try to do the course project, a simple storage engin
 
 ## Financial
 
+2021 I've got -5% of total earned rate. That's not good.
 
+The main reason of the loss is that I put about 10+% of my money into Chinese internet industry, and that part fell about 20%. The government supervision lead to internet industry going down, but I still believe it do have chance to recover, after all the profitability and business are all healthy.
 
-## Life
+I'm not professional, but I know in the long term, the return is definitely considerable. So I'm going to keep high position of fund investment in 2022, be patient, be confidence.
+
+There's another windfall, I got a little options from company IPO, better than nothing.
 
 
 
 ## Others
 
+I'm gonna left this part to say something about epidemic.
+
+In the end of 2021, Xi'an, the city I'm living, occurred covid-19 epidemic. The reaction of city gov is a piece of shit, they acted like  unprepared, unprofessional and stupid. They leave people to starve, to died of untimely treatment, to force abortion because of absent negative nucleic acid test result. Keeping their position seems to be the only thing they care about.
+
+I'm so disappointment with that, especially the epidemic is covid-19 not covid-21. They got two years to be prepared, but they failed all the people live in Xi'an. 
+
+Every one would hope their home town become better. But I have lived here for decades, and I have seen this again and again: people try really hard to do there best, but the bureaucratic ruined it. Today I'm really need to consider is there any good reason to still live here?
+
+Shame on you, Xi'an gov.
