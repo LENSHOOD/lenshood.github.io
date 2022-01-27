@@ -19,6 +19,8 @@ It's no big deal for my "self promotion" part. The key words maybe contains read
 
 I think it's quite common to say I'm anxious about my life while 2021 it's my first year over 30-year-old. The more deep dive to software development field, I can feel more regret to go into this industry in my 25 rather than 18! If I choose CS in my collage, I'm sure I can do better than today's me. I spent 7 years at my EE major, I feel good about it, but I don't love it. After graduation I meet many excellent people, they're good at coding, have passion in software technology, and love to share. But the most important thing is they're all so young and still have a lot of years to explore and improve.
 
+<!-- more -->
+
 
 
 ## Skills
