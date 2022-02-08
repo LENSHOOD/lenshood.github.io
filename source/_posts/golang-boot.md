@@ -199,3 +199,96 @@ ok:
 
 ```
 
+
+
+```go
+func schedinit() {
+  
+  ... ...
+  
+  /* getg() 由编译器替换为汇编指令，实际是从 TLS 中拿到当前 m 正在执行的 goroutine */
+	_g_ := getg()
+  
+  /* 初始化 race detector 的上下文（仅当开启竞争检测时） */
+	if raceenabled {
+		_g_.racectx, raceprocctx0 = raceinit()
+	}
+
+  /* 调度器最多可以启动的 m 数量 */
+	sched.maxmcount = 10000
+
+	// The world starts stopped.
+	worldStopped()
+
+  /* moduledata 中存储的是与 tracing 相关的module、package、function、pc 等信息（存储在编译后的二进制文件内），如下是验证这些信息的有效性 */
+	moduledataverify()
+  
+  /* 初始化栈 
+   * 有两个全局的栈内存池：
+   * 1. stackpool：存放了全局的栈 mspan 链表，可用于分配小于 32KiB 的内存空间，定义见：_StackCacheSize = 32 * 1024
+   * 2. stackLarger：分配大于 32KiB 的内存
+  */
+	stackinit()
+  
+  /* 初始化堆 */
+	mallocinit()
+  
+  /* 生成随机数，将在下面的 mcommoninit() 中用到 */
+	fastrandinit() // must run before mcommoninit
+  
+  /* 初始化 m0
+   * 并为 m0 创建一个 gsignal goroutine 用于处理系统信号，m 中的 fastrand 即前面生成的
+  */
+	mcommoninit(_g_.m, -1)
+  
+  /* 初始化 cpu，设置 cpu 扩展指令集 */
+	cpuinit()       // must run before alginit
+  
+  /* 初始化 hash 种子 */
+	alginit()       // maps must not be used before this call
+  
+  
+	modulesinit()   // provides activeModules
+	typelinksinit() // uses maps, activeModules
+	itabsinit()     // uses activeModules
+
+  /* 保存当前信号 mask */
+	sigsave(&_g_.m.sigmask)
+	initSigmask = _g_.m.sigmask
+
+	if offset := unsafe.Offsetof(sched.timeToRun); offset%8 != 0 {
+		println(offset)
+		throw("sched.timeToRun not aligned to 8 bytes")
+	}
+
+  /* argslice 中保存 argv，envs 中保存 env，解析 debug 参数 */
+	goargs()
+	goenvs()
+	parsedebugvars()
+  
+  /* 开启 GC */
+	gcinit()
+
+	lock(&sched.lock)
+	sched.lastpoll = uint64(nanotime())
+	procs := ncpu
+	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
+		procs = n
+	}
+  
+  /* 按 GOMAXPROCS 的数量设置 p 
+   * 1. 主要是设置 allp slice，并初始化其中的每一个 p
+   * 2. 绑定 m0 和 p0，p0 设置为 _Prunning，其他的 p 设置为 _Pidle
+  */
+	if procresize(procs) != nil {
+		throw("unknown runnable goroutine during bootstrap")
+	}
+	unlock(&sched.lock)
+
+	// World is effectively started now, as P's can run.
+	worldStarted()
+
+	... ...
+}
+```
+
