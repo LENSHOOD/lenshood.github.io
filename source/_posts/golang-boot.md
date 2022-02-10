@@ -393,45 +393,189 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 	newg.stktopsp = sp
 	newg.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
 	newg.sched.g = guintptr(unsafe.Pointer(newg))
+  
+  /* 深入到 gostartcallfn 函数内我们就可以看到：
+   * 该函数在 newg 的 sp 栈顶申请了一个 ptr 的位置，将 goexit 地址保存进去，然后让 sched.sp = sp-1，并将 sched.pc = fn，
+   * 这实际上相当于 fake 了 fn 是由 goexit 调用的，当 fn 执行完毕后 pc 会被恢复为 goexit+1 的地址，并执行 goexit。
+  */
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
 	newg.ancestors = saveAncestors(callergp)
 	newg.startpc = fn.fn
-	if _g_.m.curg != nil {
-		newg.labels = _g_.m.curg.labels
-	}
-	if isSystemGoroutine(newg, false) {
-		atomic.Xadd(&sched.ngsys, +1)
-	}
-	// Track initial transition?
-	newg.trackingSeq = uint8(fastrand())
-	if newg.trackingSeq%gTrackingPeriod == 0 {
-		newg.tracking = true
-	}
+	
+  ... ...
+  
+  /* 修改状态为 _Grunnable，代表可以被运行了 */
 	casgstatus(newg, _Gdead, _Grunnable)
 
-	if _p_.goidcache == _p_.goidcacheend {
-		// Sched.goidgen is the last allocated id,
-		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
-		// At startup sched.goidgen=0, so main goroutine receives goid=1.
-		_p_.goidcache = atomic.Xadd64(&sched.goidgen, _GoidCacheBatch)
-		_p_.goidcache -= _GoidCacheBatch - 1
-		_p_.goidcacheend = _p_.goidcache + _GoidCacheBatch
-	}
-	newg.goid = int64(_p_.goidcache)
-	_p_.goidcache++
-	if raceenabled {
-		newg.racectx = racegostart(callerpc)
-	}
-	if trace.enabled {
-		traceGoCreate(newg, newg.startpc)
-	}
-	releasem(_g_.m)
+	... ...
 
+  /* 至此 main goroutine 的 g 就创建好了，返回后会进入队，并等待在 mstart 时被调度 */
 	return newg
 }
-
 ```
 
 
+
+```assembly
+/**************** [asm_amd64.s] ****************/
+
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
+```
+
+
+
+```go
+/**************** [proc.go] ****************/
+
+func mstart0() {
+	_g_ := getg()
+
+  /* 显然目前 _g_ == g0，所以不需要再初始化栈了 */
+	osStack := _g_.stack.lo == 0
+	if osStack {
+		// Initialize stack bounds from system stack.
+		// Cgo may have left stack size in stack.hi.
+		// minit may update the stack bounds.
+		//
+		// Note: these bounds may not be very accurate.
+		// We set hi to &size, but there are things above
+		// it. The 1024 is supposed to compensate this,
+		// but is somewhat arbitrary.
+		size := _g_.stack.hi
+		if size == 0 {
+			size = 8192 * sys.StackGuardMultiplier
+		}
+		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
+		_g_.stack.lo = _g_.stack.hi - size + 1024
+	}
+	// Initialize stack guard so that we can start calling regular
+	// Go code.
+	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+	// This is the g0, so we can also call go:systemstack
+	// functions, which check stackguard1.
+	_g_.stackguard1 = _g_.stackguard0
+	
+  /* 实际执行的部分，见下文 */
+  mstart1()
+
+  /* 若执行到这里，就说明主程序要结束了 */
+	// Exit this thread.
+	if mStackIsSystemAllocated() {
+		// Windows, Solaris, illumos, Darwin, AIX and Plan 9 always system-allocate
+		// the stack, but put it in _g_.stack before mstart,
+		// so the logic above hasn't set osStack yet.
+		osStack = true
+	}
+	mexit(osStack)
+}
+
+func mstart1() {
+	_g_ := getg()
+
+	if _g_ != _g_.m.g0 {
+		throw("bad runtime·mstart")
+	}
+
+  /* 这里将 g0 goroutine 的调度上下文设置为跳转到前面 mstart1() 的下一句，意味着跳转后程序会结束*/
+	// Set up m.g0.sched as a label returning to just
+	// after the mstart1 call in mstart0 above, for use by goexit0 and mcall.
+	// We're never coming back to mstart1 after we call schedule,
+	// so other calls can reuse the current frame.
+	// And goexit0 does a gogo that needs to return from mstart1
+	// and let mstart0 exit the thread.
+	_g_.sched.g = guintptr(unsafe.Pointer(_g_))
+	_g_.sched.pc = getcallerpc()
+	_g_.sched.sp = getcallersp()
+
+  /* amd64 架构下是空函数 */
+	asminit()
+  
+  /* 执行一些信号的初始化，mstartm0() 也一样 */
+	minit()
+
+	// Install signal handlers; after minit so that minit can
+	// prepare the thread to be able to handle the signals.
+	if _g_.m == &m0 {
+		mstartm0()
+	}
+
+  /* 执行创建 m 时传入的函数，m0 没有，所以 fn == nil */
+	if fn := _g_.m.mstartfn; fn != nil {
+		fn()
+	}
+
+	if _g_.m != &m0 {
+		acquirep(_g_.m.nextp.ptr())
+		_g_.m.nextp = 0
+	}
+  
+  /* 开始调度，经过一系列操作后，main goroutine 会被调度到 m0 上 */
+	schedule()
+}
+```
+
+
+
+在看 `schedule()` 之前，我们先跳到 main goroutine 的 main function 看一看：
+
+```go
+func main() {
+	g := getg()
+	
+  ... ...
+  
+  /* 我们在前面 newproc 中看到了，当 mainStarted == true 时，newproc 就可以尝试创建新的 m 来执行 g 了 */
+	// Allow newproc to start new Ms.
+	mainStarted = true
+
+  /* monitor 线程 */
+	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
+		// For runtime_syscall_doAllThreadsSyscall, we
+		// register sysmon is not ready for the world to be
+		// stopped.
+		atomic.Store(&sched.sysmonStarting, 1)
+		systemstack(func() {
+			newm(sysmon, nil, -1)
+		})
+	}
+
+	... ...
+
+  /* 执行依赖中的 init() */
+	doInit(&runtime_inittask) // Must be before defer.
+
+	... ...
+
+  /* 启用 gc */
+	gcenable()
+
+	main_init_done = make(chan bool)
+  ... ...
+  /* 执行用户 main.go 中的 init() */
+	doInit(&main_inittask)
+	... ...
+	close(main_init_done)
+
+	needUnlock = false
+	unlockOSThread()
+
+	... ...
+  
+  /* 这里开始调用用户代码中的 main()，正式执行到用户代码 */
+	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
+	fn()
+
+	... ...
+
+  /* 显然当用户的 main() 执行完毕后，程序自然就可以退出了 */
+	exit(0)
+	for {
+		var x *int32
+		*x = 0
+	}
+}
+```
 
