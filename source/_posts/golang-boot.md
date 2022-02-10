@@ -202,6 +202,8 @@ ok:
 
 
 ```go
+/**************** [proc.go] ****************/
+
 func schedinit() {
   
   ... ...
@@ -291,4 +293,145 @@ func schedinit() {
 	... ...
 }
 ```
+
+
+
+```go
+/**************** [runtime2.go] ****************/
+
+type funcval struct {
+	fn uintptr
+	// variable-size, fn-specific data here
+}
+
+/**************** [proc.go] ****************/
+
+//go:nosplit
+func newproc(siz int32, fn *funcval) {
+  /* argp 指向 fn 函数的第一个参数 */
+	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+	gp := getg()
+  
+  /* 这里的 caller pc，指向的就是 CALL	runtime·newproc(SB) 的下一行：POPQ AX */
+	pc := getcallerpc()
+  
+  /* systemstack 先将调用者栈切换到 g0 栈，不过目前已经在 g0 栈了，因此什么也不做 */
+	systemstack(func() {
+    /* 构造一个新的 g 结构，见下文 */
+		newg := newproc1(fn, argp, siz, gp, pc)
+
+    /* 目前是在 m0 执行，前文讲到 m0 绑定了 allp[0]，所以 _p_ 正是 allp[0] */
+		_p_ := getg().m.p.ptr()
+    
+    /* 将 g 入队 */
+		runqput(_p_, newg, true)
+
+    /* 目前还没有执行 main goroutine，因此 mainStarted == false */
+		if mainStarted {
+			wakep()
+		}
+	})
+}
+
+func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
+	... ...
+
+	_g_ := getg()
+
+	... ...
+	
+	siz := narg
+	siz = (siz + 7) &^ 7
+
+	... ...
+
+	_p_ := _g_.m.p.ptr()
+  
+  /* 由于当前是在初始化第一个 goroutine，因此 gFreeList 没有空闲的 g 可用，需要创建 */
+	newg := gfget(_p_)
+	if newg == nil {
+    /* _StackMin = 2048，因此创建一个新的 g，其栈空间为 2M */
+		newg = malg(_StackMin)
+		casgstatus(newg, _Gidle, _Gdead)
+		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+	}
+	
+  ... ...
+
+	totalSize := 4*sys.PtrSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
+	totalSize += -totalSize & (sys.StackAlign - 1)               // align to StackAlign
+	sp := newg.stack.hi - totalSize
+	spArg := sp
+	
+  ... ...
+  
+	if narg > 0 {
+    /* 创建 g 之前，fn 的参数是放在 caller 的栈上的，memmove 将其 copy 到 newg 的栈上 */
+		memmove(unsafe.Pointer(spArg), argp, uintptr(narg))
+		// This is a stack-to-stack copy. If write barriers
+		// are enabled and the source stack is grey (the
+		// destination is always black), then perform a
+		// barrier copy. We do this *after* the memmove
+		// because the destination stack may have garbage on
+		// it.
+		if writeBarrier.needed && !_g_.m.curg.gcscandone {
+			f := findfunc(fn.fn)
+			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+			if stkmap.nbit > 0 {
+				// We're in the prologue, so it's always stack map index 0.
+				bv := stackmapdata(stkmap, 0)
+				bulkBarrierBitmap(spArg, spArg, uintptr(bv.n)*sys.PtrSize, 0, bv.bytedata)
+			}
+		}
+	}
+
+  /* 将 newg 的 sp pc 等信息保存在 gobuf 中，待实际被调度时，就会被加载出来执行
+   * 这里的 pc 存放的是 goexit + 1 的地址，这是为了让 fn 执行完毕后，跳到 goexit 来做一些退出工作，详见下文
+  */
+	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
+	newg.sched.sp = sp
+	newg.stktopsp = sp
+	newg.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
+	newg.sched.g = guintptr(unsafe.Pointer(newg))
+	gostartcallfn(&newg.sched, fn)
+	newg.gopc = callerpc
+	newg.ancestors = saveAncestors(callergp)
+	newg.startpc = fn.fn
+	if _g_.m.curg != nil {
+		newg.labels = _g_.m.curg.labels
+	}
+	if isSystemGoroutine(newg, false) {
+		atomic.Xadd(&sched.ngsys, +1)
+	}
+	// Track initial transition?
+	newg.trackingSeq = uint8(fastrand())
+	if newg.trackingSeq%gTrackingPeriod == 0 {
+		newg.tracking = true
+	}
+	casgstatus(newg, _Gdead, _Grunnable)
+
+	if _p_.goidcache == _p_.goidcacheend {
+		// Sched.goidgen is the last allocated id,
+		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
+		// At startup sched.goidgen=0, so main goroutine receives goid=1.
+		_p_.goidcache = atomic.Xadd64(&sched.goidgen, _GoidCacheBatch)
+		_p_.goidcache -= _GoidCacheBatch - 1
+		_p_.goidcacheend = _p_.goidcache + _GoidCacheBatch
+	}
+	newg.goid = int64(_p_.goidcache)
+	_p_.goidcache++
+	if raceenabled {
+		newg.racectx = racegostart(callerpc)
+	}
+	if trace.enabled {
+		traceGoCreate(newg, newg.startpc)
+	}
+	releasem(_g_.m)
+
+	return newg
+}
+
+```
+
+
 
