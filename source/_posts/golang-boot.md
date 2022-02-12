@@ -522,6 +522,8 @@ func mstart1() {
 在看 `schedule()` 之前，我们先跳到 main goroutine 的 main function 看一看：
 
 ```go
+/**************** [proc.go] ****************/
+
 func main() {
 	g := getg()
 	
@@ -576,6 +578,96 @@ func main() {
 		var x *int32
 		*x = 0
 	}
+}
+```
+
+
+
+```go
+/**************** [proc.go] ****************/
+
+func schedule() {
+  /* 如果是从 mstart0 而来，则当前拿到的是 g0 */
+	_g_ := getg()
+
+	... ...
+
+  /* 假如 g 所在的 m 锁定了固定运行的 goroutine，则暂停当前 m，将 m 上的 p 转移到其他 m，再运行锁定的 g*/
+	if _g_.m.lockedg != 0 {
+		stoplockedm()
+		execute(_g_.m.lockedg.ptr(), false) // Never returns.
+	}
+
+	... ...
+
+top:
+  /* preempt == true 代表 p 需要立即进入调度，目前已经在 scheduler() 内，因此清零它 */
+	pp := _g_.m.p.ptr()
+	pp.preempt = false
+
+  /* 如果当前有 GC 在等待，则先 GC，再执行调度 */
+	if sched.gcwaiting != 0 {
+    /* 停止当前 m，执行 GC，阻塞等待直到被唤醒，之后跳转 top，重新开始调度 */
+    gcstopm()
+		goto top
+	}
+	
+  ... ...
+
+  /* gp 就是即将被选出的 g */
+	var gp *g
+	var inheritTime bool
+
+	... ...
+  
+  /* 为了保证公平性，当前 p 的 schedtick（每一次调度循环都 +1） 等于 61 时，强制从全局队列中拿一个 g 出来，否则如果有两个 goroutine 互相创建对方，他们就会永远占有当前 p */
+	if gp == nil {
+		// Check the global runnable queue once in a while to ensure fairness.
+		// Otherwise two goroutines can completely occupy the local runqueue
+		// by constantly respawning each other.
+		if _g_.m.p.ptr().schedtick%61 == 0 && sched.runqsize > 0 {
+			lock(&sched.lock)
+			gp = globrunqget(_g_.m.p.ptr(), 1)
+			unlock(&sched.lock)
+		}
+	}
+  
+  /* 如果 schedtick没到 61，或者全局队列也没有 g 了，就尝试从本地 runq 中获取 g */
+	if gp == nil {
+		gp, inheritTime = runqget(_g_.m.p.ptr())
+		// We can see gp != nil here even if the M is spinning,
+		// if checkTimers added a local goroutine via goready.
+	}
+  
+  /* 如果本地 runq 里也没有 g 了，就需要通过 findrunnable() 阻塞获取 g（可能会从其他 p 的 runq 中进行工作窃取） 
+   * findrunnable 会：
+   * 1. 再次尝试：是否需要 gc、是否存在 finalizers g、cgo、本地 runq、全局队列等等
+   * 2. 从 netpoll 中查找是否存在等待完成的 g
+   * 3. 尝试工作窃取
+  */
+	if gp == nil {
+		gp, inheritTime = findrunnable() // blocks until work is available
+	}
+
+	// This thread is going to run a goroutine and is not spinning anymore,
+	// so if it was marked as spinning we need to reset it now and potentially
+	// start a new spinning M.
+	if _g_.m.spinning {
+		resetspinning()
+	}
+
+	... ...
+  
+  /* 如果拿到的 g 要求必须在锁定的 m 上执行，则将之交给锁定的 m 去执行，并再次进入调度循环 */
+	if gp.lockedm != 0 {
+		// Hands off own p to the locked m,
+		// then blocks waiting for a new p.
+		startlockedm(gp)
+		goto top
+	}
+
+  /* 一切就绪，准备开始调度被选中的 g 了 */
+	execute(gp, inheritTime)
 }
 ```
 
