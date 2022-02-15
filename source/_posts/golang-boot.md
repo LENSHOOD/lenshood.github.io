@@ -8,7 +8,7 @@ categories:
 - Golang
 ---
 
-### 启动代码
+### 1. 启动过程
 
 ```assembly
 /*** go 1.17.6 ***/
@@ -669,5 +669,77 @@ top:
   /* 一切就绪，准备开始调度被选中的 g 了 */
 	execute(gp, inheritTime)
 }
+
+func execute(gp *g, inheritTime bool) {
+	_g_ := getg()
+
+  /* 将被调度的 g 与当前 m 绑定 */
+	// Assign gp.m before entering _Grunning so running Gs have an
+	// M.
+	_g_.m.curg = gp
+	gp.m = _g_.m
+  
+  /* 将状态改为 _Grunning */
+	casgstatus(gp, _Grunnable, _Grunning)
+  
+  /* waitsince 是当前 g 被阻塞的估计时间，preempt 指示是否被抢占，重置 stackguard0 */
+	gp.waitsince = 0
+	gp.preempt = false
+	gp.stackguard0 = gp.stack.lo + _StackGuard
+	
+  ... ...
+
+  /* 传入 gobuf，跳转到汇编代码 */
+	gogo(&gp.sched)
+}
 ```
+
+
+
+```assembly
+/**************** [asm_amd64.s] ****************/
+
+TEXT runtime·gogo(SB), NOSPLIT, $0-8
+	MOVQ	buf+0(FP), BX		// gobuf
+	MOVQ	gobuf_g(BX), DX
+	MOVQ	0(DX), CX		// make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT, $0
+	get_tls(CX)
+	
+	/* 恢复现场第一步：用 gobuf 中的 g，覆盖 tls 中的 g，并放入 R14 */
+	MOVQ	DX, g(CX)
+	MOVQ	DX, R14		// set the g register
+	
+	/* 恢复现场第二步：用 gobuf 中的 sp 覆盖 SP，切换到 gp 的栈 */
+	MOVQ	gobuf_sp(BX), SP	// restore SP
+	
+	/* 恢复现场第三步：用 gobuf 中的 ret 地址覆盖 AX（amd64 下通用返回地址放在 AX） */
+	MOVQ	gobuf_ret(BX), AX
+	
+	/* 恢复现场第四步：用 gobuf 中的 ctxt(函数调用 traceback 的上下文寄存器) 地址覆盖 DX */
+	MOVQ	gobuf_ctxt(BX), DX
+	
+	/* 恢复现场第五步：用 gobuf 中的 bp 覆盖 BP */
+	MOVQ	gobuf_bp(BX), BP
+	
+	/* 清空前面用过的 gobuf 值 */
+	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
+	MOVQ	$0, gobuf_ret(BX)
+	MOVQ	$0, gobuf_ctxt(BX)
+	MOVQ	$0, gobuf_bp(BX)
+	
+	/* 最后将 gobuf 中保存的 pc 写入 BX，并直接跳到 BX 处开始执行 */
+	MOVQ	gobuf_pc(BX), BX
+	JMP	BX
+```
+
+
+
+### 2. M 系统线程操作
+
+### 3. 栈扩缩容
+
+### 4. 堆
 
