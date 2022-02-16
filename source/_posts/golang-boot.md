@@ -735,6 +735,80 @@ TEXT gogo<>(SB), NOSPLIT, $0
 	JMP	BX
 ```
 
+最后关注一下 goroutine 执行结束后的操作：
+
+```assembly
+/**************** [asm_amd64.s] ****************/
+
+/* 本函数是在 newproc 的时候设置的 gobuf 的默认 pc，用于在 goroutine 执行结束后作为伪造调用方而跳转的 */
+// The top-most function running on a goroutine
+// returns to goexit+PCQuantum.
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+	MOVD	R0, R0	// NOP
+	BL	runtime·goexit1(SB)	// does not return
+```
+
+```go
+/**************** [proc.go] ****************/
+
+// Finishes execution of the current goroutine.
+func goexit1() {
+	if raceenabled {
+		racegoend()
+	}
+	if trace.enabled {
+		traceGoEnd()
+	}
+  
+  /* mcall 专用做将当前执行栈切换为 g0（
+   * 1. 将当前 g 的 pc、sp、bp 等保存在 gobuf
+   * 2. 通过当前 g 的 m 找到 g0，切换 sp 为 g0 的sp，完成栈切换
+   * 3. 调用 mcall 的传入函数 goexit0，并将切换前的 g 传入 goexit0
+  */
+	mcall(goexit0)
+}
+
+func goexit0(gp *g) {
+  /* 这里 _g_ == g0 */
+	_g_ := getg()
+
+  /* 将原 g 状态设置为 _Gdead */
+	casgstatus(gp, _Grunning, _Gdead)
+
+  ... ...
+  
+  /* 做一些原 g 的清理工作 */
+	gp.m = nil
+	locked := gp.lockedm != 0
+	gp.lockedm = 0
+	_g_.m.lockedg = 0
+	gp.preemptStop = false
+	gp.paniconfault = false
+	gp._defer = nil // should be true already but just in case.
+	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
+	gp.writebuf = nil
+	gp.waitreason = 0
+	gp.param = nil
+	gp.labels = nil
+	gp.timer = nil
+
+	... ...
+
+  /* 将 m 与 curg 的关联断开*/
+	dropg()
+
+	... ...
+  
+  /* 原 g 执行完了，将其剩余的部分放入 gfree list，以便复用 */
+	gfput(_g_.m.p.ptr(), gp)
+	
+  ... ...
+  
+  /* 重新进入调度循环 */
+	schedule()
+}
+```
+
 
 
 ### 2. M 系统线程操作
@@ -742,4 +816,6 @@ TEXT gogo<>(SB), NOSPLIT, $0
 ### 3. 栈扩缩容
 
 ### 4. 堆
+
+### 5. 抢占
 
