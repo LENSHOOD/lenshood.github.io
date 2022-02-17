@@ -813,6 +813,329 @@ func goexit0(gp *g) {
 
 ### 2. M 系统线程操作
 
+m 是作为程序的实际执行载体，首先看看创建 m：
+
+```go
+/**************** [proc.go] ****************/
+
+func newm(fn func(), _p_ *p, id int64) {
+  /* 创建 m 结构 */
+	mp := allocm(_p_, fn, id)
+  
+  /* 执行 p 的 m 可以 park；设置 nextp 为 _p_；设置 sigmask */
+	mp.doesPark = (_p_ != nil)
+	mp.nextp.set(_p_)
+	mp.sigmask = initSigmask
+	
+  ... ...
+	
+  /* 创建系统线程 */
+  newm1(mp)
+}
+
+func allocm(_p_ *p, fn func(), id int64) *m {
+	_g_ := getg()
+	acquirem() // disable GC because it can be called from sysmon
+	if _g_.m.p == 0 {
+		acquirep(_p_) // temporarily borrow p for mallocs in this function
+	}
+
+	... ...
+
+  /* 初始化 m 结构*/
+	mp := new(m)
+	mp.mstartfn = fn
+	mcommoninit(mp, id)
+
+  /* 每个 m 都有自己的 g0，初始化 g0 */
+	// In case of cgo or Solaris or illumos or Darwin, pthread_create will make us a stack.
+	// Windows and Plan 9 will layout sched stack on OS stack.
+	if iscgo || mStackIsSystemAllocated() {
+		mp.g0 = malg(-1)
+	} else {
+		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
+	}
+	mp.g0.m = mp
+
+	if _p_ == _g_.m.p.ptr() {
+		releasep()
+	}
+	releasem(_g_.m)
+
+	return mp
+}
+
+func newm1(mp *m) {
+	... ...
+	execLock.rlock() // Prevent process clone.
+  /* 根据不同操作系统，按照实际系统创建系统线程 */
+	newosproc(mp)
+	execLock.runlock()
+}
+```
+
+```go
+/**************** [os_linux.go] ****************/
+
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
+	/*
+	 * note: strace gets confused if we use CLONE_PTRACE here.
+	 */
+	if false {
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
+	}
+
+	// Disable signals during clone, so that the new thread starts
+	// with signals disabled. It will enable them in minit.
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+  
+  /* 通过系统调用 clone 创建 linux 线程 */
+	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+	
+  sigprocmask(_SIG_SETMASK, &oset, nil)
+
+	if ret < 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+		if ret == -_EAGAIN {
+			println("runtime: may need to increase max user processes (ulimit -u)")
+		}
+		throw("newosproc")
+	}
+}
+
+```
+
+```assembly
+/**************** [sys_linux_amd64.s] ****************/
+
+// int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+TEXT runtime·clone(SB),NOSPLIT,$0
+  /* 在 os_linux.go 中可以查到传入的 flags：*/
+    cloneFlags = _CLONE_VM | /* share memory */
+		_CLONE_FS | /* share cwd, etc */
+		_CLONE_FILES | /* share fd table */
+		_CLONE_SIGHAND | /* share sig handler table */
+		_CLONE_SYSVSEM | /* share SysV semaphore undo lists (see issue #20763) */
+		_CLONE_THREAD /* revisit - okay for now */
+  /* 更多详情：https://man7.org/linux/man-pages/man2/clone.2.html */
+	MOVL	flags+0(FP), DI
+	
+	/* 这里传入的是 g0 的 stack.hi */
+	MOVQ	stk+8(FP), SI
+	MOVQ	$0, DX
+	MOVQ	$0, R10
+	MOVQ    $0, R8
+	
+	/* mp gp fn 等结构原本是在父线程栈内创建的，需要 copy 到新线程栈内 */
+	// Copy mp, gp, fn off parent stack for use by child.
+	// Careful: Linux system call clobbers CX and R11.
+	MOVQ	mp+16(FP), R13
+	MOVQ	gp+24(FP), R9
+	MOVQ	fn+32(FP), R12
+	CMPQ	R13, $0    // m
+	JEQ	nog1
+	CMPQ	R9, $0    // g
+	JEQ	nog1
+	
+	/* 前面 m、g 都不为 0，因此保存 m_tls 到 R8 */
+	LEAQ	m_tls(R13), R8
+#ifdef GOOS_android
+	// Android stores the TLS offset in runtime·tls_g.
+	SUBQ	runtime·tls_g(SB), R8
+#else
+	ADDQ	$8, R8	// ELF wants to use -8(FS)
+#endif
+	ORQ 	$0x00080000, DI //add flag CLONE_SETTLS(0x00080000) to call clone
+nog1:
+  /* call clone 系统调用 */
+	MOVL	$SYS_clone, AX
+	SYSCALL
+
+  /* 由于 clone 创建了新的线程空间，对于子线程，返回值 AX = 0 代表创建成功，对于父线程，返回值 AX 放入的是子线程 pid */
+	// In parent, return.
+	CMPQ	AX, $0
+	JEQ	3(PC)
+	
+	/* 这里是父线程，copy pid 到栈上，直接返回 */
+	MOVL	AX, ret+40(FP)
+	RET
+
+  /* 这里是子线程，先恢复 g0 栈 */
+	// In child, on new stack.
+	MOVQ	SI, SP
+
+	// If g or m are nil, skip Go-related setup.
+	CMPQ	R13, $0    // m
+	JEQ	nog2
+	CMPQ	R9, $0    // g
+	JEQ	nog2
+
+  /* 获取当前线程 id，放入 m_procid */
+	// Initialize m->procid to Linux tid
+	MOVL	$SYS_gettid, AX
+	SYSCALL
+	MOVQ	AX, m_procid(R13)
+
+  /* 恢复 m，g */
+	// In child, set up new stack
+	get_tls(CX)
+	MOVQ	R13, g_m(R9)
+	MOVQ	R9, g(CX)
+	MOVQ	R9, R14 // set g register
+	CALL	runtime·stackcheck(SB)
+
+nog2:
+  /* 执行传入的 fn，根据 newosproc，这里执行的是 mstart，这里又回到了启动时候的路径，mstart 的终点，就是 schedule() */
+	// Call fn. This is the PC of an ABI0 function.
+	CALL	R12
+
+  /* 正常情况下 schdule() 是永远不返回的，如果返回了，就关闭当前线程 */
+	// It shouldn't return. If it does, exit that thread.
+	MOVL	$111, DI
+	MOVL	$SYS_exit, AX
+	SYSCALL
+	JMP	-3(PC)	// keep exiting
+```
+
+
+```go
+/**************** [proc.go] ****************/
+
+/* startm 用于将传入的 _p_ 放到 m 上执行 */
+func startm(_p_ *p, spinning bool) {
+  /* 先给当前 m 加锁，若传入的 _p_ 为 nil 则从 pidle 中获取空闲的 p，没有空闲的 p 则退出 */
+	mp := acquirem()
+	lock(&sched.lock)
+	if _p_ == nil {
+		_p_ = pidleget()
+		if _p_ == nil {
+			unlock(&sched.lock)
+			if spinning {
+				// The caller incremented nmspinning, but there are no idle Ps,
+				// so it's okay to just undo the increment and give up.
+				if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+					throw("startm: negative nmspinning")
+				}
+			}
+			releasem(mp)
+			return
+		}
+	}
+  
+  /* 尝试从 midle 中获取一个空闲的 m，若获取不到，就创建一个新的 m */
+	nmp := mget()
+	if nmp == nil {
+    /* 先为 m 分配一个 id，防止在释放 sched.lock 后运行 checkdead() 时被判定为死锁 */
+		id := mReserveID()
+		unlock(&sched.lock)
+
+		var fn func()
+    /* 如果期望启动一个 spining 状态的 m，那么新创建的 m 就是正在自旋的 */
+		if spinning {
+			// The caller incremented nmspinning, so set m.spinning in the new M.
+			fn = mspinning
+		}
+		newm(fn, _p_, id)
+		// Ownership transfer of _p_ committed by start in newm.
+		// Preemption is now safe.
+		releasem(mp)
+		return
+	}
+	unlock(&sched.lock)
+  
+  /* 从 midle 中拿到的 m 一定不处于自旋状态（只有 stopm 后，m 才会进入 midle，而停止的 m 不处于自旋态） */
+	if nmp.spinning {
+		throw("startm: m is spinning")
+	}
+  
+  /* midle 中的 m 不应拥有 p */
+	if nmp.nextp != 0 {
+		throw("startm: m has p")
+	}
+  
+  /* 如果传入了非空闲的 p，且还期望启动一个自旋的 m，是自相矛盾的 */
+	if spinning && !runqempty(_p_) {
+		throw("startm: p has runnable gs")
+	}
+  
+  /* 根据需要自旋的情况设置自旋 */
+	// The caller incremented nmspinning, so set m.spinning in the new M.
+	nmp.spinning = spinning
+	nmp.nextp.set(_p_)
+  
+  /* 唤醒该 m 所绑定的系统线程，正式开始工作
+   *（如果是从 findrunnable() 调用的 stopm()，那么就会继续执行 findrunnable() 寻找新的 g） 
+  */
+	notewakeup(&nmp.park)
+	// Ownership transfer of _p_ committed by wakeup. Preemption is now
+	// safe.
+	releasem(mp)
+}
+
+/* 在 m 确实找不到可运行的 g 时，将被放入 midle 中，同时其关联的系统线程也将休眠 */
+func stopm() {
+	_g_ := getg()
+
+	if _g_.m.locks != 0 {
+		throw("stopm holding locks")
+	}
+	if _g_.m.p != 0 {
+		throw("stopm holding p")
+	}
+	if _g_.m.spinning {
+		throw("stopm spinning")
+	}
+
+	lock(&sched.lock)
+  /* midle 入队 */
+	mput(_g_.m)
+	unlock(&sched.lock)
+  
+  /* 系统线程休眠 */
+	mPark()
+	acquirep(_g_.m.nextp.ptr())
+	_g_.m.nextp = 0
+}
+```
+
+```go
+/**************** [lock_futex.go] ****************/
+
+/* 在 linux 系统下，notesleep 和 notewakeup 是基于 futex 实现，而在 macos 下则是 mutex cond */
+func notesleep(n *note) {
+	gp := getg()
+	if gp != gp.m.g0 {
+		throw("notesleep not on g0")
+	}
+	ns := int64(-1)
+	if *cgo_yield != nil {
+		// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+		ns = 10e6
+	}
+	for atomic.Load(key32(&n.key)) == 0 {
+		gp.m.blocked = true
+		futexsleep(key32(&n.key), 0, ns)
+		if *cgo_yield != nil {
+			asmcgocall(*cgo_yield, nil)
+		}
+		gp.m.blocked = false
+	}
+}
+
+func notewakeup(n *note) {
+	old := atomic.Xchg(key32(&n.key), 1)
+	if old != 0 {
+		print("notewakeup - double wakeup (", old, ")\n")
+		throw("notewakeup - double wakeup")
+	}
+	futexwakeup(key32(&n.key), 1)
+}
+```
+
+
+
 ### 3. 栈扩缩容
 
 ### 4. 堆
