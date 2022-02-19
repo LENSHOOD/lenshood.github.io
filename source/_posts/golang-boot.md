@@ -1136,7 +1136,109 @@ func notewakeup(n *note) {
 
 
 
-### 3. 栈扩缩容
+### 3. 栈
+
+```go
+/**************** [stack.go] ****************/
+
+/* 为调用者分配一段栈空间，返回栈顶与栈底地址（即 stack 结构） */
+func stackalloc(n uint32) stack {
+  /* 需要在系统栈上运行，因此 thisg 一定是 g0 */
+	thisg := getg()
+
+  ... ...
+  
+	// Small stacks are allocated with a fixed-size free-list allocator.
+	// If we need a stack of a bigger size, we fall back on allocating
+	// a dedicated span.
+	var v unsafe.Pointer
+  /* 1. _FixedStack 是根据 _StackSystem 所调整的 _StackMin 的二次幂数值，
+   *    在 linux 下 _StackSystem = 0，因此 linux 下 _FixedStack == _StackMin == 2048
+   * 2. _NumStackOrders 代表栈阶数，golang 中将栈分为 n 阶，第 k + 1 阶的栈容量是 k 阶的 2 倍
+   *    linux 下 _NumStackOrders = 4，其每阶栈空间大小分别是 2k、4k、8k、16k
+   * 3. _StackCacheSize = 32k，小于 32k 的栈空间分配可以尝试在 P 缓存中分配
+  */
+	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+		order := uint8(0)
+		n2 := n
+    /* 根据需要分配的空间大小 n，找到需要在哪一阶（order）中分配 */
+		for n2 > _FixedStack {
+			order++
+			n2 >>= 1
+		}
+		var x gclinkptr
+		if stackNoCache != 0 || thisg.m.p == 0 || thisg.m.preemptoff != "" {
+      /* 部分情况下需要直接从全局的 stackpool 中分配栈空间，stackpoolalloc 见后文 */
+			// thisg.m.p == 0 can happen in the guts of exitsyscall
+			// or procresize. Just get a stack from the global pool.
+			// Also don't touch stackcache during gc
+			// as it's flushed concurrently.
+			lock(&stackpool[order].item.mu)
+			x = stackpoolalloc(order)
+			unlock(&stackpool[order].item.mu)
+		} else {
+      /* 否则就可以在 P 缓存内分配栈空间
+       * 每个 p 结构中都持有一个 mcache，其中保存了 _NumStackOrders 个 stackfreelist 用来存放空闲栈空间
+      */
+			c := thisg.m.p.ptr().mcache
+			x = c.stackcache[order].list
+			if x.ptr() == nil {
+        /* 若当前阶的 stackfreelist 还未分配，对其进行分配
+         *（实际上还是从全局 stackpool 中分配，一次性分配 _StackCacheSize 的一半）
+         * 分配的栈空间会以一个个的 segment 的形式链式存储，每个 segment 的容量等于当前阶所规定的栈容量
+        */
+				stackcacherefill(c, order)
+				x = c.stackcache[order].list
+			}
+      /* 从空闲列表 head 处分配 n 个字节，并将当前空闲列表 head 指向下一个 segment，若指到了 tail，下一次就又会对其进行分配
+       * 由于 _StackMin = 2k，又要求 n 必须是二次幂，因此就能确保待分配的 n 字节栈空间恰好与对应阶的栈容量一致
+      */
+			c.stackcache[order].list = x.ptr().next
+			c.stackcache[order].size -= uintptr(n)
+		}
+		v = unsafe.Pointer(x)
+	} else {
+    /* 若需要的栈空间过大，就尝试在 stackLarge 中分配
+     * stackLarge 实际上存放的是一组 span 链表，每一条链表存放的占空间大小是以一页大小（8k）的二次幂划分的，
+     * 即 stackLarge.free[0] =》 8k，stackLarge.free[1] =》 16k，stackLarge.free[1] =》 32k，... ...
+     * 同样的，由于 _StackMin = 2k，又要求 n 必须是二次幂，因此传入的 n 转换为 npages 后也会遵循 1，2，4，8... 的要求
+    */
+		var s *mspan
+    /* 计算需要的 page 数量 */
+		npage := uintptr(n) >> _PageShift
+		log2npage := stacklog2(npage)
+
+		// Try to get a stack from the large stack cache.
+		lock(&stackLarge.lock)
+		if !stackLarge.free[log2npage].isEmpty() {
+      /* 如果存在合适的空闲空间，直接使用 */
+			s = stackLarge.free[log2npage].first
+			stackLarge.free[log2npage].remove(s)
+		}
+		unlock(&stackLarge.lock)
+
+		lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
+
+    /* 如果 stackLarge 中没有剩余空间了，那么直接从堆中分配 npage 空间 */
+		if s == nil {
+			// Allocate a new stack from the heap.
+			s = mheap_.allocManual(npage, spanAllocStack)
+			if s == nil {
+				throw("out of memory")
+			}
+			osStackAlloc(s)
+			s.elemsize = uintptr(n)
+		}
+		v = unsafe.Pointer(s.base())
+	}
+
+	... ...
+	return stack{uintptr(v), uintptr(v) + uintptr(n)}
+}
+
+```
+
+
 
 ### 4. 堆
 
