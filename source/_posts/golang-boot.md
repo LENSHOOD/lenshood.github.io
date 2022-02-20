@@ -1236,11 +1236,390 @@ func stackalloc(n uint32) stack {
 	return stack{uintptr(v), uintptr(v) + uintptr(n)}
 }
 
+/* 全局 stackpool 的分配 */
+func stackpoolalloc(order uint8) gclinkptr {
+  /* 每一阶都存放了一个 span 链表作为空闲链表 */
+	list := &stackpool[order].item.span
+	s := list.first
+	lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
+  /* 如果当前阶的空闲列表为空，尝试从堆分配，但 allocManual 所分配的内存是不被 gc 管理的，因此一定要手动释放 */
+	if s == nil {
+    /* 一次性分配 _StackCacheSize 容量的页，返回一个 mspan */
+		// no free stacks. Allocate another span worth.
+		s = mheap_.allocManual(_StackCacheSize>>_PageShift, spanAllocStack)
+		
+    ... ...
+		
+    /* 按 order 所指定的大小，将内存切分成 segments，用 manualFreeList 管理 */
+    s.elemsize = _FixedStack << order
+		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
+			x := gclinkptr(s.base() + i)
+			x.ptr().next = s.manualFreeList
+			s.manualFreeList = x
+		}
+		list.insert(s)
+	}
+	x := s.manualFreeList
+	if x.ptr() == nil {
+		throw("span has no free stacks")
+	}
+	s.manualFreeList = x.ptr().next
+	s.allocCount++
+  /* 当 manualFreeList 为 nil 时说明当前 mspan 持有的空闲 segment 都已经被分配掉了，因此把它移除 stackpool */
+	if s.manualFreeList.ptr() == nil {
+		// all stacks in s are allocated.
+		list.remove(s)
+	}
+  /* 最终返回的是 mspan manualFreeList 的首地址 */
+	return x
+}
+
+/* 将 stack 释放，通常在释放 g 的时候调用 */
+func stackfree(stk stack) {
+	gp := getg()
+	v := unsafe.Pointer(stk.lo)
+	n := stk.hi - stk.lo
+
+  ... ...
+  
+  /* 一样是根据栈空间大小来决定释放的位置 */
+	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+		order := uint8(0)
+		n2 := n
+		for n2 > _FixedStack {
+			order++
+			n2 >>= 1
+		}
+		x := gclinkptr(v)
+    /* 选择从 stackpool 或者 stackcache 中释放 */
+		if stackNoCache != 0 || gp.m.p == 0 || gp.m.preemptoff != "" {
+			lock(&stackpool[order].item.mu)
+			stackpoolfree(x, order)
+			unlock(&stackpool[order].item.mu)
+		} else {
+			c := gp.m.p.ptr().mcache
+			if c.stackcache[order].size >= _StackCacheSize {
+        /* 当 stackcache 已满时，尝试释放一部分（保证容量小于 _StackCacheSize/2） */
+				stackcacherelease(c, order)
+			}
+      /* 把 stack segment 插入 head */
+			x.ptr().next = c.stackcache[order].list
+			c.stackcache[order].list = x
+			c.stackcache[order].size += n
+		}
+	} else {
+    /* 若栈空间过大 */
+		s := spanOfUnchecked(uintptr(v))
+		if s.state.get() != mSpanManual {
+			println(hex(s.base()), v)
+			throw("bad span state")
+		}
+    /* 假如当前 gc 未运行（在后台 sweep）直接将空间释放 */
+		if gcphase == _GCoff {
+			// Free the stack immediately if we're
+			// sweeping.
+			osStackFree(s)
+			mheap_.freeManual(s, spanAllocStack)
+		} else {
+      /* gc 正在运行时，不能直接释放，还回 stackLarge */
+			// If the GC is running, we can't return a
+			// stack span to the heap because it could be
+			// reused as a heap span, and this state
+			// change would race with GC. Add it to the
+			// large stack cache instead.
+			log2npage := stacklog2(s.npages)
+			lock(&stackLarge.lock)
+			stackLarge.free[log2npage].insert(s)
+			unlock(&stackLarge.lock)
+		}
+	}
+}
+
+/* 释放全局 stackpool */
+func stackpoolfree(x gclinkptr, order uint8) {
+	s := spanOfUnchecked(uintptr(x))
+  /* 用作 stack 的 mspan，都会持有 mSpanManual 状态 */
+	if s.state.get() != mSpanManual {
+		throw("freeing stack not in a stack span")
+	}
+  /* 假如 manualFreeList 为 nil，把它重新加回 stackpool，因为在释放了空间后，这个 span 会重新拥有空闲空间 */
+	if s.manualFreeList.ptr() == nil {
+		// s will now have a free stack
+		stackpool[order].item.span.insert(s)
+	}
+	x.ptr().next = s.manualFreeList
+	s.manualFreeList = x
+	s.allocCount--
+  /* 当 gc 在后台未运行，且当前 span 的所有 segment 都被释放了，就把他还回 heap */
+	if gcphase == _GCoff && s.allocCount == 0 {
+		// Span is completely free. Return it to the heap
+		// immediately if we're sweeping.
+		//
+		// If GC is active, we delay the free until the end of
+		// GC to avoid the following type of situation:
+		//
+		// 1) GC starts, scans a SudoG but does not yet mark the SudoG.elem pointer
+		// 2) The stack that pointer points to is copied
+		// 3) The old stack is freed
+		// 4) The containing span is marked free
+		// 5) GC attempts to mark the SudoG.elem pointer. The
+		//    marking fails because the pointer looks like a
+		//    pointer into a free span.
+		//
+		// By not freeing, we prevent step #4 until GC is done.
+		stackpool[order].item.span.remove(s)
+		s.manualFreeList = 0
+		osStackFree(s)
+		mheap_.freeManual(s, spanAllocStack)
+	}
+}
+```
+
+```assembly
+/**************** [asm_amd64.s] ****************/
+
+/* 检查是否需要扩容当前栈
+ * 对于每一个非 NOSPLIT 的函数，编译器都会在最前面插入尝试调用 morestack 的逻辑：
+ * 若当前 SP 已经小于 stackgourd0，则跳转到 morestack
+*/
+TEXT runtime·morestack(SB),NOSPLIT,$0-0
+	// Cannot grow scheduler stack (m->g0).
+	get_tls(CX)
+	MOVQ	g(CX), BX
+	MOVQ	g_m(BX), BX
+	MOVQ	m_g0(BX), SI
+	/*  g0 的栈不能被扩容，因此如果检测到 morestack 在 g0 上被调用，直接终止程序 */
+	CMPQ	g(CX), SI
+	JNE	3(PC)
+	CALL	runtime·badmorestackg0(SB)
+	CALL	runtime·abort(SB)
+
+  /*  gsignal 的栈也不能被扩容 */
+	// Cannot grow signal stack (m->gsignal).
+	MOVQ	m_gsignal(BX), SI
+	CMPQ	g(CX), SI
+	JNE	3(PC)
+	CALL	runtime·badmorestackgsignal(SB)
+	CALL	runtime·abort(SB)
+
+  /* 将当前函数调用者的 pc sp g 等信息保存在 m 的 morebuf 中 */
+	// Called from f.
+	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	MOVQ	8(SP), AX	// f's caller's PC
+	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+	LEAQ	16(SP), AX	// f's caller's SP
+	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
+	get_tls(CX)
+	MOVQ	g(CX), SI
+	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
+
+  /* 将当前函数的 pc sp g 等信息保存在 g 的 shecd 中 */
+	// Set g->sched to context in f.
+	MOVQ	0(SP), AX // f's PC
+	MOVQ	AX, (g_sched+gobuf_pc)(SI)
+	LEAQ	8(SP), AX // f's SP
+	MOVQ	AX, (g_sched+gobuf_sp)(SI)
+	MOVQ	BP, (g_sched+gobuf_bp)(SI)
+	MOVQ	DX, (g_sched+gobuf_ctxt)(SI)
+
+  /* 切换到 g0 运行 newstack */
+	// Call newstack on m->g0's stack.
+	MOVQ	m_g0(BX), BX
+	MOVQ	BX, g(CX)
+	MOVQ	(g_sched+gobuf_sp)(BX), SP
+	CALL	runtime·newstack(SB)
+	/* newstack 会直接调用 gogo 跳转到原 goroutine 执行，因此不会返回 */
+	CALL	runtime·abort(SB)	// crash if newstack returns
+	RET
+```
+
+```go
+/**************** [stack.go] ****************/
+
+func newstack() {
+	thisg := getg()
+  
+  ... ...
+
+	gp := thisg.m.curg
+
+  ... ...
+  
+	morebuf := thisg.m.morebuf
+	thisg.m.morebuf.pc = 0
+	thisg.m.morebuf.lr = 0
+	thisg.m.morebuf.sp = 0
+	thisg.m.morebuf.g = 0
+
+  /* 这里略过了抢占相关的逻辑，当下只关心栈扩容 */
+	... ...
+
+  /* 新栈空间是旧栈的两倍 */
+	// Allocate a bigger segment and move the stack.
+	oldsize := gp.stack.hi - gp.stack.lo
+	newsize := oldsize * 2
+
+  /* 通过 PCDATA 计算出函数所需的栈帧空间，如果新栈所扩张的空间仍然不够函数所需，则对他再次乘 2 */
+	// Make sure we grow at least as much as needed to fit the new frame.
+	// (This is just an optimization - the caller of morestack will
+	// recheck the bounds on return.)
+	if f := findfunc(gp.sched.pc); f.valid() {
+		max := uintptr(funcMaxSPDelta(f))
+		needed := max + _StackGuard
+		used := gp.stack.hi - gp.sched.sp
+		for newsize-used < needed {
+			newsize *= 2
+		}
+	}
+
+	... ...
+  
+  /* 假如扩容后的栈空间超过了最大容量，抛出栈溢出错误，maxstacksize 会在 main goroutine 中被设置为 1 GiB */
+	if newsize > maxstacksize || newsize > maxstackceiling {
+		if maxstacksize < maxstackceiling {
+			print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+		} else {
+			print("runtime: goroutine stack exceeds ", maxstackceiling, "-byte limit\n")
+		}
+		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+		throw("stack overflow")
+	}
+
+	// The goroutine must be executing in order to call newstack,
+	// so it must be Grunning (or Gscanrunning).
+	casgstatus(gp, _Grunning, _Gcopystack)
+
+	// The concurrent GC will not scan the stack while we are doing the copy since
+	// the gp is in a Gcopystack status.
+	copystack(gp, newsize)
+	
+  if stackDebug >= 1 {
+		print("stack grow done\n")
+	}
+	casgstatus(gp, _Gcopystack, _Grunning)
+	gogo(&gp.sched)
+}
+
+/* 扩容实际上是分配新空间，并将旧栈内容复制进去 */
+func copystack(gp *g, newsize uintptr) {
+  ... ...
+	old := gp.stack
+  ... ...
+	used := old.hi - gp.sched.sp
+
+  /* 用 stackalloc 分配新空间 */
+	// allocate new stack
+	new := stackalloc(uint32(newsize))
+	... ...
+  
+  /* 计算新旧栈空间之间的距离，便于后续 copy 的时候定位 */
+	// Compute adjustment.
+	var adjinfo adjustinfo
+	adjinfo.old = old
+	adjinfo.delta = new.hi - old.hi
+
+	// Adjust sudogs, synchronizing with channel ops if necessary.
+	ncopy := used
+  /* 对于没有非阻塞 channel 指向当前 g 的 stack，直接调整其每一个 sudog 指向的 stack 位置
+   * （sudog 即 pseudo g，sudog 代表 g 在等待某个对象，g.waiting 是当前 g 的等待队列）
+  */
+	if !gp.activeStackChans {
+		if newsize < old.hi-old.lo && atomic.Load8(&gp.parkingOnChan) != 0 {
+			// It's not safe for someone to shrink this stack while we're actively
+			// parking on a channel, but it is safe to grow since we do that
+			// ourselves and explicitly don't want to synchronize with channels
+			// since we could self-deadlock.
+			throw("racy sudog adjustment due to parking on channel")
+		}
+		adjustsudogs(gp, &adjinfo)
+	} else {
+    /* 否则，需要将 channel lock 之后再移动 */
+		// sudogs may be pointing in to the stack and gp has
+		// released channel locks, so other goroutines could
+		// be writing to gp's stack. Find the highest such
+		// pointer so we can handle everything there and below
+		// carefully. (This shouldn't be far from the bottom
+		// of the stack, so there's little cost in handling
+		// everything below it carefully.)
+		adjinfo.sghi = findsghi(gp, old)
+
+		// Synchronize with channel ops and copy the part of
+		// the stack they may interact with.
+		ncopy -= syncadjustsudogs(gp, used, &adjinfo)
+	}
+
+  /* memmove 位于 memmove_amd64.s ，实现中有非常多优化 */
+	// Copy the stack (or the rest of it) to the new location
+	memmove(unsafe.Pointer(new.hi-ncopy), unsafe.Pointer(old.hi-ncopy), ncopy)
+
+  /* 在 sched、defer、panic 中与 stack 相关的全都要调整 */
+	// Adjust remaining structures that have pointers into stacks.
+	// We have to do most of these before we traceback the new
+	// stack because gentraceback uses them.
+	adjustctxt(gp, &adjinfo)
+	adjustdefers(gp, &adjinfo)
+	adjustpanics(gp, &adjinfo)
+	if adjinfo.sghi != 0 {
+		adjinfo.sghi += adjinfo.delta
+	}
+
+  /* 将 g.stack 切换 */
+	// Swap out old stack for new one
+	gp.stack = new
+	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
+	gp.sched.sp = new.hi - used
+	gp.stktopsp += adjinfo.delta
+
+	// Adjust pointers in the new stack.
+	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
+
+  /* 最后把旧空间释放 */
+	// free old stack
+	if stackPoisonCopy != 0 {
+		fillstack(old, 0xfc)
+	}
+	stackfree(old)
+}
+
+/* 缩小栈 */
+func shrinkstack(gp *g) {
+	... ...
+
+  /* 准备将栈空间缩小为原来的一半，但必须大于 _FixedStack，否则不缩小 */
+	oldsize := gp.stack.hi - gp.stack.lo
+	newsize := oldsize / 2
+	// Don't shrink the allocation below the minimum-sized stack
+	// allocation.
+	if newsize < _FixedStack {
+		return
+	}
+  
+  /* 如果已使用的栈空间大于总空间的四分之一，也不缩小 */
+	// Compute how much of the stack is currently in use and only
+	// shrink the stack if gp is using less than a quarter of its
+	// current stack. The currently used stack includes everything
+	// down to the SP plus the stack guard space that ensures
+	// there's room for nosplit functions.
+	avail := gp.stack.hi - gp.stack.lo
+	if used := gp.stack.hi - gp.sched.sp + _StackLimit; used >= avail/4 {
+		return
+	}
+
+	if stackDebug > 0 {
+		print("shrinking stack ", oldsize, "->", newsize, "\n")
+	}
+
+  /* 缩小的逻辑还是通过将栈内容复制到一个更小的空间内完成的 */
+	copystack(gp, newsize)
+}
 ```
 
 
 
 ### 4. 堆
+
+
 
 ### 5. 抢占
 
