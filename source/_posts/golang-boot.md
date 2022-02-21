@@ -1619,7 +1619,141 @@ func shrinkstack(gp *g) {
 
 ### 4. 堆
 
+```go
+/**************** [malloc.go] ****************/
+
+func newobject(typ *_type) unsafe.Pointer {
+	return mallocgc(typ.size, typ, true)
+}
+
+func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	/* 这里略过了 GODEBUG = sbrk，gcAssist 协助标记等逻辑，当下只关心堆内存分配 */
+  ... ...
+
+	// Set mp.mallocing to keep from being preempted by GC.
+	mp := acquirem()
+	... ...
+	mp.mallocing = 1
+
+	shouldhelpgc := false
+	dataSize := size
+	c := getMCache()
+  ... ...
+  
+	var span *mspan
+	var x unsafe.Pointer
+	noscan := typ == nil || typ.ptrdata == 0
+	// In some cases block zeroing can profitably (for latency reduction purposes)
+	// be delayed till preemption is possible; isZeroed tracks that state.
+	isZeroed := true
+  
+  /* 首先判断需要分配的空间是否大于 maxSmallSize（=32KiB），大对象会进入专门的分配逻辑 */
+	if size <= maxSmallSize {
+    /* 当传入的 type 为 nil 或者不是指针类型（typ.ptrdata == 0），且所需容量小于 maxTinySize（16 byte）时，
+     * 使用 tiny allocator 
+    */
+		if noscan && size < maxTinySize {
+      /* Tiny Allocator
+       * 将许多小对象组合起来，共同分配一块空间（maxTinySize）。
+       * maxTinySize 目前是 16 bytes，最多可能浪费一倍的空间。
+       * tiny allocator 主要用于分配小字符串和单个逃逸的变量，tiny allocator 的空间在 mcache 中分配。
+      */
+			off := c.tinyoffset
+			/* 先对当前 tiny block 的 offset 按照所需的 size 进行对齐 */
+			if size&7 == 0 {
+				off = alignUp(off, 8)
+			} else if sys.PtrSize == 4 && size == 12 {
+				off = alignUp(off, 8)
+			} else if size&3 == 0 {
+				off = alignUp(off, 4)
+			} else if size&1 == 0 {
+				off = alignUp(off, 2)
+			}
+      
+      /* 对齐后的 offset + size 仍旧小于 maxTinySize，说明可以直接在当前块分配 */
+			if off+size <= maxTinySize && c.tiny != 0 {
+				// The object fits into existing tiny block.
+				x = unsafe.Pointer(c.tiny + off)
+				c.tinyoffset = off + size
+        /* 记录了总分配数 */
+				c.tinyAllocs++
+				mp.mallocing = 0
+				releasem(mp)
+        
+        /* 返回内存块起始地址，结束 */
+				return x
+			}
+			
+      /* 若当前块不能满足所需空间，就需要新创建一个 maxTinySize 大的新块（旧块中的剩余空间浪费掉了） */
+			span = c.alloc[tinySpanClass]
+      /* 先看看在 mcache 里面有没有空闲内存 */
+			v := nextFreeFast(span)
+			if v == 0 {
+        /* 如果没有了，就需要分配一个新的 span（具体见内存管理部分） */
+				v, span, shouldhelpgc = c.nextFree(tinySpanClass)
+			}
+			x = unsafe.Pointer(v)
+      /* maxTinySize = 16 bytes，清空 */
+			(*[2]uint64)(x)[0] = 0
+			(*[2]uint64)(x)[1] = 0
+			// See if we need to replace the existing tiny block with the new one
+			// based on amount of remaining free space.
+			if !raceenabled && (size < c.tinyoffset || c.tiny == 0) {
+				// Note: disabled when race detector is on, see comment near end of this function.
+				c.tiny = uintptr(x)
+				c.tinyoffset = size
+			}
+			size = maxTinySize
+		} else {
+      /* 大于 16 bytes 或者是指针类型 */
+			var sizeclass uint8
+			if size <= smallSizeMax-8 {
+				sizeclass = size_to_class8[divRoundUp(size, smallSizeDiv)]
+			} else {
+				sizeclass = size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]
+			}
+      
+      /* 根据计算过的 sizeclass 来选择分配的空间大小（而不是直接分配实际需要的容量） */
+			size = uintptr(class_to_size[sizeclass])
+			spc := makeSpanClass(sizeclass, noscan)
+			span = c.alloc[spc]
+      
+      /* 一样，有空闲就在 mcache 找，没有就再分配 */
+			v := nextFreeFast(span)
+			if v == 0 {
+				v, span, shouldhelpgc = c.nextFree(spc)
+			}
+			x = unsafe.Pointer(v)
+			if needzero && span.needzero != 0 {
+        /* 若需要，对分配的空间进行清空 */
+				memclrNoHeapPointers(unsafe.Pointer(v), size)
+			}
+		}
+	} else {
+    /* 大对象，直接在堆上分配 */
+		shouldhelpgc = true
+		// For large allocations, keep track of zeroed state so that
+		// bulk zeroing can be happen later in a preemptible context.
+		span, isZeroed = c.allocLarge(size, needzero && !noscan, noscan)
+		span.freeindex = 1
+		span.allocCount = 1
+		x = unsafe.Pointer(span.base())
+		size = span.elemsize
+	}
+
+  /* 省略了 GC、调试等等逻辑 */
+	... ...
+
+	return x
+}
+
+```
 
 
-### 5. 抢占
+
+### 5. 内存管理
+
+
+
+### 6. 抢占
 
