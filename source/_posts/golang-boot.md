@@ -1753,6 +1753,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 ### 5. 内存管理
 
+#### 5.1 内存分配
+
 ```
          ┌────────────────┐
          │     mcache     │
@@ -1876,7 +1878,7 @@ func (c *mcache) refill(spc spanClass) {
 		mheap_.central[spc].mcentral.uncacheSpan(s)
 	}
 
-  /* 从 mcentral 获取新的 span */
+  /* 从 mcentral 获取新的 span，从这里能看出，每一个 span class 对应了一个 mcantral */
 	s = mheap_.central[spc].mcentral.cacheSpan()
 	
   ... ...
@@ -1918,6 +1920,226 @@ func (c *mcache) refill(spc spanClass) {
 
   /* 最后加入对应位置 */
 	c.alloc[spc] = s
+}
+
+/* 大对象直接进入此方法分配 */
+func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, bool) {
+	/* 距离到达地址指针最大值不足一页 */
+  if size+_PageSize < size {
+		throw("out of memory")
+	}
+  
+  /* 计算需要的整数页 */
+	npages := size >> _PageShift
+	if size&_PageMask != 0 {
+		npages++
+	}
+
+	// Deduct credit for this span allocation and sweep if
+	// necessary. mHeap_Alloc will also sweep npages, so this only
+	// pays the debt down to npage pages.
+	deductSweepCredit(npages*_PageSize, npages)
+
+  /* 根据是否 noscan 获取正确的 span class，注意此处的 size class 是 0，代表分配的是大于 32k 的大内存 */
+	spc := makeSpanClass(0, noscan)
+  
+  /* 直接从堆分配 npages 页内存，由于 size class = 0，因此不受 class_to_size 和 class_to_allocnpages 的限制 */
+	s, isZeroed := mheap_.alloc(npages, spc, needzero)
+	if s == nil {
+		throw("out of memory")
+	}
+	stats := memstats.heapStats.acquire()
+	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
+	atomic.Xadduintptr(&stats.largeAllocCount, 1)
+	memstats.heapStats.release()
+
+	// Update gcController.heapLive and revise pacing if needed.
+	atomic.Xadd64(&gcController.heapLive, int64(npages*pageSize))
+	if trace.enabled {
+		// Trace that a heap alloc occurred because gcController.heapLive changed.
+		traceHeapAlloc()
+	}
+	if gcBlackenEnabled != 0 {
+		gcController.revise()
+	}
+
+	// Put the large span in the mcentral swept list so that it's
+	// visible to the background sweeper.
+	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
+	s.limit = s.base() + size
+	heapBitsForAddr(s.base()).initSpan(s)
+	return s, isZeroed
+}
+```
+
+
+
+```go
+/**************** [mcentral.go] ****************/
+
+type mcentral struct {
+  /* 当前 mcentral 所属的 span class */
+	spanclass spanClass
+
+  /*
+   * partial 和 full 各包含两个 mspan set：一个是已经清理的 span，另一个是未清理的 span。
+   * 每次 GC 后，已清理的和未清理的 spanSet 会互换。未清理的 spanSet 会被内存分配器或是 GC 后台清理器抽取。
+   * 
+   * 每次 GC，sweepgen 会被 +2，所以已清理的 spanSet = partial[sweepgen/2%2]，
+   * 未清理的 spanSet = partial[1 - sweepgen/2%2]
+  */
+	partial [2]spanSet // list of spans with a free object
+	full    [2]spanSet // list of spans with no free objects
+}
+
+/* 向 mcache 提供 span 的具体方法 */
+func (c *mcentral) cacheSpan() *mspan {
+	... ...
+
+  /* 不论是在部分空闲还是无空闲列表中尝试超过 spanBudget 次，还没有找到合适的 span，
+   * 就直接分配一个新的 span，以此减小对小对象清理的开销 
+  */
+	spanBudget := 100
+
+	var s *mspan
+	sl := newSweepLocker()
+	sg := sl.sweepGen
+
+	/* 先尝试从已清理的部分空闲集合中获取 span */
+	if s = c.partialSwept(sg).pop(); s != nil {
+		goto havespan
+	}
+
+	/* 如果没有，就从未清理部分空闲集合中获取 span */
+	for ; spanBudget >= 0; spanBudget-- {
+		s = c.partialUnswept(sg).pop()
+		if s == nil {
+			break
+		}
+		if s, ok := sl.tryAcquire(s); ok {
+			/* 锁定了一个未清理的 span，将其清理后使用 */
+			s.sweep(true)
+			sl.dispose()
+			goto havespan
+		}
+		/* 假如没能锁定当前的未清理 span，说明它已经被后台异步清理器锁定了，但还没有来得及将其处理完并移除出未清理列表，找下一个 */
+	}
+	
+  /* 如果还是没有，尝试从未清理无空闲列表中获取 span */
+	for ; spanBudget >= 0; spanBudget-- {
+		s = c.fullUnswept(sg).pop()
+		if s == nil {
+			break
+		}
+		if s, ok := sl.tryAcquire(s); ok {
+			/* 还是先清理 */
+			s.sweep(true)
+			/* 之后看看是不是空出了空闲位置 */
+			freeIndex := s.nextFreeIndex()
+			if freeIndex != s.nelems {
+				s.freeindex = freeIndex
+				sl.dispose()
+				goto havespan
+			}
+			/* 若没找到任何空闲位置，把它放入已扫描无空闲列表中，重试下一个 */
+			c.fullSwept(sg).push(s.mspan)
+		}
+		// See comment for partial unswept spans.
+	}
+	sl.dispose()
+	if trace.enabled {
+		traceGCSweepDone()
+		traceDone = true
+	}
+
+	/* 实在找不到可使用的现存 span 了，向 heap 申请新的，假如还申请不到就只好 OOM */
+	s = c.grow()
+	if s == nil {
+		return nil
+	}
+
+	/* 程序执行到此处，证明一定找到一个有空闲的 span 了 */
+havespan:
+	if trace.enabled && !traceDone {
+		traceGCSweepDone()
+	}
+	n := int(s.nelems) - int(s.allocCount)
+	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
+		throw("span has no free objects")
+	}
+	freeByteBase := s.freeindex &^ (64 - 1)
+	whichByte := freeByteBase / 8
+	// Init alloc bits cache.
+	s.refillAllocCache(whichByte)
+
+	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
+	// s.allocCache.
+	s.allocCache >>= s.freeindex % 64
+
+	return s
+}
+
+/* 从 heap 中申请新 span */
+func (c *mcentral) grow() *mspan {
+	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
+	size := uintptr(class_to_size[c.spanclass.sizeclass()])
+
+	s, _ := mheap_.alloc(npages, c.spanclass, true)
+	if s == nil {
+		return nil
+	}
+
+	// Use division by multiplication and shifts to quickly compute:
+	// n := (npages << _PageShift) / size
+	n := s.divideByElemSize(npages << _PageShift)
+	s.limit = s.base() + size*n
+	heapBitsForAddr(s.base()).initSpan(s)
+	return s
+}
+
+/* 从 mcache 回收 span 
+ * span 的 sweepgen 与全局 sweepgen 的关系：
+ * span sweepgen == 全局 sweepgen - 2：需要清理
+ * span sweepgen == 全局 sweepgen - 1：正被清理
+ * span sweepgen == 全局 sweepgen：清理完成，且可用
+ * span sweepgen == 全局 sweepgen + 1：在清理前就被 cache 了，需要清理
+ * span sweepgen == 全局 sweepgen + 3：清理完成且仍旧是 cache 状态
+ * 全局 sweepgen 每次 GC 自动 +2
+*/
+func (c *mcentral) uncacheSpan(s *mspan) {
+	if s.allocCount == 0 {
+		throw("uncaching span but s.allocCount == 0")
+	}
+
+	sg := mheap_.sweepgen
+  /* 若等于 sg+1 代表需要清理 */
+	stale := s.sweepgen == sg+1
+
+	// Fix up sweepgen.
+	if stale {
+		/* 去除 cache 状态，且正在清理 */
+		atomic.Store(&s.sweepgen, sg-1)
+	} else {
+		/* 去除 cache 状态 */
+		atomic.Store(&s.sweepgen, sg)
+	}
+
+	// Put the span in the appropriate place.
+	if stale {
+    /* stale 的 span 不在全局清理列表中，可以直接锁定 */
+		ss := sweepLocked{s}
+    
+    /* 清理，由于传入参数 preserve == false，所以清理完后就归还给 heap 或 spanSet */
+		ss.sweep(false)
+	} else {
+		if int(s.nelems)-int(s.allocCount) > 0 {
+			/* 还有空余，归还到已清理部分空闲列表 */
+			c.partialSwept(sg).push(s)
+		} else {
+			/* 没有空余了，归还到已清理无空闲列表 */
+			c.fullSwept(sg).push(s)
+		}
+	}
 }
 ```
 
