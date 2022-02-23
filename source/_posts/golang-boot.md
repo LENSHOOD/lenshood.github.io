@@ -1753,6 +1753,174 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 ### 5. 内存管理
 
+```
+         ┌────────────────┐
+         │     mcache     │
+         ├────────────────┤
+         │    mcentral    │
+         ├────────────────┤
+         │     mheap      │
+      ┌──┴──┬─────┬─────┬─┴───┐
+      │ span│ span│ span│ span│
+    ┌─┼─┬─┬─┼─────┴────┬┴┬─┬─┬┴┬─┐
+    │ │ │ │ │ heapArena│ │ │ │ │ │
+    ├─┴─┴─┴─┴──────────┴─┴─┴─┴─┴─┤
+    │         os memory          │
+    └────────────────────────────┘
+```
+
+```go
+/**************** [mcache.go] ****************/
+
+/* 前面提到过的 mcache，由每个 p 持有，避免了内存操作的锁竞争 */
+type mcache struct {
+	/* 主要用与 mem profile */
+	nextSample uintptr // trigger heap sample after allocating this many bytes
+  /* mcache alloc 申请的内存部分需要 gc scan，这里是容量计数 */
+	scanAlloc  uintptr // bytes of scannable heap allocated
+
+  /* 前文分配堆内存中讲到的 Tiny Allocator
+   * tiny = 起始地址
+   * tinyoffset = 当前 span 的空闲位置
+   * tinyAllocs = 已分配对象计数
+  */
+	tiny       uintptr
+	tinyoffset uintptr
+	tinyAllocs uintptr
+
+  /* 小于 _MaxSmallSize = 32768 的对象都在这里分配
+   * numSpanClasses = 68 << 1 分别包含 68 个 scan 的 span 和 68 个 noscan 的 span
+  */
+	alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
+
+  /* 栈空间在这里分配，按照 _NumStackOrders，分配栈的大小分别是 2K 4K 8K 16K  */
+	stackcache [_NumStackOrders]stackfreelist
+
+	/* 当前 mcache 最后一次 GC flush 时的 sweep generation*/
+	flushGen uint32
+}
+
+/* mcache 本身也需要内存空间来存放，这里在 g0 栈上给 mcache 分配空间，并创造 mcache */
+func allocmcache() *mcache {
+	var c *mcache
+	systemstack(func() {
+		lock(&mheap_.lock)
+    /* 主要逻辑是通过 mheap_.cachealloc 来分配，见后文 */
+		c = (*mcache)(mheap_.cachealloc.alloc())
+		c.flushGen = mheap_.sweepgen
+		unlock(&mheap_.lock)
+	})
+	for i := range c.alloc {
+		c.alloc[i] = &emptymspan
+	}
+	c.nextSample = nextSample()
+	return c
+}
+
+/* 释放逻辑类似 */
+func freemcache(c *mcache) {
+	systemstack(func() {
+		c.releaseAll()
+		stackcache_clear(c)
+
+		lock(&mheap_.lock)
+		mheap_.cachealloc.free(unsafe.Pointer(c))
+		unlock(&mheap_.lock)
+	})
+}
+
+/* 分配新的 span */
+func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+	/* 根据 spanClass 选取合适的 span */
+  s = c.alloc[spc]
+	shouldhelpgc = false
+  
+  /* 获取当前 span 的空闲对象位置 */
+	freeIndex := s.nextFreeIndex()
+  /* 若没有空闲对象了，需要分配新的 */
+	if freeIndex == s.nelems {
+    ... ...
+    /* 从 mcentral 中申请新的 span */
+		c.refill(spc)
+		shouldhelpgc = true
+		s = c.alloc[spc]
+    
+    /* 获取新 span 的 freeIndex */
+		freeIndex = s.nextFreeIndex()
+	}
+
+  ... ...
+
+	v = gclinkptr(freeIndex*s.elemsize + s.base())
+	s.allocCount++
+  
+	... ...
+  
+	return
+}
+
+func (c *mcache) refill(spc spanClass) {
+	// Return the current cached span to the central lists.
+	s := c.alloc[spc]
+
+	if uintptr(s.allocCount) != s.nelems {
+		throw("refill of span with free space remaining")
+	}
+  
+  /* 刚初始化的 span 都是 emptymspan，如果当前获取到的 span 不是 emptymspan，就把他先还回 mcentral */
+	if s != &emptymspan {
+		// Mark this span as no longer cached.
+		if s.sweepgen != mheap_.sweepgen+3 {
+			throw("bad sweepgen in refill")
+		}
+		mheap_.central[spc].mcentral.uncacheSpan(s)
+	}
+
+  /* 从 mcentral 获取新的 span */
+	s = mheap_.central[spc].mcentral.cacheSpan()
+	
+  ... ...
+
+  /* 对获取到的 span 进行处理 */
+	// Indicate that this span is cached and prevent asynchronous
+	// sweeping in the next sweep phase.
+	s.sweepgen = mheap_.sweepgen + 3
+
+	// Assume all objects from this span will be allocated in the
+	// mcache. If it gets uncached, we'll adjust this.
+	stats := memstats.heapStats.acquire()
+	atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], uintptr(s.nelems)-uintptr(s.allocCount))
+
+	// Flush tinyAllocs.
+	if spc == tinySpanClass {
+		atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+		c.tinyAllocs = 0
+	}
+	memstats.heapStats.release()
+
+	// Update gcController.heapLive with the same assumption.
+	usedBytes := uintptr(s.allocCount) * s.elemsize
+	atomic.Xadd64(&gcController.heapLive, int64(s.npages*pageSize)-int64(usedBytes))
+
+	// While we're here, flush scanAlloc, since we have to call
+	// revise anyway.
+	atomic.Xadd64(&gcController.heapScan, int64(c.scanAlloc))
+	c.scanAlloc = 0
+
+	if trace.enabled {
+		// gcController.heapLive changed.
+		traceHeapAlloc()
+	}
+	if gcBlackenEnabled != 0 {
+		// gcController.heapLive and heapScan changed.
+		gcController.revise()
+	}
+
+  /* 最后加入对应位置 */
+	c.alloc[spc] = s
+}
+```
+
 
 
 ### 6. 抢占
