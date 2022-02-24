@@ -2143,6 +2143,115 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 }
 ```
 
+```go
+/**************** [mheap.go] ****************/
+
+type mheap struct {
+	lock  mutex
+  /* 页分配器 */
+	pages pageAlloc // page allocation data structure
+
+  /* 清理相关 */
+	sweepgen     uint32 // sweep generation, see comment in mspan; written during STW
+	sweepDrained uint32 // all spans are swept or are being swept
+	sweepers     uint32 // number of active sweepone calls
+
+  /* 所有被创建出来的 span */
+	allspans []*mspan // all spans out there
+
+	_ uint32 // align uint64 fields on 32-bit for atomics
+
+	/* 扫描清理相关参数 */
+	pagesInUse         uint64  // pages of spans in stats mSpanInUse; updated atomically
+	pagesSwept         uint64  // pages swept this cycle; updated atomically
+	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
+	sweepHeapLiveBasis uint64  // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
+	sweepPagesPerByte  float64 // proportional sweep ratio; written with lock, read without
+
+  /* runtime 保留的将要还给 os 的内存数量 */
+	scavengeGoal uint64
+  
+	// This is accessed atomically.
+  /* 页回收状态
+   * reclaimIndex：指向 allArenas 中下一个待回收的页
+   * reclaimCredit：清理出的比所需空间更多的空间，计数并放入 reclaimCredit
+  */
+	reclaimIndex uint64
+	reclaimCredit uintptr
+
+  /* arena map，每个 arena 帧管理着一块虚拟地址空间
+   * heap 中未分配的空间，arena 指向 nil
+   * 为了节省 arena 帧的数量，可能会存在多级 arena map，但在多数的 64 位平台上，只有一级
+  */
+	arenas [1 << arenaL1Bits]*[1 << arenaL2Bits]*heapArena
+
+  /* 用于存放 heapArena map，防止与 heap 本身产生交错 */
+	heapArenaAlloc linearAlloc
+  
+	arenaHints *arenaHint
+
+	/* 用于存放 arena 本身 */
+	arena linearAlloc
+
+	/* 所有已经分配的 arena index，用做基于地址空间迭代 */
+	allArenas []arenaIdx
+
+	/* 在清理周期开始前对 allArenas 的快照 */
+	sweepArenas []arenaIdx
+
+	/* 在标记周期开始前对 allArenas 的快照 */
+	markArenas []arenaIdx
+
+	/* 当前 heap 生长到的 arena */
+	curArena struct {
+		base, end uintptr
+	}
+
+	_ uint32 // ensure 64-bit alignment of central
+
+	/* mcentral 列表，68*2，分别包含 scan 与 noscan 两类 */
+	central [numSpanClasses]struct {
+		mcentral mcentral
+		pad      [cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize]byte
+	}
+
+  /* 各种固定大小对象内存分配器 */
+	spanalloc             fixalloc // allocator for span*
+	cachealloc            fixalloc // allocator for mcache*
+	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+	specialprofilealloc   fixalloc // allocator for specialprofile*
+	specialReachableAlloc fixalloc // allocator for specialReachable
+	speciallock           mutex    // lock for special record allocators.
+	arenaHintAlloc        fixalloc // allocator for arenaHints
+
+	unused *specialfinalizer // never set, just here to force the specialfinalizer type into DWARF
+}
+
+/* 初始化 heap */
+func (h *mheap) init() {
+  ... ...
+  
+  /* 初始化各种 Fixed Size 对象分配器，init 中的 first 是钩子函数，会在每一次分配时调用*/
+	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
+	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
+	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
+	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
+
+  /* 分配的 span 不需要 0 初始化 */
+	h.spanalloc.zero = false
+
+  /* 初始化 mcentral */
+	for i := range h.central {
+		h.central[i].mcentral.init(spanClass(i))
+	}
+
+  /* 初始化页分配器 */
+	h.pages.init(&h.lock, &memstats.gcMiscSys)
+}
+```
+
 
 
 ### 6. 抢占
