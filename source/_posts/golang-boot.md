@@ -2250,6 +2250,605 @@ func (h *mheap) init() {
   /* 初始化页分配器 */
 	h.pages.init(&h.lock, &memstats.gcMiscSys)
 }
+
+/* 堆内存分配入口 */
+func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspan, bool) {
+	var s *mspan
+  /* 必须在系统栈上操作 heap，否则可能会触发栈扩容，而栈扩容本身可能会导致调用本方法 */
+	systemstack(func() {
+		/* 为了防止 heap 过多的被分配，在分配空间之前，先尝试回收至少 npages 空间
+		 *（如果 isSweepDone == true 证明所有 span 都扫描过了，也就不需要再尝试回收） 
+		*/
+		if !isSweepDone() {
+      /* 尝试回收 npages 页内存 */
+			h.reclaim(npages)
+		}
+    
+    /* 按需要分配 span */
+		s = h.allocSpan(npages, spanAllocHeap, spanclass)
+	})
+
+	if s == nil {
+		return nil, false
+	}
+	isZeroed := s.needzero == 0
+	if needzero && !isZeroed {
+    /* 内存清零 */
+		memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+		isZeroed = true
+	}
+	s.needzero = 0
+	return s, isZeroed
+}
+
+/* 回收内存 */
+func (h *mheap) reclaim(npage uintptr) {
+	... ...
+
+	arenas := h.sweepArenas
+	locked := false
+	for npage > 0 {
+		/* 前文提到 reclaimCredit 代表每次回收内存时多回收的页数，因此此处先从 reclaimCredit 中扣减 */
+		if credit := atomic.Loaduintptr(&h.reclaimCredit); credit > 0 {
+			take := credit
+			if take > npage {
+				// Take only what we need.
+				take = npage
+			}
+			if atomic.Casuintptr(&h.reclaimCredit, credit, credit-take) {
+				npage -= take
+			}
+			continue
+		}
+
+    /* 从 reclaimIndex 获取需要回收的 chunk（512 个页大小的块） 的起始 id*/
+		// Claim a chunk of work.
+		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
+		if idx/pagesPerArena >= uintptr(len(arenas)) {
+			// Page reclaiming is done.
+			atomic.Store64(&h.reclaimIndex, 1<<63)
+			break
+		}
+
+		if !locked {
+			// Lock the heap for reclaimChunk.
+			lock(&h.lock)
+			locked = true
+		}
+
+		/* 扫描并回收，范围是 pagesPerReclaimerChunk 个页 */
+		nfound := h.reclaimChunk(arenas, idx, pagesPerReclaimerChunk)
+		if nfound <= npage {
+			npage -= nfound
+		} else {
+			/* 若回收了多于 npages 的页，将其计数累加到 reclaimCredit */
+			atomic.Xadduintptr(&h.reclaimCredit, nfound-npage)
+			npage = 0
+		}
+	}
+	
+  ... ...
+}
+
+/* 扫描并回收 */
+func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+	... ...
+  
+	for n > 0 {
+		ai := arenas[pageIdx/pagesPerArena]
+    
+    /* 找到管理起始页的 arena */
+		ha := h.arenas[ai.l1()][ai.l2()]
+
+		/* 获取起始页在当前 arena 内的相对位置（位图） */
+		arenaPage := uint(pageIdx % pagesPerArena)
+    
+    /* 计算从起始页位开始的所有 pageInUse 和 pageMarks 位，过长则截断 */
+		inUse := ha.pageInUse[arenaPage/8:]
+		marked := ha.pageMarks[arenaPage/8:]
+		if uintptr(len(inUse)) > n/8 {
+			inUse = inUse[:n/8]
+			marked = marked[:n/8]
+		}
+
+		/* 查找这个 chunk 内正在使用且没有被标记对象（inUseUnmarked）的 span */
+		for i := range inUse {
+			/* 当前 inUse[i] 所指示的 8 个 span，都不符合要求 */
+      inUseUnmarked := atomic.Load8(&inUse[i]) &^ marked[i]
+			if inUseUnmarked == 0 {
+				continue
+			}
+
+			for j := uint(0); j < 8; j++ {
+				if inUseUnmarked&(1<<j) != 0 {
+					s := ha.spans[arenaPage+uint(i)*8+j]
+					if s, ok := sl.tryAcquire(s); ok {
+						npages := s.npages
+						unlock(&h.lock)
+            /* 找到当前指示的 span，尝试清除 */
+						if s.sweep(false) {
+							nFreed += npages
+						}
+						lock(&h.lock)
+						// Reload inUse. It's possible nearby
+						// spans were freed when we dropped the
+						// lock and we don't want to get stale
+						// pointers from the spans array.
+						inUseUnmarked = atomic.Load8(&inUse[i]) &^ marked[i]
+					}
+				}
+			}
+		}
+
+		// Advance.
+		pageIdx += uintptr(len(inUse) * 8)
+		n -= uintptr(len(inUse) * 8)
+	}
+	sl.dispose()
+	... ...
+	return nFreed
+}
+
+/* 分配 span */
+func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass) (s *mspan) {
+	... ...
+
+	/* 对于小于四分之一 pageCachePages 的分配请求，优先从每一个 p 的 pageCache 中分配
+   * pageCachePages = 8 * unsafe.Sizeof(pageCache{}.cache) = 64，cache 是 uint64 类型的 bitmap
+   */
+	pp := gp.m.p.ptr()
+	if !needPhysPageAlign && pp != nil && npages < pageCachePages/4 {
+		c := &pp.pcache
+
+		/* 若没有任何空闲空间了，则重新给 pageCache 分配空间，注意如果页分配器发现没有空闲空间了，会返回一个空的 pageCache 结构 */
+		if c.empty() {
+			lock(&h.lock)
+			*c = h.pages.allocToCache()
+			unlock(&h.lock)
+		}
+
+		/* 从 pageCache 中尝试寻找空闲空间 */
+		base, scav = c.alloc(npages)
+    /* base 不为零，说明成功找到了空间 */
+		if base != 0 {
+      /* 尝试从 p 的 mspan cache 中获取 span 结构 */
+			s = h.tryAllocMSpan()
+			if s != nil {
+				goto HaveSpan
+			}
+		}
+	}
+
+  /* p 中的 pageCache 可以并发获取，但逻辑走到这里，就必须锁整个 heap */
+  lock(&h.lock)
+  
+	... ...
+  
+  /* 从上面可以看到，如果是页分配器没有空间了，base 为零，因此需要新分配 */
+	if base == 0 {
+		/* 尝试直接从页分配器中寻找 npages 空间 */
+		base, scav = h.pages.alloc(npages)
+		if base == 0 {
+      /* 还是没空间，这时候必须要从 os 真正的申请新内存了 */
+			if !h.grow(npages) {
+				unlock(&h.lock)
+				return nil
+			}
+      
+      /* 现在再次查找，一定能找到，否则就是 os 内存不足 */
+			base, scav = h.pages.alloc(npages)
+			if base == 0 {
+				throw("grew heap, but no adequate free space found")
+			}
+		}
+	}
+  
+	if s == nil {
+		/* 没有 span，就创建一个新的来（创建的同时也放入了 p 的 spancache） */
+		s = h.allocMSpanLocked()
+	}
+
+	... ...
+
+  /* 与 heap 相关的操作结束了，释放锁 */
+	unlock(&h.lock)
+
+HaveSpan:
+	/* 下面是将 span 进行初始化，包括 base 地址等等 */
+	s.init(base, npages)
+	if h.allocNeedsZero(base, npages) {
+		s.needzero = 1
+	}
+	nbytes := npages * pageSize
+	if typ.manual() {
+    /* 栈空间分配与 span class 无关 */
+		s.manualFreeList = 0
+		s.nelems = 0
+		s.limit = s.base() + s.npages*pageSize
+		s.state.set(mSpanManual)
+	} else {
+    /* 按照 span class 初始化其他相关属性 */
+		s.spanclass = spanclass
+		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
+			s.elemsize = nbytes
+			s.nelems = 1
+			s.divMul = 0
+		} else {
+			s.elemsize = uintptr(class_to_size[sizeclass])
+			s.nelems = nbytes / s.elemsize
+			s.divMul = class_to_divmagic[sizeclass]
+		}
+
+		// Initialize mark and allocation structures.
+		s.freeindex = 0
+		s.allocCache = ^uint64(0) // all 1s indicating all free.
+		s.gcmarkBits = newMarkBits(s.nelems)
+		s.allocBits = newAllocBits(s.nelems)
+
+		// It's safe to access h.sweepgen without the heap lock because it's
+		// only ever updated with the world stopped and we run on the
+		// systemstack which blocks a STW transition.
+		atomic.Store(&s.sweepgen, h.sweepgen)
+
+		// Now that the span is filled in, set its state. This
+		// is a publication barrier for the other fields in
+		// the span. While valid pointers into this span
+		// should never be visible until the span is returned,
+		// if the garbage collector finds an invalid pointer,
+		// access to the span may race with initialization of
+		// the span. We resolve this race by atomically
+		// setting the state after the span is fully
+		// initialized, and atomically checking the state in
+		// any situation where a pointer is suspect.
+		s.state.set(mSpanInUse)
+	}
+
+	// Commit and account for any scavenged memory that the span now owns.
+	if scav != 0 {
+		// sysUsed all the pages that are actually available
+		// in the span since some of them might be scavenged.
+		sysUsed(unsafe.Pointer(base), nbytes)
+		atomic.Xadd64(&memstats.heap_released, -int64(scav))
+	}
+	// Update stats.
+	if typ == spanAllocHeap {
+		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
+	}
+	if typ.manual() {
+		// Manually managed memory doesn't count toward heap_sys.
+		memstats.heap_sys.add(-int64(nbytes))
+	}
+	// Update consistent stats.
+	stats := memstats.heapStats.acquire()
+	atomic.Xaddint64(&stats.committed, int64(scav))
+	atomic.Xaddint64(&stats.released, -int64(scav))
+	switch typ {
+	case spanAllocHeap:
+		atomic.Xaddint64(&stats.inHeap, int64(nbytes))
+	case spanAllocStack:
+		atomic.Xaddint64(&stats.inStacks, int64(nbytes))
+	case spanAllocPtrScalarBits:
+		atomic.Xaddint64(&stats.inPtrScalarBits, int64(nbytes))
+	case spanAllocWorkBuf:
+		atomic.Xaddint64(&stats.inWorkBufs, int64(nbytes))
+	}
+	memstats.heapStats.release()
+
+	// Publish the span in various locations.
+
+	// This is safe to call without the lock held because the slots
+	// related to this span will only ever be read or modified by
+	// this thread until pointers into the span are published (and
+	// we execute a publication barrier at the end of this function
+	// before that happens) or pageInUse is updated.
+	h.setSpans(s.base(), npages, s)
+
+	if !typ.manual() {
+		// Mark in-use span in arena page bitmap.
+		//
+		// This publishes the span to the page sweeper, so
+		// it's imperative that the span be completely initialized
+		// prior to this line.
+		arena, pageIdx, pageMask := pageIndexOf(s.base())
+		atomic.Or8(&arena.pageInUse[pageIdx], pageMask)
+
+		// Update related page sweeper stats.
+		atomic.Xadd64(&h.pagesInUse, int64(npages))
+	}
+
+	// Make sure the newly allocated span will be observed
+	// by the GC before pointers into the span are published.
+	publicationBarrier()
+
+	return s
+}
+
+/* 释放 span */
+func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+	... ...
+  
+  /* 在页分配器处标记空闲 */
+	h.pages.free(s.base(), s.npages)
+
+	... ...
+  
+  /* span 结构也释放掉 */
+	h.freeMSpanLocked(s)
+}
+
+/* 尝试扩张新内存 */
+func (h *mheap) grow(npage uintptr) bool {
+	/* grow 需要在加锁状态 */
+  assertLockHeld(&h.lock)
+
+	/* 按 chunk 所管理的页数整数对齐 */
+	ask := alignUp(npage, pallocChunkPages) * pageSize
+
+	totalGrowth := uintptr(0)
+	// This may overflow because ask could be very large
+	// and is otherwise unrelated to h.curArena.base.
+	end := h.curArena.base + ask
+	nBase := alignUp(end, physPageSize)
+	if nBase > h.curArena.end || /* overflow */ end < h.curArena.base {
+		/* 当前的 arena 放不下需要扩张的空间，因此必须重新申请新的 arena */
+		av, asize := h.sysAlloc(ask)
+		if av == nil {
+			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", memstats.heap_sys, " in use)\n")
+			return false
+		}
+
+		if uintptr(av) == h.curArena.end {
+			// The new space is contiguous with the old
+			// space, so just extend the current space.
+			h.curArena.end = uintptr(av) + asize
+		} else {
+			// The new space is discontiguous. Track what
+			// remains of the current space and switch to
+			// the new space. This should be rare.
+			if size := h.curArena.end - h.curArena.base; size != 0 {
+				// Transition this space from Reserved to Prepared and mark it
+				// as released since we'll be able to start using it after updating
+				// the page allocator and releasing the lock at any time.
+				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heap_sys)
+				// Update stats.
+				atomic.Xadd64(&memstats.heap_released, int64(size))
+				stats := memstats.heapStats.acquire()
+				atomic.Xaddint64(&stats.released, int64(size))
+				memstats.heapStats.release()
+				// Update the page allocator's structures to make this
+				// space ready for allocation.
+				h.pages.grow(h.curArena.base, size)
+				totalGrowth += size
+			}
+			// Switch to the new space.
+			h.curArena.base = uintptr(av)
+			h.curArena.end = uintptr(av) + asize
+		}
+
+		// Recalculate nBase.
+		// We know this won't overflow, because sysAlloc returned
+		// a valid region starting at h.curArena.base which is at
+		// least ask bytes in size.
+		nBase = alignUp(h.curArena.base+ask, physPageSize)
+	}
+
+	// Grow into the current arena.
+	v := h.curArena.base
+	h.curArena.base = nBase
+
+	// Transition the space we're going to use from Reserved to Prepared.
+	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heap_sys)
+
+	// The memory just allocated counts as both released
+	// and idle, even though it's not yet backed by spans.
+	//
+	// The allocation is always aligned to the heap arena
+	// size which is always > physPageSize, so its safe to
+	// just add directly to heap_released.
+	atomic.Xadd64(&memstats.heap_released, int64(nBase-v))
+	stats := memstats.heapStats.acquire()
+	atomic.Xaddint64(&stats.released, int64(nBase-v))
+	memstats.heapStats.release()
+
+	// Update the page allocator's structures to make this
+	// space ready for allocation.
+	h.pages.grow(v, nBase-v)
+	totalGrowth += nBase - v
+
+	// We just caused a heap growth, so scavenge down what will soon be used.
+	// By scavenging inline we deal with the failure to allocate out of
+	// memory fragments by scavenging the memory fragments that are least
+	// likely to be re-used.
+	if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
+		todo := totalGrowth
+		if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
+			todo = overage
+		}
+		h.pages.scavenge(todo, false)
+	}
+	return true
+}
+
+func (h *mheap) scavengeAll() {
+	// Disallow malloc or panic while holding the heap lock. We do
+	// this here because this is a non-mallocgc entry-point to
+	// the mheap API.
+	gp := getg()
+	gp.m.mallocing++
+	lock(&h.lock)
+	// Start a new scavenge generation so we have a chance to walk
+	// over the whole heap.
+	h.pages.scavengeStartGen()
+	released := h.pages.scavenge(^uintptr(0), false)
+	gen := h.pages.scav.gen
+	unlock(&h.lock)
+	gp.m.mallocing--
+
+	if debug.scavtrace > 0 {
+		printScavTrace(gen, released, true)
+	}
+}
+
+func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+	assertLockHeld(&h.lock)
+
+	n = alignUp(n, heapArenaBytes)
+
+	// First, try the arena pre-reservation.
+	v = h.arena.alloc(n, heapArenaBytes, &memstats.heap_sys)
+	if v != nil {
+		size = n
+		goto mapped
+	}
+
+	// Try to grow the heap at a hint address.
+	for h.arenaHints != nil {
+		hint := h.arenaHints
+		p := hint.addr
+		if hint.down {
+			p -= n
+		}
+		if p+n < p {
+			// We can't use this, so don't ask.
+			v = nil
+		} else if arenaIndex(p+n-1) >= 1<<arenaBits {
+			// Outside addressable heap. Can't use.
+			v = nil
+		} else {
+			v = sysReserve(unsafe.Pointer(p), n)
+		}
+		if p == uintptr(v) {
+			// Success. Update the hint.
+			if !hint.down {
+				p += n
+			}
+			hint.addr = p
+			size = n
+			break
+		}
+		// Failed. Discard this hint and try the next.
+		//
+		// TODO: This would be cleaner if sysReserve could be
+		// told to only return the requested address. In
+		// particular, this is already how Windows behaves, so
+		// it would simplify things there.
+		if v != nil {
+			sysFree(v, n, nil)
+		}
+		h.arenaHints = hint.next
+		h.arenaHintAlloc.free(unsafe.Pointer(hint))
+	}
+
+	if size == 0 {
+		if raceenabled {
+			// The race detector assumes the heap lives in
+			// [0x00c000000000, 0x00e000000000), but we
+			// just ran out of hints in this region. Give
+			// a nice failure.
+			throw("too many address space collisions for -race mode")
+		}
+
+		// All of the hints failed, so we'll take any
+		// (sufficiently aligned) address the kernel will give
+		// us.
+		v, size = sysReserveAligned(nil, n, heapArenaBytes)
+		if v == nil {
+			return nil, 0
+		}
+
+		// Create new hints for extending this region.
+		hint := (*arenaHint)(h.arenaHintAlloc.alloc())
+		hint.addr, hint.down = uintptr(v), true
+		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+		hint = (*arenaHint)(h.arenaHintAlloc.alloc())
+		hint.addr = uintptr(v) + size
+		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+	}
+
+	// Check for bad pointers or pointers we can't use.
+	{
+		var bad string
+		p := uintptr(v)
+		if p+size < p {
+			bad = "region exceeds uintptr range"
+		} else if arenaIndex(p) >= 1<<arenaBits {
+			bad = "base outside usable address space"
+		} else if arenaIndex(p+size-1) >= 1<<arenaBits {
+			bad = "end outside usable address space"
+		}
+		if bad != "" {
+			// This should be impossible on most architectures,
+			// but it would be really confusing to debug.
+			print("runtime: memory allocated by OS [", hex(p), ", ", hex(p+size), ") not in usable address space: ", bad, "\n")
+			throw("memory reservation exceeds address space limit")
+		}
+	}
+
+	if uintptr(v)&(heapArenaBytes-1) != 0 {
+		throw("misrounded allocation in sysAlloc")
+	}
+
+mapped:
+	// Create arena metadata.
+	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
+		l2 := h.arenas[ri.l1()]
+		if l2 == nil {
+			// Allocate an L2 arena map.
+			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
+			if l2 == nil {
+				throw("out of memory allocating heap arena map")
+			}
+			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
+		}
+
+		if l2[ri.l2()] != nil {
+			throw("arena already initialized")
+		}
+		var r *heapArena
+		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
+		if r == nil {
+			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
+			if r == nil {
+				throw("out of memory allocating heap arena metadata")
+			}
+		}
+
+		// Add the arena to the arenas list.
+		if len(h.allArenas) == cap(h.allArenas) {
+			size := 2 * uintptr(cap(h.allArenas)) * sys.PtrSize
+			if size == 0 {
+				size = physPageSize
+			}
+			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gcMiscSys))
+			if newArray == nil {
+				throw("out of memory allocating allArenas")
+			}
+			oldSlice := h.allArenas
+			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / sys.PtrSize)}
+			copy(h.allArenas, oldSlice)
+			// Do not free the old backing array because
+			// there may be concurrent readers. Since we
+			// double the array each time, this can lead
+			// to at most 2x waste.
+		}
+		h.allArenas = h.allArenas[:len(h.allArenas)+1]
+		h.allArenas[len(h.allArenas)-1] = ri
+
+		// Store atomically just in case an object from the
+		// new heap arena becomes visible before the heap lock
+		// is released (which shouldn't happen, but there's
+		// little downside to this).
+		atomic.StorepNoWB(unsafe.Pointer(&l2[ri.l2()]), unsafe.Pointer(r))
+	}
+
+	// Tell the race detector about the new heap memory.
+	if raceenabled {
+		racemapshadow(v, size)
+	}
+
+	return
+}
+
 ```
 
 
