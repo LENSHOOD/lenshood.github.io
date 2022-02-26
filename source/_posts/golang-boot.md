@@ -2534,15 +2534,10 @@ HaveSpan:
 	}
 	memstats.heapStats.release()
 
-	// Publish the span in various locations.
-
-	// This is safe to call without the lock held because the slots
-	// related to this span will only ever be read or modified by
-	// this thread until pointers into the span are published (and
-	// we execute a publication barrier at the end of this function
-	// before that happens) or pageInUse is updated.
+	/* 将 span 加入对应的 arena */
 	h.setSpans(s.base(), npages, s)
 
+  /* 将 span 加入对应的 pageInUse 中 */
 	if !typ.manual() {
 		// Mark in-use span in arena page bitmap.
 		//
@@ -2598,60 +2593,37 @@ func (h *mheap) grow(npage uintptr) bool {
 		}
 
 		if uintptr(av) == h.curArena.end {
-			// The new space is contiguous with the old
-			// space, so just extend the current space.
+			/* 如果新分配的空间起始地址等于 curArena 的结束地址，说明分配了连续内存，直接扩展 curArena */
 			h.curArena.end = uintptr(av) + asize
 		} else {
-			// The new space is discontiguous. Track what
-			// remains of the current space and switch to
-			// the new space. This should be rare.
+			/* 若不连续，需要把 curArena 切到新申请的空间，而原 arena 空间需要释放给 */
 			if size := h.curArena.end - h.curArena.base; size != 0 {
-				// Transition this space from Reserved to Prepared and mark it
-				// as released since we'll be able to start using it after updating
-				// the page allocator and releasing the lock at any time.
+				/* Reserved -> Prepared 以备后用 */
 				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heap_sys)
-				// Update stats.
-				atomic.Xadd64(&memstats.heap_released, int64(size))
-				stats := memstats.heapStats.acquire()
-				atomic.Xaddint64(&stats.released, int64(size))
-				memstats.heapStats.release()
-				// Update the page allocator's structures to make this
-				// space ready for allocation.
+				... ...
+        
+        /* 把这段空间发布给页分配器 */
 				h.pages.grow(h.curArena.base, size)
 				totalGrowth += size
 			}
-			// Switch to the new space.
+			/* 切到新的 arean 上 */
 			h.curArena.base = uintptr(av)
 			h.curArena.end = uintptr(av) + asize
 		}
 
-		// Recalculate nBase.
-		// We know this won't overflow, because sysAlloc returned
-		// a valid region starting at h.curArena.base which is at
-		// least ask bytes in size.
-		nBase = alignUp(h.curArena.base+ask, physPageSize)
+		... ...
 	}
 
 	// Grow into the current arena.
 	v := h.curArena.base
 	h.curArena.base = nBase
 
-	// Transition the space we're going to use from Reserved to Prepared.
+  // 新空间 Reserved -> Prepared.
 	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heap_sys)
-
-	// The memory just allocated counts as both released
-	// and idle, even though it's not yet backed by spans.
-	//
-	// The allocation is always aligned to the heap arena
-	// size which is always > physPageSize, so its safe to
-	// just add directly to heap_released.
-	atomic.Xadd64(&memstats.heap_released, int64(nBase-v))
-	stats := memstats.heapStats.acquire()
-	atomic.Xaddint64(&stats.released, int64(nBase-v))
-	memstats.heapStats.release()
-
-	// Update the page allocator's structures to make this
-	// space ready for allocation.
+  
+	... ...
+  
+  /* 实际占用的空间是从 v 开始，大小为 nBase-v 的空间区域，更新页分配器使这部分空间可被分配 */
 	h.pages.grow(v, nBase-v)
 	totalGrowth += nBase - v
 
@@ -2669,39 +2641,17 @@ func (h *mheap) grow(npage uintptr) bool {
 	return true
 }
 
-func (h *mheap) scavengeAll() {
-	// Disallow malloc or panic while holding the heap lock. We do
-	// this here because this is a non-mallocgc entry-point to
-	// the mheap API.
-	gp := getg()
-	gp.m.mallocing++
-	lock(&h.lock)
-	// Start a new scavenge generation so we have a chance to walk
-	// over the whole heap.
-	h.pages.scavengeStartGen()
-	released := h.pages.scavenge(^uintptr(0), false)
-	gen := h.pages.scav.gen
-	unlock(&h.lock)
-	gp.m.mallocing--
-
-	if debug.scavtrace > 0 {
-		printScavTrace(gen, released, true)
-	}
-}
-
 func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
-	assertLockHeld(&h.lock)
-
-	n = alignUp(n, heapArenaBytes)
-
-	// First, try the arena pre-reservation.
+	... ...
+  
+  /* 只在 32 位平台生效：先从预留空间中尝试分配，预留空间 arena 会在 mallocinit 时被初始化 */
 	v = h.arena.alloc(n, heapArenaBytes, &memstats.heap_sys)
 	if v != nil {
 		size = n
 		goto mapped
 	}
 
-	// Try to grow the heap at a hint address.
+	/* 通过 arenaHint 申请 os 内存 */
 	for h.arenaHints != nil {
 		hint := h.arenaHints
 		p := hint.addr
@@ -2717,6 +2667,8 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		} else {
 			v = sysReserve(unsafe.Pointer(p), n)
 		}
+    
+    /* 如果 os 返回的内存地址与 hint 中计算出的一致，申请成功 */
 		if p == uintptr(v) {
 			// Success. Update the hint.
 			if !hint.down {
@@ -2726,12 +2678,8 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 			size = n
 			break
 		}
-		// Failed. Discard this hint and try the next.
-		//
-		// TODO: This would be cleaner if sysReserve could be
-		// told to only return the requested address. In
-		// particular, this is already how Windows behaves, so
-		// it would simplify things there.
+    
+		/* 申请不成功则尝试下一个 hint，并释放当前 hint */
 		if v != nil {
 			sysFree(v, n, nil)
 		}
@@ -2739,24 +2687,15 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		h.arenaHintAlloc.free(unsafe.Pointer(hint))
 	}
 
+  /* 所有的 hint 都不管用了，直接向 os 申请新空间，并创建新的 hint */
 	if size == 0 {
-		if raceenabled {
-			// The race detector assumes the heap lives in
-			// [0x00c000000000, 0x00e000000000), but we
-			// just ran out of hints in this region. Give
-			// a nice failure.
-			throw("too many address space collisions for -race mode")
-		}
-
-		// All of the hints failed, so we'll take any
-		// (sufficiently aligned) address the kernel will give
-		// us.
+		... ...
+    
 		v, size = sysReserveAligned(nil, n, heapArenaBytes)
 		if v == nil {
 			return nil, 0
 		}
 
-		// Create new hints for extending this region.
 		hint := (*arenaHint)(h.arenaHintAlloc.alloc())
 		hint.addr, hint.down = uintptr(v), true
 		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
@@ -2765,35 +2704,14 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
 	}
 
-	// Check for bad pointers or pointers we can't use.
-	{
-		var bad string
-		p := uintptr(v)
-		if p+size < p {
-			bad = "region exceeds uintptr range"
-		} else if arenaIndex(p) >= 1<<arenaBits {
-			bad = "base outside usable address space"
-		} else if arenaIndex(p+size-1) >= 1<<arenaBits {
-			bad = "end outside usable address space"
-		}
-		if bad != "" {
-			// This should be impossible on most architectures,
-			// but it would be really confusing to debug.
-			print("runtime: memory allocated by OS [", hex(p), ", ", hex(p+size), ") not in usable address space: ", bad, "\n")
-			throw("memory reservation exceeds address space limit")
-		}
-	}
-
-	if uintptr(v)&(heapArenaBytes-1) != 0 {
-		throw("misrounded allocation in sysAlloc")
-	}
-
+	... ...
+  
 mapped:
-	// Create arena metadata.
+	/* 对分配的内存创建 arena */
 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
 		l2 := h.arenas[ri.l1()]
 		if l2 == nil {
-			// Allocate an L2 arena map.
+			/* 除了 64bit Windows 平台外，L1 都等于 1，L2 不存在则说明整个 arena map 未创建，因此创建之  */
 			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
@@ -2801,9 +2719,12 @@ mapped:
 			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
 		}
 
+    /* 上层 caller 在未找到 arean 时才会调用本方法，因此 arena 一定不存在 */
 		if l2[ri.l2()] != nil {
 			throw("arena already initialized")
 		}
+    
+    /* 创建 arena */
 		var r *heapArena
 		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
 		if r == nil {
@@ -2813,7 +2734,7 @@ mapped:
 			}
 		}
 
-		// Add the arena to the arenas list.
+		/* 将新的 arena 加到 allArena 列表后面 */
 		if len(h.allArenas) == cap(h.allArenas) {
 			size := 2 * uintptr(cap(h.allArenas)) * sys.PtrSize
 			if size == 0 {
@@ -2841,10 +2762,7 @@ mapped:
 		atomic.StorepNoWB(unsafe.Pointer(&l2[ri.l2()]), unsafe.Pointer(r))
 	}
 
-	// Tell the race detector about the new heap memory.
-	if raceenabled {
-		racemapshadow(v, size)
-	}
+	... ...
 
 	return
 }
