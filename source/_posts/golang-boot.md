@@ -2767,7 +2767,255 @@ mapped:
 	return
 }
 
+/* 内存管理单元 */
+type mspan struct {
+	next *mspan     // next span in list, or nil if none
+	prev *mspan     // previous span in list, or nil if none
+	list *mSpanList // For debugging. TODO: Remove.
+
+  /* 起始地址与管理页数 */
+	startAddr uintptr // address of first byte of span aka s.base()
+	npages    uintptr // number of pages in span
+
+	manualFreeList gclinkptr // list of free objects in mSpanManual spans
+
+	/* 根据 span class，每一种 span 的容量以及可分配对象数是固定的，因此：
+   * freeindex：下一个空闲对象槽位
+   * nelems：总对象数，如果 freeindex == nelems 则证明 span 已满
+  */
+	freeindex uintptr
+	nelems uintptr // number of object in the span.
+
+	/* allocBits 的补码，方便快速通过 ctz (count trailing zero) 方法快速查找空闲位置 */
+	allocCache uint64
+
+  /* 内存占用和 gc 的位图标记 */
+	allocBits  *gcBits
+	gcmarkBits *gcBits
+
+	// sweep generation:
+	// if sweepgen == h->sweepgen - 2, the span needs sweeping
+	// if sweepgen == h->sweepgen - 1, the span is currently being swept
+	// if sweepgen == h->sweepgen, the span is swept and ready to use
+	// if sweepgen == h->sweepgen + 1, the span was cached before sweep began and is still cached, and needs sweeping
+	// if sweepgen == h->sweepgen + 3, the span was swept and then cached and is still cached
+	// h->sweepgen is incremented by 2 after every GC
+
+	sweepgen    uint32
+	divMul      uint32        // for divide by elemsize
+	allocCount  uint16        // number of allocated objects
+	spanclass   spanClass     // size class and noscan (uint8)
+	state       mSpanStateBox // mSpanInUse etc; accessed atomically (get/set methods)
+	needzero    uint8         // needs to be zeroed before allocation
+	elemsize    uintptr       // computed from sizeclass or from npages
+	limit       uintptr       // end of data in span
+	speciallock mutex         // guards specials list
+	specials    *special      // linked list of special records sorted by offset.
+}
 ```
+
+```
+操作系统内存管理抽象层：
+1) None - Unreserved and unmapped, the default state of any region.
+2) Reserved - Owned by the runtime, but accessing it would cause a fault.
+              Does not count against the process' memory footprint.
+3) Prepared - Reserved, intended not to be backed by physical memory (though
+              an OS may implement this lazily). Can transition efficiently to
+              Ready. Accessing memory in such a region is undefined (may
+              fault, may give back unexpected zeroes, etc.).
+4) Ready - may be accessed safely.
+
+sysAlloc:   None -> Ready
+sysFree:    * -> None
+sysReserve: None -> Reserved
+sysMap:     Reserved -> Prepared
+sysUsed:    Prepared -> Ready
+sysUnused:  Ready -> Prepared
+sysFault:   Ready/Prepared -> Reserved (only runtime debugging)
+```
+
+```go
+/**************** [mem_linux.go] ****************/
+
+/*
+ * mmap:
+ * PROT_READ - 可读
+ * PROT_WRITE - 可写
+ * MAP_ANON - 非文件映射，fd 可忽略（或设置为 -1），offset 必须为 0
+ * MAP_PRIVATE - 私有空间，不与其他进程共享（常用于内存分配）
+*/
+func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+	if err != 0 {
+		if err == _EACCES {
+			print("runtime: mmap: access denied\n")
+			exit(2)
+		}
+		if err == _EAGAIN {
+			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
+			exit(2)
+		}
+		return nil
+	}
+	sysStat.add(int64(n))
+	return p
+}
+
+/* 直接调用 munmap */
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(-int64(n))
+	munmap(v, n)
+}
+
+/* 
+ * mmap:
+ * PROT_NONE - 不可访问
+*/
+func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+	if err != 0 {
+		return nil
+	}
+	return p
+}
+
+/* 
+ * mmap:
+ * MAP_FIXED - 传入地址不作为提示（hint），而是必须指定为该地址，如果地址不可用则失败
+*/
+func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	sysStat.add(int64(n))
+
+	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+	if err == _ENOMEM {
+		throw("runtime: out of memory")
+	}
+	if p != v || err != 0 {
+		throw("runtime: cannot map pages in arena address space")
+	}
+}
+
+func sysUsed(v unsafe.Pointer, n uintptr) {
+	// Partially undo the NOHUGEPAGE marks from sysUnused
+	// for whole huge pages between v and v+n. This may
+	// leave huge pages off at the end points v and v+n
+	// even though allocations may cover these entire huge
+	// pages. We could detect this and undo NOHUGEPAGE on
+	// the end points as well, but it's probably not worth
+	// the cost because when neighboring allocations are
+	// freed sysUnused will just set NOHUGEPAGE again.
+	sysHugePage(v, n)
+}
+
+/* 
+ * madvise:
+ * MADV_HUGEPAGE - 在给定范围内开启透明大页（THP），主要用于使用大块内存的场景
+*/
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+	if physHugePageSize != 0 {
+		// Round v up to a huge page boundary.
+		beg := alignUp(uintptr(v), physHugePageSize)
+		// Round v+n down to a huge page boundary.
+		end := alignDown(uintptr(v)+n, physHugePageSize)
+
+		if beg < end {
+			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
+		}
+	}
+}
+
+/*
+ * madvise:
+ * MADV_NOHUGEPAGE - 取消透明大页
+ * MADV_DONTNEED - 在将来不再访问该空间
+*/
+func sysUnused(v unsafe.Pointer, n uintptr) {
+	// By default, Linux's "transparent huge page" support will
+	// merge pages into a huge page if there's even a single
+	// present regular page, undoing the effects of madvise(adviseUnused)
+	// below. On amd64, that means khugepaged can turn a single
+	// 4KB page to 2MB, bloating the process's RSS by as much as
+	// 512X. (See issue #8832 and Linux kernel bug
+	// https://bugzilla.kernel.org/show_bug.cgi?id=93111)
+	//
+	// To work around this, we explicitly disable transparent huge
+	// pages when we release pages of the heap. However, we have
+	// to do this carefully because changing this flag tends to
+	// split the VMA (memory mapping) containing v in to three
+	// VMAs in order to track the different values of the
+	// MADV_NOHUGEPAGE flag in the different regions. There's a
+	// default limit of 65530 VMAs per address space (sysctl
+	// vm.max_map_count), so we must be careful not to create too
+	// many VMAs (see issue #12233).
+	//
+	// Since huge pages are huge, there's little use in adjusting
+	// the MADV_NOHUGEPAGE flag on a fine granularity, so we avoid
+	// exploding the number of VMAs by only adjusting the
+	// MADV_NOHUGEPAGE flag on a large granularity. This still
+	// gets most of the benefit of huge pages while keeping the
+	// number of VMAs under control. With hugePageSize = 2MB, even
+	// a pessimal heap can reach 128GB before running out of VMAs.
+	if physHugePageSize != 0 {
+		// If it's a large allocation, we want to leave huge
+		// pages enabled. Hence, we only adjust the huge page
+		// flag on the huge pages containing v and v+n-1, and
+		// only if those aren't aligned.
+		var head, tail uintptr
+		if uintptr(v)&(physHugePageSize-1) != 0 {
+			// Compute huge page containing v.
+			head = alignDown(uintptr(v), physHugePageSize)
+		}
+		if (uintptr(v)+n)&(physHugePageSize-1) != 0 {
+			// Compute huge page containing v+n-1.
+			tail = alignDown(uintptr(v)+n-1, physHugePageSize)
+		}
+
+		// Note that madvise will return EINVAL if the flag is
+		// already set, which is quite likely. We ignore
+		// errors.
+		if head != 0 && head+physHugePageSize == tail {
+			// head and tail are different but adjacent,
+			// so do this in one call.
+			madvise(unsafe.Pointer(head), 2*physHugePageSize, _MADV_NOHUGEPAGE)
+		} else {
+			// Advise the huge pages containing v and v+n-1.
+			if head != 0 {
+				madvise(unsafe.Pointer(head), physHugePageSize, _MADV_NOHUGEPAGE)
+			}
+			if tail != 0 && tail != head {
+				madvise(unsafe.Pointer(tail), physHugePageSize, _MADV_NOHUGEPAGE)
+			}
+		}
+	}
+
+	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
+		// madvise will round this to any physical page
+		// *covered* by this range, so an unaligned madvise
+		// will release more memory than intended.
+		throw("unaligned sysUnused")
+	}
+
+	var advise uint32
+	if debug.madvdontneed != 0 {
+		advise = _MADV_DONTNEED
+	} else {
+		advise = atomic.Load(&adviseUnused)
+	}
+	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
+		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
+		// not supported.
+		atomic.Store(&adviseUnused, _MADV_DONTNEED)
+		madvise(v, n, _MADV_DONTNEED)
+	}
+}
+
+func sysFault(v unsafe.Pointer, n uintptr) {
+	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+}
+
+```
+
+#### 5.2 内存回收（GC）
 
 
 
