@@ -3017,6 +3017,144 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 
 #### 5.2 内存回收（GC）
 
+```go
+/**************** [mgc.go] ****************/
+// 垃圾收集器 (GC)。
+//
+// 定义 GC：
+// 1. 与赋值器（mutator）线程并行运行；
+// 2. 类型准确；
+// 3. 允许多 GC 线程并发运行；
+// 4. 在并发标记和清除时使用写屏障；
+// 5. 非分代，非整理；
+// 6. 内存分配通过每个 P 的分配区按大小进行分段来最小化碎片，同时还能消除加锁。
+//
+// 整个 GC 算法被拆解为多个阶段和步骤。如下是对如何该算法使用的高层次描述。如果想了解 GC，
+// Richard Jones 的 gchandbook.org 是个好地方
+//
+// 算法思想继承自包括 Dijkstra 的即时（on-the-fly）算法，见 Edsger W. Dijkstra, Leslie Lamport, 
+// A. J. Martin, C. S. Scholten, and E. F. M. Steffens. 1978. On-the-fly garbage collection: 
+// an exercise in cooperation. Commun. ACM 21, 11 (November 1978), 966-975.
+// 有关这些步骤的完整性、正确性和终止性的期刊级别的证明，请参阅 Hudson, R., and Moss, J.E.B. Copying 
+// Garbage Collection without stopping the world. Concurrency and Computation: Practice and 
+// Experience 15(3-5), 2003.
+//
+// 1. sweep termination 阶段
+//
+//    a. STW，让所有的 P 都到达 GC safe-point。
+//
+//    b. 扫描所有未扫描过的 span。 只有在当前 GC cycle 在预期时间之前被执行时，才可能存在未扫描的 span。
+//
+// 2. mark 阶段
+//
+//    a. 在准备进入标记阶段之前，将 gcphase 从 _GCoff 设置为 _GCmark，开启写屏障，开启赋值器协助，并将根标
+//    记任务（root mark job）入队。直到所有的 P 都通过 STW 开启了写屏障后，才会开始扫描对象。
+//
+//    b. 取消 STW。从这时开始，GC 的工作就由标记 worker（通过调度器启动）和在分配空间时可能发生的协助共同完成。
+//    对于所有被覆写的指针和由写指针导致创建的新指针，写屏障将其标记为灰色（详情见 mbarrier.go）。新分配的对象
+//    被立即标记为黑色。
+//
+//    c. GC 开始执行根标记任务。该任务包含了扫描所有栈，置灰所有全局变量，置灰所有堆外运行时数据结构所持有的的堆
+//    内指针。扫描栈会停止 goroutine，并将栈上所有指针置灰，之后再恢复该 goroutine。
+//
+//    d. GC 从工作队列中取出所有灰色对象，将之置黑后，扫描并置灰其对象持有的指针（这会反过来将灰指针又送回工作队列）。
+//
+//    e. 因 GC 的工作横跨所有本地缓存，因此 GC 使用一种分布式终止算法来检测不再有根标记任务和灰色对象的时刻。当到
+//    达该时刻后，GC 过渡到 mark termination 阶段。
+//
+// 3. mark termination 阶段
+//
+//    a. STW。
+//
+//    b. 将 gcphase 设置为 _GCmarktermination，禁用 worker 和 GC 协助。
+//
+//    c. 执行类似清洗 mcaches 等的打扫工作。
+//
+// 4. sweep 阶段
+//
+//    a. 在准备进入清扫阶段之前，将 gcphase 设置为 _GCoff，设置清扫状态并关闭写屏障。
+//
+//    b. 取消 STW。 从这时起，新分配的对象都是白色，且在使用 span 前按需进行清扫。
+//
+//    c. GC 在后台进行并发清扫，并响应内存分配。见下述。
+//
+// 5. 当发生了足量的内存分配后，重复上述步骤。对于 GC rate 的讨论，见下述。
+
+// 并发清扫：
+//
+// sweep 阶段与正常执行的程序并发运行。
+// 后台 goroutine 被动地（当一个 goroutine 需要另一个 span 时）、并发地（对 CPU 约束型程序友好）将堆按照一个个
+// 的 span 逐步清扫。当 mark termination 阶段的 STW 结束后，所有的 span 都被标记为 ”需要清扫“。
+//
+// 后台清扫 goroutine 简单的将 span 挨个清扫。
+//
+// 当一个 goroutine 需要一个 span，而当前还存在未清扫的 span 时，为了减少向操作系统申请过多的内存，程序会先进行
+// 清扫来尝试回收所需容量的内存。当一个 goroutine 需要分配一个新的小对象 span 时，它先尝试清扫所有放置同等大小对
+// 象的 span，直到至少释放了一个这样的 span。而当一个 goroutine 需要从堆中直接分配一个新的大对象 span 时，它会
+// 先尝试清扫所有 span 直到释放出了同等空间的内存页为止。只有一种情况不满足：当一个 goroutine 清扫并释放了两个不
+// 邻接的单页 span 后，它会直接分配一个新的双页 span，但仍然可能存在未扫描的单页 span 能合并组成双页 span。
+//
+// 确保不对未扫描的 span 做任何操作十分关键（操作可能会破坏 GC 位图中的标记位）。在 GC 期间，所有的 mcaches 都被
+// flush 到 central cache 中，故 mcache 是空的。当一个 goroutine 将一个新的 span 抓取到 mcache 后，它先清
+// 扫该 span。当一个 goroutine 显式的释放一个对象或设置一个 finalizer，它会确保该 span 被清扫过（或者主动清扫，
+// 或者等待并发清扫完成）。只有当所有的 span 都被清扫后，finalizer goroutine 才会启动。
+// 当下一次 GC 启动后，它会清扫所有未完成清扫的 span（如果有的话）。
+
+// GC rate:
+//
+// 当我们分配了与已使用容量成比例的新容量后，会开启下一次 GC。该比例由 GOGC 环境变量控制（默认 100）。如果当前我们
+// 试用了 4M 空间，且 GOGC = 100，那么当使用容量达到 8M 时，会再次 GC（该标记由 gcController.heapGoal 变量追
+// 踪）。这使得 GC 成本与分配成本成线性比例。调节 GOGC 只会改变这种线性常数（和额外的内存使用容量）。
+
+// Oblets
+//
+// 为了避免扫描大对象时的长停顿，以及改善并行度，GC 将扫描超过 maxObletBytes 的大对象的任务拆分为一个个最大为 
+// maxObletBytes 容量的 oblets 中，每次只扫描第一个 oblet，之后入队，将剩余的 oblet 交给新的扫描任务去处理。
+
+/* gc 初始化 */
+func gcinit() {
+	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
+		throw("size of Workbuf is suboptimal")
+	}
+	// No sweep on the first cycle.
+	mheap_.sweepDrained = 1
+
+  /* GOGC 是 golang 唯一的 GC 参数（也即 gcPercent），默认值 = 100 
+   * 从 gcController.init() 中可以看到：
+   * 1. heap 的初始大小是 4<<20 = 4MiB，而在调用 setGCPercent() 时，heapMinimum 会被设置为4MiB * GOGC / 100
+   * 2. triggerRatio 默认值为 7/8
+   * 3. heapMarked 被设置为 heapMinimum / (1 + triggerRatio)，由于刚刚启动，还没有过 gc，因此目前的 heapMarked 是假定值
+   * 3. heapGoal 设置算法为 heapGoal = heapMarked * (1 + GOGC/100)
+   * 
+   * 上述几个参数的值，是影响 GC 开始与停止时机的关键。
+   * 1. heapMarked 是前一次 GC 后被标记的总容量（即 GC 结束后的存活容量）
+   * 2. heapGoal 是下一次 GC 结束后期望的目标 heap 容量门限。按照 gcPercent 算法，计算得出。
+   * 3. trigger 是下一次 GC 开始的容量门限。由 triggerRatio 计算得出。
+   *    a. trigger = heapMarked * (1 + triggerRatio)
+   *    b. 由于是并发 GC，因此 GC 期间依然会分配新内存，故 trigger 通常要小于 heapGoal
+   *    c. triggerRatio 的范围极限是 0.6 * GOGC/100 ~ 0.95 * GOGC/100
+   *    d. 除了初始设置 triggerRatio = 7/8，每次 GC 结束后会重新设置 triggerRatio，具体算法略
+  */
+	gcController.init(readGOGC())
+
+	work.startSema = 1
+	work.markDoneSema = 1
+	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
+	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
+	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+}
+
+/*
+ * GC phase:
+ * 
+ * 触发 GC 的入口：
+ * 1. 显示调用 runtime.GC()
+ * 2. runtime.mallocgc()，当 shouldhelpgc == true 时
+ * 3. 在 proc.go 的 init() 中，启动了 forcegchelper()，在其内部等待由 sysmon 唤醒后执行
+*/
+
+```
+
 
 
 ### 6. 抢占
