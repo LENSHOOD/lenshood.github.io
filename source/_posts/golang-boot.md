@@ -3019,6 +3019,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 
 ```go
 /**************** [mgc.go] ****************/
+
 // 垃圾收集器 (GC)。
 //
 // 定义 GC：
@@ -3144,6 +3145,8 @@ func gcinit() {
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
 }
 
+/**************** [mallocgc.go] ****************/
+
 /*
  * GC phase:
  * 
@@ -3152,7 +3155,89 @@ func gcinit() {
  * 2. runtime.mallocgc()，当 shouldhelpgc == true 时
  * 3. 在 proc.go 的 init() 中，启动了 forcegchelper()，在其内部等待由 sysmon 唤醒后执行
 */
+func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+  ... ...
+  if size <= maxSmallSize {
+    /* 对于小对象，当按照 span class 查找 mcache 中的 span 已满时，会分配新的 span，这时设置 shouldhelpgc = true */
+    if noscan && size < maxTinySize {
+      ... ...
+      v, span, shouldhelpgc = c.nextFree(tinySpanClass)
+      ... ...
+    } else {
+      ... ...
+      v, span, shouldhelpgc = c.nextFree(spc)
+      ... ...
+    }
+  } else {
+    /* 大对象直接在 heap 分配 class == 0 的特殊 span，每次都设置 shouldhelpgc = true */
+    shouldhelpgc = true
+    ... ...
+  }
+  ... ...
+  if shouldhelpgc {
+    if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
+      gcStart(t)
+    }
+  }
+  ... ...
+}
 
+/**************** [proc.go] ****************/
+
+func forcegchelper() {
+  /* 保存 forcegchelper 线程到全局变量 forcegc.g */
+  forcegc.g = getg()
+	... ...
+	for {
+		... ...
+    /* 调用 gopark 让当前 goroutine 陷入休眠，被唤醒后再执行下一行 gcStart */
+		goparkunlock(&forcegc.lock, waitReasonForceGCIdle, traceEvGoBlock, 1)
+		... ...
+		gcStart(gcTrigger{kind: gcTriggerTime, now: nanotime()})
+	}
+}
+
+func sysmon() {
+	... ...
+	for {
+		... ...
+		/* 若需要 gc， */
+		if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
+			... ...
+			var list gList
+			list.push(forcegc.g)
+      /*  */
+			injectglist(&list)
+			... ...
+		}
+		... ...
+	}
+}
+
+/**************** [mgc.go] ****************/
+
+/* 根据 gcTrgger 类型进入不同的判断分支，判断是否要 gc */
+func (t gcTrigger) test() bool {
+	if !memstats.enablegc || panicking != 0 || gcphase != _GCoff {
+		return false
+	}
+	switch t.kind {
+	case gcTriggerHeap:
+    /* 当前容量到达 trigger 点时 */
+		return gcController.heapLive >= gcController.trigger
+	case gcTriggerTime:
+		if gcController.gcPercent < 0 {
+			return false
+		}
+		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+    /* 距离上一次 GC 超过 forcegcperiod 时间，forcegcperiod = 2 * 60 * 1e9 即 120 秒 */
+		return lastgc != 0 && t.now-lastgc > forcegcperiod
+	case gcTriggerCycle:
+    // 由 runtime.GC() 强制调用时，传入的 n = work.cycles + 1，故会立即触发
+		return int32(t.n-work.cycles) > 0
+	}
+	return true
+}
 ```
 
 
