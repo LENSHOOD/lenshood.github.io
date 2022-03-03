@@ -3240,6 +3240,149 @@ func (t gcTrigger) test() bool {
 }
 ```
 
+```go
+/**************** [mgc.go] ****************/
+
+func gcStart(trigger gcTrigger) {
+	... ...
+  /* 尝试先清扫一个 unswept span，如果是通常的后台启动 gc，一般不会存在 unswept span，
+   * 因为在 span 分配、归还的时候都会进行 sweep。而如果是强制调用 GC 就可能存在 unswept span
+   */
+	for trigger.test() && sweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
+	}
+
+	/* startSema 用来保护 _GCoff 到其他状态的逻辑，如果有其他 goroutine 已经获取了锁，则休眠等待 */
+	semacquire(&work.startSema)
+	/* 也许从休眠醒来后发现已经不再需要做 GC 了 */
+	if !trigger.test() {
+		semrelease(&work.startSema)
+		return
+	}
+
+	// 当触发类型是 gcTriggerCycle 时，设置用户强制 flag
+	work.userForced = trigger.kind == gcTriggerCycle
+
+	... ...
+
+	/* 拿锁，
+	 * 持有 gcsema 允许 m 阻塞其他 GC 过程，同时也能防止并发调用 gomaxprocs 
+	 * 持有 worldsema 允许 STW
+	 */
+	semacquire(&gcsema)
+	semacquire(&worldsema)
+
+	... ...
+
+	gcBgMarkStartWorkers()
+
+	systemstack(gcResetMarkState)
+
+	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
+	if work.stwprocs > ncpu {
+		// This is used to compute CPU time of the STW phases,
+		// so it can't be more than ncpu, even if GOMAXPROCS is.
+		work.stwprocs = ncpu
+	}
+	work.heap0 = atomic.Load64(&gcController.heapLive)
+	work.pauseNS = 0
+	work.mode = mode
+
+	now := nanotime()
+	work.tSweepTerm = now
+	work.pauseStart = now
+	if trace.enabled {
+		traceGCSTWStart(1)
+	}
+	systemstack(stopTheWorldWithSema)
+	// Finish sweep before we start concurrent scan.
+	systemstack(func() {
+		finishsweep_m()
+	})
+
+	// clearpools before we start the GC. If we wait they memory will not be
+	// reclaimed until the next GC cycle.
+	clearpools()
+
+	work.cycles++
+
+	gcController.startCycle()
+	work.heapGoal = gcController.heapGoal
+
+	// In STW mode, disable scheduling of user Gs. This may also
+	// disable scheduling of this goroutine, so it may block as
+	// soon as we start the world again.
+	if mode != gcBackgroundMode {
+		schedEnableUser(false)
+	}
+
+	// Enter concurrent mark phase and enable
+	// write barriers.
+	//
+	// Because the world is stopped, all Ps will
+	// observe that write barriers are enabled by
+	// the time we start the world and begin
+	// scanning.
+	//
+	// Write barriers must be enabled before assists are
+	// enabled because they must be enabled before
+	// any non-leaf heap objects are marked. Since
+	// allocations are blocked until assists can
+	// happen, we want enable assists as early as
+	// possible.
+	setGCPhase(_GCmark)
+
+	gcBgMarkPrepare() // Must happen before assist enable.
+	gcMarkRootPrepare()
+
+	// Mark all active tinyalloc blocks. Since we're
+	// allocating from these, they need to be black like
+	// other allocations. The alternative is to blacken
+	// the tiny block on every allocation from it, which
+	// would slow down the tiny allocator.
+	gcMarkTinyAllocs()
+
+	// At this point all Ps have enabled the write
+	// barrier, thus maintaining the no white to
+	// black invariant. Enable mutator assists to
+	// put back-pressure on fast allocating
+	// mutators.
+	atomic.Store(&gcBlackenEnabled, 1)
+
+	// Assists and workers can start the moment we start
+	// the world.
+	gcController.markStartTime = now
+
+	// In STW mode, we could block the instant systemstack
+	// returns, so make sure we're not preemptible.
+	mp = acquirem()
+
+	// Concurrent mark.
+	systemstack(func() {
+		now = startTheWorldWithSema(trace.enabled)
+		work.pauseNS += now - work.pauseStart
+		work.tMark = now
+		memstats.gcPauseDist.record(now - work.pauseStart)
+	})
+
+	// Release the world sema before Gosched() in STW mode
+	// because we will need to reacquire it later but before
+	// this goroutine becomes runnable again, and we could
+	// self-deadlock otherwise.
+	semrelease(&worldsema)
+	releasem(mp)
+
+	// Make sure we block instead of returning to user code
+	// in STW mode.
+	if mode != gcBackgroundMode {
+		Gosched()
+	}
+
+	semrelease(&work.startSema)
+}
+
+```
+
 
 
 ### 6. 抢占
