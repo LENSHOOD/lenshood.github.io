@@ -3274,72 +3274,39 @@ func gcStart(trigger gcTrigger) {
 
 	... ...
 
+  /* 启动并发标记 goroutine，通过休眠当前 os 线程并不断地把当前 p 换出，实现每个 p 中都有一个 worker goroutine */
 	gcBgMarkStartWorkers()
 
+  /* 设置一些初始值，包括清空所有 g 的 gcscandone、gcAssistBytes，清空所有 arena 的 pageMarks 等 */
 	systemstack(gcResetMarkState)
 
-	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
-	if work.stwprocs > ncpu {
-		// This is used to compute CPU time of the STW phases,
-		// so it can't be more than ncpu, even if GOMAXPROCS is.
-		work.stwprocs = ncpu
-	}
-	work.heap0 = atomic.Load64(&gcController.heapLive)
-	work.pauseNS = 0
-	work.mode = mode
-
-	now := nanotime()
-	work.tSweepTerm = now
-	work.pauseStart = now
-	if trace.enabled {
-		traceGCSTWStart(1)
-	}
+  /* 省略设置各种 work 信息，work 全局变量中记录了与本次 GC 相关的各种信息 */
+	... ...
+  
+  /* STW */
 	systemstack(stopTheWorldWithSema)
-	// Finish sweep before we start concurrent scan.
+	
+  /* 将所有 unswpt span 全部 sweep，由于在 STW 中，因此不会有新的 unswpt  */
 	systemstack(func() {
 		finishsweep_m()
 	})
 
-	// clearpools before we start the GC. If we wait they memory will not be
-	// reclaimed until the next GC cycle.
-	clearpools()
+	... ...
 
-	work.cycles++
-
+  /* 重置 gcController */
 	gcController.startCycle()
 	work.heapGoal = gcController.heapGoal
 
-	// In STW mode, disable scheduling of user Gs. This may also
-	// disable scheduling of this goroutine, so it may block as
-	// soon as we start the world again.
-	if mode != gcBackgroundMode {
-		schedEnableUser(false)
-	}
+	... ...
 
-	// Enter concurrent mark phase and enable
-	// write barriers.
-	//
-	// Because the world is stopped, all Ps will
-	// observe that write barriers are enabled by
-	// the time we start the world and begin
-	// scanning.
-	//
-	// Write barriers must be enabled before assists are
-	// enabled because they must be enabled before
-	// any non-leaf heap objects are marked. Since
-	// allocations are blocked until assists can
-	// happen, we want enable assists as early as
-	// possible.
+  /* 正式进入标记阶段，开启写屏障 */
 	setGCPhase(_GCmark)
 
+  /* 设置 nproc 和 nwait，并将所有根扫描任务入队 */
 	gcBgMarkPrepare() // Must happen before assist enable.
 	gcMarkRootPrepare()
 
-	// Mark all active tinyalloc blocks. Since we're
-	// allocating from these, they need to be black like
-	// other allocations. The alternative is to blacken
-	// the tiny block on every allocation from it, which
-	// would slow down the tiny allocator.
+	/* 标记所有活跃的 tiny alloc block 为灰色 */
 	gcMarkTinyAllocs()
 
 	// At this point all Ps have enabled the write
@@ -3357,7 +3324,7 @@ func gcStart(trigger gcTrigger) {
 	// returns, so make sure we're not preemptible.
 	mp = acquirem()
 
-	// Concurrent mark.
+	/* 取消 STW，正式开始并发标记（并发标记的工作由 gcMarkWorker 执行） */
 	systemstack(func() {
 		now = startTheWorldWithSema(trace.enabled)
 		work.pauseNS += now - work.pauseStart
@@ -3365,20 +3332,8 @@ func gcStart(trigger gcTrigger) {
 		memstats.gcPauseDist.record(now - work.pauseStart)
 	})
 
-	// Release the world sema before Gosched() in STW mode
-	// because we will need to reacquire it later but before
-	// this goroutine becomes runnable again, and we could
-	// self-deadlock otherwise.
-	semrelease(&worldsema)
-	releasem(mp)
-
-	// Make sure we block instead of returning to user code
-	// in STW mode.
-	if mode != gcBackgroundMode {
-		Gosched()
-	}
-
-	semrelease(&work.startSema)
+	/* 省略释放各种锁 */
+  ... ...
 }
 
 ```
