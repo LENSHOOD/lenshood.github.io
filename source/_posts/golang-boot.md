@@ -3702,6 +3702,247 @@ func markroot(gcw *gcWork, i uint32) {
 	}
 }
 
+/* 扫描 stack */
+func scanstack(gp *g, gcw *gcWork) {
+	... ...
+	if isShrinkStackSafe(gp) {
+		// Shrink the stack if not much of it is being used.
+		shrinkstack(gp)
+	} else {
+		// Otherwise, shrink the stack at the next sync safe point.
+		gp.preemptShrink = true
+	}
+
+	var state stackScanState
+	state.stack = gp.stack
+  ... ...
+	/* 扫描 gp.sched.ctxt 中保存的寄存器上下文 */
+	if gp.sched.ctxt != nil {
+		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+	}
+
+	/* 采用 gentraceback 和 tracebackdefers 生成 stkframe 后调用 */
+	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+    /* 将栈帧中的局部变量、传参等进行扫描 */
+		scanframeworker(frame, &state, gcw)
+		return true
+	}
+	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+	tracebackdefers(gp, scanframe, nil)
+
+	/* 扫描 defer 调用链 */
+	for d := gp._defer; d != nil; d = d.link {
+		if d.fn != nil {
+			// tracebackdefers above does not scan the func value, which could
+			// be a stack allocated closure. See issue 30453.
+			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+		if d.link != nil {
+			// The link field of a stack-allocated defer record might point
+			// to a heap-allocated defer record. Keep that heap record live.
+			scanblock(uintptr(unsafe.Pointer(&d.link)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+		// Retain defers records themselves.
+		// Defer records might not be reachable from the G through regular heap
+		// tracing because the defer linked list might weave between the stack and the heap.
+		if d.heap {
+			scanblock(uintptr(unsafe.Pointer(&d)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		}
+	}
+  /* panic 也加入扫描队列 */
+	if gp._panic != nil {
+		// Panics are always stack allocated.
+		state.putPtr(uintptr(unsafe.Pointer(gp._panic)), false)
+	}
+
+	/* 扫描所有栈对象 */
+	state.buildIndex()
+	for {
+		p, conservative := state.getPtr()
+		... ...
+		obj := state.findObject(p)
+		... ...
+		b := state.stack.lo + uintptr(obj.off)
+		if conservative {
+			scanConservative(b, r.ptrdata(), gcdata, gcw, &state)
+		} else {
+			scanblock(b, r.ptrdata(), gcdata, gcw, &state)
+		}
+    ... ...
+	}
+  ... ...
+}
+
+/* 按对象扫描 */
+func scanobject(b uintptr, gcw *gcWork) {
+	// Find the bits for b and the size of the object at b.
+	//
+	// b is either the beginning of an object, in which case this
+	// is the size of the object to scan, or it points to an
+	// oblet, in which case we compute the size to scan below.
+	hbits := heapBitsForAddr(b)
+	s := spanOfUnchecked(b)
+	n := s.elemsize
+	if n == 0 {
+		throw("scanobject n == 0")
+	}
+
+  /* 大对象拆分成 oblets 分别扫描以提升并行度 */
+	if n > maxObletBytes {
+		if b == s.base() {
+			// It's possible this is a noscan object (not
+			// from greyobject, but from other code
+			// paths), in which case we must *not* enqueue
+			// oblets since their bitmaps will be
+			// uninitialized.
+			if s.spanclass.noscan() {
+				// Bypass the whole scan.
+				gcw.bytesMarked += uint64(n)
+				return
+			}
+
+			// Enqueue the other oblets to scan later.
+			// Some oblets may be in b's scalar tail, but
+			// these will be marked as "no more pointers",
+			// so we'll drop out immediately when we go to
+			// scan those.
+			for oblet := b + maxObletBytes; oblet < s.base()+s.elemsize; oblet += maxObletBytes {
+				if !gcw.putFast(oblet) {
+					gcw.put(oblet)
+				}
+			}
+		}
+
+		// Compute the size of the oblet. Since this object
+		// must be a large object, s.base() is the beginning
+		// of the object.
+		n = s.base() + s.elemsize - b
+		if n > maxObletBytes {
+			n = maxObletBytes
+		}
+	}
+
+  /* 从 b 开始，尝试寻找所有其所在 span 中可能的对象，并置灰 */
+	var i uintptr
+	for i = 0; i < n; i, hbits = i+sys.PtrSize, hbits.next() {
+		// Load bits once. See CL 22712 and issue 16973 for discussion.
+		bits := hbits.bits()
+		if bits&bitScan == 0 {
+			break // no more pointers in this object
+		}
+		if bits&bitPointer == 0 {
+			continue // not a pointer
+		}
+
+		// Work here is duplicated in scanblock and above.
+		// If you make changes here, make changes there too.
+		obj := *(*uintptr)(unsafe.Pointer(b + i))
+
+		// At this point we have extracted the next potential pointer.
+		// Quickly filter out nil and pointers back to the current object.
+		if obj != 0 && obj-b >= n {
+			// Test if obj points into the Go heap and, if so,
+			// mark the object.
+			//
+			// Note that it's possible for findObject to
+			// fail if obj points to a just-allocated heap
+			// object because of a race with growing the
+			// heap. In this case, we know the object was
+			// just allocated and hence will be marked by
+			// allocation itself.
+			if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
+				greyobject(obj, b, i, span, gcw, objIndex)
+			}
+		}
+	}
+	gcw.bytesMarked += uint64(n)
+	gcw.scanWork += int64(i)
+}
+
+/* GC phase 从 _GCmark -> _GCmarktermination */
+func gcMarkDone() {
+	// Ensure only one thread is running the ragged barrier at a
+	// time.
+	semacquire(&work.markDoneSema)
+
+top:
+	... ...
+
+	// Flush all local buffers and collect flushedWork flags.
+	gcMarkDoneFlushed = 0
+	systemstack(func() {
+		... ...
+    /* forEachP 抢占所有 g，以尝试到达 safe point，然后执行传入函数 */
+		forEachP(func(_p_ *p) {
+			/* 将 p 的 write barrier buffer 全部写入 gcw */
+			wbBufFlush1(_p_)
+
+			/* 将 p.gcw 中的对象全部写入 work.full */
+			_p_.gcw.dispose()
+			/* 置位代表仍存在工作需要 worker 去做 */
+			if _p_.gcw.flushedWork {
+				atomic.Xadd(&gcMarkDoneFlushed, 1)
+				_p_.gcw.flushedWork = false
+			}
+		})
+		... ...
+	})
+
+	if gcMarkDoneFlushed != 0 {
+		/* 如果没结束，重新继续 */
+		semrelease(&worldsema)
+		goto top
+	}
+
+	/* 到达这里代表 mark 阶段的工作基本结束了，可以开始转换状态 */
+	... ...
+	systemstack(stopTheWorldWithSema)
+	/* 由于写屏障还没关，有可能因为 gc 的过程，又产生了一些标记工作，wbBufFlush1 后重新回到 top 再来一遍 */
+	restart := false
+	systemstack(func() {
+		for _, p := range allp {
+			wbBufFlush1(p)
+			if !p.gcw.empty() {
+				restart = true
+				break
+			}
+		}
+	})
+	if restart {
+		getg().m.preemptoff = ""
+		systemstack(func() {
+			now := startTheWorldWithSema(true)
+			work.pauseNS += now - work.pauseStart
+			memstats.gcPauseDist.record(now - work.pauseStart)
+		})
+		semrelease(&worldsema)
+		goto top
+	}
+
+	/* 关闭 worker */
+	atomic.Store(&gcBlackenEnabled, 0)
+
+	/* 对于在 mallocgc 时，由于没有足够的 gc credit，导致休眠的 g，在这里全部唤醒 */
+	gcWakeAllAssists()
+
+	// Likewise, release the transition lock. Blocked
+	// workers and assists will run when we start the
+	// world again.
+	semrelease(&work.markDoneSema)
+
+	// In STW mode, re-enable user goroutines. These will be
+	// queued to run after we start the world.
+	schedEnableUser(true)
+
+	// endCycle depends on all gcWork cache stats being flushed.
+	// The termination algorithm above ensured that up to
+	// allocations since the ragged barrier.
+	nextTriggerRatio := gcController.endCycle(work.userForced)
+
+	/* 执行 mark termination，并进入清扫阶段，执行清扫 */
+	gcMarkTermination(nextTriggerRatio)
+}
+
 
 ```
 
