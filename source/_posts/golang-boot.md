@@ -3286,7 +3286,7 @@ func gcStart(trigger gcTrigger) {
   /* STW */
 	systemstack(stopTheWorldWithSema)
 	
-  /* 将所有 unswpt span 全部 sweep，由于在 STW 中，因此不会有新的 unswpt  */
+  /* 将所有 unswpt span 全部 sweep，由于在 STW 中，因此不会有新的 unswpt，确保上一轮 span 全部 swept 后再开始新一轮  */
 	systemstack(func() {
 		finishsweep_m()
 	})
@@ -3306,7 +3306,7 @@ func gcStart(trigger gcTrigger) {
 	gcBgMarkPrepare() // Must happen before assist enable.
 	gcMarkRootPrepare()
 
-	/* 标记所有活跃的 tiny alloc block 为灰色 */
+	/* 标记所有活跃的 tiny alloc block 为黑色（tiny alloc 中都是 noscan 的对象，可以直接 blacken） */
 	gcMarkTinyAllocs()
 
 	// At this point all Ps have enabled the write
@@ -3335,6 +3335,373 @@ func gcStart(trigger gcTrigger) {
 	/* 省略释放各种锁 */
   ... ...
 }
+
+/* 创建 gcBgMarkWorker */
+func gcBgMarkStartWorkers() {
+  /* 最多创建 gomaxprocs 个 worker */
+	for gcBgMarkWorkerCount < gomaxprocs {
+    /* worker function，其内部实现与下面的 work.bgMarkReady 有交互 */
+		go gcBgMarkWorker()
+
+    /* notetsleepg 配置当前 m 进入 syscall，这会导致 curg 被保存，
+     * p 被换出（重新指派一个 m 来运行该 p），随后当前 m 休眠等待 work.bgMarkReady
+    */
+		notetsleepg(&work.bgMarkReady, -1)
+    
+    /* 从休眠中被唤醒后，m 会将 curg 恢复，并放入 idlep（或 globrunq）中，之后调用 schedule() 重新调度。
+     * 由于 schedule() 每次执行时都会先检查当前是否存在 gcBgMarkWorker，因此不论是 curg 被放到 idlep
+     * 还是 glbrunq，最终都会被一个未执行 gcBgMarkWorker 的 p 来执行，这就确保了每个 p 都有 gcBgMarkWorker
+    */
+		noteclear(&work.bgMarkReady)
+
+		gcBgMarkWorkerCount++
+	}
+}
+
+/* 创建根扫描任务，根包括栈、全局变量、其他杂项等，要完整扫描堆和栈，因此必须 STW */
+func gcMarkRootPrepare() {
+  ... ...
+	/* 计算传入的 bytes 等于多少个 root block，rootBlockBytes = 256KiB */
+	nBlocks := func(bytes uintptr) int {
+		return int(divRoundUp(bytes, rootBlockBytes))
+	}
+
+	work.nDataRoots = 0
+	work.nBSSRoots = 0
+
+	/* 全局变量由编译器放在 moduleData 中，data 部分是以初始的全局变量 */
+	for _, datap := range activeModules() {
+		nDataRoots := nBlocks(datap.edata - datap.data)
+		if nDataRoots > work.nDataRoots {
+			work.nDataRoots = nDataRoots
+		}
+	}
+
+  /* bss 部分是未初始的全局变量*/
+	for _, datap := range activeModules() {
+		nBSSRoots := nBlocks(datap.ebss - datap.bss)
+		if nBSSRoots > work.nBSSRoots {
+			work.nBSSRoots = nBSSRoots
+		}
+	}
+
+	/* markArenas 设置为 allArenas 的镜像，并计算整个堆的 root blocks */
+	mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
+	work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
+
+	/* 这里的 nStackRoots 是当前所有 g 数量 */
+	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
+
+	work.markrootNext = 0
+  /* 所有的根扫描任务就是刚才计算的总额 +fixedRootCount */
+	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+
+	// Calculate base indexes of each root type
+	work.baseData = uint32(fixedRootCount)
+	work.baseBSS = work.baseData + uint32(work.nDataRoots)
+	work.baseSpans = work.baseBSS + uint32(work.nBSSRoots)
+	work.baseStacks = work.baseSpans + uint32(work.nSpanRoots)
+	work.baseEnd = work.baseStacks + uint32(work.nStackRoots)
+}
+
+/* 对 mcache 中的所有 tiny allocs 进行标记，为什么认为 tiny 中的对象都是活跃的？
+ * 我认为是 tiny span 本身很小，活跃的 span 还未满，不如直接标记黑色，等到后面满了变成普通的 central span，再一起 gc 
+ */
+func gcMarkTinyAllocs() {
+  ... ...
+	for _, p := range allp {
+		c := p.mcache
+		if c == nil || c.tiny == 0 {
+			continue
+		}
+    /* tiny 指向当前的 tiny alloc span，因此 objIndex == 0 */
+		_, span, objIndex := findObject(c.tiny, 0, 0)
+		gcw := &p.gcw
+    /* tiny alloc 中只存放 noscan 对象，直接 blacken */
+		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
+	}
+}
+
+/* gc 后台标记主逻辑 */
+func gcBgMarkWorker() {
+	gp := getg()
+	... ...
+	node.gp.set(gp)
+
+	node.m.set(acquirem())
+  /* 这里唤醒了 work.bgMarkReady，也就唤醒了前面的 worker 创建 forloop */
+	notewakeup(&work.bgMarkReady)
+
+	for {
+    /* 执行完 func 后将 g park，并等待 node 唤醒 */
+		gopark(func(g *g, nodep unsafe.Pointer) bool {
+			node := (*gcBgMarkWorkerNode)(nodep)
+      ... ...
+			/* 将 worker 放入 pool */
+			gcBgMarkWorkerPool.push(&node.node)
+      
+      /* 返回 true 后执行 schedule()，curg 被出让 */
+			return true
+		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
+
+		/* 能执行到这里说明此时 gcBlackenEnabled 已经等于 1（否则 schedule() 不会调用 findRunnableGCWorker），
+		 * 因此根扫描任务已经入队，且活跃的 tiny alloc block 已经被标记为灰色
+		*/
+		node.m.set(acquirem())
+		pp := gp.m.p.ptr() // P can't change with preemption disabled.
+    ... ...
+    
+    /* gcDrain() 是扫描核心逻辑，几种 worker 模式：
+     * 1. gcMarkWorkerDedicatedMode: 当前运行该 worker 的 p，专用于运行 gc mark worker，且不可被抢占，
+     *    当前 p 的其他 g 会被挪到 globrunq
+     * 2. gcMarkWorkerFractionalMode: 可被其他的普通 g 抢占，抢占后强制结束工作
+     * 3. gcMarkWorkerIdleMode: 在 p 空闲的时候工作，可被抢占，通常在 findrunnable() 找不到活干的时候触发
+    */
+		systemstack(func() {
+			// Mark our goroutine preemptible so its stack
+			// can be scanned. This lets two mark workers
+			// scan each other (otherwise, they would
+			// deadlock). We must not modify anything on
+			// the G stack. However, stack shrinking is
+			// disabled for mark workers, so it is safe to
+			// read from the G stack.
+			casgstatus(gp, _Grunning, _Gwaiting)
+			switch pp.gcMarkWorkerMode {
+			default:
+				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+			case gcMarkWorkerDedicatedMode:
+				gcDrain(&pp.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+				if gp.preempt {
+					// We were preempted. This is
+					// a useful signal to kick
+					// everything out of the run
+					// queue so it can run
+					// somewhere else.
+					if drainQ, n := runqdrain(pp); n > 0 {
+						lock(&sched.lock)
+						globrunqputbatch(&drainQ, int32(n))
+						unlock(&sched.lock)
+					}
+				}
+				// Go back to draining, this time
+				// without preemption.
+				gcDrain(&pp.gcw, gcDrainFlushBgCredit)
+			case gcMarkWorkerFractionalMode:
+				gcDrain(&pp.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+			case gcMarkWorkerIdleMode:
+				gcDrain(&pp.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+			}
+			casgstatus(gp, _Gwaiting, _Grunning)
+		})
+
+		... ...
+
+		/* 没有新的工作要做了，标记阶段结束 */
+		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+      ... ...
+			gcMarkDone()
+		}
+	}
+}
+
+/* 执行根扫描任务 */
+func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+	... ...
+	gp := getg().m.curg
+	preemptible := flags&gcDrainUntilPreempt != 0
+	flushBgCredit := flags&gcDrainFlushBgCredit != 0
+	idle := flags&gcDrainIdle != 0
+
+	initScanWork := gcw.scanWork
+
+	// checkWork is the scan work before performing the next
+	// self-preempt check.
+	checkWork := int64(1<<63 - 1)
+  /* check() 用于返回当前 fraction 或 idle 任务是否需要立即结束 */
+	var check func() bool
+	if flags&(gcDrainIdle|gcDrainFractional) != 0 {
+		checkWork = initScanWork + drainCheckThreshold
+		if idle {
+      /* 对于 idle worker，当存在新的 g 可执行后，check 返回 true*/
+			check = pollWork
+		} else if flags&gcDrainFractional != 0 {
+      /* 对于 fraction worker，当 worker 在当前 p 执行时长与总 gc 标记时长占比超过 
+       * 1.2*gcController.fractionalUtilizationGoal 时，check 返回 true
+       */
+			check = pollFractionalWorkerExit
+		}
+	}
+
+	// Drain root marking jobs.
+	if work.markrootNext < work.markrootJobs {
+		// Stop if we're preemptible or if someone wants to STW.
+		for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
+			job := atomic.Xadd(&work.markrootNext, +1) - 1
+			if job >= work.markrootJobs {
+				break
+			}
+      /* 标记根任务 */
+			markroot(gcw, job)
+			if check != nil && check() {
+				goto done
+			}
+		}
+	}
+
+	// Drain heap marking jobs.
+	// Stop if we're preemptible or if someone wants to STW.
+	for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
+    /* 如果没有全局 work 了，尝试从当前 p 的 workbuf 中窃取一部分给到全局（而不是让空闲的 worker 等待） */
+		if work.full == 0 {
+			gcw.balance()
+		}
+
+    /* 获取一个需要扫描的对象（前面从 root 开始的对象已经全部扫描完毕，这时获取的对象主要从 
+     * 1. root 对象被置灰后，进入 gcw（noscan 会直接置黑，就不再需要进入 gcw 了）
+     * 2. write barrier
+     * 而来）
+     */
+		b := gcw.tryGetFast()
+		if b == 0 {
+			b = gcw.tryGet()
+			if b == 0 {
+				// Flush the write barrier
+				// buffer; this may create
+				// more work.
+				wbBufFlush(nil, 0)
+				b = gcw.tryGet()
+			}
+		}
+		if b == 0 {
+			// Unable to get work.
+			break
+		}
+    
+    /* 扫描该对象 */
+		scanobject(b, gcw)
+
+    /* 将本次扫描成果累积到 gcController.bgScanCredit，bgScanCredit 作为一种积分，
+     * 可以在 mallocgc() 需要 gcAssistAlloc() 的时候扣减，如果扣减足够，就不再 assist 了
+    */
+		if gcw.scanWork >= gcCreditSlack {
+			atomic.Xaddint64(&gcController.scanWork, gcw.scanWork)
+			if flushBgCredit {
+				gcFlushBgCredit(gcw.scanWork - initScanWork)
+				initScanWork = 0
+			}
+			checkWork -= gcw.scanWork
+			gcw.scanWork = 0
+
+      /* 再次检查是否需要终止 */
+			if checkWork <= 0 {
+				checkWork += drainCheckThreshold
+				if check != nil && check() {
+					break
+				}
+			}
+		}
+	}
+
+done:
+	// Flush remaining scan work credit.
+	if gcw.scanWork > 0 {
+		atomic.Xaddint64(&gcController.scanWork, gcw.scanWork)
+		if flushBgCredit {
+			gcFlushBgCredit(gcw.scanWork - initScanWork)
+		}
+		gcw.scanWork = 0
+	}
+}
+
+/* 扫描根 */
+func markroot(gcw *gcWork, i uint32) {
+	switch {
+  /* 标记 data 区 */  
+	case work.baseData <= i && i < work.baseBSS:
+		for _, datap := range activeModules() {
+			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-work.baseData))
+		}
+
+  /* 标记 bss 区 */  
+	case work.baseBSS <= i && i < work.baseSpans:
+		for _, datap := range activeModules() {
+			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-work.baseBSS))
+		}
+
+  /* 标记所有 finalizer */  
+	case i == fixedRootFinalizers:
+		for fb := allfin; fb != nil; fb = fb.alllink {
+			cnt := uintptr(atomic.Load(&fb.cnt))
+			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
+		}
+
+  /* 直接释放所有 dead g，将 sched.gFree.stack 中的 g 取出，释放其 stack，然后将之转移到 sched.gFree.noStack */
+	case i == fixedRootFreeGStacks:
+		// Switch to the system stack so we can call
+		// stackfree.
+		systemstack(markrootFreeGStacks)
+
+  /* 标记所有 span 中的 special（finalizer） */  
+	case work.baseSpans <= i && i < work.baseStacks:
+		// mark mspan.specials
+		markrootSpans(gcw, int(i-work.baseSpans))
+
+  /* 最后扫描所有 g 的栈 */  
+	default:
+		// the rest is scanning goroutine stacks
+		var gp *g
+		if work.baseStacks <= i && i < work.baseEnd {
+			/* 从 allgs 中获取一个 g */
+			gp = allgs[i-work.baseStacks]
+		} else {
+			throw("markroot: bad index")
+		}
+
+		// remember when we've first observed the G blocked
+		// needed only to output in traceback
+		status := readgstatus(gp) // We are not in a scan state
+		if (status == _Gwaiting || status == _Gsyscall) && gp.waitsince == 0 {
+			gp.waitsince = work.tstart
+		}
+
+		// scanstack must be done on the system stack in case
+		// we're trying to scan our own stack.
+		systemstack(func() {
+			// If this is a self-scan, put the user G in
+			// _Gwaiting to prevent self-deadlock. It may
+			// already be in _Gwaiting if this is a mark
+			// worker or we're in mark termination.
+			userG := getg().m.curg
+			selfScan := gp == userG && readgstatus(userG) == _Grunning
+			if selfScan {
+				casgstatus(userG, _Grunning, _Gwaiting)
+				userG.waitreason = waitReasonGarbageCollectionScan
+			}
+
+			/* 将 gp 挂起，该函数主要用于抢占 */
+			stopped := suspendG(gp)
+      /* dead g 在前面已经处理过了 */
+			if stopped.dead {
+				gp.gcscandone = true
+				return
+			}
+			if gp.gcscandone {
+				throw("g already scanned")
+			}
+      /* scanstack 将 g 中所有可能的地址全部进行扫描，并加入 gcw */
+			scanstack(gp, gcw)
+      
+			gp.gcscandone = true
+      /* 恢复 gp */
+			resumeG(stopped)
+
+			if selfScan {
+				casgstatus(userG, _Gwaiting, _Grunning)
+			}
+		})
+	}
+}
+
 
 ```
 
