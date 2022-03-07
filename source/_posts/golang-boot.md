@@ -4294,6 +4294,160 @@ func bgscavenge() {
 	}
 }
 
+/* scavenge nbytes 空间 */
+func (p *pageAlloc) scavenge(nbytes uintptr, mayUnlock bool) uintptr {
+	assertLockHeld(p.mheapLock)
+
+	var (
+		addrs addrRange
+		gen   uint32
+	)
+	released := uintptr(0)
+	for released < nbytes {
+		if addrs.size() == 0 {
+      /* 预留一块地址空间用于做 scavenge */
+			if addrs, gen = p.scavengeReserve(); addrs.size() == 0 {
+				break
+			}
+		}
+    
+    /* 在预留的地址空间内找到一块连续的 nbytes-released 长度的内存，将其 scavenge，并返回剩余未扫描的区间 */
+		r, a := p.scavengeOne(addrs, nbytes-released, mayUnlock)
+		released += r
+		addrs = a
+	}
+  
+	/* 将最后一部分未扫描区间加回 p.scav.inUse */
+	p.scavengeUnreserve(addrs, gen)
+	return released
+}
+
+/* 清空最多 max bytes 的内存，返还给 os */
+func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (uintptr, addrRange) {
+	... ...
+	/* 将 max bytes 转换为最多清空页数 */
+	maxPages := max / pageSize
+	if max%pageSize != 0 {
+		maxPages++
+	}
+
+	/* 最少清空页数 */
+	minPages := physPageSize / pageSize
+	if minPages < 1 {
+		minPages = 1
+	}
+
+	... ...
+
+  /* fast path: 先从最高地址处尝试搜索是否存在至少大于 minPages 的可清理空间，若有直接清理后返回 */
+	maxAddr := work.limit.addr() - 1
+	maxChunk := chunkIndex(maxAddr)
+	if p.summary[len(p.summary)-1][maxChunk].max() >= uint(minPages) {
+		/* 查找 maxChunk 中是否存在最少 minPages 的空闲且 unscavenge 的空间 */
+		base, npages := p.chunkOf(maxChunk).findScavengeCandidate(chunkPageIndex(maxAddr), minPages, maxPages)
+
+		/* 找到了就将其清理掉，结束 */
+		if npages != 0 {
+			work.limit = offAddr{p.scavengeRangeLocked(maxChunk, base, npages)}
+
+			assertLockHeld(p.mheapLock) // Must be locked on return.
+			return uintptr(npages) * pageSize, work
+		}
+	}
+	/* 否则把刚刚扫描的 maxAddr 剔除出地址空间 */
+	work.limit = offAddr{chunkBase(maxChunk)}
+
+	/* 从最高地址开始向下寻找可用于清理的 chunk */
+	findCandidate := func(work addrRange) (chunkIdx, bool) {
+		for i := chunkIndex(work.limit.addr() - 1); i >= chunkIndex(work.base.addr()); i-- {
+			/* 空间不足的直接跳过 */
+			if p.summary[len(p.summary)-1][i].max() < uint(minPages) {
+				continue
+			}
+
+			/* 检查是否包含至少 minPages 可清理空间 */
+			l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&p.chunks[i.l1()])))
+			if l2 != nil && l2[i.l2()].hasScavengeCandidate(minPages) {
+				return i, true
+			}
+		}
+		return 0, false
+	}
+
+  /* Slow path: 迭代整个 work range，逐步寻找，由于放开了 heap lock，
+   * 因此 findCandidate 是以乐观的形式返回结果，不保证实际清扫时空间仍然足够 
+   */
+	for work.size() != 0 {
+		unlockHeap()
+
+		// Search for the candidate.
+		candidateChunkIdx, ok := findCandidate(work)
+
+		// Lock the heap. We need to do this now if we found a candidate or not.
+		// If we did, we'll verify it. If not, we need to lock before returning
+		// anyway.
+		lockHeap()
+
+		if !ok {
+			/* 整个地址空间都没找到，直接退出 */
+			work.limit = work.base
+			break
+		}
+
+		/* 尝试清扫 */
+		chunk := p.chunkOf(candidateChunkIdx)
+		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+		if npages > 0 {
+			work.limit = offAddr{p.scavengeRangeLocked(candidateChunkIdx, base, npages)}
+
+			assertLockHeld(p.mheapLock) // Must be locked on return.
+			return uintptr(npages) * pageSize, work
+		}
+
+		/* 清扫失败，被骗了，重来一次 */
+		work.limit = offAddr{chunkBase(candidateChunkIdx)}
+	}
+
+	assertLockHeld(p.mheapLock) // Must be locked on return.
+	return 0, work
+}
+
+/* os空间释放 */
+func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr {
+	assertLockHeld(p.mheapLock)
+
+	p.chunkOf(ci).scavenged.setRange(base, npages)
+
+	// Compute the full address for the start of the range.
+	addr := chunkBase(ci) + uintptr(base)*pageSize
+
+	// Update the scavenge low watermark.
+	if oAddr := (offAddr{addr}); oAddr.lessThan(p.scav.scavLWM) {
+		p.scav.scavLWM = oAddr
+	}
+
+	// Only perform the actual scavenging if we're not in a test.
+	// It's dangerous to do so otherwise.
+	if p.test {
+		return addr
+	}
+  
+  /* 核心逻辑就是调用 sysUnused 归还 npages 的 os 内存 */
+	sysUnused(unsafe.Pointer(addr), uintptr(npages)*pageSize)
+
+	// Update global accounting only when not in test, otherwise
+	// the runtime's accounting will be wrong.
+	nbytes := int64(npages) * pageSize
+	atomic.Xadd64(&memstats.heap_released, nbytes)
+
+	// Update consistent accounting too.
+	stats := memstats.heapStats.acquire()
+	atomic.Xaddint64(&stats.committed, -nbytes)
+	atomic.Xaddint64(&stats.released, nbytes)
+	memstats.heapStats.release()
+
+	return addr
+}
 
 ```
 
