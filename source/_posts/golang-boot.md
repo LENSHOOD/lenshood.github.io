@@ -3943,6 +3943,357 @@ top:
 	gcMarkTermination(nextTriggerRatio)
 }
 
+/* mark termination 阶段，全部在 STW 下执行 */
+func gcMarkTermination(nextTriggerRatio float64) {
+	/* 设置 phase，这时写屏障还未关闭 */
+	setGCPhase(_GCmarktermination)
+
+  /* debug 参数，heap0: gc 开始前的 heapLive， heap1: gc 标记期间的 heapLive，heap2: gc 标记完成后的 heapLive */
+	work.heap1 = gcController.heapLive
+	startTime := nanotime()
+
+	mp := acquirem()
+	mp.preemptoff = "gcing"
+	_g_ := getg()
+	_g_.m.traceback = 2
+	gp := _g_.m.curg
+	casgstatus(gp, _Grunning, _Gwaiting)
+	gp.waitreason = waitReasonGarbageCollection
+
+	systemstack(func() {
+    /* 检查标记工作完成，并设置 gcController.heapMarked，gcController.heapScan，gcController.heapLive */
+		gcMark(startTime)
+	})
+
+	systemstack(func() {
+		work.heap2 = work.bytesMarked
+		... ...
+
+		/* mark termination 结束，设置 phase 到 _GCoff，并关闭写屏障 */
+		setGCPhase(_GCoff)
+    
+    /* unpark bgsweep 这时后台扫描已经开始（bgsweep 和 bgscavenge 都在 main 中的 gcenable() 被创建，随即 park ） */
+		gcSweep(work.mode)
+	})
+
+  /* 下面开始收尾工作 */
+	... ...
+  
+	gcController.lastHeapGoal = gcController.heapGoal
+	memstats.last_heap_inuse = memstats.heap_inuse
+
+	/* 更新 trigger ratio */
+	gcController.commit(nextTriggerRatio)
+
+  /* 省略记录统计信息与重置状态 */
+	... ...
+
+  /* 取消 STW */
+	systemstack(func() { startTheWorldWithSema(true) })
+
+	... ...
+
+	/* 清理 stackpool 和 stackLarge 中不再使用的 span */
+	systemstack(freeStackSpans)
+
+	/* 清空所有 mcache */
+	systemstack(func() {
+		forEachP(func(_p_ *p) {
+			_p_.mcache.prepareForSweep()
+		})
+	})
+	// Now that we've swept stale spans in mcaches, they don't
+	// count against unswept spans.
+	sl.dispose()
+
+	... ...
+
+  /* 释放资源 */
+	semrelease(&worldsema)
+	semrelease(&gcsema)
+	// Careful: another GC cycle may start now.
+
+	releasem(mp)
+	mp = nil
+
+	// now that gc is done, kick off finalizer thread if needed
+	if !concurrentSweep {
+		// give the queued finalizers, if any, a chance to run
+		Gosched()
+	}
+}
+
+/* 后台清理 */
+func bgsweep() {
+	sweep.g = getg()
+
+	lockInit(&sweep.lock, lockRankSweep)
+	lock(&sweep.lock)
+	sweep.parked = true
+	gcenable_setup <- 1
+	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+
+	for {
+		/* 每次清理一个 span，之后就主动换出 */
+    for sweepone() != ^uintptr(0) {
+			sweep.nbgsweep++
+			Gosched()
+		}
+    
+    /* span 清理完成了，将 free 的 wbuf 也释放掉，之后主动换出 */
+		for freeSomeWbufs(true) {
+			Gosched()
+		}
+    
+    
+		lock(&sweep.lock)
+    /* 由于是并发清理，有可能存在其他的清理需求，如果清理未结束，直接 continue */
+		if !isSweepDone() {
+			unlock(&sweep.lock)
+			continue
+		}
+    
+    /* 执行到这里说明彻底完成清理了，park 当前 goroutine，等待下一次唤醒 */
+		sweep.parked = true
+		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+	}
+}
+
+/* 清扫主逻辑，清扫一个 span */
+func sweepone() uintptr {
+	_g_ := getg()
+	... ...
+	sl := newSweepLocker()
+
+	// Find a span to sweep.
+	npages := ^uintptr(0)
+	var noMoreWork bool
+	for {
+    /* 从 mcentral 的 full 或 partial 中交替取出一个 unswept span */
+		s := mheap_.nextSpanForSweep()
+    
+    /* 取不出了说明 mcentral 中的 span 已经全部清扫完成 */
+		if s == nil {
+			noMoreWork = atomic.Cas(&mheap_.sweepDrained, 0, 1)
+			break
+		}
+		... ...
+    /* 尝试获取当前 span 的清扫权（获取不到就尝试拿下一个 span），同时给 mheap_.sweepers + 1 */
+		if s, ok := sl.tryAcquire(s); ok {
+			// Sweep the span we found.
+			npages = s.npages
+      /* 执行实际的清扫逻辑，若返回 true，代表整个 span 都已经清空并归还给 heap */
+			if s.sweep(false) {
+				// Whole span was freed. Count it toward the
+				// page reclaimer credit since these pages can
+				// now be used for span allocation.
+				atomic.Xadduintptr(&mheap_.reclaimCredit, npages)
+			} else {
+				// Span is still in-use, so this returned no
+				// pages to the heap and the span needs to
+				// move to the swept in-use list.
+				npages = 0
+			}
+			break
+		}
+	}
+
+	sl.dispose()
+
+  /* 假如没有新的 span 需要清扫了，就启动 scavenger */
+	if noMoreWork {
+		systemstack(func() {
+			lock(&mheap_.lock)
+      /* 设置新的一轮 scavenge */
+			mheap_.pages.scavengeStartGen()
+			unlock(&mheap_.lock)
+		})
+		/* 设置 scavenge.sysmonWake，这样在 sysmon 下一次执行时就可以启动 scavenger */
+		readyForScavenger()
+	}
+
+	_g_.m.locks--
+	return npages
+}
+
+/* 清扫 span，执行过程中应避免被强占 */
+func (sl *sweepLocked) sweep(preserve bool) bool {
+  ... ...
+	s := sl.mspan
+	... ...
+	sweepgen := mheap_.sweepgen
+	... ...
+	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
+
+	spc := s.spanclass
+	size := s.elemsize
+
+	/* 对需要清理，但绑定了 finalizer 的对象，先清理其 finalizer */
+	hadSpecials := s.specials != nil
+	siter := newSpecialsIter(s)
+	for siter.valid() {
+		... ...
+	}
+	if hadSpecials && s.specials == nil {
+		spanHasNoSpecials(s)
+	}
+
+	... ...
+
+	/* 被 gc 标记，但却没有 alloc 记录的位视为僵尸对象 */
+	if s.freeindex < s.nelems {
+		/* freeindex 边界处特殊处理 */
+		obj := s.freeindex
+		if (*s.gcmarkBits.bytep(obj / 8)&^*s.allocBits.bytep(obj / 8))>>(obj%8) != 0 {
+			s.reportZombies()
+		}
+		/* 处理 freeindex 之后的位 */
+		for i := obj/8 + 1; i < divRoundUp(s.nelems, 8); i++ {
+			if *s.gcmarkBits.bytep(i)&^*s.allocBits.bytep(i) != 0 {
+				s.reportZombies()
+			}
+		}
+	}
+
+	/* nalloc 是根据 gc 标记得出的活跃对象 */
+	nalloc := uint16(s.countAlloc())
+	nfreed := s.allocCount - nalloc
+	... ...
+
+	s.allocCount = nalloc
+	s.freeindex = 0 // reset allocation index to start of span.
+	... ...
+
+	/* gc 标记后的 bitmap 就变成了当前实际的 alloc bitmap，赋值过后清空 gcmarkBits */
+	s.allocBits = s.gcmarkBits
+	s.gcmarkBits = newMarkBits(s.nelems)
+
+	/* 重置 allocCache */
+	s.refillAllocCache(0)
+
+	... ...
+
+	/* 设置该 span 的 sweepgen 为最新值，代表已经清理完毕，可以使用了 */
+	atomic.Store(&s.sweepgen, sweepgen)
+
+	if spc.sizeclass() != 0 {
+		/* 处理分配小对象的 span */
+		... ...
+		if !preserve {
+			/* 若该 span 已经彻底清空，则将其释放掉 */
+			if nalloc == 0 {
+				// Free totally free span directly back to the heap.
+				mheap_.freeSpan(s)
+				return true
+			}
+			/* 根据 span 是否已满，归还到 mcentral 的对应链表中 */
+			if uintptr(nalloc) == s.nelems {
+				mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
+			} else {
+				mheap_.central[spc].mcentral.partialSwept(sweepgen).push(s)
+			}
+		}
+	} else if !preserve {
+		/* 处理大对象 span */
+		if nfreed != 0 {
+			... ...
+      /* 直接释放 */
+			mheap_.freeSpan(s)
+			... ...
+			return true
+		}
+
+		/* 若不需要释放，则归还到 fullSwept */
+		mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
+	}
+  
+  /* false 代表 span 未归还 */
+	return false
+}
+
+/* scavenger 在后台定期维护总 RSS 不超限 */
+func bgscavenge() {
+	scavenge.g = getg()
+
+	lockInit(&scavenge.lock, lockRankScavenge)
+	lock(&scavenge.lock)
+  /* 启动后默认 park */
+	scavenge.parked = true
+
+	scavenge.timer = new(timer)
+  /* timer callback 设置为唤醒 scavenger */
+	scavenge.timer.f = func(_ interface{}, _ uintptr) {
+		wakeScavenger()
+	}
+
+	gcenable_setup <- 1
+  /* 进入 park 休眠 */
+	goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
+
+	/* scavengeEWMA 用于设置下一次启动的时间 */
+	const idealFraction = scavengePercent / 100.0
+	scavengeEWMA := float64(idealFraction)
+
+	for {
+		released := uintptr(0)
+
+		// Time in scavenging critical section.
+		crit := float64(0)
+
+		// Run on the system stack since we grab the heap lock,
+		// and a stack growth with the heap lock means a deadlock.
+		systemstack(func() {
+			lock(&mheap_.lock)
+
+			/* 如果当下的 RSS 比 scavengeGoal 要小，则不需要做 scavenge */
+			retained, goal := heapRetained(), mheap_.scavengeGoal
+			if retained <= goal {
+				unlock(&mheap_.lock)
+				return
+			}
+
+			/* 否则先 scavenge 一页，记录耗费的时间 */
+			start := nanotime()
+			released = mheap_.pages.scavenge(physPageSize, true)
+			mheap_.pages.scav.released += released
+			crit = float64(nanotime() - start)
+
+			unlock(&mheap_.lock)
+		})
+
+    /* released == 0 代表不需要操作，因此继续进入 park */
+		if released == 0 {
+			lock(&scavenge.lock)
+			scavenge.parked = true
+			goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
+			continue
+		}
+    
+    /* 省略对 crit 的调整 */
+    ... ...
+
+		/* 休眠时间的计算是假设 scavenger 所占用的 cpu 时间是总 cpu 时间的百分之 scavengePercent，叠加一些调整 */
+		adjust := scavengeEWMA / idealFraction
+		sleepTime := int64(adjust * crit / (scavengePercent / 100.0))
+
+		// Go to sleep.
+		slept := scavengeSleep(sleepTime)
+
+		// Compute the new ratio.
+		fraction := crit / (crit + float64(slept))
+
+		// Set a lower bound on the fraction.
+		const minFraction = 1.0 / 1000.0
+		if fraction < minFraction {
+			fraction = minFraction
+		}
+
+		// Update scavengeEWMA by merging in the new crit/slept ratio.
+		const alpha = 0.5
+		scavengeEWMA = alpha*fraction + (1-alpha)*scavengeEWMA
+	}
+}
+
 
 ```
 
