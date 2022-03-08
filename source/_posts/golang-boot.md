@@ -8,6 +8,8 @@ categories:
 - Golang
 ---
 
+
+
 ### 1. 启动过程
 
 ```assembly
@@ -4454,4 +4456,170 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr 
 
 
 ### 6. 抢占
+
+```go
+/* 前文的启动流程中，我们可知，sysmon 独占一个 m，专门执行一些与定时相关的后台任务，
+ * 包括检查 netpoll，定时启动 scavenger，抢占等等
+ */
+func sysmon() {
+	... ...
+  /* 每轮执行都执行 retake 尝试抢占 */
+  if retake(now) != 0 {
+    idle = 0
+  } else {
+    idle++
+  }
+	... ...
+}
+
+func retake(now int64) uint32 {
+	n := 0
+	/* allp 上锁防止被修改（比如 GOMAXPROCS） */
+	lock(&allpLock)
+	for i := 0; i < len(allp); i++ {
+		_p_ := allp[i]
+		if _p_ == nil {
+			// This can happen if procresize has grown
+			// allp but not yet created new Ps.
+			continue
+		}
+		pd := &_p_.sysmontick
+		s := _p_.status
+		sysretake := false
+		if s == _Prunning || s == _Psyscall {
+			// Preempt G if it's running for too long.
+			t := int64(_p_.schedtick)
+			if int64(pd.schedtick) != t {
+				pd.schedtick = uint32(t)
+				pd.schedwhen = now
+      /* 假如上一次被调度的时间距离当下已经超过 forcePreemptNS（10ms），就强制在该 p 上实施抢占 */  
+			} else if pd.schedwhen+forcePreemptNS <= now {
+				preemptone(_p_)
+				// In case of syscall, preemptone() doesn't
+				// work, because there is no M wired to P.
+				sysretake = true
+			}
+		}
+		if s == _Psyscall {
+			/* 如果没有被抢占且 syscalltick 未更新（说明期间执行过 syscall），更新 syscalltick 并结束 */
+			t := int64(_p_.syscalltick)
+			if !sysretake && int64(pd.syscalltick) != t {
+				pd.syscalltick = uint32(t)
+				pd.syscallwhen = now
+				continue
+			}
+			/* 只有当 p 没有工作，又存在自旋的 m 和空闲的 p，同时距离上一次 syscall 超过 10ms 后，才不对 p 做处理*/
+			if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+				continue
+			}
+			// Drop allpLock so we can take sched.lock.
+			unlock(&allpLock)
+			// Need to decrement number of idle locked M's
+			// (pretending that one more is running) before the CAS.
+			// Otherwise the M from which we retake can exit the syscall,
+			// increment nmidle and report deadlock.
+			incidlelocked(-1)
+			if atomic.Cas(&_p_.status, s, _Pidle) {
+				if trace.enabled {
+					traceGoSysBlock(_p_)
+					traceProcStop(_p_)
+				}
+				n++
+				_p_.syscalltick++
+        
+        /* 把 p 换出交给其他 m 执行 */
+				handoffp(_p_)
+			}
+			incidlelocked(1)
+			lock(&allpLock)
+		}
+	}
+	unlock(&allpLock)
+	return uint32(n)
+}
+
+func preemptone(_p_ *p) bool {
+	mp := _p_.m.ptr()
+	if mp == nil || mp == getg().m {
+		return false
+	}
+	gp := mp.curg
+	if gp == nil || gp == mp.g0 {
+		return false
+	}
+
+  /* 设置当前 g 被抢占 */
+	gp.preempt = true
+
+	/* 把抢占检测放到每一次 g 检查栈扩容时 */
+	gp.stackguard0 = stackPreempt
+
+	// Request an async preemption of this P.
+	if preemptMSupported && debug.asyncpreemptoff == 0 {
+		_p_.preempt = true
+		preemptM(mp)
+	}
+
+	return true
+}
+
+/* 发出抢占信号 */
+func preemptM(mp *m) {
+  ... ...
+	signalM(mp, sigPreempt)
+  ... ...
+}
+
+/* 处理抢占信号 */
+func doSigPreempt(gp *g, ctxt *sigctxt) {
+	if wantAsyncPreempt(gp) {
+		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
+      /* asyncPreempt 在汇编代码实现，除了保存寄存器状态外，实际上在汇编中调用了 asyncPreempt2() */
+			ctxt.pushCall(funcPC(asyncPreempt), newpc)
+		}
+	}
+  ... ...
+}
+
+/* 普通的抢占调用 gopreempt_m */
+func asyncPreempt2() {
+	gp := getg()
+	gp.asyncSafePoint = true
+	if gp.preemptStop {
+		mcall(preemptPark)
+	} else {
+		mcall(gopreempt_m)
+	}
+	gp.asyncSafePoint = false
+}
+
+func gopreempt_m(gp *g) {
+  ... ...
+	goschedImpl(gp)
+}
+
+/* 相当于调用了 runtime.Gosched() */
+func goschedImpl(gp *g) {
+	... ...
+  /* 改状态，加入全局队列，并调用 schedule() */
+	casgstatus(gp, _Grunning, _Grunnable)
+	dropg()
+	lock(&sched.lock)
+	globrunqput(gp)
+	unlock(&sched.lock)
+
+	schedule()
+}
+
+/* 栈扩容时，当 gp.stackguard0 == stackPreempt，响应抢占 */
+func newstack() {
+  ... ...
+  if preempt {
+		... ...
+    /* 仍旧是调用了 gopreempt_m */
+		gopreempt_m(gp) // never return
+	}
+  ... ...
+}
+```
 
