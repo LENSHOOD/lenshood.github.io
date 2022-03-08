@@ -1,5 +1,5 @@
 ---
-title: Go 程序启动随笔
+title: Go Runtime 代码随笔
 date: 2022-02-07 22:55:34
 tags: 
 - source
@@ -8,7 +8,9 @@ categories:
 - Golang
 ---
 
+> 本文纯代码 + 注释，不适合人类阅读。Go Version = 1.17.6
 
+<!-- more -->
 
 ### 1. 启动过程
 
