@@ -172,7 +172,7 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 以上就是 golang 调度器的大致特性，golang 中的任务正是 goroutine。
 
-// 总图 go scheduler
+{% asset_img g-m-p-sched.svg %}
 
 由于引入了完整的调度器抽象，golang 便有能力将 goroutine 与 channel 结合，实现了 CSP 并发模型，将任务之间的通信和数据竞争转化为对象所有权的传递，优雅的解决了并发通信问题（*Do not communicate by sharing memory. Instead, share memory by communicating.*）。
 
