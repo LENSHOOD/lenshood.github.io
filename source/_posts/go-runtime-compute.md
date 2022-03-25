@@ -321,6 +321,109 @@ p 的数量默认与 CPU 核数保持一致，每个 p 里面都保存有一个�
 
 {% asset_img newproc.jpg %}
 
+可见 g 结构可能从 free list 中获取，也可能在 free list 为空的时候申请新的，当有了新的 g 即 newg 后，由于和当前 g 分属不同的栈，因此要把在当前 g 存储的 fn 参数复制到 newg 的栈内。
+
+之后，对 newg 的 sp、pc、status 等进行初始化后，将 newg 塞入当前 p 的私有队列中。
+
+注意这里对 sp 的初始化比较有趣：先是给 sp 写入了 goexit 函数的地址，之后又对 sp 减 8，这是为什么？
+
+在聊 sp 存 goexit 地址之前，我们需要先看一看，go 函数调用中，栈结构是怎么分配的：
+
+由一个简单的函数调用过程，得到汇编代码：
+
+```go
+func main() {
+	p, q := cal(123, 456)
+  print(p+q)
+}
+
+func cal(x, y int) (sum int, z int) {
+  m := x + y
+  n := m*2
+  print(m + n)
+  return m, n
+}
+
+func print(p int) {
+    fmt.Println(p)
+}
+```
+
+```assembly
+  ## main()
+  0x0000 00000 (main.go:7)	TEXT	"".main(SB), ABIInternal, $40-0
+  ## ... 省略 ...
+	0x000f 00015 (main.go:7)	SUBQ	$40, SP  # SP-40，申请 40 bytes 栈空间
+	0x0013 00019 (main.go:7)	MOVQ	BP, 32(SP)  # 保存原 BP 到栈底（SP+32）
+	0x0018 00024 (main.go:7)	LEAQ	32(SP), BP  # 新 BP 设置为当前栈底 （SP+32）
+  ## ... funcdata 省略 ...
+	0x001d 00029 (main.go:8)	MOVQ	$123, (SP)  # 栈顶 SP 写入 123
+	0x0025 00037 (main.go:8)	MOVQ	$456, 8(SP)  # SP+8 写入 456
+	## ... pcdata 省略 ...
+	0x002e 00046 (main.go:8)	CALL	"".cal(SB)  # 调用 cal()，会自动将 cal 的返回位置存入 SP-8，并设置新 SP=SP-8
+	0x0033 00051 (main.go:8)	MOVQ	16(SP), AX  # SP+16 存放 cal 的返回值 1：sum，存入 AX
+	0x0038 00056 (main.go:9)	ADDQ	24(SP), AX  # SP+24 存放 cal 的返回值 2：z，这里将 z 与 AX 之和存入 AX，即 p+q
+	0x003d 00061 (main.go:9)	MOVQ	AX, (SP)  # p+q 存入栈底 SP
+	0x0041 00065 (main.go:9)	CALL	"".print(SB)  # 调用 print()
+	0x0046 00070 (main.go:10)	MOVQ	32(SP), BP  # 恢复原 BP
+	0x004b 00075 (main.go:10)	ADDQ	$40, SP  # 释放栈空间
+	0x004f 00079 (main.go:10)	RET
+  ## ... 省略 ...
+  
+  ## cal()
+  0x0000 00000 (main.go:12)	TEXT	"".cal(SB), NOSPLIT|ABIInternal, $0-32
+	0x0000 00000 (main.go:12)	FUNCDATA	$0, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x0000 00000 (main.go:12)	FUNCDATA	$1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x0000 00000 (main.go:14)	MOVQ	"".y+16(SP), AX  # 入参 y，存入 AX （由于 CALL 的时候 SP=SP-8，因此原来的 SP+8 变为 SP+16，下同）
+	0x0005 00005 (main.go:14)	MOVQ	"".x+8(SP), CX # 入参 x，存入 CX
+	0x000a 00010 (main.go:14)	ADDQ	CX, AX  # x+y，存入 AX
+	0x000d 00013 (main.go:14)	MOVQ	AX, "".sum+24(SP)  # x+y 存入返回值 1：sum
+	0x0012 00018 (main.go:14)	MOVQ	$1, "".z+32(SP)  # 1 存入返回值 2：z
+	0x001b 00027 (main.go:14)	RET
+	
+	## cal()
+	0x0000 00000 (main.go:12)	TEXT	"".cal(SB), ABIInternal, $24-32
+	## ... 省略 ...
+	0x000f 00015 (main.go:12)	SUBQ	$24, SP  # SP-24，申请 24 bytes 栈空间
+	0x0013 00019 (main.go:12)	MOVQ	BP, 16(SP)  # 保存main BP 到栈底（SP+16）
+	0x0018 00024 (main.go:12)	LEAQ	16(SP), BP  # 新 BP 设置为当前栈底 （SP+16）
+	## ... funcdata 省略 ...
+	0x001d 00029 (main.go:13)	MOVQ	"".x+32(SP), AX  # 入参 x，存入 AX，此时 SP 已经在 CALL-8，在 BP-8，因此是 SP+32
+	0x0022 00034 (main.go:13)	MOVQ	"".y+40(SP), CX  # 入参 y，存入 CX
+	0x0027 00039 (main.go:13)	ADDQ	CX, AX  # x+y，存入 AX
+	0x002a 00042 (main.go:13)	MOVQ	AX, "".m+8(SP)  # AX 存入 SP+8，即局部变量 m
+	0x002f 00047 (main.go:15)	LEAQ	(AX)(AX*2), CX  # AX + AX*2，存入 CX，即 m+n
+	0x0033 00051 (main.go:15)	MOVQ	CX, (SP)  # CX 存入 SP，局部变量 n 被优化掉，直接将 m+n 作为 print() 的入参
+	## ... pcdata 省略 ...
+	0x0037 00055 (main.go:15)	CALL	"".print(SB)  # 调用 print()
+	0x003c 00060 (main.go:16)	MOVQ	"".m+8(SP), AX  # 取出 m 存入 AX
+	0x0041 00065 (main.go:16)	MOVQ	AX, "".sum+48(SP) # AX 存入返回值 1：sum
+	0x0046 00070 (main.go:14)	SHLQ	$1, AX  # AX 左移一位，即 n = m*2
+	0x0049 00073 (main.go:16)	MOVQ	AX, "".z+56(SP)  # AX 存入返回值 2：z
+	0x004e 00078 (main.go:16)	MOVQ	16(SP), BP  # 恢复main BP
+	0x0053 00083 (main.go:16)	ADDQ	$24, SP  # 回收 24 bytes 栈空间
+	0x0057 00087 (main.go:16)	RET
+	## ... 省略 ...
+	
+	## 省略 print()
+```
+
+可以看到，在 go 中，参数和返回值都通过栈传递（从 1.17 开始 amd64 平台已经转为寄存器传递，见：[issue#40724](https://github.com/golang/go/issues/40724)）。
+
+因此我们能绘制出上面汇编代码所反映出的栈结构来：
+
+{% asset_img calling-convention.jpg %}
+
+可见函数的入参和返回值是由调用方预留的，函数的局部变量放在自己的栈内，而同时也会给调用的其他函数预留参数和返回值。这里函数自己的栈空间，称为函数的栈帧。此外，CALL 指令会将**调用方的返回地址存入 SP-8**，并自动设置 SP=SP-8，而只有当函数栈帧大于零时（需要用到栈空间，才需要自己的 BP），才会保存调用者的 BP。
+
+通用表示如下图（[来源](https://chai2010.cn/advanced-go-programming-book/ch3-asm/ch3-06-func-again.html)）：
+
+![](https://chai2010.cn/advanced-go-programming-book/images/ch3-13-func-stack-frame-layout-01.ditaa.png)
+
+上面提到，CALL 会自动保存返回地址，这里就对应了为什么创建 g 时，将 SP-8 = goexit。
+
+原因是，给 SP-8 存入 goexit，会让 fn 返回后，由 CPU 直接跳转到 goexit，执行 g 的退出动作，包括释放空间等，并在退出的最后一步调用调度函数，重新进入调度。这种做法十分巧妙，不需要为 fn 插入额外的跳转逻辑。
+
 
 
 #### 3.1.2 切换 G
