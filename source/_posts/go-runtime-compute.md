@@ -528,6 +528,20 @@ golang 将这些系统调用操作，都进行了封装和整理，当尝试执�
 
 #### 3.3.3 Net Poller
 
+为了能高效的处理网络事件，各类操作系统都会采用一些方法，如 linux 下通过内核事件轮询实现的 epoll，其他类似的有 kqueue、IOCP 等。
+
+golang 通过 net poller 将不同 os 对处理网络事件的动作进行了抽象：
+
+{% asset_img netpoller.jpg %}
+
+以 linux 系统为例，进行网络动作时会初始化 epoll（只做一次），之后每当需要等待网络 I/O 时，就会将携带着 g 的事件注册到 epoll，之后 g 阻塞换出（gopark），直到调用 `epoll_wait()` 得到了 ready 的 fd 后，取出关联的 g，将其放入调度队列等待调度。
+
+对 `epoll_wait()` 的调用不是由专门的线程做的，而是在调度过程中、sysmon、退出 STW 等等很多地方都会尝试调用，一旦发现有 ready 的 g，就将之放入调度队列。
+
+
+
+#### 3.3.4 Timer
+
 
 
 ### 3.4 抢占
