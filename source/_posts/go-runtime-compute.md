@@ -9,6 +9,14 @@ categories:
 - Golang
 ---
 
+![](https://miro.medium.com/max/1400/1*CdjOgfolLt_GNJYBzI-1QQ.jpeg)
+
+本文介绍了 Golang Runtime 中关于 goroutine 以及调度器的设计。
+
+<!-- more -->
+
+
+
 ## 1. 为什么需要 GoRoutine？
 
 ### 1.1 多少个线程是最优的？
@@ -22,17 +30,21 @@ OS 通过调度机制帮我们实现了将用户层面的多任务并发，映�
 那么理论上，到底要同时执行多少个任务（线程数），才能最大化的利用计算资源呢？《Java 并发编程实战》中给出了如下公式：
 $$
 N_{threads}=N_{cpu}*U_{cpu}*(1+\frac{W}{C})
-\\
-\\
+$$
+其中：
+$$
 N_{threads}=number\ of\ CPUs
-\\
+$$
+$$
 U_{cpu}=target\ CPU\ utilization,\ 0\leqslant U_{cpu} \leqslant 1
-\\
+$$
+$$
 \frac{W}{C}=ratio\ of\ wait\ time\ to\ compute\ time
 $$
+
 显然，基于资源最大化考虑，我们期望 $U_{cpu} \to 1$。
 
-那么，对于计算密集型任务，随着计算占比的不断提高，其 $\frac{W}{C} \to 0$，因此 $N_{threads} \to N_{cpu}$ ；而对于 I/O 密集型任务，随着 I/O 等待占比的不断提高，其 $\frac{W}{C} \to \infin$ ，因此 $N_{threads} \to \infin$。
+那么，对于计算密集型任务，随着计算占比的不断提高，其 $\frac{W}{C} \to 0$，因此 $N_{threads} \to N_{cpu}$ ；而对于 I/O 密集型任务，随着 I/O 等待占比的不断提高，其 $\frac{W}{C} \to ∞$ ，因此 $N_{threads} \to ∞$。
 
 
 
@@ -40,31 +52,29 @@ $$
 
 前面我们看到了，对于 I/O 占比较高的 I/O 密集型任务，理论公式中倾向于创建更多的线程来填补 CPU 的空闲，但这并不是零成本的。
 
-关于线程所带来的开销，Eli Bendersky 在他的博文 [Measuring context switching and memory overheads for Linux threads](https://eli.thegreenplace.net/2018/measuring-context-switching-and-memory-overheads-for-linux-threads/) 中做了一些测量，
+关于线程所带来的开销，Eli Bendersky 在他的博文 [Measuring context switching and memory overheads for Linux threads](https://eli.thegreenplace.net/2018/measuring-context-switching-and-memory-overheads-for-linux-threads/) 中做了一些测量：
 
-1. 上下文切换与启动的开销：
+- 线程上下文切换与启动的开销：
+	![](https://eli.thegreenplace.net/images/2018/plot-launch-switch.png)
+	可以看到在线程绑核切换下，上下文切换的开销每次大约 2us，线程启动开销大约 5us。
 
-   ![](https://eli.thegreenplace.net/images/2018/plot-launch-switch.png)
-
-​		可以看到在线程绑核切换下，上下文切换的开销每次大约 2us，线程启动开销大约 5us。
-
-2. 内存开销：
-
-   线程的内存开销主要体现在线程栈，他的[代码示例](https://github.com/eliben/code-for-blog/blob/master/2018/threadoverhead/threadspammer.c)表明，10000 个各持有 100KiB 实际栈空间消耗的线程，virtual memory 约为 80GiB（未实际分配），RSS 约为 80MiB。
+- 单个线程的内存开销：
+	
+	线程的内存开销主要体现在线程栈，他的[代码示例](https://github.com/eliben/code-for-blog/blob/master/2018/threadoverhead/threadspammer.c)表明，10000 个各持有 100KiB 实际栈空间消耗的线程，virtual memory 约为 80GiB（未实际分配），RSS 约为 80MiB。
 
 Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已经非常小了，很多时候我们并不需要采用事件驱动等方式来增加复杂度，目前的操作系统支持数万个线程绰绰有余。
 
-但假如我们想要数十万、上百万的线程呢？假如在不增加复杂度的前提下，能做到更低的开销呢？golang 用 goroutine 给出了解决方案。
+但假如我们想要数十万、上百万的线程呢？假如在不增加复杂度的前提下，能做到更低的开销呢？golang 用 goroutine 给出了它的解答。
 
-在 Eli Bendersky 的文章中，测试线程切换的用例是让两个线程通过一个管道往复传递数据，结果是在一秒内，大概能来回传递 40 万次。而后他又顺手用 go 重写了[测试代码](https://github.com/eliben/code-for-blog/blob/master/2018/threadoverhead/channel-msgpersec.go)，得到的结果是：每秒 280 万次。
+在 Eli Bendersky 的文章中，测试线程切换的用例是让两个线程通过一个管道往复传递数据，结果是：在一秒内，大概能来回传递 40 万次。而后他又顺手用 go 重写了[测试代码](https://github.com/eliben/code-for-blog/blob/master/2018/threadoverhead/channel-msgpersec.go)，得到的结果是：每秒 280 万次。
 
 不论如何，无节制的创建新线程，最终一定会产生许多安全性问题，如过多的上下文切换，内存耗尽等等。
 
 > 实际上谈论线程切换的开销时，涉及到的点比较多，也很难给出绝对正确的设计决策。
 >
-> 在 Google 的[这个视频](https://youtu.be/KXuZi9aeGTw)中，提到了明确的的数据：
+> 在 Google 的[这个视频](https://youtu.be/KXuZi9aeGTw)中，开发人员提到了明确的测试数据：
 >
-> 1. 线程切换的开销在 1~6 us 之间，其差异在于同一个 CPU  核心内切换，所花费的时间可以低至 1us，而在不同核心之间切换的开销可能会达到 6us。设置了 CPU Affinity 后的测试结果证明了这一点。
+> 1. 线程切换的开销在 1~6 us 之间，其差异主要在于，若在同一个 CPU  核心内切换，所花费的时间可以低至 1us，而在不同核心之间切换的开销可能会达到 6us。设置了 CPU Affinity 后的测试结果证明了这一点。
 > 2. 然而我们不能简单的将所有线程绑核了事。毕竟虽然绑核可以提升性能，但当存在 idle core 时，其他线程可能无法调度到该  core 上。
 > 3. 进一步的数据显示，线程切换中，进入内核态的开销只有最多 50ns （通常我们认为在用户态和内核态之间切换十分耗时），大部分开销都是由于现代调度器复杂的调度决策导致在不同的 core 之间发生线程调度。
 
@@ -89,9 +99,9 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 - 程序清晰简单，易于实现
 - 线程本地变量易于分配和回收
 
-当然除了可能创建过多线程产生的资源问题以外，还有额外的劣势：
+但除了可能创建过多线程产生的资源问题以外，还有额外的劣势：
 
-- 由于粒度较粗，任务内嵌套的可并行部分（如多个 I/O 操作等），难以并行化。本质上是无法真正将 CPU 操作和 I/O 操作分开，而由于 CPU 操作和 I/O 操作的差异性，频繁在 CPU 操作之间进行上下文切换，有害无益。
+- 由于粒度较粗，任务内*嵌套的*可并行部分（如多个 I/O 操作等），难以并行化。本质上是无法真正将 CPU 操作和 I/O 操作分开，而由于 CPU 操作和 I/O 操作的差异性，频繁在 CPU 操作之间进行上下文切换，有害无益。
 
 
 
@@ -101,7 +111,7 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 设想假如我们将这种机制反过来，线程不是阻塞等待被唤醒，而是主动询问所有正在等待的 I/O，检查某个 I/O 是不是返回了。如果返回了，就处理与之关联的任务，而如果没有返回，线程就继续检查下一个等待中的 I/O，或者创建新的 I/O 调用。
 
-与阻塞唤醒的被动式相比，询问的方式会更加主动。原先的 “执行任务 -> I/O 阻塞 -> 继续执行” 的流程，变成了 “执行任务 -> 注册 I/O 事件 -> 回调任务“。
+与阻塞唤醒的被动式相比，询问的方式会更加主动。原先的 “执行任务 -> I/O 阻塞 -> 继续执行” 的流程，变成了 “执行任务 -> 注册 I/O 事件 -> 回调任务” 。
 
 这种模式称之为事件驱动的并发编程模型，线程进行轮询（poll）的动作，称为事件循环。
 
@@ -122,7 +132,7 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 在事件驱动模型里，将耗费时间的 I/O 阻塞调用交给线程池进行异步化，在阻塞调用返回后，通过调用 callback 函数来恢复执行任务逻辑。
 
-这种方式在简单的任务逻辑中运行的很好，然而当存在一个任务，其整个逻辑链条中包含了多个相互依赖的阻塞 I/O，这时 callback 函数的注册链路会不断加深，最后形成难以理解的 ”Callback Hell“。
+这种方式在简单的任务逻辑中运行的很好，然而当存在一个任务，其整个逻辑链条中包含了多个相互依赖的阻塞 I/O，这时 callback 函数的注册链路会不断加深，最后形成难以理解的 “Callback Hell” 。
 
 ![](https://miro.medium.com/max/1400/1*zxx4iQAG4HilOIQqDKpxJw.jpeg)
 
@@ -172,9 +182,9 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 以上就是 golang 调度器的大致特性，golang 中的任务正是 goroutine。
 
-{% asset_img g-m-p-sched.svg %}
+{% asset_img g-m-p-sched.jpg %}
 
-由于引入了完整的调度器抽象，golang 便有能力将 goroutine 与 channel 结合，实现了 CSP 并发模型，将任务之间的通信和数据竞争转化为对象所有权的传递，优雅的解决了并发通信问题（*Do not communicate by sharing memory. Instead, share memory by communicating.*）。
+由于引入了完整的调度器抽象，golang 便有能力将 goroutine 与 channel 结合，实现 CSP 并发模型，将任务之间的通信和数据竞争转化为对象所有权的传递，优雅的解决了并发通信的问题（*Do not communicate by sharing memory. Instead, share memory by communicating.*）。
 
 
 
@@ -184,7 +194,7 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 [调度](https://en.wikipedia.org/wiki/Scheduling_(computing))，就是分配*资源（resource）*用以执行*任务（task）*的动作。
 
-这里的资源，可以是计算资源如 CPU，存储资源如内存空间，网络资源如带宽、端口等。任务是基于资源，所执行的动作，它依赖资源并通过操作资源来产生价值。
+这里的资源，可以是计算资源如 CPU，存储资源如内存空间，网络资源如带宽、端口等。任务是基于资源所执行的动作，它依赖资源并通过操作资源来产生价值。
 
 **调度目标**
 
@@ -201,7 +211,7 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 之所以需要调度，是基于这种假设：资源通常是有限的，而需要执行的任务比资源多得多。假如任务比资源还少，那么就没有调度的必要了。
 
-因此调度器的工作原理就是根据当下任务、资源的状态，基于特定的调度策略，做出调度决策：接下来哪些 task 将会拥有哪些资源。
+因此调度器的工作原理就是根据当下任务、资源的状态，基于特定的调度策略，做出调度决策：**接下来哪些 task 将会拥有哪些资源。**
 
 我们可以得出，调度器在逻辑层面的样子：
 
@@ -216,14 +226,14 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 1. 如何组织待执行的 goroutine ?
    - 平衡查找树：提高查找效率，适用于经常需要取出特定的 goroutine
    - 堆：用堆来实现优先级队列，适用于 goroutine 区分优先级的场景
-   - 链表：存储为普通队列，适用于每一个 goroutine 都是相对平等的
+   - 链表：链表实现的普通队列，适用于每一个 goroutine 都是相对平等的
 2. 如何组织线程资源？
    - 无界线程池：可能会经常创建或销毁大量线程，类似于 1：1 的映射关系，不适用 M:N 的场景
    - 有界线程池，容量等于 CPU 核数，绑核：线程与 CPU 核数 1：1，可以最大限度降低操作系统的线程切换，但假如 goroutine 触发系统调用，会阻塞整个线程
    - 有界线程池，灵活调整容量：根据 goroutine 数量灵活调整线程数，对于执行 goroutine 的线程保持最多与 CPU 核数一致，当进行系统调用时创建新线程，这样不会阻塞其他 goroutine，但线程管理更复杂
 3. 何时触发切换？
    - 系统调用：系统调用会阻塞线程，因此当有任务执行系统调用时，触发切换，并将系统调用的执行放到专门的线程中
-   - 协作：多个 goroutine 间协作，由于效率差异导致可能导致等待，出现等待时触发切换
+   - 协作：多个 goroutine 间协作，类似前面提到的相互抛球，在一方等待时触发切换
    - 抢占：为了避免单个 goroutine 占据过多的 CPU 时间，需要定期扫描，将执行时间过久的 goroutine 换出
    - 主动触发：将触发调度权交给 goroutine，业务上可以选择主动放弃 CPU
 4. 如何实现切换？
@@ -234,22 +244,22 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 ### 2.2 集中式调度器
 
-基于前文所述，我们应该很容易的就能想象出一个 go 调度器的雏形：
+基于前文所述，我们应该很容易的就能想象出一个 go 调度器的雏形（g 指代 goroutine，m 指代 os 线程，下同）：
 
 {% asset_img central.jpg %}
 
 显然，在 go 语言演进的初期，其调度器也是类似这个样子的。其特点有：
 
 1. 所有 goroutine 都进入一个全局队列，用 g 表示
-2. 线程分执行 goroutine、执行 Syscall、空闲三种，用 m 表示
-3. 由 m 进入调度逻辑，触发调度，从全局队列中获取新 g，替换 curg
+2. 线程分为执行 goroutine、执行 Syscall、空闲三种，用 m 表示
+3. 在 m 上执行调度逻辑，触发调度，从全局队列中获取新 g，替换 curg
 
 这种调度方式很直接的反映了调度器需要做的事情：把任务（g）分配到资源（m）上。我们也称这种方式为集中式调度。
 
 如果看 runtime/proc.go 的代码，在文件顶部注释中，引用了 go 调度器的[设计文档](https://golang.org/s/go11sched)，在设计文档中提到了上述集中式调度器存在的问题：
 
 1. 由于中心化存储所有状态，多线程调度时需要抢锁，需要锁保护的操作包括creation、completion、rescheduling 等，文中的测算数据是有大约 14% 的开销花在了对 futex 的锁竞争上
-2. 由于调度决策导致的同一个 g 在多个 m 之间往复执行（handoff），产生额外的延迟和开销（回顾 1.2 节的线程切换开销）
+2. 由于调度决策导致的同一个 g 在多个 m 之间往复执行（handoff），可能产生额外的延迟和开销（回顾 1.2 节的多核线程切换开销）
 3. 在 g 运行过程中的栈、小对象等等，都会存放在 m.mcache 缓存中，每当创建新的 m 时都会分配 mcache，但当 m 在执行 syscall 的时候，并不需要 mcache。在某些情况下执行 g 的 m 与其他 m 的比例可能高达 1：100，这导致：
    - 没用的 mcache 产生额外的资源消耗
    - 当 g 切换到不同的 m 上时，在 mcache 上加载关联的栈、对象等，会降低 data locality
@@ -259,7 +269,7 @@ Eli Bendersky 的文章主要想表达的是现代操作系统的线程开销已
 
 ### 2.3 P 来了
 
-根据前面提到的破坏性能的场景，我们期望能做出如下的改变：
+根据前面提到的影响性能的场景，我们期望能做出如下的改变：
 
 - 尽量减少调度器抢锁，改善调度等待
 - 尽量降低同一个 g 在不同 m 之间切换的概率，提升 data locality
@@ -279,7 +289,7 @@ p 的数量默认与 CPU 核数保持一致，每个 p 里面都保存有一个�
 
 这样一来，前面的目标悉数实现：
 
-- 每一个 g 在需要被调度时，m 都会在尝试在绑定的 p 上调度，调度参与方只有单线程 m 和 p 的私有 g 队列，不需要加锁（实际上由于 p 可能会在 m 之间传递，还是需要用 cas 操作队列，但争抢概率大大降低）
+- 每一个 g 在需要被调度时，m 都会尝试在绑定的 p 上调度，调度参与方只有单线程 m、 p 的私有队列，不需要加锁（实际上由于 p 可能会在 m 之间传递，还是需要用 cas 操作队列，但争抢概率大大降低）
 - 当 m 与 p 绑定后，调度所依赖的数据和操作大都在当前 m 上（p 的私有队列甚至是一个 ring），这可以有效利用 CPU 的缓存、预取等优化手段
 - 原本的 mcache，现在放在了 p 处，这样数据随 p 移动，与 m 彻底脱钩了
 
@@ -311,7 +321,7 @@ p 的数量默认与 CPU 核数保持一致，每个 p 里面都保存有一个�
 
 上图表示了一个 g 里面包含相对关键的内容，主要有三部分：
 
-- stack：golang 实现的 goroutine 是有栈的，也就是说一个任务的私有上下文都会保存在 g 的 stack 中。同时，golang 通过栈的扩缩容，实现了初始栈很小（大约 2KB），同时确保随着代码执行栈能逐步的扩张而不会产生栈溢出（除非超过 64bit 平台下最大栈容量 1GB）
+- stack：golang 实现的 goroutine 是有栈的，也就是说一个任务的私有上下文都会保存在 g 的 stack 中。同时，golang 通过栈的扩缩容，实现了初始栈很小（大约 2KiB），同时确保随着代码执行栈能逐步的扩张而不会产生栈溢出（除非超过 64bit 平台下最大栈容量 1GB）
 - gobuf：可以看到里面包含有 sp、pc、ret 等等，显然 gobuf 是为了保存在 g 被换出前的代码执行位置以及相关上下文；此外，ctxt 保存的是 DX 寄存器的值，用于存储闭包中对外部对象的引用。
 - status：当前 g 的状态，用于表示当前的 g 处于什么样的过程中。
 
@@ -321,7 +331,7 @@ p 的数量默认与 CPU 核数保持一致，每个 p 里面都保存有一个�
 
 {% asset_img newproc.jpg %}
 
-可见 g 结构可能从 free list 中获取，也可能在 free list 为空的时候申请新的，当有了新的 g 即 newg 后，由于和当前 g 分属不同的栈，因此要把在当前 g 存储的 fn 参数复制到 newg 的栈内。
+可见 g 结构可能从 free list 中获取，也可能在 free list 为空的时候申请新的，当有了新的 g （即 newg） 后，由于和当前 g （即 curg）分属不同的栈，因此要把在 curg 存储的 fn 参数复制到 newg 的栈内。
 
 之后，对 newg 的 sp、pc、status 等进行初始化后，将 newg 塞入当前 p 的私有队列中。
 
@@ -333,7 +343,7 @@ p 的数量默认与 CPU 核数保持一致，每个 p 里面都保存有一个�
 
 ```go
 func main() {
-	p, q := cal(123, 456)
+  p, q := cal(123, 456)
   print(p+q)
 }
 
@@ -345,65 +355,64 @@ func cal(x, y int) (sum int, z int) {
 }
 
 func print(p int) {
-    fmt.Println(p)
+  fmt.Println(p)
 }
 ```
 
 ```assembly
-  ## main()
-  0x0000 00000 (main.go:7)	TEXT	"".main(SB), ABIInternal, $40-0
-  ## ... 省略 ...
-	0x000f 00015 (main.go:7)	SUBQ	$40, SP  # SP-40，申请 40 bytes 栈空间
-	0x0013 00019 (main.go:7)	MOVQ	BP, 32(SP)  # 保存原 BP 到栈底（SP+32）
-	0x0018 00024 (main.go:7)	LEAQ	32(SP), BP  # 新 BP 设置为当前栈底 （SP+32）
-  ## ... funcdata 省略 ...
-	0x001d 00029 (main.go:8)	MOVQ	$123, (SP)  # 栈顶 SP 写入 123
-	0x0025 00037 (main.go:8)	MOVQ	$456, 8(SP)  # SP+8 写入 456
-	## ... pcdata 省略 ...
-	0x002e 00046 (main.go:8)	CALL	"".cal(SB)  # 调用 cal()，会自动将 cal 的返回位置存入 SP-8，并设置新 SP=SP-8
-	0x0033 00051 (main.go:8)	MOVQ	16(SP), AX  # SP+16 存放 cal 的返回值 1：sum，存入 AX
-	0x0038 00056 (main.go:9)	ADDQ	24(SP), AX  # SP+24 存放 cal 的返回值 2：z，这里将 z 与 AX 之和存入 AX，即 p+q
-	0x003d 00061 (main.go:9)	MOVQ	AX, (SP)  # p+q 存入栈底 SP
-	0x0041 00065 (main.go:9)	CALL	"".print(SB)  # 调用 print()
-	0x0046 00070 (main.go:10)	MOVQ	32(SP), BP  # 恢复原 BP
-	0x004b 00075 (main.go:10)	ADDQ	$40, SP  # 释放栈空间
-	0x004f 00079 (main.go:10)	RET
-  ## ... 省略 ...
+	## main()
+	TEXT	"".main(SB), ABIInternal, $40-0
+	## ... ...
+	SUBQ	$40, SP            # SP-40，申请 40 bytes 栈空间
+	MOVQ	BP, 32(SP)         # 保存原 BP 到栈底（SP+32）
+	LEAQ	32(SP), BP         # 新 BP 设置为当前栈底 （SP+32）
+  ## ... ...
+	MOVQ	$123, (SP)         # 栈顶 SP 写入 123
+	MOVQ	$456, 8(SP)        # SP+8 写入 456
+	## ... ...
+	CALL	"".cal(SB)         # 调用 cal()，会自动将 cal 的返回位置存入 SP-8，并设置新 SP=SP-8
+	MOVQ	16(SP), AX         # SP+16 存放 cal 的返回值 1：sum，存入 AX
+	ADDQ	24(SP), AX         # SP+24 存放 cal 的返回值 2：z，这里将 z 与 AX 之和存入 AX，即 p+q
+	MOVQ	AX, (SP)           # p+q 存入栈底 SP
+	CALL	"".print(SB)       # 调用 print()
+	MOVQ	32(SP), BP         # 恢复原 BP
+	ADDQ	$40, SP            # 释放栈空间
+	RET
+	## ... ...
   
-  ## cal()
-  0x0000 00000 (main.go:12)	TEXT	"".cal(SB), NOSPLIT|ABIInternal, $0-32
-	0x0000 00000 (main.go:12)	FUNCDATA	$0, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
-	0x0000 00000 (main.go:12)	FUNCDATA	$1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
-	0x0000 00000 (main.go:14)	MOVQ	"".y+16(SP), AX  # 入参 y，存入 AX （由于 CALL 的时候 SP=SP-8，因此原来的 SP+8 变为 SP+16，下同）
-	0x0005 00005 (main.go:14)	MOVQ	"".x+8(SP), CX # 入参 x，存入 CX
-	0x000a 00010 (main.go:14)	ADDQ	CX, AX  # x+y，存入 AX
-	0x000d 00013 (main.go:14)	MOVQ	AX, "".sum+24(SP)  # x+y 存入返回值 1：sum
-	0x0012 00018 (main.go:14)	MOVQ	$1, "".z+32(SP)  # 1 存入返回值 2：z
-	0x001b 00027 (main.go:14)	RET
+	## cal()
+	TEXT	"".cal(SB), NOSPLIT|ABIInternal, $0-32
+	## ... ...
+	MOVQ	"".y+16(SP), AX    # 入参 y，存入 AX （由于 CALL 的时候 SP=SP-8，因此原来的 SP+8 变为 SP+16，下同）
+	MOVQ	"".x+8(SP), CX     # 入参 x，存入 CX
+	ADDQ	CX, AX             # x+y，存入 AX
+	MOVQ	AX, "".sum+24(SP)  # x+y 存入返回值 1：sum
+	MOVQ	$1, "".z+32(SP)    # 1 存入返回值 2：z
+	RET
 	
 	## cal()
-	0x0000 00000 (main.go:12)	TEXT	"".cal(SB), ABIInternal, $24-32
-	## ... 省略 ...
-	0x000f 00015 (main.go:12)	SUBQ	$24, SP  # SP-24，申请 24 bytes 栈空间
-	0x0013 00019 (main.go:12)	MOVQ	BP, 16(SP)  # 保存main BP 到栈底（SP+16）
-	0x0018 00024 (main.go:12)	LEAQ	16(SP), BP  # 新 BP 设置为当前栈底 （SP+16）
-	## ... funcdata 省略 ...
-	0x001d 00029 (main.go:13)	MOVQ	"".x+32(SP), AX  # 入参 x，存入 AX，此时 SP 已经在 CALL-8，在 BP-8，因此是 SP+32
-	0x0022 00034 (main.go:13)	MOVQ	"".y+40(SP), CX  # 入参 y，存入 CX
-	0x0027 00039 (main.go:13)	ADDQ	CX, AX  # x+y，存入 AX
-	0x002a 00042 (main.go:13)	MOVQ	AX, "".m+8(SP)  # AX 存入 SP+8，即局部变量 m
-	0x002f 00047 (main.go:15)	LEAQ	(AX)(AX*2), CX  # AX + AX*2，存入 CX，即 m+n
-	0x0033 00051 (main.go:15)	MOVQ	CX, (SP)  # CX 存入 SP，局部变量 n 被优化掉，直接将 m+n 作为 print() 的入参
-	## ... pcdata 省略 ...
-	0x0037 00055 (main.go:15)	CALL	"".print(SB)  # 调用 print()
-	0x003c 00060 (main.go:16)	MOVQ	"".m+8(SP), AX  # 取出 m 存入 AX
-	0x0041 00065 (main.go:16)	MOVQ	AX, "".sum+48(SP) # AX 存入返回值 1：sum
-	0x0046 00070 (main.go:14)	SHLQ	$1, AX  # AX 左移一位，即 n = m*2
-	0x0049 00073 (main.go:16)	MOVQ	AX, "".z+56(SP)  # AX 存入返回值 2：z
-	0x004e 00078 (main.go:16)	MOVQ	16(SP), BP  # 恢复main BP
-	0x0053 00083 (main.go:16)	ADDQ	$24, SP  # 回收 24 bytes 栈空间
-	0x0057 00087 (main.go:16)	RET
-	## ... 省略 ...
+	TEXT	"".cal(SB), ABIInternal, $24-32
+	## ... ...
+	SUBQ	$24, SP            # SP-24，申请 24 bytes 栈空间
+	MOVQ	BP, 16(SP)         # 保存main BP 到栈底（SP+16）
+	LEAQ	16(SP), BP         # 新 BP 设置为当前栈底 （SP+16）
+	## ... ...
+	MOVQ	"".x+32(SP), AX    # 入参 x，存入 AX，此时 SP 已经在 CALL-8，在 BP-8，因此是 SP+32
+	MOVQ	"".y+40(SP), CX    # 入参 y，存入 CX
+	ADDQ	CX, AX             # x+y，存入 AX
+	MOVQ	AX, "".m+8(SP)     # AX 存入 SP+8，即局部变量 m
+	LEAQ	(AX)(AX*2), CX     # AX + AX*2，存入 CX，即 m+n
+	MOVQ	CX, (SP)           # CX 存入 SP，局部变量 n 被优化掉，直接将 m+n 作为 print() 的入参
+	## ... ...
+	CALL	"".print(SB)       # 调用 print()
+	MOVQ	"".m+8(SP), AX     # 取出 m 存入 AX
+	MOVQ	AX, "".sum+48(SP)  # AX 存入返回值 1：sum
+	SHLQ	$1, AX             # AX 左移一位，即 n = m*2
+	MOVQ	AX, "".z+56(SP)    # AX 存入返回值 2：z
+	MOVQ	16(SP), BP         # 恢复main BP
+	ADDQ	$24, SP            # 回收 24 bytes 栈空间
+	RET
+	## ... ...
 	
 	## 省略 print()
 ```
@@ -416,7 +425,7 @@ func print(p int) {
 
 可见函数的入参和返回值是由调用方预留的，函数的局部变量放在自己的栈内，而同时也会给调用的其他函数预留参数和返回值。这里函数自己的栈空间，称为函数的栈帧。此外，CALL 指令会将**调用方的返回地址存入 SP-8**，并自动设置 SP=SP-8，而只有当函数栈帧大于零时（需要用到栈空间，才需要自己的 BP），才会保存调用者的 BP。
 
-通用表示如下图（[来源](https://chai2010.cn/advanced-go-programming-book/ch3-asm/ch3-06-func-again.html)）：
+通用表示如下图（[图源](https://chai2010.cn/advanced-go-programming-book/ch3-asm/ch3-06-func-again.html)）：
 
 ![](https://chai2010.cn/advanced-go-programming-book/images/ch3-13-func-stack-frame-layout-01.ditaa.png)
 
@@ -438,7 +447,7 @@ g 可能会在执行过程中被换出，那么整个换出、换入的动作，
 
 答案是 g0。
 
-g0 本身也是一个 g，他拥有 g 所拥有的所有属性，唯独是他没有自己的 fn，g0 的工作，就是执行调度相关逻辑。
+g0 本身也是一个 g，他拥有 g 所拥有的所有属性，唯独是他没有自己的 fn，g0 的工作，就是在上帝视角执行调度相关逻辑。
 
 在执行这些调度逻辑时，其各种函数调用所需要的栈空间就都从 g0 的栈中分配，g0 的栈比较特殊，它不支持扩缩容，而是在创建的时候就限定了其栈空间是8 KiB，这个空间确保所有调度相关的逻辑都够用而不会产生溢出。正因为在特殊的栈上执行特殊的工作，因此 g0 的栈也称为系统栈（systemstack，同样的 gsignal 的栈也叫系统栈）。
 
@@ -472,9 +481,9 @@ goexit 函数是用 go 汇编写的一个包装函数，实际上最终是切换
 
 {% asset_img trigger.jpg %}
 
-上述出发点从设计上讲都十分合理，比如：
+上述触发点从设计上讲是十分合理的，比如：
 
-- 比如创建了新的 m 后，自然需要出发调度来调度新的 g 到 m 上
+- 创建了新的 m 后，自然需要触发调度来将 g 调度到新的 m 上
 - 在 g 之间存在依赖和等待时（比如等锁，等 channel，等 gc，等网络），也需要放弃当前执行，触发调度
 - g 执行结束了，通过触发调度出让 m 资源
 - 从阻塞的系统调用返回时，应该触发调度，恢复执行
@@ -506,7 +515,7 @@ goexit 函数是用 go 汇编写的一个包装函数，实际上最终是切换
 
 从 m 的结构来看，m 上可以运行 g、g0、gsignal，也可以脱离 g 运行 start_fn。在前面提到的调度流程中，当 m 在执行 `schedule()` 时，如果找不到 g，m 的状态会被设置为 spining，代表此时的 m 正在自旋寻找任务。而经过一系列动作后，还是无任务可做，那么 m 就会被 block，等待有任务的时候再被唤醒。
 
-golang 为了支持多平台，在线程、内存、网络等操作都抽取了抽象函数，对 m 的操作也一样。m 与 os 线程一一绑定，其整个生命周期的动作如下：
+golang 为了支持多平台，在线程、内存、网络等操作上都抽取了抽象函数，对 m 的操作也一样。m 与 os 线程一一绑定，其整个生命周期的动作如下：
 
 {% asset_img m-lifecycle.jpg %}
 
@@ -536,7 +545,7 @@ golang 通过 net poller 将不同 os 对处理网络事件的动作进行了抽
 
 以 linux 系统为例，进行网络动作时会初始化 epoll（只做一次），之后每当需要等待网络 I/O 时，就会将携带着 g 的事件注册到 epoll，之后 g 阻塞换出（gopark），直到调用 `epoll_wait()` 得到了 ready 的 fd 后，取出关联的 g，将其放入调度队列等待调度。
 
-对 `epoll_wait()` 的调用不是由专门的线程做的，而是在调度过程中、sysmon、退出 STW 等等很多地方都会尝试调用，一旦发现有 ready 的 g，就将之放入调度队列。
+对 `epoll_wait()` 的调用不是由专门的线程做的，而是在调度过程中、sysmon、退出 STW 等等很多地方都会尝试检查，一旦发现有 ready 的 g，就将之放入调度队列。
 
 
 
@@ -546,9 +555,9 @@ golang 通过 net poller 将不同 os 对处理网络事件的动作进行了抽
 
 {% asset_img timer.jpg %}
 
-可见整个流程十分简单，调用 `time.Sleep()` 的 g 会创建一个设定了唤醒时间的 timer，并将自身与之绑定。这个 timer 会被注册到 p 上，并且在每一次调度的时候，检查 p 上所有的 timer，如果超过了唤醒时间，就将 g 唤醒，放入调度队列。整个流程里只有获取系统时间的部分，需要与系统交互。
+整个流程十分简单，调用 `time.Sleep()` 的 g 会创建一个设定了唤醒时间的 timer，并将自身与之绑定，之后将这个 timer 注册到 p 上，然后进入休眠。在每一次调度的时候，调度逻辑都会检查 p 上所有的 timer，如果超过了唤醒时间，就将绑定的 g 唤醒，放入调度队列。整个流程里只有获取系统时间的部分，需要与系统交互。
 
-正因为是在每一次调度的时候才会检查 timer，那么就存在一个问题，如果当前系统没有调度需求，那么只有当超过一定时间强制抢占时才会真正检查 timer，所以可以看到 `time.Sleep()` 的实际休眠时间是不太准确的，这一点需要注意。
+正因为是在每一次调度的时候才会检查 timer，那么就存在一个问题，如果当前系统没有调度需求，那么只有当超过一定时间强制抢占时才会真正检查 timer，所以可以得出 `time.Sleep()` 的实际休眠时间是不会太准确的。
 
 
 
@@ -560,27 +569,66 @@ golang 通过 net poller 将不同 os 对处理网络事件的动作进行了抽
 
 - 某一个 g 可能会持续运行，导致其他 g 饥饿，或是难以切换到 g0 去执行一些底层工作
 
-- 当需要 STW 时，通常是等待所有的 g 执行到某个 safe point 后暂停。在实现抢占之前是通过编译器在函数调用前插入检查逻辑实现的，这可能导致长时间的等待
+- 当需要 STW 时，通常是等待所有的 g 执行到某个 safe point 后暂停。在实现抢占之前是通过编译器在函数调用前插入检查逻辑实现的，在某些特殊情况下这可能导致长时间的等待
 
 因此，golang 通过如下触发抢占的手段解决上述问题：
 
-1. sysmon 线程：前面提到了，sysmon 不依赖 g，直接绑定在 m 上执行。类似守护线程定期执行一些维护工作，其中当发现某个 g执行时间过久时，就会触发抢占信号
+1. sysmon 线程：前面提到了，sysmon 不依赖 g，直接绑定在 m 上执行。类似守护线程定期执行一些维护工作，当它发现某个 g 执行时间过久时，就会触发抢占信号
 2. GC：当 gc 要扫描 g 的栈时，就会触发抢占，让当前 g 暂停配合扫描
 3. STW：在 stw 时抢占所有 g
 
 {% asset_img trig-preempt.jpg %}
 
-如上图所示，触发抢占的动作后，会进行两个动作，一是将被抢占 g 的 `preempt` 标志置为 true，触发同步抢占，相关抢占逻辑会检查该状态判断是否抢占；二是发出抢占信号 `sigPreempt`，这是基于操作系统信号实现的异步抢占逻辑。
+如上图所示，触发抢占后，会尝试进行两个动作，一是将被抢占 g 的 `preempt` 标志置为 true，触发同步抢占，相关抢占逻辑会检查该状态判断是否实施抢占；二是发出抢占信号 `sigPreempt`，这是基于操作系统信号实现的异步抢占逻辑。
 
 
 
 #### 3.4.2 实施
 
-##### 3.4.2.1 同步抢占
+抢占分两种：
+
+1. 直接将当前 g 换出，加入全局队列后执行调度
+2. 将当前 g 休眠，直接执行调度，并在之后唤醒。这种抢占方式主要用于 GC 栈扫描。休眠再唤醒的方式可以更准确的控制 g。
+
+**同步抢占**
+
+同步抢占的逻辑比较简单，主要在栈伸缩、gc 标记等处检查 `preempt` 标记（栈伸缩时是通过 `stackguard0` 标记），如果为 true 则实施抢占。
+
+**异步抢占**
+
+异步抢占通过信号机制实现。整个抢占流程如图所示：
+
+{% asset_img async-preempt.jpg %}
+
+抢占信号发出后，系统内核会将对应的线程信号表置位，当下一次该线程被系统调度器调度时，会处理 pending 的信号。由于这个过程不是同步的，因此称之为异步抢占。
+
+在多数情况下，同步抢占通过函数调用时对抢占标志的检查就可以完成，但异步抢占可以解决某些极端场景，如某个 g 执行了 `for {}` ，如果没有通过内核发送的信号机制，仅仅靠 go scheduler，是无法打断死循环流程的。
 
 
 
-##### 3.4.2.2 异步抢占
+## 4 总结
+
+本文主要介绍了 golang 中 goroutine、调度器等的实现，用来解释 golang runtime 是如何分配和调度计算资源的。
+
+首先通过介绍 I/O 密集型并发编程中遇到的问题与挑战，来描述 golang 为什么要构造一个用户级调度器；
+
+其次简要讨论了分布式调度器对集中式调度器的性能改善；
+
+最后解释了 golang 是如何实现 goroutine 的调度的。
+
+
+
+## Reference
+
+1. 《Java 并发编程实战》§8.2 设置线程池大小
+2. [Measuring context switching and memory overheads for Linux threads](https://eli.thegreenplace.net/2018/measuring-context-switching-and-memory-overheads-for-linux-threads/)
+3. [User-level threads....... with threads. - Paul Turner - Google](https://youtu.be/KXuZi9aeGTw)
+4. [Concurrent Servers: Part 2 - Threads](https://eli.thegreenplace.net/2017/concurrent-servers-part-2-threads/)
+5. [Concurrent Servers: Part 3 - Event-driven](https://eli.thegreenplace.net/2017/concurrent-servers-part-3-event-driven/)
+6. [Concurrent Servers: Part 6 - Callbacks, Promises and async/await](https://eli.thegreenplace.net/2018/concurrent-servers-part-6-callbacks-promises-and-asyncawait/)
+7. [《Go 语言设计与实现》 §6.5 调度器](https://draveness.me/golang)
+8. [《Go语言高级编程》§3 Go汇编语言](https://chai2010.cn/advanced-go-programming-book/ch3-asm/readme.html)
+9. [Go Source Code](https://github.com/golang/go)
 
 
 
