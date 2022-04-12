@@ -112,15 +112,43 @@ ffffffffff600000 r-xp 00000000  00:00      0      4     0     0          0      
                                              785948 14416 14412      14340      9436    0      0 KB
 ```
 
-从上面两个不同进程的内存布局中，我们能发现几个有趣的事情：
+从上面两个不同进程的内存布局中，我们能发现几个有趣的地方：
 
 1. sleep 有`[heap]`，go 进程没有`[heap]`？
    - 对于`Mapping = [heap]`，只有当程序使用 `brk()` 分配堆内存后才会显示，以 `mmap()` 的形式分配的内存不显示为 `[heap]`
    - sleep 属于 glibc 库，glibc 默认的 ptmalloc 初始化时会通过 `brk()` 分配 132KiB 的堆空间
-   - go runtime 使用的内存分配器，是完全采用 `mmap()` 来分配内存的，没有调用过`brk()`，也就不显示 `[heap]`
-2. 
+   - 后文会提到，go runtime 使用的内存分配器，是完全采用 `mmap()` 来分配内存的，没有调用过`brk()`，也就不显示 `[heap]`
+2. 为什么 `[stack]` 的默认容量是 132KiB？
+   - Linux 在执行 exec 时，初始化栈空间的逻辑中为栈顶[分配了 `PAGE_SIZE` 的空间](https://github.com/torvalds/linux/blob/1862a69c917417142190bc18c8ce16680598664b/fs/exec.c#L272)，amd64 架构下 linux page size 默认是 4KiB
+   - 在之后的 [`setup_arg_pages()`](https://github.com/torvalds/linux/blob/1862a69c917417142190bc18c8ce16680598664b/fs/exec.c#L747) 中，对栈进行扩展，[扩展容量是硬编码的 128KiB](https://github.com/torvalds/linux/blob/1862a69c917417142190bc18c8ce16680598664b/fs/exec.c#L836)，4 + 128 = 132KiB，上面两个进程对栈的使用都没有超过 132KiB，所以 `[stack]` 都是 132KiB
+   - 后文会提到，goroutine 的栈内存，也全都是从 `mmap()` 而来，只有主进程所在的 g0 栈直接使用系统栈，但 g0 限制了栈空间最大 8KiB，不会超出 132KiB
 
 ### 1.2 栈内存
+
+在[本系列上一篇中](https://lenshood.github.io/2022/03/09/go-runtime-compute/)，我们已经知道，goroutine 持有自己的运行栈。
+
+栈在创建 g 的时候需要一并分配出来，在销毁 g 的时候也需要一并清除掉。那么 go runtime 是从哪里为 g 分配栈内存的呢？
+
+{% asset_img stack.jpg %}
+
+上图展示了 g 的栈分配结构，在分配栈内存时，首先需要根据栈空间的大小来决定是从哪里分配。
+
+1. 每个 P 都会持有一部分称为 `stack cache` 的空间，专门用于分配较小的栈
+2. 假如需要分配的栈空间比较大，就会选择直接从全局的 `large stack pool`中进行分配
+
+对于较小的栈，按照尺寸划分成 4 阶（linux 系统，其他系统阶数会有差异），每一阶的内存块分别指定为 2KiB、4KiB、8Kib、16KiB。对于小栈分配，根据所需空间大小向上取二次幂，然后从合适的阶中分配内存。
+
+#### stack cache
+
+由于小栈空间占比小，分配的频次也比较频繁（创建 g 默认栈2KiB，之后逐步扩容），因此在每一个 P 中都存放有一个本地的`stack cache`，从缓存中分配栈，不需要加锁，速度更快。
+
+定义了 `stack cache` 每一阶最大不超过 32KiB，超出后会释放一半，剩 16KiB。而当分配时发现某一阶缓存为空，则会从全局的`stack pool` 中分配总量为 16KiB 的空间放入缓存。
+
+#### stack pool
+
+全局的小栈空间池。按照四个阶存储四条链表，用来保存固定大小的可用内存块。
+
+当 `stack pool` 中可用空间耗尽后，会一次性从全局 heap 中申请 32KiB 的内存，并按阶切分成小块，插入链表。
 
 
 
