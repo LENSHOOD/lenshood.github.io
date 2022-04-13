@@ -9,7 +9,7 @@ categories:
 - Golang
 ---
 
-![](https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/7.svg)
+<img src="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/7.svg" width="500;" />
 
 本文介绍了 Golang Runtime 中关于 goroutine 以及调度器的设计。
 

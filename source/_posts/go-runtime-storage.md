@@ -9,7 +9,7 @@ categories:
 - Golang
 ---
 
-![](https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/15.svg)
+<img src="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/15.svg" width="500;" />
 
 本文介绍了 Golang Runtime 中关于内存管理的设计。
 
@@ -150,7 +150,9 @@ ffffffffff600000 r-xp 00000000  00:00      0      4     0     0          0      
 
 当 `stack pool` 中可用空间耗尽后，会一次性从全局 heap 中申请 32KiB 的内存，并按阶切分成小块，插入链表。
 
+#### large stack pool
 
+从前面可知，小栈空间单个最大空间块是 16KiB，所以如果需要超过 16KiB 的栈，就需要从 `large stack pool` 中申请。
 
 ### 1.3 堆内存
 
