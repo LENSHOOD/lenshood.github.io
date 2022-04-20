@@ -182,7 +182,55 @@ Linux 进程的整个虚拟地址空间，从 0x400000 开始，到栈区高地�
 
 dlmalloc 是 Doug Lea 设计的内存分配器，在早期被广泛使用，后来由于它在多线程下存在的一些问题，由 Wolfram Gloger 将之 fork 并进行优化后，改名为 ptmalloc，目前最新的 ptmalloc 是 ptmalloc3 (但最新的 glic 2.36 中仍然采用的是 ptmalloc2)。
 
+Dlmalloc 采用的是类似 best-fit 的内存查找算法。
 
+其采用 Chunk  来作为内存分配的单元，Chunk 本身作为隐式链表，保存有前后 Chunk 的大小、是否使用等信息。此外又通过两个显式空闲链表 small_bin 和 tree_bin 来分别存放小的（小于 256 bytes）和大的空闲 Chunk，方便快速查找。
+
+{% asset_img dlmalloc.jpg %}
+
+上图展示了 Chunk 链。
+
+在左侧的图中，Chunk 0、1、2 都正在被使用，使用中的 Chunk 在头部保存了自己的 payload 大小，以及自己和前面的 Chunk 是否被使用。而对于被释放的 Chunk，会在 Chunk 底部添加 header 的拷贝，作为 footer，有了 footer，空闲 Chunk 就可以快速合并。另外再空闲 Chunk 的原 payload 处还写入了两个指针用来串联显式空闲链表。
+
+- 分配：
+
+  dlmalloc 并不是在一开始就会分配很大的一块空间，而是从 top chunk（最初的特殊 Chunk）开始，随内存分配请求逐步分割成更小的 Chunk，而当被分割的 Chunk 使用完毕被释放后，就会将其放入合适的空闲链表 bin 中管理。
+
+- 释放：
+
+  通过待释放的指针，找到 header 标记为释放，之后要检查前后的 Chunk 是否也为空闲，如果是则需要进行合并，合并后再放入 bin 中的对应位置。
+
+除了 Chunk 外，dlmalloc 还引入了 segment 的概念，其中 top chunk 存放在 Top segment，而对于一些较大的内存请求，会直接通过 mmap 进行分配，并通过一个独立的 segment 来跟踪（因为每一次 mmap 分配的地址可能会不连续）。
+
+{% asset_img dlmalloc-mspace.jpg %}
+
+更进一步的，为了聚合 segments、top chunk、以及 bin，又引入了 mspace 的概念，通过 mspace 结构来持有这些元素。用户可以通过创建多个 mspace，来分割出多个互相无关的内存区。
+
+
+
+#### 1.2.3 ptmalloc
+
+dlmalloc 默认线程不安全，而只有当定义了 `USE_LOCKS` 标志后，才会在多线程调用时加锁。但 dlmalloc 的加锁方式比较简单，所有请求操作都会争抢 malloc_state 中的同一把锁，导致明显的锁开销。
+
+回顾前文讲到的设计障碍，dlmalloc 通过分割、合并 Chunk，结合复用不同大小的 Chunk 来缓解碎片的产生，通过显式空闲链表来加速 best-fit 的速度。而 ptmalloc 则是利用 dlmalloc 的基础，在多线程竞争的方面进行优化和改善。
+
+{% asset_img ptmalloc.jpg %}
+
+ptmalloc 正是利用了 mspace 的概念尽量给每一个线程提供一个固定的内存区，避免加锁。
+
+如上图所示，当 ptmalloc 初始化后，只存在一个 main arena 即主内存区，任何线程请求 malloc 时都会先检查 main arena，如果 main arena 上锁，说明有其他线程正在使用，当前线程会创建一个新的 arena，在新的 arena 里申请内存，之后将该 arena 加入以 main arena 为头结点的环形链表。
+
+同时，由该线程创建的 arena 会保存在线程本地变量，下一次同一个线程再次申请内存时就可以直接从该 arena 中进行申请。
+
+而如果此时有第三个线程申请内存时
+
+
+
+#### 1.2.4 tcmalloc
+
+
+
+#### 1.2.5 jemalloc
 
 
 
