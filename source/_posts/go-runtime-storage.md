@@ -180,7 +180,7 @@ Linux 进程的整个虚拟地址空间，从 0x400000 开始，到栈区高地�
 
 #### 1.2.2 dlmalloc
 
-dlmalloc 是 Doug Lea 设计的内存分配器，在早期被广泛使用，后来由于它在多线程下存在的一些问题，由 Wolfram Gloger 将之 fork 并进行优化后，改名为 ptmalloc，目前最新的 ptmalloc 是 ptmalloc3 (但最新的 glic 2.36 中仍然采用的是 ptmalloc2)。
+[dlmalloc](http://gee.cs.oswego.edu/dl/html/malloc.html) 是 Doug Lea 设计的内存分配器，在早期被广泛使用，后来由于多线程方面的问题不再被使用，但其设计思想值得学习。
 
 Dlmalloc 采用的是类似 best-fit 的内存查找算法。
 
@@ -206,31 +206,70 @@ Dlmalloc 采用的是类似 best-fit 的内存查找算法。
 
 更进一步的，为了聚合 segments、top chunk、以及 bin，又引入了 mspace 的概念，通过 mspace 结构来持有这些元素。用户可以通过创建多个 mspace，来分割出多个互相无关的内存区。
 
+dlmalloc 默认线程不安全，而只有当定义了 `USE_LOCKS` 标志后，才会在多线程调用时加锁。但 dlmalloc 的加锁方式比较简单，所有请求操作都会争抢 malloc_state 中的同一把锁，导致明显的锁开销。
+
 
 
 #### 1.2.3 ptmalloc
 
-dlmalloc 默认线程不安全，而只有当定义了 `USE_LOCKS` 标志后，才会在多线程调用时加锁。但 dlmalloc 的加锁方式比较简单，所有请求操作都会争抢 malloc_state 中的同一把锁，导致明显的锁开销。
+回顾前文讲到的设计障碍，dlmalloc 通过分割、合并 Chunk，结合复用不同大小的 Chunk 来缓解碎片的产生，通过显式空闲链表来加速 best-fit 的速度。而 ptmalloc 的作者 Wolfram Gloger 则是利用 dlmalloc 的基础，将其核心思想继承并在多线程竞争方面进行了优化和改善。
 
-回顾前文讲到的设计障碍，dlmalloc 通过分割、合并 Chunk，结合复用不同大小的 Chunk 来缓解碎片的产生，通过显式空闲链表来加速 best-fit 的速度。而 ptmalloc 则是利用 dlmalloc 的基础，在多线程竞争的方面进行优化和改善。
+目前最新的 ptmalloc 是 ptmalloc3 (但最新的 glic 2.36 中仍然采用的是 ptmalloc2)。
 
 {% asset_img ptmalloc.jpg %}
 
-ptmalloc 正是利用了 mspace 的概念尽量给每一个线程提供一个固定的内存区，避免加锁。
+[ptmalloc](http://www.malloc.de/en/) 正是利用了 mspace 的概念尽量给每一个线程提供一个固定的内存区，避免加锁。
 
 如上图所示，当 ptmalloc 初始化后，只存在一个 main arena 即主内存区，任何线程请求 malloc 时都会先检查 main arena，如果 main arena 上锁，说明有其他线程正在使用，当前线程会创建一个新的 arena，在新的 arena 里申请内存，之后将该 arena 加入以 main arena 为头结点的环形链表。
 
 同时，由该线程创建的 arena 会保存在线程本地变量，下一次同一个线程再次申请内存时就可以直接从该 arena 中进行申请。
 
-而如果此时有第三个线程申请内存时
+而如果此时有第三个线程申请内存时，它仍旧会从 main arena 开始搜索，只要找到未上锁的 arena，就使用它，并将其绑定到自己的本地变量中。
+
+ptmalloc 通过这种方式能显著的降低线程竞争，但也存在一些问题，如：
+
+- arena 之间可能存在严重的分配不均衡
+- 仍然存在一定的加锁开销
 
 
 
 #### 1.2.4 tcmalloc
 
+[tcmalloc](https://github.com/google/tcmalloc) 的全称是 thread caching malloc，从名称中就能知道，tcmalloc 会采用线程缓存来减少分配中的竞争和锁开销。tcmalloc 由 Google 开发，golang 的内存分配器也大致上与 tcmalloc 的实现一致。
+
+![](https://github.com/google/tcmalloc/raw/master/docs/images/tcmalloc_internals.png)
+
+如上图所示，tcmalloc 包含三层组件：
+
+- 最靠近用户请求的 front-end 层，作为缓存，为应用程序提供高速的内存分配和释放
+
+  - 提供了两种缓存方式：线程缓存或 cpu core 缓存，线程 cache 会随着线程数量的增加而增加，导致大量线程缓存。cpu core 缓存则会将缓存与每个 cpu 逻辑核心绑定
+  - 缓存空间不足时，会从 middle-end 处获取
+  - 缓存的对象数量会随着申请和释放动态调整
+
+- 中间层 middle-end 主要为了给 front-end 提供内存源
+
+  - transfer cache：front-end 申请或归还内存，都会先走 transfer cache，transfer cache 用数组来保存空闲空间地址，以加快对象的移动速度。对于在一个 core 申请，在另一个 core 释放的场景，transfer cache 效率较高
+  - central free list：以 span 的概念来维护内存，一个 span 可以持有 1~n 个 page（tcmalloc 定义的 page），分配内存时根据对象大小选择合适的 span，如果空间不足则向 back-end 申请
+
+- 最下层 back-end 负责与 os 交互获取 os 内存
+
+  - back-end 采用 pagemap 来查找对象地址属于哪一个 span
+
+  - pagemap 是一个 radix 树，可以映射整个地址空间，见下图
+
+    ![](https://github.com/google/tcmalloc/raw/master/docs/images/pagemap.png)
+
+对于内存分配，tcmalloc 将分配请求分为两类：
+
+- 小对象：先从 front-end 尝试分配，将小对象映射到60~80 种大小类（size-class）中，每一级大小类之间差 8KiB（类似 dlmalloc 的划分），按细分的大小类分配可以降低内存浪费。通常一个 span 只会存放一种 size-class 的对象，便于管理和寻址。
+- 大对象：跨过 front-end 和 middle-end，直接从 back-end 分配
+
 
 
 #### 1.2.5 jemalloc
+
+[jemalloc](https://github.com/jemalloc/jemalloc) 是由 Jason Evans 设计，因此叫 jemalloc。包含在 FreeBSD 的标准库中，也在 Firefox 和 Facebook 的服务器上使用。
 
 
 
