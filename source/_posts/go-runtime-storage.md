@@ -271,6 +271,27 @@ ptmalloc 通过这种方式能显著的降低线程竞争，但也存在一些�
 
 [jemalloc](https://github.com/jemalloc/jemalloc) 是由 Jason Evans 设计，因此叫 jemalloc。包含在 FreeBSD 的标准库中，也在 Firefox 和 Facebook 的服务器上使用。
 
+jemalloc 的设计中借鉴了许多其他分配器的实践，同时也有自己的特色：
+
+- 按照 size-class 来分配小对象，同时采取类似 first-fit 的匹配方式来提升吞吐量
+- 仔细的选取 size-class，如果 size-class 之间跨度太大，会增加内部碎片量，而如果 size-class 选取的太过致密，则会增加外部碎片的量
+- 限制 metadata 的内存占用量不超过总量的 2%
+- 尽量缩小活跃页面集合（active page set），这样可以降低操作系统将页面换出的概率
+- 通过 thread cache 减少锁竞争
+- 通过大幅简化布局算法来提升性能和可预测性，不断努力将 jemalloc 打造为通用的分配器，这样用户就能避免需要根据应用程序的特点来选择特定的分配器
+
+![](https://engineering.fb.com/wp-content/uploads/2011/01/Fmf_DAAS8vE0jLgAADmPDEVuPQkAAAE.jpg)
+
+与 ptmalloc 类似，每一个线程都会以 round-robin 的形式绑定 arena。arena 之间相互独立，每一个 arena 又被细分为一个个的chunk，chunk 通过维护自己的 header 来追踪更细粒度的 page runs。
+
+除了 header，chunk 里剩下的部分就是一组又一组 page runs，小对象被组织为 small page runs，small page runs 还有自己的 run header，而每个大对象占据一个 page run，并由 chunk header 进行管理。
+
+对每一个 chunk 中的 small page run，dirty page run，以及 clean page run，arena 都使用红黑树来进行管理。
+
+![](https://engineering.fb.com/wp-content/uploads/2011/01/Fmf_DADukGpv5NIAAOchBVBuPQkAAAE.jpg)
+
+为了进一步的降低锁竞争，对每一个线程还设计了 tcache，类似于 tcmalloc。小对象在 tcache 中分配可以减少 10-100 倍的同步开销，但也会加剧碎片化，为了解决碎片化问题，tcache 会通过 gc 逐步将更老的对象 flush 到 arena 中。
+
 
 
 ### 1.3 Go 内存分配器设计
