@@ -258,7 +258,7 @@ ptmalloc 通过这种方式能显著的降低线程竞争，但也存在一些�
 
   - pagemap 是一个 radix 树，可以映射整个地址空间，见下图
 
-    ![](https://github.com/google/tcmalloc/raw/master/docs/images/pagemap.png)
+    ![](https://github.com/google/tcmalloc/blob/master/docs/images/pagemap.png)
 
 对于内存分配，tcmalloc 将分配请求分为两类：
 
@@ -295,6 +295,76 @@ jemalloc 的设计中借鉴了许多其他分配器的实践，同时也有自�
 
 
 ### 1.3 Go 内存分配器设计
+
+在上文中我们简单的了解了内存分配器的设计目标是期望寻找吞吐率和资源利用率的平衡，而在设计过程中，碎片和线程竞争是可能会严重影响分配器吞吐率和资源利用率的两大问题。
+
+我们发现，不论哪种分配器，都存在如下的共性：
+
+1. 区别对待大对象和小对象
+   - 小对象更容易造成碎片问题，因此针对小对象，采取大小类（size-class）的方式进一步细分，便于复用
+   - 大对象直接分配或释放，并单独管理
+2. 采用线程缓存和线程绑定区域来降低竞争开销
+   - 留一小部分空间作为线程缓存，完全不需要加锁
+   - 将固定的区域与线程绑定，减少访问该区域的线程数量，降低竞争
+
+golang 的内存分配器，原理上大致是遵循了 tcmalloc 的设计，在使用上与 go 语言本身做了集成。
+
+
+
+#### 1.3.1 总体架构
+
+从逻辑角度看，go 的内存分配器分为三层，cache、central、heap。
+
+{% asset_img logical-arch.jpg %}
+
+就如同前面 tcmalloc 章节中讲到的，cache、central 和 heap 分别对应了 front-end、middle-end 和 back-end。
+
+每一个 p 都会持有一个 cache，而在 p 上运行的 g 其内存分配动作会首先考虑从 cache 中获取。假如 cache 空间不足，就会下探到 central 分配，所有 p 共享一组 central，因此对 central 的操作需要加锁。假如当 central 也空间不足时，就会向 heap 寻求空间，而 heap 实际上会从 os 处真正的获取内存。
+
+在 cache、central 与 heap 的交互中，对内存空间的申请和分配，都是以 span 为单位的。span 是一个抽象的概念，每一个 span 包含了 n 个 page（[1 page = 8 KiB](https://github.com/golang/go/blob/6b1d9aefa8fce9f9c83f46193bec43b9b70068ce/src/runtime/sizeclasses.go#L90)）作为其空间，并要求只存储一种 size-class 的对象。
+
+
+
+#### 1.3.2 size-class
+
+golang 中，以 [16 byte](https://github.com/golang/go/blob/6b1d9aefa8fce9f9c83f46193bec43b9b70068ce/src/runtime/malloc.go#L135) 和 [32768 byte](https://github.com/golang/go/blob/6b1d9aefa8fce9f9c83f46193bec43b9b70068ce/src/runtime/sizeclasses.go#L85) 为界，将对象划分为微对象（tiny），小对象（small），大对象（large）。
+
+对于微对象和大对象都有特殊的处理办法，而夹在中间的小对象，是以 size-class 大小类为基准来分配的。
+
+一共划分了 67 个 size-class（为了保持一致性，size-class == 0 代表任意大小），每一个 size-class 的信息如下（[完整表格](https://github.com/golang/go/blob/6b1d9aefa8fce9f9c83f46193bec43b9b70068ce/src/runtime/sizeclasses.go#L6)）：
+
+|class |bytes/obj |bytes/span |objects |tail waste |max waste |min align|
+| ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+|1 |8 |8192 |1024 |0 |87.50% |8 |
+|2 |16 |8192 |512 |0 |43.75% |16 |
+|3 |24 |8192 |341 |8 |29.24% |8 |
+|4 |32 |8192 |256 |0 |21.88% |32 |
+|5 |48 |8192 |170 |32 |31.52% |16 |
+|6 |64 |8192 |128 |0 |23.44% |64 |
+|7 |80 |8192 |102 |32 |19.07% |16 |
+|8 |96 |8192 |85 |32 |15.95% |32 |
+|9 |112 |8192 |73 |16 |13.56% |16 |
+|10 |128 |8192 |64 |0 |11.72% |128 |
+|11 |144 |8192 |56 |128 |11.82% |16 |
+|12 |160 |8192 |51 |32 |9.73% |32 |
+|13 |176 |8192 |46 |96 |9.59% |16 |
+|14 |192 |8192 |42 |128 |9.25% |64 |
+|15 |208 |8192 |39 |80 |8.12% |16 |
+|..|..|..|..|..|..|..|
+|66 |28672 |57344 |2 |0 |4.91% |4096 |
+|67 |32768 |32768 |1 |0 |12.50% |8192 |
+
+上述表格展示了 67 种 size-class 在 span 中可分配不同数量的对象，以及可能产生内部碎片的最小数量和最大浪费率。
+
+最小数量的内部碎片（tail waste）是由对象大小和页容量决定的，以 size-class = 11 为例，内存按页分配，因此每个 span 至少分配一页即 8 KiB，size-class = 11 所指代的最大对象大小是 144 byte，如果全部以 144 byte 分配，则内部碎片数量为（按 int 类型计算）：8192 - 8192/144*144 = 128。
+
+最大浪费率，是指当前 size-class 所允许的任意对象，其组合导致最大可能产生的剩余容量的浪费率。span 为了快速定位对象，每一个对象无论实际大小是多少，都会按照最大大小来分配。因此，仍以 size-class = 11 为例，其最小对象要求至少 129 byte（再小就会进入 size-class = 10 的范围），但仍旧会分配 144 byte 的空间（最多分配 56 个对象）。最终，最大空间浪费率为：(8192 - 129*56) / 8192 * 100 ≈ 11.82%。
+
+
+
+#### 1.3.3 span
+
+
 
 
 
