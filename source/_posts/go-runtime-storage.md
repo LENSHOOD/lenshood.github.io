@@ -364,7 +364,135 @@ golang 中，以 [16 byte](https://github.com/golang/go/blob/6b1d9aefa8fce9f9c83
 
 #### 1.3.3 span
 
+span 作为内存分配的基本单元，其内部结构设计的很巧妙。由于 span 本身和 size-class 绑定，因此本节仍旧以 size-class = 11 的 span 为例。
 
+span 的主要构成如下图所示：
+
+{% asset_img logical-arch.jpg %}
+
+`spanclass` 作为 span 最基本的属性，决定了以下其他属性的值。
+
+通过 `spanclass` 对应到上一节的表格，我们能看到 span 里面包含了许多熟悉的属性：
+
+- `npages`：每一个 span 可能会包含 n 个 page，对于 size-class = 11 的 span，只包含 1 个 page，即 `npages` = 1
+- `elemsize`：size-class = 11 的 span 其划分的每一个存放对象的 slot 空间大小为 144 bytes
+- `nelems`：同样，144 bytes 的 slot 空间，对应了最多能存放 56 个对象
+
+span 代表了一段内存空间，因此 `startAddr` 表示 span 空间的起始地址；而 `limit` 则是终止地址，可以发现 `limit` 指向的是 tail waste 的首地址，即地址一旦到达 limit，就不可能指向任何合法的对象了。
+
+`allocCount` 顾名思义是代表当前的 span 中已经分配了多少个对象。
+
+`allocBits` 和 `gcmarkBits` 是反映当前 span 中已分配对象和空闲 slot 的位图映射，其中 `gcmarkBits` 是作为最新一次 gc 标记后的结果，每次 gc 标记完成后会更新 `allocBits` （详细内容可见后文垃圾回收部分），初始的 `allocBits` 和 `gcmarkBits` 都是全 0，图中标红色的区域代表已经被分配。
+
+
+
+##### 在 span 中分配对象
+
+对于初始化的 span，地址空间已经分配好，每个对象的 size 也已确定，因此当 span 接收到空间分配请求时，会直接从`startAddr` 处向后推进一个 slot 即 144 bytes 的空间，作为当前请求方的独占对象空间，并返回`startAddr` 作为空间首地址。
+
+So far so good.
+
+但接收下一次请求时呢？很显然我们需要一种记录簿，来标记哪些 slot 已被占用，哪些 slot 是空闲的，这就是 `allocBits` 存在的原因。
+
+有了 `allocBits` ，我们就可以很方便的通过遍历该位图表寻找空闲 slot。
+
+但问题在于，内存分配/释放的请求是非常频繁的动作，任何细微的性能延迟都会因为大量的请求次数而被急剧放大。换句话说，遍历查表太慢了。
+
+
+
+##### 加速分配
+
+为了能快速、准确的定位到空闲 slot，在 span 中采用 `allocCache` 和 `freeindex` 巧妙的简化了这一过程。
+
+{% asset_img nextfreefast.jpg %}
+
+如左图所示，`freeindex` 代表最近一次分配的 slot 位置 + 1，即最近一次分配了2，`freeindex` 指向 3，下一次分配会从 3 处开始尝试。
+
+`allocCount` 是一个 64 bits 固定大小的 bitmap，它反映了从 freeindex 为起始的后续最多 64 个 slot 的空闲情况，1 代表空闲，0 代表已占用。图中展示的是`allocCache` 的一小部分，它指代了从 3 开始到 10 结束的 8 个 slot 的空闲情况，红色代表已占用。
+
+整个寻找空闲 slot 的过程如下：
+
+1. 选择 `freeindex` 作为 slot 查找的起始位置，即从 3 开始。
+2. 从低地址开始查找`allocCache`，寻找第一个不为 0 的 bit 就是第一个空闲 slot 的 offset（这里采用了 deBruijn 序列来快速定位最低位的 1），显然这里的 offset = 2。
+3. 通过计算 `freeindex` + offset 就可得到空闲 slot 的实际位置 n，即 n = 3+2 = 5。而空闲 slot 的物理地址，可通过`startAddr` + n*`elemsize` 计算，即 0x1234 + 5\*144 = 0x1504。
+4. 之后更新 `freeindex ` 为上一步分配的 slot 位置 n 再 +1，即 `freeindex ` = 6，可见右图。
+5. `allocCache` 右移 offset + 1 位，下一次将从 offset + 1 处开始寻找（图中橙色的 bit 就是右移后的补零，这些零无任何业务意义），亦可见右图。
+
+存在两种情况需要做额外处理：
+
+- `allocCache` 全 0：这说明当前的 `allocCache` 中已经没有任何空闲 slot 了
+- `freeindex` 未达到 `nelems`的前提下（span 未满），`freeindex`  == 64：这说明 `freeindex`  向前移动的 offset == 64，由于`allocCache` 每次都会右移 offset 位，这代表当前的 `allocCache` 已经寻找完了
+
+对于上述两种情况，都需要做一件事：从当前`freeindex` 位置开始，向后读取 64 bit 的`allocBits` ，作为新的`allocCache` 。
+
+更新了 `allocCache` 后，就又可以重复前面寻找空闲 slot 的步骤了。
+
+
+
+##### 释放重置
+
+go runtime 中，对象的释放是通过垃圾回收（GC）机制实现的（详见后文），那么在每次 GC 之后，span 中会释放掉许多 slot，释放后最新的对象占用情况会更新到 `allocBits` 中。
+
+在空间释放后，span 多出了许多空闲 slot，这时必须重置 `freeindex` 和 `allocCache`，以避免在寻找空闲 slot 时产生错误的结果。
+
+- 重置 `freeindex` 即直接将其置零
+- 重置 `allocCache` 则是从 `allocBits` 的起始位置处向后读取 64 bit 信息存入 `allocCache`
+
+
+
+#### 1.3.4 front-end: cache
+
+在 go runtime 中，每一个 p 都持有一个名为 `mcache` 的结构，这就是 cache。由于同一时间在 p 上只能执行一个 g，所以对`mcache`的操作不需要加锁。
+
+`mcache` 的结构如下：
+
+{% asset_img mcache.jpg %}
+
+`mcache` 中核心的三部分分别是：`tiny`、`alloc`、`stackcache`。
+
+**alloc**
+
+`alloc` 实际上是一个 span 数组，数组中的每一个元素都存放了一个特定 size-class 的 span 的地址。我们会发现整个数组一共有 68*2=136 个元素，其中，每一个 size-class 对应了两个 span，从上文的表格我们知道 size-class 一共有 67 个，这里多出来的一个是 size-class=0 即特殊的 size-class（不限容量）。
+
+为什么每一个 size-class 对应了两个 span 呢？主要与 GC 扫描有关。
+
+这里的两个 span，分别用于存放`scan` 和`noscan` 的对象，`noscan` 的对象代表对象本身或对象中不包含任何指针，因此在做 GC 扫描的时候可以直接标记，而不需要递归的查找指针所指的对象。将`scan` 和 `noscan` 的 span 区分开，能够简化 GC 扫描的过程。
+
+当应用程序需要分配小对象时，通常会从`alloc`中分配，整个流程如下：
+
+1. 根据对象的大小和是否`noscan`，定位到 `alloc` 中具体的某一个元素
+2. 取出该元素指向的 span，通过前文 span 分配对象的方式给对象分配空间
+3. 如果当前 span 已满，则从 middle-end 的 central 中获取一个新的 span，并把原来已满的 span 归还给 central，之后重复第二步
+
+看似 `alloc` 要包含 136 个 span，实际上初始化后，每一个`alloc`元素指向的都是同一个 dummy span，对该 dummy span 的分配操作会触发从 central 获取新 span 的逻辑。
+
+因此，只有实际用到的 span 才会实际的分配获取，不浪费空间。
+
+**tiny**
+
+我们已经知道，小于 16 bytes 的对象视为微对象，由于对齐、分页等原因，微对象更容易产生碎片。
+
+为了尽量减少微对象所占用的空间，以及减少碎片，对微对象的分配会尝试放在`mcache` 的`tiny`结构中。
+
+`tiny`实际上直接引用了`alloc`中 size-class=2，`noscan`的 span，这也就要求任何在 `tiny`中分配的对象都不能包含指针。
+
+每一个 `tiny` 都以 16 bytes 为一个单元，16 bytes 分配满后，从 span 中获取下一个 16 bytes 单元。
+
+`tinyoffset`指向了最近一次对象分配后的位置，`tinyAllocs`则代表当前已经分配了多少个微对象。
+
+微对象按照其大小，以对 7 取模，对 3 取模，对 1 取模分别按 8，4，2 对齐，在 `tiny`中进行分配，正如图中，3 bytes 大小的 obj-1 分配后，1 byte 大小的 obj-2 需要在 offset=4 处分配。
+
+与 `alloc`类似，假如 `tiny` 的 span 已满，就从 central 重新获取一个。
+
+**stackcache**
+
+
+
+#### 1.3.5 middle-end: central
+
+
+
+#### 1.3.6 back-end: heap
 
 
 
