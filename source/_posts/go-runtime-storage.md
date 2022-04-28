@@ -452,7 +452,7 @@ go runtime 中，对象的释放是通过垃圾回收（GC）机制实现的（�
 
 **alloc**
 
-`alloc` 实际上是一个 span 数组，数组中的每一个元素都存放了一个特定 size-class 的 span 的地址。我们会发现整个数组一共有 68*2=136 个元素，其中，每一个 size-class 对应了两个 span，从上文的表格我们知道 size-class 一共有 67 个，这里多出来的一个是 size-class=0 即特殊的 size-class（不限容量）。
+`alloc` 实际上是一个 span 数组，数组中的每一个元素都存放了一个特定 size-class 的 span 的地址。我们会发现整个数组一共有 68*2=136 个元素（136 这个数字称为 [`numSpanClasses`](https://github.com/golang/go/blob/89044b6d423a07bea3b6f80210f780e859dd2700/src/runtime/mheap.go#L532)），其中，每一个 size-class 对应了两个 span，从上文的表格我们知道 size-class 一共有 67 个，这里多出来的一个是 size-class=0 即特殊的 size-class（不限容量）。
 
 为什么每一个 size-class 对应了两个 span 呢？主要与 GC 扫描有关。
 
@@ -464,7 +464,7 @@ go runtime 中，对象的释放是通过垃圾回收（GC）机制实现的（�
 2. 取出该元素指向的 span，通过前文 span 分配对象的方式给对象分配空间
 3. 如果当前 span 已满，则从 middle-end 的 central 中获取一个新的 span，并把原来已满的 span 归还给 central，之后重复第二步
 
-看似 `alloc` 要包含 136 个 span，实际上初始化后，每一个`alloc`元素指向的都是同一个 dummy span，对该 dummy span 的分配操作会触发从 central 获取新 span 的逻辑。
+看似 `alloc` 要包含 136 个 span，实际上初始化后，每一个`alloc`元素指向的都是同一个 [dummy span](https://github.com/golang/go/blob/0b5218cf4e3e5c17344ea113af346e8e0836f6c4/src/runtime/mcache.go#L82)，对该 dummy span 的分配操作会触发从 central 获取新 span 的逻辑。
 
 因此，只有实际用到的 span 才会实际的分配获取，不浪费空间。
 
@@ -486,9 +486,57 @@ go runtime 中，对象的释放是通过垃圾回收（GC）机制实现的（�
 
 **stackcache**
 
+`stackcache` 是专为分配栈内存而设置的。
+
+从上一篇讲 go runtime 计算资源的文章中我们已经知道，goroutine 的[初始栈大小是 2KiB](https://github.com/golang/go/blob/0b5218cf4e3e5c17344ea113af346e8e0836f6c4/src/runtime/stack.go#L75)，而每一次栈扩张都会将栈空间翻倍（详见后文）。
+
+所以，对于较小的栈空间分配，在`stackcache`中按照所需空间的尺寸划分成 [4 阶](https://github.com/golang/go/blob/0b5218cf4e3e5c17344ea113af346e8e0836f6c4/src/runtime/malloc.go#L155)（linux 系统，其他系统阶数会有差异），每一阶的内存块分别指定为 2KiB、4KiB、8Kib、16KiB。对于小栈分配（小于 16KiB），根据所需空间大小向上取二次幂，然后从合适的阶中分配内存。
+
+从图中我们会发现，`stackcache` 的每一阶都是一个 span 链表，实际上这些 span 都来自于一个全局的 stackpool，详细内容可见下文栈分配部分。
+
 
 
 #### 1.3.5 middle-end: central
+
+central 的整体结构十分有趣，从宏观上看类似一个多级表，其整体结构如下图所示：
+
+{% asset_img mcentral.jpg %}
+
+**第一级：`central`**
+
+`central` 是一个全局数组，就像 `mcache` 中的 `alloc` 一样，数组的容量也等于 `numSpanClasses` 即 136，每一个元素存放了一个称为 `mcentral` 的结构。每一个 `mcentral` 都会与 size-class 绑定，前面我们了解过 `mcache` 后就已经能猜到，当 `mcache` 中某个特定 size-class 的 span，实际上就是从对应的 `mcentral` 里分配得来的。
+
+**第二级：`mcentral`**
+
+`mcentral` 的结构很简单，只包含三部分：
+
+- spanclass：指代当前 `mcentral` 存放的是哪一种 size-class 的 span
+- partial：是一个容量为 2 的数组，其元素存放的是第三级的 `spanSet`。在了解 `spanSet` 的详情之前我们可以简单从命名中推断它是 span 的集合。
+  - 之所以叫 partial 的原因，是集合中所有的 span 都不是满的，都存在空间可被分配；
+  - 用两个元素维护两个 `spanSet` 的原因，与 GC 清理有关：其中一个`spanSet` 中存放的全部都是完成清理的 span，而另一个中存放的是未被清理的 span。每一次，GC 会将未清理的`spanSet` 进行清理，之后该 `spanSet` 就变成已清理，而另一个`spanSet` 则变成未清理。
+- full：与 partial 的职责和功能完全一致，唯一的区别就是存放的都是已满的 span。
+
+当 `mcache` 向 `mcentral` 请求 span 时，会先从 partial-swept （即 partial 已清理的 `spanSet`，下同）中尝试获取 span，如果获取不到就会从 partial-unSwept 中获取，但由于获取到的 span 还未清理，需要先清理后再供 `mcache` 使用。
+
+假如还是获取不到，就只能从 full-unSwept 中进行尝试了，同样的，full-unSwept 中的 span 也需要清理之后才能使用。至于 full-swept ，显然又全满，又已被清理过的 span，压榨不出任何空闲空间了。
+
+我们很容易想到，清理需要时间，而清理一个半满的 span 必定会比清理一个全满的 span 要快。
+
+但是，一方面 GC 的后台清扫和`mcentral` 中申请 span 时的主动清扫可能会冲突导致只有一方能介入，另一方面对 full-unSwept 的清扫也可能什么空间都扫不出来。所以当在 partial-unSwpt 和 full-unSwept 中超过一定尝试次数仍无法找到 span 后，会直接去 back-end 中申请新的 span，以免过多的影响整个分配器的吞吐量。
+
+最后，对于从 `mcache` 中归还的 span，已经被 GC 线程清扫过的，会视实际情况分别放回到 partial-swept 或 full-swept 中，而未被清扫过的 span，会先进行清扫，之后再进入 partial-swept 或 full-swept 中。（那什么时候 span 才会进入 unSwept 的 `spanSet` 呢？实际上 span 不会主动进入 unSwept，而是在开启新的一轮 GC 后，原来的 swept 就自动转换成了 unSwept。）
+
+**第三级：`spanSet`**
+
+`spanSet` 就是实际存放 span 的地方了，如图中所示，span 是紧凑的排列在一个称为 `spine` 的线性表中。进程启动之初，`spine` 中不包含任何 span，分配请求会直接从 back-end 处获取，而当 span 被归还时，就会进入 `spine`。
+
+`spine` 所管理的空间以批量的形式进行扩张，每一批空间称为一个`spanSetBlock`。每一个`spanSetBlock`可存放 [512](https://github.com/golang/go/blob/89044b6d423a07bea3b6f80210f780e859dd2700/src/runtime/mspanset.go#L55) 个 span（的地址指针），因此可知在 64-bit 平台下，一个 `spanSetBlock` 所需的内存空间是 512*(8 byte) = 4KiB，而一个 span 最少可持有 8KiB 的内存空间（可见前面的 size-class 表），所以可知，一个 `spanSetBlock` 以 4KiB 的空间成本，可管理 512\*(8 KiB) = 4MiB 的实际空间。
+
+`spineLen` 属性记录了当前`spine` 拥有多少个 `spanSetBlock`，初始情况下 `spine` 可以存放 [256](https://github.com/golang/go/blob/89044b6d423a07bea3b6f80210f780e859dd2700/src/runtime/mspanset.go#L56) 个 `spanSetBlock` （的地址指针），这在 64-bit平台下需要 256*(8 byte) = 1KiB 的空间，假如还需要分配更多的  `spanSetBlock`，那么会重新分配一个新的容量翻倍的`spine`并且把原来 `spine` 中存放的  `spanSetBlock` 地址移动到新的 `spine` 里。
+
+通常情况下，`spine` 都不需要自身扩容，我们可以简单的计算一下：一个 `spanSetBlock`可管理 4MiB 的空间，那么 256 个 `spanSetBlock`就可管理共 256*(4 MiB) = 1GiB 的内存空间，对内存需求量不太大的应用程序，这足够了。
+
+最后，`spine`作为一个线性表，其 head 和 tail 是被放置在称为 `index` 的一个 uint64 中，高 32bit 放 head，低 32bit 放 tail。这里的 head、tail 都是指向实际 `spanSetBlock`中的 span 偏移量。对 `index` 的操作全部通过无锁的原子操作来完成。
 
 
 
