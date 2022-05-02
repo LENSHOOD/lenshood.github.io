@@ -542,6 +542,59 @@ central 的整体结构十分有趣，从宏观上看类似一个多级表，其
 
 #### 1.3.6 back-end: heap
 
+##### heap 内存划分
+
+heap 作为 back-end 与 OS 交互，向下申请 OS 内存，向上为 middle-end 提供 span，虽然其整体结构相对复杂一些，但设计的也层次分明，井井有条。
+
+由于 heap 需要管理整个 go 进程的内存地址空间，因此引入了几个概念，层层递进的描述地址空间中的内存。
+
+{% asset_img heap-space.jpg %}
+
+如上图所示，从最下面开始，整个地址空间，被划分成了 Arena，Chunk，Page。注意这些概念都是逻辑上的划分，实际对内存的操作仍旧是通过内存地址。
+
+以 amd64 架构下的 linux 为例，整个地址空间是从 `0xffff800000000000 ~ 0x00007fffffffffff` 的共 256TiB 空间，go 的整个地址空间与之保持一致，但实际上参考[内核文档](https://www.kernel.org/doc/html/latest/x86/x86_64/mm.html)可知，进程的地址空间是 `0x0000000000000000 ~ 0x00007fffffffffff` 的 128TiB 空间。
+
+要管理在如此庞大的地址空间中分配的内存，必须要从大拆小。
+
+Arena 是一块可包含 64MiB 的逻辑区域，整个地址空间总共可划分为 4196304 个 Arena，而 heap 每一次向 OS 申请内存也都是以 Arena 为单位的。
+
+64MiB 的空间对细碎的应用程序内存分配而言还是太大了，将一个 Arena 拆分成 16 份，每一份 4MiB，称为一个 Chunk。这样 heap 管理自己从 OS 申请来的 Arena 时就可以通过 Chunk 为单位，这样更精细。
+
+最后，我们从前面已经了解到，应用所需的内存在 front-end 和 middle-end 中以 span 结构来管理，而每一个 span 中会包含 n 个 Page。每一个 Chunk 中可包含 512 个 8KiB 的 Page，在 back-end 向 middle-end 提供 span 时，分配的 Page 就是从 Chunk 中而来的。
+
+##### 管理 Chunk
+
+前面我们已经知道了 heap 中对内存的划分方式，引入像 Arena，Chunk 这样的逻辑概念，是为了帮助我们更高效的管理内存。那么我们立即就会想到一个问题：heap 如何管理 Arena？如何管理 Chunk？
+
+对于 Chunk，heap 将之作为向 middle-end 分配 span 的来源，其主要的管理是通过称为 `pageAlloc ` 的页分配器来实现的。
+
+{% asset_img pageAlloc.jpg %}
+
+上图所示的就是 `pageAlloc` 的主要组成部分了。
+
+`pageAlloc` 的主要工作就是尽可能快的为 middle-end 提供大小为 n*page 的内存空间，用来组装 span。这里涉及到两个问题：
+
+1. 如何快速找到 n*page 的连续的空闲空间？
+2. 空间不足时该怎么办？
+
+首先来看第一个问题。
+
+在前面 span 的介绍中我们已经见到了，span 利用 bitmap 来记录其每一个 slot 的占用/空闲情况。bitmap 的优势就在于可以通过消耗很少量的空间来指示出很大范围空间的使用情况。
+
+在 `pageAlloc` 中也不例外，每一个 Chunk，其内部的 512 个 Page 是否被分配出去的具体情况，也是采用 bitmap 来表达的。
+
+如图左上角的 `chunks`，实际上是一个 8192*8192 的稀疏矩阵（二维数组），数组中每一个元素称为`pallocData`，每个 `pallocData` 都通过一个 `[8]uint64` 代表一个 Chunk 中的 512 个 Page。 简单的计算就可知，每一个 Chunk 4 MiB，8192\*8192\*4 MiB = 256 TiB，因此 `chunks` 表示的是整个地址空间中所有 Chunk 的 bitmap。
+
+假如采用一维数组来表示，那么使用了 8192*8192 个 64 bytes 大小的 `[8]uint64`  的 `chunks` 本身就会占用 4 GiB 的空间（实际上每个 `pallocData` 还包含了一个 64 bytes 大小的页清除 bitmap，空间占用翻倍到 8 GiB），这完全不可接受。但实际上整个地址空间中我们真正用到的部分很少，所以整个 8 GiB 空间中，绝大多数的 bitmap 都是无意义的。使用二维数组实现的稀疏矩阵，只有当矩阵的某一行中有任意多个 Chunk 被使用到了，才会一次性分配一行的空间（1 MiB），结合 go 内存分配尽量保持聚集的特性，实际使用的 `chunks` 就不会很大。 
+
+有了 bitmap 我们就能通过遍历它来找到想要的连续空闲空间了。但每次都从头开始遍历 n 个 bitmap，效率会比较差。
+
+首先，`pageAlloc` 引入了一个值 `searchAddr` ，代表每次搜索的起始地址，这个值会在每一次分配后被更新为分配地址后的第一个空闲地址位置。有了 `searchAddr`，在查找时就不用从头开始遍历`chunks`，而是直接通过 `searchAddr` 找到该地址所在的 Chunk bitmap 再查找。
+
+但不幸的事常用，每次分配的内存大小都不同，如果 `searchAddr` 所在的 Chunk 里面不足以满足连续的 n*page 内存需求，就只能再次从头开始查找了。为了让从头查找变得更快一些，`pageAlloc` 又引入了名为 `summary` 的 radix 树，加快查找。
+
+
+
 
 
 ## 2. Go 的内存划分
