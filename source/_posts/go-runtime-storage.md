@@ -552,15 +552,15 @@ heap 作为 back-end 与 OS 交互，向下申请 OS 内存，向上为 middle-e
 
 如上图所示，从最下面开始，整个地址空间，被划分成了 Arena，Chunk，Page。注意这些概念都是逻辑上的划分，实际对内存的操作仍旧是通过内存地址。
 
-以 amd64 架构下的 linux 为例，整个地址空间是从 `0xffff800000000000 ~ 0x00007fffffffffff` 的共 256TiB 空间，go 的整个地址空间与之保持一致，但实际上参考[内核文档](https://www.kernel.org/doc/html/latest/x86/x86_64/mm.html)可知，进程的地址空间是 `0x0000000000000000 ~ 0x00007fffffffffff` 的 128TiB 空间。
+以 amd64 架构下的 linux 为例，整个地址空间是从 `0xffff800000000000 ~ 0x00007fffffffffff` 的共 256 TiB 空间，go 的整个地址空间与之[保持一致](https://github.com/golang/go/blob/06338941ea0e3d654805b7323761f3c841cc8d58/src/runtime/mranges.go#L87)，但实际上参考[内核文档](https://www.kernel.org/doc/html/latest/x86/x86_64/mm.html)可知，进程的地址空间是 `0x0000000000000000 ~ 0x00007fffffffffff` 的 128 TiB 空间。
 
 要管理在如此庞大的地址空间中分配的内存，必须要从大拆小。
 
-Arena 是一块可包含 64MiB 的逻辑区域，整个地址空间总共可划分为 4196304 个 Arena，而 heap 每一次向 OS 申请内存也都是以 Arena 为单位的。
+Arena 是一块可包含 [64 MiB](https://github.com/golang/go/blob/06338941ea0e3d654805b7323761f3c841cc8d58/src/runtime/malloc.go#L259) 的逻辑区域，整个地址空间总共可划分为 [4196304](https://github.com/golang/go/blob/06338941ea0e3d654805b7323761f3c841cc8d58/src/runtime/malloc.go#L288) 个 Arena，而 heap 每一次向 OS 申请内存也都是以 Arena 为单位的。
 
-64MiB 的空间对细碎的应用程序内存分配而言还是太大了，将一个 Arena 拆分成 16 份，每一份 4MiB，称为一个 Chunk。这样 heap 管理自己从 OS 申请来的 Arena 时就可以通过 Chunk 为单位，这样更精细。
+64 MiB 的空间对细碎的应用程序内存分配而言还是太大了，将一个 Arena 拆分成 16 份，每一份 4 MiB，称为一个 Chunk。这样 heap 管理自己从 OS 申请来的 Arena 时就可以通过 Chunk 为单位，这样更精细。
 
-最后，我们从前面已经了解到，应用所需的内存在 front-end 和 middle-end 中以 span 结构来管理，而每一个 span 中会包含 n 个 Page。每一个 Chunk 中可包含 512 个 8KiB 的 Page，在 back-end 向 middle-end 提供 span 时，分配的 Page 就是从 Chunk 中而来的。
+最后，我们从前面已经了解到，应用所需的内存在 front-end 和 middle-end 中以 span 结构来管理，而每一个 span 中会包含 n 个 Page。每一个 Chunk 中可包含 [512 个 8KiB 的 Page](https://github.com/golang/go/blob/06338941ea0e3d654805b7323761f3c841cc8d58/src/runtime/mpagealloc.go#L58)，在 back-end 向 middle-end 提供 span 时，分配的 Page 就是从 Chunk 中而来的。
 
 ##### 管理 Chunk
 
@@ -577,13 +577,13 @@ Arena 是一块可包含 64MiB 的逻辑区域，整个地址空间总共可划�
 1. 如何快速找到 n*page 的连续的空闲空间？
 2. 空间不足时该怎么办？
 
-首先来看第一个问题。
+首先来看第一个问题：
 
 在前面 span 的介绍中我们已经见到了，span 利用 bitmap 来记录其每一个 slot 的占用/空闲情况。bitmap 的优势就在于可以通过消耗很少量的空间来指示出很大范围空间的使用情况。
 
-在 `pageAlloc` 中也不例外，每一个 Chunk，其内部的 512 个 Page 是否被分配出去的具体情况，也是采用 bitmap 来表达的。
+在 `pageAlloc` 中也不例外，每一个 Chunk，其内部的 512 个 Page 是否被分配出去的具体情况，也是采用 bitmap 来表达的（0 表示该 page 空闲，1 表示该 page 被占用）。
 
-如图左上角的 `chunks`，实际上是一个 8192*8192 的稀疏矩阵（二维数组），数组中每一个元素称为`pallocData`，每个 `pallocData` 都通过一个 `[8]uint64` 代表一个 Chunk 中的 512 个 Page。 简单的计算就可知，每一个 Chunk 4 MiB，8192\*8192\*4 MiB = 256 TiB，因此 `chunks` 表示的是整个地址空间中所有 Chunk 的 bitmap。
+如图左上角的 `chunks`，实际上是一个 [8192*8192](https://github.com/golang/go/blob/06338941ea0e3d654805b7323761f3c841cc8d58/src/runtime/mpagealloc_64bit.go#L24) 的稀疏矩阵（二维数组），数组中每一个元素称为`pallocData`，每个 `pallocData` 都通过一个 `[8]uint64` 代表一个 Chunk 中的 512 个 Page。 简单的计算就可知，每一个 Chunk 4 MiB，8192\*8192\*4 MiB = 256 TiB，因此 `chunks` 表示的是整个地址空间中所有 Chunk 的 bitmap。
 
 假如采用一维数组来表示，那么使用了 8192*8192 个 64 bytes 大小的 `[8]uint64`  的 `chunks` 本身就会占用 4 GiB 的空间（实际上每个 `pallocData` 还包含了一个 64 bytes 大小的页清除 bitmap，空间占用翻倍到 8 GiB），这完全不可接受。但实际上整个地址空间中我们真正用到的部分很少，所以整个 8 GiB 空间中，绝大多数的 bitmap 都是无意义的。使用二维数组实现的稀疏矩阵，只有当矩阵的某一行中有任意多个 Chunk 被使用到了，才会一次性分配一行的空间（1 MiB），结合 go 内存分配尽量保持聚集的特性，实际使用的 `chunks` 就不会很大。 
 
@@ -591,9 +591,59 @@ Arena 是一块可包含 64MiB 的逻辑区域，整个地址空间总共可划�
 
 首先，`pageAlloc` 引入了一个值 `searchAddr` ，代表每次搜索的起始地址，这个值会在每一次分配后被更新为分配地址后的第一个空闲地址位置。有了 `searchAddr`，在查找时就不用从头开始遍历`chunks`，而是直接通过 `searchAddr` 找到该地址所在的 Chunk bitmap 再查找。
 
-但不幸的事常用，每次分配的内存大小都不同，如果 `searchAddr` 所在的 Chunk 里面不足以满足连续的 n*page 内存需求，就只能再次从头开始查找了。为了让从头查找变得更快一些，`pageAlloc` 又引入了名为 `summary` 的 radix 树，加快查找。
+但不幸的事常用，每次分配的内存大小都不同，如果 `searchAddr` 所在的 Chunk 里面不足以满足连续的 n*page 内存需求，就只能再次从头开始查找了。为了让从头查找变得更快一些，`pageAlloc` 又引入了名为 `summary` 的 radix tree，加快查找。
+
+上图右侧展示的树，就是`summary`。这一课 radix tree，共五层，每一层都通过不同个数的 entry 来表示整个地址空间，越向下层，entry 所表示的地址范围越小，而 entry 的总数越多。
+
+最上层总共只有 [2^14](https://github.com/golang/go/blob/99f1bf54eb502e123e60c605212a616146fbe86a/src/runtime/mpagealloc.go#L75) 个 entry，每一个 entry 将表示 [16 GiB](https://github.com/golang/go/blob/99f1bf54eb502e123e60c605212a616146fbe86a/src/runtime/mpagealloc_64bit.go#L58) 地址范围，正好覆盖了总共 256 TiB 空间。在接下来的 4 层中，每个 entry 都向下对应到 [8](https://github.com/golang/go/blob/99f1bf54eb502e123e60c605212a616146fbe86a/src/runtime/mpagealloc.go#L74) 个 entry，所以从第二层开始每层的每个 entry 分别表示 [2 GiB、256 MiB、32 MiB、4 MiB](https://github.com/golang/go/blob/99f1bf54eb502e123e60c605212a616146fbe86a/src/runtime/mpagealloc_64bit.go#L58) 的地址范围。
+
+那么，entry 到底表示了地址范围内的什么东西呢？每一个 entry 都是一个被重定义名为 `pallocSum` 类型的 uint64 数值。
+
+{% asset_img pallocSum.jpg %}
+
+如图所示，每一个`pallocSum` 实际上是由 3 部分组成，从低位开始分别是：start、max、end，每一部分都占用 21bit。
+
+图中下半部分是一个 bitmap 的示例，可见，start 和 end 分别代表 bitmap 中开头和结尾处 0 的个数（0 代表空闲），而 max 则代表当前 bitmap 中最长的连续 0 的个数，代表最长空闲段有多少个 page。
+
+通过 max，我们就能描述出一段地址空间中，最长可以分配多少连续页，而通过 start 和 end，我们就能描述出两个地址空间交界处，最长可以分配多少连续页。这样当我们搜索时就可以快速的判断当前地址空间下有没有符合要求的连续页。
+
+以首层每 entry 16 GiB 的地址空间来计算，16 GiB 可换算成 2097152 个页，1 << 21 正好等于 2097152，所以 21bit 宽度就足以表达 16 GiB 空间中的最大 page index。
+
+因此，对`summary` 的搜索，实际上就是一个不断缩小范围的过程，只要能找到符合要求的连续页的确切 index，就能换算出地址。用radix tree 来加速查找的本质是将查找成本摊销在每一次更新中，因此为了维护这棵树，每一次内存分配过后，都要更新树中受影响的entry。
+
+第二个问题就相对简单：
+
+当 `pageAlloc` 在查找空间时发现目前纳入管理的 Chunk 中已经难以分配出所需要的空间了，那么它就会尝试向 heap 再申请至少一个 Chunk 来满足需要（如果是大对象分配，可能需要多个 Chunk）。
+
+heap 会通过 OS 抽象层（为了兼容各种不同的 OS 而抽象出的几个通用的内存分配/释放操作）来尝试分配一个 Chunk 的空间。而实际上在 linux 的 OS 抽象层实现中，分配内存的单位会被扩大为 Arena，所以一次性就分配了至少 1 个 Arena 的空间。
+
+##### 管理 Arena
+
+在分配 Arena 的时候，go 不是直接任由 OS 分配一个随机地址，而是会在进程启动时，就划分好所有 Arena 的地址范围（64bit 和 32bit 下略有差异，这里主要描述 64bit 的设计）。
+
+{% asset_img mheap.jpg %}
+
+上图展示的是 `mheap` 的主要结构，其中有一个链表 `arenaHints` 就是用来记录已划分好的地址段。
+
+对于 amd64 架构，Arena 的起始地址定为 [`0xc000000000`](https://github.com/golang/go/blob/0668e3cb1a8407547f1b4e316748d3b898564f8e/src/runtime/malloc.go#L477)。每次分配 Arena 时，会先尝试从 `arenaHints` 的头结点所示位置处尝试向 OS 申请，如果 OS 报告该地址处申请失败，则跳到下一个节点所处位置处尝试。
+
+从图中我们能看到每一个`arenaHint` 的初始地址空间差额是 `0x10000000000`，即 1 TiB。通过 `arenaHint`，就可以确保大部分内存都会按地址连续的进行分配。
+
+除此之外，在 `mheap` 中还用 `allArenas` 切片来记录所有已经分配过的 Arena index，以及 `curArena` 来记录当前待 Arena 已分配的地址范围。
+
+左上角的 `arenas` 是和前面 `pageAlloc` 中的 `chunks` 类似的 bitmap 矩阵，只不过在 64bit 架构下只有一维。这里每一个`heapArena`都记录了一个 bitmap，该 bitmap 不是用来指示内存占用情况的（`chunks` 里面已经记录过了），而是用于 GC，后文会详述。
+
+同样的，`arenas` 也是稀疏的，从它所记录的是 `heapArena` 的指针就可知，未分配的 arena 处，地址为 nil，否则才是真实的 `heapArena` 所在地址。
+
+##### OS 抽象层
 
 
+
+##### PageCache
+
+
+
+#### 1.3.7 内存分配流程
 
 
 
