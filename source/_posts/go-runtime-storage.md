@@ -635,15 +635,61 @@ heap 会通过 OS 抽象层（为了兼容各种不同的 OS 而抽象出的几�
 
 同样的，`arenas` 也是稀疏的，从它所记录的是 `heapArena` 的指针就可知，未分配的 arena 处，地址为 nil，否则才是真实的 `heapArena` 所在地址。
 
-##### OS 抽象层
+##### OS 内存管理抽象层
 
+Go 为了能方便的适配不同的 OS，构造了 OS 内存管理抽象层的概念，不论哪种 OS，go 向他们申请的内存都会处于如下任意的一种状态：
 
+- None：未保留也未映射，所有内存区的默认状态
+- Reserved：逻辑上已经被 go runtime 持有了，但任何应用对其访问都会报错，这部分内存也不会占用任何 rss
+- Prepared：对 Reserved 内存做准备性工作，以便于快速切换到 Ready，任何应用对其的访问可能报错也可能返回零
+- Ready：可以安全的访问
+
+对于这四个状态，提供了几个需要根据具体 OS 来实现的抽象函数，调用这些抽象函数，可以在上述四个状态间转换：
+
+{% asset_img os-mma.jpg %}
+
+对于 Linux：
+
+- `sysAlloc`：直接调用 `mmap`，且不指定 address hint，`prot= READ | WRITE`，`flag = ANON | PRIVATE`，因此可见确实执行了 `sysAlloc` 后可以直接使用
+- `sysReserve`：调用 `mmap`，指定 address hint，但 `prot= NONE`，因此这部分内存不可访问。此外`flag = ANON | PRIVATE | FIXED` ，fixed 参数要求 OS 必须返回给定的地址，否则报错。所以结合前文，在`arenaHint`处申请内存，就是通过调用 `sysReserved`，而如果出错，可以选择下一个 `arenaHint`
+- `sysMap`：调用 `mmap`，指定 address hint，`prot= READ | WRITE`，`flag = ANON | PRIVATE | FIXED` 。按流程，调用 `sysMap` 之前已经已经调用过 `sysReserve`，所以如果这时 OS 再报错就一定是致命错误，进程会被终止
+- `sysUsed`：在 Linux 下，并不存在 commit 这样的申请动作，所以该函数没有太多意义，但 Windows 下很重要。Linux 下只是通过 `madvise` 在给定地址空间内开启透明大页
+- `sysFree`：简单调用 `munmap`
 
 ##### PageCache
+
+我们现在已经知道，当 middle-end 无法在限定次数内从 partial-Swept、partial-UnSwept 以及 full-unSwept 中获取到空闲的 span 时，就会直接到 back-end 这里申请 span。
+
+我们能确认的一点是，直接在 back-end 分配 span 是很昂贵的：
+
+- `mheap`和`pageAlloc` 中的状态都是全局共有的，因此任何操作都要加锁
+- 通常 span 中包含的 n*page 都比较小（至少远小于 Chunk），大费周章的下探到 back-end 层申请几个 page 的内存，申请过后还要修改 Chunk bitmap，和 `summary`
+
+因此，借鉴了`mcache` 的办法，go 在每一个 P 内又放置了一个称为 `PageCache` 的结构，这样，先前的内存分配器架构就可以更新为如下：
+
+{% asset_img pcache.jpg %}
+
+1. 和 `mcache` 一样，访问 `PageCache` 不用加锁
+2. 每次填充`PageCache`时会直接通过 `pageAlloc`分配连续的（注意不是连续空闲的） [64 个 Page](https://github.com/golang/go/blob/7cf32686667fe2de869ddab3ede647e34be9209e/src/runtime/mpagecache.go#L12) 放入`PageCache`，避免了频繁的小量分配
+
+在从 `pageAlloc` 中向 `PageCache` 填充时，会直接寻找到有任意一个 page 空闲的 Chunk，对这个空闲 page 所处位置按向下 64 页对齐后得到一个完整 64 页的起始地址，作为`PageCache` 的起始地址。之后会将这 64 页所对应的 Chunk bitmap 一起交给 `PageCache` 用于查找空闲页和 GC。
 
 
 
 #### 1.3.7 内存分配流程
+
+经过上述一系列的介绍后，我们已经对 go 内存分配器的结构比较熟悉了，作为回顾以及梳理，我们完整的经历一遍分配 span 的流程：
+
+{% asset_img alloc-flow.jpg %}
+
+1. 根据需要分配的内存大小，小内存从`mcache` 中分配，大内存直接从 heap 中分配
+2. 不包含外部指针，且足够小的内存，从`mcache`的 tiny 中分配，否则正常从 `alloc` 中按 size-class 选取 span
+3. 若`mcache` 空间不足，则根据 size-class 选择对应的 `mcentral` 并向 `mcache` 填充对应的 span
+4. 若 `mcentral` 也空间不足，就需要要根据需要的 Page 数量，下沉到 heap 进行分配
+5. 在 heap 分配时，首先会到 P 中的 `PageCache` 尝试，不用加锁
+6. `PageCache` 空间不足，就需要通过 `pageAlloc` 找到某个合适的 Chunk，并对 `PageCache`进行填充
+7. 若 `pageAlloc` 找不到合适的 Chunk，则需要从当前 Arena 中获取新的 Chunk
+8. 如果当前 Arena 也已经全部分配出去，那么就需要通过 OS 内存管理抽象层向操作系统分配合适数量的 Arena
 
 
 
@@ -794,7 +840,7 @@ ffffffffff600000 r-xp 00000000  00:00      0      4     0     0          0      
 
 
 
-### 2.4 其他内存
+### 2.4 堆外内存
 
 
 
