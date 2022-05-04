@@ -368,7 +368,7 @@ span 作为内存分配的基本单元，其内部结构设计的很巧妙。由
 
 span 的主要构成如下图所示：
 
-{% asset_img logical-arch.jpg %}
+{% asset_img span.jpg %}
 
 `spanclass` 作为 span 最基本的属性，决定了以下其他属性的值。
 
