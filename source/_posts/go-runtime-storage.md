@@ -883,7 +883,25 @@ ffffffffff600000 r-xp 00000000  00:00      0      4     0     0          0      
 
 但对于堆外内存，没有地址的约束，因此可以直接通过 `sysAlloc` 来分配，由 OS 选择分配的位置。
 
+基于 `sysAlloc`，runtime 又封装了一些辅助结构来应对不同类型的堆外内存需求，下图展示了它们之间的关系：
 
+{% asset_img not-in-heap.jpg %}
+
+1. `fixalloc`：每一个 `fixalloc` 都会分配固定大小的内存，其 size 在初始化时决定
+   - 用于分配具体的某种结构，如 `mspan`、`mcache`、`arenaHint`
+   - 每一种需要在堆外分配的结构都对应了一个 `fixalloc`
+   - 空间不足时从 `presistentAlloc` 处一次性申请 [`16KiB`](https://github.com/golang/go/blob/0a1a092c4b56a1d4033372fbd07924dad8cbb50b/src/runtime/malloc.go#L132) 的空间，称为 `fixedChunk`
+2. `persistentAlloc`：用于分配相对固定的、生命周期与整个 go 程序一致的内存，不提供内存释放方法
+   - 可为全局的、固定不变的结构分配内存，如每个`heapArena`、`allArenas` 数组、`mcentral` 中的 `spanSetBlock` 等等
+   - 若请求空间大于 [`64KiB`](https://github.com/golang/go/blob/0a1a092c4b56a1d4033372fbd07924dad8cbb50b/src/runtime/malloc.go#L1341)，就直接从 `sysAlloc` 处分配
+   - 空间不足时从 `sysAlloc` 处一次性申请 [`256KiB`](https://github.com/golang/go/blob/0a1a092c4b56a1d4033372fbd07924dad8cbb50b/src/runtime/malloc.go#L1312) 的空间，称为 `persistentChunk`
+3. `sysAlloc`：直接向 OS 申请内存，返回地址由 OS 给定
+   - 可用于分配较大的对外内存，如 `chunks` 中的 `pallocData`，每个需要 `128KiB` 空间
+   - 可用于分配与 OS 相关的内存，如在创建 OS 线程时指定线程栈地址
+
+通过上述堆外内存的分配器，runtime 内置的一些结构就能正常的动态分配到内存中，支撑堆和栈的相关功能。
+
+堆和栈可用后，runtime 内置的其他结构也就能直接在其中分配了，例如 `g`、`m`、`p` 结构就直接从堆上分配。
 
 
 
