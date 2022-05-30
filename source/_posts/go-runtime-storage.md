@@ -258,7 +258,7 @@ ptmalloc 通过这种方式能显著的降低线程竞争，但也存在一些�
 
   - pagemap 是一个 radix 树，可以映射整个地址空间，见下图
 
-    ![](https://github.com/google/tcmalloc/blob/master/docs/images/pagemap.png)
+    ![](https://github.com/google/tcmalloc/blob/master/docs/images/pagemap.png?raw=true)
 
 对于内存分配，tcmalloc 将分配请求分为两类：
 

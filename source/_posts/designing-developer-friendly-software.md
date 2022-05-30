@@ -312,11 +312,11 @@ SQL 语言只描述了用户想要的结果，至于获取这一结果中所要�
 
 ## Reference
 
-7. [Spring Security - Authentication](https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-authentication)
-8. [做出让人爱不释手的基础软件：可观测性和可交互性](https://mp.weixin.qq.com/s/WEO1y8vg21CXlix8wO28hw)
-9. [Refactor - Separate Query from Modifier](https://refactoring.com/catalog/separateQueryFromModifier.html)
-10. [Terraform](https://www.terraform.io/)
-11. [Arthas 在线教程](https://arthas.aliyun.com/doc/arthas-tutorials.html?language=cn)
+1. [Spring Security - Authentication](https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-authentication)
+2. [做出让人爱不释手的基础软件：可观测性和可交互性](https://mp.weixin.qq.com/s/WEO1y8vg21CXlix8wO28hw)
+3. [Refactor - Separate Query from Modifier](https://refactoring.com/catalog/separateQueryFromModifier.html)
+4. [Terraform](https://www.terraform.io/)
+5. [Arthas 在线教程](https://arthas.aliyun.com/doc/arthas-tutorials.html?language=cn)
 6. [Prometheus - First Step](https://prometheus.io/docs/introduction/first_steps/)
 7. [Rustup](https://rustup.rs/)
 8. [Goroutines](https://golang.org/doc/effective_go#goroutines)
