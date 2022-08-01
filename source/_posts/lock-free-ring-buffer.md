@@ -383,11 +383,11 @@ func (r *ring) isFull(tail uint64, head uint64) bool {
 完整的测试代码请见[这里](https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/performance_test.go)。
 
 ```go
-func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount int) {
+func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer, threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
-	go manage(b, threadCount, trueCount)
+	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
 		wg.Wait()
@@ -403,24 +403,28 @@ func baseBenchmark(b *testing.B, buffer RingBuffer, threadCount int, trueCount i
 	})
 
 	b.StopTimer()
-	b.Logf("Success handover count: %d", counter)
+	b.ReportMetric(float64(counter), "handovers")
 }
 
 var controlCh = make(chan bool)
 var wg sync.WaitGroup
 func manage(b *testing.B, threadCount int, trueCount int) {
-	wg.Add(1)
-	for i := 0; i < threadCount; i++ {
-		if trueCount > 0 {
-			controlCh <- true
-			trueCount--
-		} else {
-			controlCh <- false
-		}
-	}
+	runtime.GOMAXPROCS(threadCount)
 
-	b.ResetTimer()
-	wg.Done()
+	go func() {
+		wg.Add(1)
+		for i := 0; i < threadCount; i++ {
+			if trueCount > 0 {
+				controlCh <- true
+				trueCount--
+			} else {
+				controlCh <- false
+			}
+		}
+
+		b.ResetTimer()
+		wg.Done()
+	}()
 }
 ```
 
@@ -463,16 +467,16 @@ func (r *fakeBuffer) Poll() (value interface{}, success bool) {
 
 ### 对比
 
-lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试代码（capacity = 16， thread = 12），执行 10s，分别执行 10 次取平均值。
+lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试代码（capacity = 16， thread = 12），执行 1s，分别执行 100 次取3σ 平均值。
 
 对比结果如下：
 
 | Type                  | Counts         |
 | --------------------- | -------------- |
-| Lock-free ring buffer | 51, 094, 383.9 |
-| Channel               | 31, 563, 965.2 |
+| Lock-free ring buffer | 5, 744, 963.03 |
+| Channel               | 2, 670, 051.37 |
 
-可以看到，性能测试表明，限定在前述代码的场景下，我们的 lock-free 方式比有锁方式快约 1.6 倍。
+可以看到，性能测试表明，限定在前述代码的场景下，我们的 lock-free 方式比有锁方式快约 2 倍。
 
 ### 对比另一种实现
 
@@ -490,11 +494,11 @@ lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试�
 
    {% asset_img 5.png %}
 
-2. Threads = 12，Capacity = 16， Producer : Consumer = [5:1, 3:1, 2:1, 1:1, 1:2, 1:3, 1:5]  
+2. Threads = 12，Capacity = 32， Producer : Consumer = [1:11, 1:5, 1:3, 1:2, 1:1, 2:1, 3:1, 5:1, 11:1]  
 
    {% asset_img 6.png %}
 
-3. Capacity = 16， Producer : Consumer = 1:1，Thread = [2, 4, 6, 8, 10, 12]
+3. Capacity = 32， Producer : Consumer = 1:1，Thread = [2, 4, 8, 12, 24, 48]
 
    {% asset_img 7.png %}
 
@@ -505,6 +509,8 @@ lock-free ring buffer 与 `channel` 的性能测试，采用上述性能测试�
 显然没有优化过的性能与本文方案不相伯仲。
 
 不论是从 go 代码，还是从编译后的汇编代码来看，改进版和初始版实现之间的主要区别都在于改进版通过多记录了每个节点的 `step` 从而减少了一次 `if..else..`（可以减少一些分支预测错误导致的时间惩罚），除此之外并无区别。但正因为 `step` 的存在隔离了 `head` 与 `tail` 的读写，因此得以采用 Cacheline 来优化对这些共享变量的读写。
+
+另外，由于无锁的特性，从上面不同线程的对比图中我们发现，当线程数（测试中是直接设置了 P 的数量，因此可以近似认为这里的线程数是操作系统线程数）超过 CPU 数量时（测试机器是6核，超线程后 12 个逻辑核），由于对 CPU 资源的竞争，导致性能急剧下降（考虑是线程调度成本），反倒是 Channel 通过互斥量排队的方式更胜一筹。
 
 ## MPSC 与 SPMC
 
