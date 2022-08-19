@@ -73,9 +73,30 @@ categories:
 
 ### 2. 关于泛型的讨论
 
+#### 2.1 泛型概览
+
+Golang 在 2009 年公开发布的时候，就没有包含泛型特性，从 2009 年开始，一直到 2020 年之间，不断地有人提出泛型的 feature request，有关泛型的各种讨论也层出不穷（参考有关泛型的 [issue](https://github.com/golang/go/issues?q=label%3Agenerics) ）。
+
+为什么 Golang 一直没有引入泛型呢？其作者之一 rsc 在 2009 年的讨论 [The Generic Dilemma](https://research.swtch.com/generic) 提到了一个”泛型困境“：
+
+对于泛型，市面上可见的三种处理方式：
+
+1. 不处理（C ），不会对语言添加任何复杂度，但会让编码更慢（slows programers）
+2. 在编译期进行单态化或宏扩展（C++），生成大量代码。不产生运行时开销，但由于单态化的代码会导致 icache miss 增多从而影响性能。这种方式会让编译更慢（slows compilation）
+3. 隐式装箱/拆箱（Java），可以共用一套泛型函数，实例对象在运行时做强制转换。虽然共享代码可以提高 icache 效率，但运行时的类型转换、运行时通过查表进行函数调用都会限制优化、降低运行速度，因此这种方式会让执行更慢（slows execution）
+4. （rsc 文中忽略的部分，C# 的实现）：
+
+
+
+#### 2.2 不同的 GCShape
+
 
 
 ### 3. 回到 lfring
+
+#### 3.1 简单看看汇编
+
+#### 3.2 改变数据类型
 
 
 
