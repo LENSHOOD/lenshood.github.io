@@ -84,7 +84,8 @@ Golang 在 2009 年公开发布的时候，就没有包含泛型特性，从 200
 1. 不处理（C ），不会对语言添加任何复杂度，但会让编码更慢（slows programers）
 2. 在编译期进行单态化或宏扩展（C++），生成大量代码。不产生运行时开销，但由于单态化的代码会导致 icache miss 增多从而影响性能。这种方式会让编译更慢（slows compilation）
 3. 隐式装箱/拆箱（Java），可以共用一套泛型函数，实例对象在运行时做强制转换。虽然共享代码可以提高 icache 效率，但运行时的类型转换、运行时通过查表进行函数调用都会限制优化、降低运行速度，因此这种方式会让执行更慢（slows execution）
-4. （rsc 文中忽略的部分，C# 的实现）：
+
+另外，在 rsc 文中还忽略了一个重要的部分，[C# 的实现](https://docs.microsoft.com/en-us/previous-versions/ms379564(v=vs.80)?redirectedfrom=MSDN#generics-implementation)：对于值类型，采用类似 C++ 的方式用实际类型替换，而对于引用类型，则直接改写为 `Object`，当前 go1.18 的泛型实现，有点类似与 C# 的实现。不过，C# 中泛型实例化的操作都是在运行时的，所以相对来说也可以归在 ”slow execution“。
 
 
 
