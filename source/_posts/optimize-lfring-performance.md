@@ -85,7 +85,14 @@ Golang 在 2009 年公开发布的时候，就没有包含泛型特性，从 200
 2. 在编译期进行单态化或宏扩展（C++），生成大量代码。不产生运行时开销，但由于单态化的代码会导致 icache miss 增多从而影响性能。这种方式会让编译更慢（slows compilation）
 3. 隐式装箱/拆箱（Java），可以共用一套泛型函数，实例对象在运行时做强制转换。虽然共享代码可以提高 icache 效率，但运行时的类型转换、运行时通过查表进行函数调用都会限制优化、降低运行速度，因此这种方式会让执行更慢（slows execution）
 
-另外，在 rsc 文中还忽略了一个重要的部分，[C# 的实现](https://docs.microsoft.com/en-us/previous-versions/ms379564(v=vs.80)?redirectedfrom=MSDN#generics-implementation)：对于值类型，采用类似 C++ 的方式用实际类型替换，而对于引用类型，则直接改写为 `Object`，当前 go1.18 的泛型实现，有点类似与 C# 的实现。不过，C# 中泛型实例化的操作都是在运行时的，所以相对来说也可以归在 ”slow execution“。
+rsc 的文章并没有归纳所有的泛型实践，比如[C# 的实现](https://docs.microsoft.com/en-us/previous-versions/ms379564(v=vs.80)?redirectedfrom=MSDN#generics-implementation)：对于值类型，采用类似 C++ 的方式用实际类型替换，而对于引用类型，则直接改写为 `Object`，当前 go1.18 的泛型实现，和 C# 有点类似，不过，C# 中泛型实例化的操作都是在运行时的，所以相对来说也可以归在 ”slow execution“。此外，在一篇专门记录 go 泛型讨论的文章 [Summary of Go Generics Discussions](https://docs.google.com/document/d/1vrAy9gMpMoS3uaVphB32uVXX4pi-HnNjkMEgyAHX4N4/edit#heading=h.5nkda67to6u0) 里面总结了十几种实现泛型的方法。总之，各种实现之间也大都是在上面的三个”slow“之间抉择。
+
+总之，go 团队一方面认为直接使用 `interface{}` 等等折中的办法能解决大多数问题，因此引入泛型并不着急，另一方面也认为还没有找到能让泛型实现的与 go 语言其他部分紧密配合的方法。因此泛型便一拖再拖。
+
+在 go1.18 中，泛型的实现可以用一句话来概括：*GCShape Stenciling with Dictionaries*。
+
+- [Stenciling](https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-stenciling.md) 是一种泛型实现方式，指的就是类似 monomorphizing 的办法，对同一个泛型函数，给每个实际类型都生成一个实现，在编译之后，所有对泛型函数的调用，都会被替换为生成的实例类型函数的调用。这是类似 C++的实现。然而由于 Go 的 Type Alias 特性，相同底层类型的多个别称类型，就会生成多个实例函数。
+- [Dictionaries](https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-dictionaries.md) 恰好相反，在编译期，对每个泛型函数，只会生成单个汇编代码块，它将作为一个参数传入泛型函数中。dictionary 中主要包含的就是所有可能涉及到的实例类型的 `runtime._type` 引用。在泛型函数被实际调用时，如果函数逻辑涉及到对泛型参数的方法调用，就可以通过 dictionary + 偏移量来获得实例类型的 `runtime._type` ，而后再进一步获得 `itab` 信息并找到函数地址（对 interface 约束的泛型参数）。
 
 
 
