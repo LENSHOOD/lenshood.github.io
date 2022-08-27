@@ -156,14 +156,14 @@ func main() {
 
 	s4 := putToArr(dog)
 	s5 := putToArr(cat)
-	s6 := doSay(&dog)
-	fmt.Printf("s4: %v, s5: %v, s6: %v\n", s4, s5, s6)
+	s6 := doSay(&cat)
+	s7 := doSay(&dog)
+	fmt.Printf("s4: %v, s5: %v, s6: %v, s7: %v\n", s4, s5, s6, s7)
 
 	var animal = Animal(&cat)
-	s7 := doSay(animal)
-	fmt.Printf("s7: %v\n", s7)
+	s8 := doSay(animal)
+	fmt.Printf("s8: %v\n", s8)
 }
-
 ```
 
 上述程序大致对泛型进行了如下的两种测试：
@@ -240,50 +240,7 @@ main.numeric[go.shape.int64_0] STEXT dupok nosplit size=27 args=0x18 locals=0x0 
 
 ##### Struct 类型泛型 - 1：putToArray
 
-先看看未经优化的 `putToArray()` 的汇编结果：
-
-```assembly
-main.putToArr[go.shape.struct { <unlinkable>.name string }_0] STEXT dupok size=229 args=0x18 locals=0x50 funcid=0x0 align=0x0
-	0x0000 00000 (main.go:32)	TEXT	main.putToArr[go.shape.struct { <unlinkable>.name string }_0](SB), DUPOK|ABIInternal, $80-24
-	...
-	0x0018 00024 (main.go:32)	MOVQ	AX, main..dict+88(SP)
-	0x001d 00029 (main.go:32)	MOVQ	BX, main.e+96(SP)
-	0x0022 00034 (main.go:32)	MOVQ	CX, main.e+104(SP)
-	0x0027 00039 (main.go:32)	MOVQ	$0, main.~r0+24(SP)
-	0x0030 00048 (main.go:32)	MOVUPS	X15, main.~r0+32(SP)
-	## AX，BX，CX 存放 makeslice 需要的三个入参，type，len，cap
-	0x0036 00054 (main.go:33)	LEAQ	type.go.shape.struct { <unlinkable>.name string }_0(SB), AX
-	0x003d 00061 (main.go:33)	MOVL	$1, BX
-	0x0042 00066 (main.go:33)	MOVQ	BX, CX
-	...
-	0x0045 00069 (main.go:33)	CALL	runtime.makeslice(SB) ## 构造并初始化容量为 1 的 slice
-	0x004a 00074 (main.go:33)	MOVQ	AX, main.arr+48(SP)   ## AX 保存了返回的 slice 地址
-	0x004f 00079 (main.go:33)	MOVQ	$1, main.arr+56(SP)   ## slice len
-	0x0058 00088 (main.go:33)	MOVQ	$1, main.arr+64(SP)   ## slice cap
-	## 入参的底层类型是 string，包含一个 8 字节的 "str unsafe.Pointer" 和 8 字节的 "len int"
-	0x0061 00097 (main.go:34)	MOVQ	main.e+96(SP), DX     ## str
-	0x0066 00102 (main.go:34)	MOVQ	main.e+104(SP), SI    ## len
-	0x006b 00107 (main.go:34)	JMP	109
-	0x006d 00109 (main.go:34)	MOVQ	SI, 8(AX)             ## string.len 存入 arr[0]+8
-	...
-	0x007c 00124 (main.go:34)	MOVQ	DX, (AX)              ## string.str 存入 arr[0]
-	...
-	0x008c 00140 (main.go:35)	MOVQ	main.arr+56(SP), BX
-	0x0091 00145 (main.go:35)	MOVQ	main.arr+64(SP), CX
-	0x0096 00150 (main.go:35)	MOVQ	main.arr+48(SP), DX
-	0x009b 00155 (main.go:35)	MOVQ	DX, main.~r0+24(SP)
-	0x00a0 00160 (main.go:35)	MOVQ	BX, main.~r0+32(SP)
-	0x00a5 00165 (main.go:35)	MOVQ	CX, main.~r0+40(SP)
-	0x00aa 00170 (main.go:35)	MOVQ	main.~r0+24(SP), AX
-	0x00af 00175 (main.go:35)	MOVQ	72(SP), BP
-	0x00b4 00180 (main.go:35)	ADDQ	$80, SP
-	0x00b8 00184 (main.go:35)	RET
-	...
-```
-
-生成的函数  `main.putToArr[go.shape.struct { <unlinkable>.name string }_0]` 再次证明了，相同底层类型的 struct，共享同一个GCShape。
-
-优化后的代码：
+由于编译优化和上文类似，因此直接展示优化后的 `putToArray()` 的汇编结果：
 
 ```assembly
 main.putToArr[go.shape.struct { <unlinkable>.name string }_0] STEXT dupok size=159 args=0x18 locals=0x30 funcid=0x0 align=0x0
@@ -291,19 +248,21 @@ main.putToArr[go.shape.struct { <unlinkable>.name string }_0] STEXT dupok size=1
 	...
 	0x0019 00025 (main.go:34)	MOVQ	CX, main..autotmp_7+24(SP)
 	0x001e 00030 (main.go:34)	MOVQ	BX, main..autotmp_8+32(SP)
+	## AX，BX，CX 存放 makeslice 需要的三个入参，type，len，cap
 	0x0023 00035 (main.go:33)	LEAQ	type.go.shape.struct { <unlinkable>.name string }_0(SB), AX
 	0x002a 00042 (main.go:33)	MOVL	$1, BX
 	0x002f 00047 (main.go:33)	MOVQ	BX, CX
 	...
-	0x0032 00050 (main.go:33)	CALL	runtime.makeslice(SB)
-	0x0037 00055 (main.go:34)	MOVQ	main..autotmp_7+24(SP), DX  ## string.len
+	0x0032 00050 (main.go:33)	CALL	runtime.makeslice(SB)       ## 堆上构造并初始化容量为 1 的 slice，首地址存入 AX
+	## 入参的底层类型是 string，包含一个 8 字节的 "str unsafe.Pointer" 和 8 字节的 "len int"
+	0x0037 00055 (main.go:34)	MOVQ	main..autotmp_7+24(SP), DX  ## (AX) + 8 <= string.len
 	0x003c 00060 (main.go:34)	MOVQ	DX, 8(AX)
 	...
-	0x0049 00073 (main.go:34)	MOVQ	main..autotmp_8+32(SP), DX  ## string.str
+	0x0049 00073 (main.go:34)	MOVQ	main..autotmp_8+32(SP), DX  ## (AX) <= string.str
 	0x004e 00078 (main.go:34)	MOVQ	DX, (AX)
 	0x0051 00081 (main.go:34)	JMP	101
-	0x0053 00083 (main.go:34)	MOVQ	AX, DI
 	...
+	## 函数返回的 slice，AX 已经存储了地址，再向 BX，CX 中存放 len == cap == 1
 	0x0065 00101 (main.go:35)	MOVL	$1, BX
 	0x006a 00106 (main.go:35)	MOVQ	BX, CX
 	0x006d 00109 (main.go:35)	MOVQ	40(SP), BP
@@ -312,11 +271,126 @@ main.putToArr[go.shape.struct { <unlinkable>.name string }_0] STEXT dupok size=1
 	...
 ```
 
-同样也是优化掉了许多栈复制动作和 `main..dict` 相关的逻辑。
+生成的函数  `main.putToArr[go.shape.struct { <unlinkable>.name string }_0]` 再次证明了，相同底层类型的 struct，共享同一个GCShape，因此没有出现专为`Cat` 和 `Dog` 生成的代码。
 
-##### Struct 类型泛型 - 1：putToArray
+##### Struct 类型泛型 - 2：doSay
 
+`doSay()` 在汇编结果上看，生成了两个函数：
 
+```assembly
+main.doSay[go.shape.*uint8_0] STEXT dupok size=118 args=0x10 locals=0x30 funcid=0x0 align=0x0
+	0x0000 00000 (main.go:22)	TEXT	main.doSay[go.shape.*uint8_0](SB), DUPOK|ABIInternal, $48-16
+	...
+	0x0014 00020 (main.go:22)	MOVQ	AX, main..dict+56(SP)
+	0x0019 00025 (main.go:22)	MOVQ	BX, main.e+64(SP)     ## 入参 e
+	0x001e 00030 (main.go:22)	MOVUPS	X15, main.~r0+8(SP) 
+	0x0024 00036 (main.go:22)	MOVQ	main..dict+56(SP), DX ## DX 存放 dict 地址
+	...
+	0x0029 00041 (main.go:22)	TESTB	AL, (DX)
+	0x002b 00043 (main.go:22)	LEAQ	16(DX), CX            ## dict+16 存入 CX
+	0x002f 00047 (main.go:22)	MOVQ	main.e+64(SP), AX     ## 方法隐式参数：receiver
+	0x0034 00052 (main.go:22)	MOVQ	16(DX), BX            ## dict+16 指向的数据即 (*Dog).say 方法地址
+	0x0038 00056 (main.go:22)	MOVQ	CX, DX                ## 按目前的 calling convention，DX 存放 closure ctx
+	...
+	0x003b 00059 (main.go:22)	CALL	BX                    ## 跳转到 (*Dog).say
+	0x003d 00061 (main.go:22)	MOVQ	AX, main..autotmp_3+24(SP)
+	0x0042 00066 (main.go:22)	MOVQ	BX, main..autotmp_3+32(SP)
+	0x0047 00071 (main.go:22)	MOVQ	AX, main.~r0+8(SP)
+	0x004c 00076 (main.go:22)	MOVQ	BX, main.~r0+16(SP)
+	0x0051 00081 (main.go:22)	MOVQ	40(SP), BP
+	0x0056 00086 (main.go:22)	ADDQ	$48, SP
+	0x005a 00090 (main.go:22)	RET
+	...
+main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=141 args=0x18 locals=0x38 funcid=0x0 align=0x0
+	...
+	0x0030 00048 (main.go:22)	LEAQ	16(DX), CX
+	0x0034 00052 (main.go:22)	MOVQ	main.e+72(SP), AX
+	0x0039 00057 (main.go:22)	MOVQ	main.e+80(SP), BX
+	0x003e 00062 (main.go:22)	MOVQ	16(DX), SI             ## dict+16 存入 SI
+	0x0042 00066 (main.go:22)	MOVQ	CX, DX
+	0x0045 00069 (main.go:22)	PCDATA	$1, $1
+	0x0045 00069 (main.go:22)	CALL	SI                     ## 跳转到 Animal.say
+	...
+<unlinkable>..dict.doSay[*<unlinkable>.Dog] SRODATA dupok size=24
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 00 00 00 00 00 00 00 00                          ........
+	rel 0+8 t=1 type.*<unlinkable>.Dog+0
+	rel 0+0 t=23 type.*<unlinkable>.Dog+0
+	rel 16+8 t=1 <unlinkable>.(*Dog).say+0
+<unlinkable>..dict.doSay[<unlinkable>.Animal] SRODATA dupok size=24
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 00 00 00 00 00 00 00 00                          ........
+	rel 0+8 t=1 type.<unlinkable>.Animal+0
+	rel 16+8 t=1 <unlinkable>.Animal.say+0
+	
+"".doSay[go.shape.*uint8_0] STEXT dupok size=124 args=0x10 locals=0x38 funcid=0x0 align=0x0
+	...
+	0x0014 00020 (main.go:22)	MOVQ	AX, ""..dict+64(SP)
+	0x0019 00025 (main.go:22)	MOVQ	BX, "".e+72(SP)         ## 入参 e
+	0x001e 00030 (main.go:22)	MOVUPS	X15, "".~r0+16(SP)
+	0x0024 00036 (main.go:22)	MOVQ	"".e+72(SP), AX
+	0x0029 00041 (main.go:22)	MOVQ	AX, ""..autotmp_3+8(SP)
+	0x002e 00046 (main.go:22)	MOVQ	""..dict+64(SP), CX     ## CX 存放 dict 地址
+	...
+	0x0033 00051 (main.go:22)	TESTB	AL, (CX)
+	0x0035 00053 (main.go:22)	MOVQ	16(CX), CX              ## dict+16 指向 Cat/Dog 的 itab
+	0x0039 00057 (main.go:22)	TESTB	AL, (CX)
+	0x003b 00059 (main.go:22)	MOVQ	24(CX), CX              ## itab+24 即为实际方法列表地址
+	...
+	0x0040 00064 (main.go:22)	CALL	CX                      ## 方法列表中只有一个方法，直接调用就是 say()
+	0x0042 00066 (main.go:22)	MOVQ	AX, ""..autotmp_4+32(SP)
+	0x0047 00071 (main.go:22)	MOVQ	BX, ""..autotmp_4+40(SP)
+	0x004c 00076 (main.go:22)	MOVQ	AX, "".~r0+16(SP)
+	0x0051 00081 (main.go:22)	MOVQ	BX, "".~r0+24(SP)
+	0x0056 00086 (main.go:22)	MOVQ	48(SP), BP
+	0x005b 00091 (main.go:22)	ADDQ	$56, SP
+	0x005f 00095 (main.go:22)	NOP
+	0x0060 00096 (main.go:22)	RET
+	...
+"".doSay[go.shape.interface { "".say() string }_0] STEXT dupok size=170 args=0x18 locals=0x58 funcid=0x0 align=0x0
+	...
+	0x002f 00047 (main.go:22)	MOVQ	"".e+112(SP), CX         ## 入参 e.data (参见 iface)
+	0x0034 00052 (main.go:22)	MOVQ	CX, ""..autotmp_5+24(SP)
+	0x0039 00057 (main.go:22)	MOVQ	"".e+104(SP), BX         ## 入参 e.tab (参见 iface)
+	0x003e 00062 (main.go:22)	LEAQ	type."".Animal(SB), AX   ## Animal type
+	0x0045 00069 (main.go:22)	PCDATA	$1, $1
+	0x0045 00069 (main.go:22)	CALL	runtime.assertI2I(SB)    ## 校验传入的 e 是否是 Animal，返回值 itab 存入 AX
+	0x004a 00074 (main.go:22)	MOVQ	AX, ""..autotmp_3+64(SP)
+	0x004f 00079 (main.go:22)	MOVQ	""..autotmp_5+24(SP), CX
+	0x0054 00084 (main.go:22)	MOVQ	CX, ""..autotmp_3+72(SP)
+	0x0059 00089 (main.go:22)	TESTB	AL, (AX)
+	0x005b 00091 (main.go:22)	MOVQ	24(AX), DX               ## itab+24 即为实际方法列表地址
+	0x005f 00095 (main.go:22)	MOVQ	CX, AX
+	...
+	0x0062 00098 (main.go:22)	CALL	DX                       ## 方法列表中只有一个方法，直接调用就是 say()
+	...
+""..dict.doSay[*"".Cat] SRODATA dupok size=24
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 00 00 00 00 00 00 00 00                          ........
+	rel 0+8 t=1 type.*"".Cat+0
+	rel 0+0 t=23 type.*"".Cat+0
+	rel 0+0 t=23 type.*"".Cat+0
+	rel 16+8 t=1 go.itab.*"".Cat,"".Animal+0
+""..dict.doSay[*"".Dog] SRODATA dupok size=24
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 00 00 00 00 00 00 00 00                          ........
+	rel 0+8 t=1 type.*"".Dog+0
+	rel 0+0 t=23 type.*"".Dog+0
+	rel 0+0 t=23 type.*"".Dog+0
+	rel 16+8 t=1 go.itab.*"".Dog,"".Animal+0
+""..dict.doSay["".Animal] SRODATA dupok size=24
+	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+	0x0010 00 00 00 00 00 00 00 00                          ........
+	rel 0+8 t=1 type."".Animal+0
+```
+
+对于`doSay()` 分别基于在`main()` 中直接传入的 `*Cat/*Dog` 和传入被转换为 `Animal` 的 Dog，生成了两个类似的函数。`*Cat/*Dog`对应的函数其 GCShape 是 `*uint8_0`，而`Animal` 对应的 GCShape 则是 `interface { <unlinkable>.say() string }_0`，符合 GCShape 的定义（interface 视为单独的 GCShape，而指针类型全部视为`*unit8`）。
+
+这里我们会发现，由于指针类型的 GCShape 是完全相同的，那么当传入的参数分别是 `*Cat/*Dog` 时，如何才能找到正确的 `say()` 呢？
+
+通过汇编代码我们发现，泛型函数需要先到`dict` 中找到对应类型的 interface `itab`，再通过`itab` 里面的方法列表找到方法进行调用。相比非泛型下的 interface 接口调用，多了一个寻址 dict 的步骤，可以预见这种方式一定更慢。而对 `Animal` 的泛型调用更夸张，中间竟然还穿插了一次运行时的类型校验函数调用。
+
+有关上述测试，在 Vicent Marti 的文章 [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower) 中都有详述。
 
 
 
