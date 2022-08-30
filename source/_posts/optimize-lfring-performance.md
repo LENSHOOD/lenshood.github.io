@@ -398,6 +398,65 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 
 #### 3.1 简单看看汇编
 
+基于前一节的介绍，我们已经对 go 泛型所生成的汇编代码有了一定的认识，那么现在我们直接将两个版本（interface{} 和 generics）的 lfring 其汇编结果进行比较，来直观的进行体会：
+
+##### type：node based
+
+```assembly
+###### interface{} 代码经过精简，省略了无关本文的部分
+<unlinkable>.(*nodeBased).Offer STEXT size=293 args=0x18 locals=0x30 funcid=0x0 align=0x0
+	0x0018 00024 (node_based.go:72)	MOVQ	AX, <unlinkable>.r+56(SP)         ## receiver
+	0x001d 00029 (node_based.go:72)	MOVQ	BX, <unlinkable>.value+64(SP)     ## eface._type
+	0x0022 00034 (node_based.go:72)	MOVQ	CX, <unlinkable>.value+72(SP)     ## eface.data
+	0x0027 00039 (node_based.go:72)	LEAQ	type.interface {}(SB), AX
+	0x002e 00046 (node_based.go:72)	CALL	runtime.newobject(SB)             ## 堆上创建 interface{} 类型对象
+	0x003c 00060 (node_based.go:72)	MOVUPS	<unlinkable>.value+64(SP), X0   ## 将 eface 赋值到创建的对象上
+	0x0041 00065 (node_based.go:72)	MOVUPS	X0, (AX)                        ## MOVUPS SSE 指令一次性移动 128bit
+  ... 之后完全相同
+
+###### generics 代码经过精简，省略了无关本文的部分
+<unlinkable>.(*nodeBased[go.shape.int_0]).Offer STEXT dupok size=249 args=0x18 locals=0x20 funcid=0x0 align=0x0
+	0x0018 00024 (node_based.go:72)	MOVQ	BX, <unlinkable>.r+48(SP)         ## receiver
+	0x001d 00029 (node_based.go:72)	MOVQ	CX, <unlinkable>.value+56(SP)     ## value
+	0x0022 00034 (node_based.go:72)	LEAQ	type.go.shape.int_0(SB), AX
+	0x0029 00041 (node_based.go:72)	CALL	runtime.newobject(SB)             ## 堆上创建 go.shape.int_0 类型对象
+	0x002e 00046 (node_based.go:72)	MOVQ	<unlinkable>.value+56(SP), CX
+	0x0033 00051 (node_based.go:72)	MOVQ	CX, (AX)                          ## 为创建的对象赋值为 value
+  ... 之后完全相同
+```
+
+以`Offer`为例，我们发现 `interface{}` 和 `generics` 两种区别不大，基本都是将传入的`value` 在堆上创建对象，唯一区别是创建对象的类型不同。
+
+再看一看实际调用的地方：
+
+```assembly
+###### interface{}
+	...
+	0x0111 00273 (performance_test.go:174)	MOVQ	(DX)(BX*8), AX       ## 入参放到 AX
+	0x0115 00277 (performance_test.go:174)	CALL	runtime.convT64(SB)  ## 入参是 64bit int，convT64 将其分配在堆上
+	0x011a 00282 (performance_test.go:174)	MOVQ	<unlinkable>.buffer.itab+48(SP), CX
+	0x011f 00287 (performance_test.go:174)	MOVQ	24(CX), DX           ## Buffer.iface.fun 得到接口第一个方法地址
+	0x0123 00291 (performance_test.go:174)	LEAQ	type.int(SB), BX     ## interface{} 类型的 value：eface._type
+	0x012a 00298 (performance_test.go:174)	MOVQ	AX, SI
+	0x012d 00301 (performance_test.go:174)	MOVQ	<unlinkable>.buffer.data+64(SP), AX ## receiver
+	0x0132 00306 (performance_test.go:174)	MOVQ	SI, CX               ## interface{} 类型的 value：eface.data
+	0x0135 00309 (performance_test.go:174)	CALL	DX                   ## Offer(receiver, eface._type, eface.data)
+	...
+	
+###### generics
+	...
+	0x00be 00190 (performance_test.go:173)	MOVQ	<unlinkable>.buffer.itab+40(SP), R8
+	0x0126 00294 (performance_test.go:175)	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun
+	0x012a 00298 (performance_test.go:175)	MOVQ	(DI)(R10*8), BX      ## 入参放到 BX
+	0x012e 00302 (performance_test.go:175)	MOVQ	SI, AX               ## receiver
+	0x0131 00305 (performance_test.go:175)	CALL	CX                   ## Offer(receiver, int value)
+	...
+```
+
+这里就能看出区别了，对于接收泛型类型参数的函数，在编译期其泛型就已经确定被替换为了 `go.shape.int_0`，虽然在 `Offer()`内部会将 int 值放在堆上，但当编译器能确定外部传入的参数是 int 类型时，直接传值就好了。但对于接收 `interface{}` 类型的参数，虽然实际上传入的参数仍旧是 int，但由于强行转换成了 `interface{}`，因此编译器在进行逃逸分析时，难以确定 `Offer()` 的调用者，因此就必须要产生一次额外的 `runtime.convT64` 内存分配动作，将 int 值转换为堆上的 `interface{}`。
+
+经过对比，我们可以假设，就是这一次额外的堆内存分配，导致了性能的差异。
+
 #### 3.2 改变数据类型
 
 
