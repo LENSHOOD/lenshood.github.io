@@ -400,8 +400,6 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 
 基于前一节的介绍，我们已经对 go 泛型所生成的汇编代码有了一定的认识，那么现在我们直接将两个版本（interface{} 和 generics）的 lfring 其汇编结果进行比较，来直观的进行体会：
 
-##### type：node based
-
 ```assembly
 ###### interface{} 代码经过精简，省略了无关本文的部分
 <unlinkable>.(*nodeBased).Offer STEXT size=293 args=0x18 locals=0x30 funcid=0x0 align=0x0
@@ -453,13 +451,69 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 	...
 ```
 
-这里就能看出区别了，对于接收泛型类型参数的函数，在编译期其泛型就已经确定被替换为了 `go.shape.int_0`，虽然在 `Offer()`内部会将 int 值放在堆上，但当编译器能确定外部传入的参数是 int 类型时，直接传值就好了。但对于接收 `interface{}` 类型的参数，虽然实际上传入的参数仍旧是 int，但由于强行转换成了 `interface{}`，因此编译器在进行逃逸分析时，难以确定 `Offer()` 的调用者，因此就必须要产生一次额外的 `runtime.convT64` 内存分配动作，将 int 值转换为堆上的 `interface{}`。
+这里就能看出区别了，对于接收泛型类型参数的函数，在编译期其泛型就已经确定被替换为了 `go.shape.int_0`，该 GCShape 不包含指针，因此传参时直接传值。
 
-经过对比，我们可以假设，就是这一次额外的堆内存分配，导致了性能的差异。
+但对于接收 `interface{}` 类型的参数，虽然实际上传入的参数仍旧是 int，但由于强行转换成了 `interface{}`，因此编译器在进行逃逸分析时，难以确定该 `interface{}` 里面的 data 指针，传入函数体内后会如何被使用（栈上分配要求[堆上指针不可指向栈](https://github.com/golang/go/blob/64b260dbdefcd2205e74d236a7f33d0e6b8f48cb/src/cmd/compile/internal/escape/escape.go#L22)），因此保守的做法就是产生一次额外的 `runtime.convT64` 内存分配动作。
+
+经过对比，我们可以假设，就是因为这一次额外的堆内存分配，导致了性能的差异。
 
 #### 3.2 改变数据类型
 
+根据上述推断，如果在转换 `interface{}` 时不再需要进行堆内存分配，也许两者的差异就会消失。设想，假如传入的参数已经在堆上了，不就不需要额外分配一次了吗？（这里主要为了测试 buffer 本身的性能，把堆上分配的开销排除在了测试外）。
+
+一次，直接给`Offer()` 传入一个已经在堆上分配过的对象指针，我们得到了如下的测试结果：
+
+{% iframe with-capacity-pointer.html 100% 500 %}
+
+看到上图，不需要任何计算，肉眼也能看出来二者几乎一致。既然从测试结果能印证我们的假设，我们再看看汇编：
+
+```assembly
+###### interface{}
+	...
+	0x0126 00294 (performance_test.go:174)	MOVQ	24(R8), DX           ## Buffer.iface.fun 得到接口第一个方法地址
+	0x012a 00298 (performance_test.go:174)	LEAQ	(DI)(R10*8), CX      ## interface{} 类型的 value：eface.data
+	0x012e 00302 (performance_test.go:174)	MOVQ	SI, AX               ## receiver
+	0x0131 00305 (performance_test.go:174)	LEAQ	type.*int(SB), BX    ## interface{} 类型的 value：eface._type
+	0x0138 00312 (performance_test.go:174)	CALL	DX                   ## Offer(receiver, eface._type, eface.data)
+	...
+	
+###### generics
+	...
+	0x0126 00294 (performance_test.go:175)	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun
+	0x012a 00298 (performance_test.go:175)	LEAQ	(DI)(R10*8), BX      ## 入参放到 BX
+	0x012e 00302 (performance_test.go:175)	MOVQ	SI, AX               ## receiver
+	0x0131 00305 (performance_test.go:175)	CALL	CX                   ## Offer(receiver, int value)
+	...
+```
+
+可以看到在传入了指针后，`interface{}` 不再调用  `runtime.convT64(SB)` 了。另外，从 0x0131 00312 这一行也可以发现，type 变成了 `*int`。
 
 
-### 4. Channel 迷思
 
+### 4. 总结
+
+在前面的文章中，我们先通过测试发现，将 lfring 改造为泛型后，性能有大约 5%~10% 左右的提升。之后分析了 go 泛型的原理以及对几种泛型编译结果的解读。最后通过对 lfring 的泛型、`interface{}` 两种形式的性能、编译结果的对比，得出了性能提升的主要原因是，对非指针类型参数，`interface{}` 在转换过程中需要一次额外的堆内存分配，而泛型不需要。
+
+但结合第二节对于泛型的分析，我们也会发现 go 当前泛型实现的缺陷：对于传入接口类型的泛型参数，调用泛型函数需要进行两次内存寻址才能找到正确的方法地址，在这种场景下，泛型反倒会降低性能。
+
+最后，引用 Vicent Marti 的文章 [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower) 中最后对于 go 泛型使用场景的总结：
+
+- **建议用泛型** 的`ByteSeq` 约束，来消除接收 `string` 和 `[]byte` 参数的相同行为方法。泛型生成的 GCShape 和手写的非常相近。
+- **建议用泛型** 在数据结构中。这种方式是目前为止最合适的：先前在数据结构中用 `interface{}` 来实现泛型的方式又复杂又不友好（un-ergonomic）。用了泛型之后，可以在类型安全的方式下存储拆箱类型，因此类型推断不再需要了。这样既简单，又高效。（本文讨论的例子，实际上就是应用了这一条建议）
+- **建议用泛型** 来约束回调函数参数的类型。在某些情况下 Go 编译器还能将回调函数直接内联拍平。
+- **不建议用泛型** 来尝试去虚化（de-virtualize）或内涵方法调用，这根本没用。这是因为所有指针类型的 GCShape 都一样，所以真正的方法信息还是存放在运行时 dictionary 中的。
+- **不建议用泛型** 在需要给泛型函数传入一个接口的任何场景。因为实例化 GCShape 时，对于接口类型参数，泛型并没有降低虚化程度，反倒还引入了额外的一层来在全局哈希表中查找方法。只要在性能敏感的场景，都不要传入接口，而是传入实例指针。
+- **不建议用泛型** 重写基于接口的 API。由于目前泛型实现的限制，使用接口（除了 `interface{}`）的行为要比用泛型更容易预测。泛型在进行方法调用时有可能会产生的两次间接查找，坦率的讲这很可怕。
+- **DO NOT** despair and/or weep profusely, as there is no technical limitation in the language design for Go Generics that prevents an (eventual) implementation that uses monomorphization more aggressively to inline or de-virtualize method calls.
+- **也别忧伤**，因为 Go 泛型在实现中并不存在某些技术上的限制，来阻止它最终发展为以真正的单态化（monomorphization）方式来内联和去虚化方法调用。 
+
+
+
+### Reference
+
+1. [Go 1.18 Implementation of Generics](https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries-go1.18.md)
+2. [Generics implementation - GC Shape Stenciling](https://github.com/golang/proposal/blob/master/design/generics-implementation-gcshape.md)
+3. [Generics implementation - Dictionaries](https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries.md)
+4. [Generics implementation - Stenciling](https://github.com/golang/proposal/blob/master/design/generics-implementation-stenciling.md)
+5. [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower)
+6. [Type Parameters Proposal](https://go.googlesource.com/proposal/+/HEAD/design/43651-type-parameters.md)
