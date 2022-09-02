@@ -357,16 +357,16 @@ codeblock:
   # Code Highlight theme
   # All available themes: https://theme-next.js.org/highlight/
   theme:
-    light: default
+    light: arduino-light
     dark: tomorrow-night
   prism:
     light: prism
     dark: prism-dark
   # Add copy button on codeblock
   copy_button:
-    enable: false
+    enable: true
     # Available values: default | flat | mac
-    style:
+    style: default
 
 back2top:
   enable: true
