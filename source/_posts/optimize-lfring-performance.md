@@ -1,5 +1,5 @@
 ---
-title: 引入泛型改善 lfring 性能的探索
+title: 探索引入泛型对 lfring 产生的性能影响
 date: 2022-08-01 23:31:32
 tags: 
 - lock free ring buffer
@@ -11,25 +11,50 @@ categories:
 
 {% asset_img ring.png 300 %}
 
-本文介绍了近期对先前的库 [go-lock-free-ring-buffer](https://github.com/LENSHOOD/go-lock-free-ring-buffer) （简称 lfring）改造泛型而产生的性能优化。
+本文是对我自己的一个库 [go-lock-free-ring-buffer](https://github.com/LENSHOOD/go-lock-free-ring-buffer) （简称 lfring）改造泛型而产生性能影响的讨论。
+
 介绍该 lfring 的文章可见[这里](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/)。
 
 <!-- more -->
 
 ### 1. 引入泛型
 
-随着 go1.18 的发布，等待了 10 年的泛型终于发布了。想想去年写的 [lfring](https://github.com/LENSHOOD/go-lock-free-ring-buffer) 的库，正是因为 go 没有泛型的支持，对数据的存取全部都用了 `interface{}`，导致整个流程中反复的进行类型转换，用户也需要大量类型推断。
+随着 go1.18 的发布，等待了 10 年的泛型终于发布了。想想去年写的 [lfring](https://github.com/LENSHOOD/go-lock-free-ring-buffer) 的库，正是因为 go 没有泛型的支持，对数据的存取全部都用了 `interface{}`，导致整个流程中反复的进行类型转换，用户在使用的时候也需要大量类型推断。
 
 虽然在实际当中，可以采用单态化的方式简化编程，改善性能，但作为一个通用的无锁队列，用`interface{}`来传递参数实属没有办法的办法。
 
-泛型发布之后，各种评论褒贬不一，但是从 lfring 的角度看，我觉得引入泛型一定是利大于弊的。那么唯一的问题就是，引入了泛型之后，会不会真的如一些文章的测试结果所展示的，会产生性能劣化。lfring 本身是想通过 lock-free 的方式来改善性能从而在某些特定场景下替代 `channel` 的，假如引入了泛型导致性能出现劣化，就可能需要多多斟酌了。
+泛型发布之后，各种评论褒贬不一，但是从 lfring 的角度看，我觉得引入泛型一定是利大于弊的。那么唯一的问题就是，引入了泛型之后，会不会真的如一些文章的测试结果所展示的，会产生性能劣化。lfring 本身是想通过 lock-free 的方式来改善性能从而在某些特定场景下替代 `channel` 的，假如引入泛型会导致性能出现劣化，那就需要多多斟酌了。
 
 #### 1.1 性能测试
 
 性能测试沿用了[之前文章](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/)里提到的测试办法：
 
+代码片段：
+
+```go
+...
+b.RunParallel(func(pb *testing.PB) {
+  ...
+  for i := 1; pb.Next(); i++ {
+    // producer 分支
+    if producer {
+      buffer.Offer(ints[(i & (len(ints) - 1))])
+    } else {
+      // consumer 分支
+      if _, success := buffer.Poll(); success {
+        // handover counter 递增
+        atomic.AddInt32(&counter, 1)
+      }
+    }
+  }
+})
+...
+// 取 counter 作为性能指标
+b.ReportMetric(float64(counter), "handovers")
+```
+
 - 数据源：构造 64 个元素的 int 类型数组，`Offer` 时按顺序从中取出
-- 对照组：将 `channel` 按 lfring 的 api 进行封装，作为对比
+- 对照组：直接与原先 `interface{}` 方案的代码作为对照
 
 - 测试指标：
   - 不同的 goroutine 分别进行`Offer` 和 `Poll` 的动作，由于生产消费之间的速度差异，以及不同 goroutine 之间竞争的原因，`Poll` 可能会拿不到值（返回 `success = false`，代表这一次取操作失败，需要重试），需要重试
@@ -55,19 +80,19 @@ categories:
 
   从图中可见，不论是哪一种类型，其容量在 2 和 4 时都没有太大的变化，而后才产生了差异，可以暂且假设在容量为 2 和 4 时，因为其他未明因素限制了发挥。
 
-  除去容量 2 和 4 后，对于 `NodeBased` 类型的 lfring，泛型比 `interface{}` 性能提升从最少 5% 到最多13.8%，平均提升约 8.4%，而对`Hybrid`类型的 lfring，泛型比 `interface{}` 性能提升并不明显，从最低 -4% 到最高 7.5%，平均提升约 3.1%。
+  除去容量 2 和 4 后，对于 `NodeBased` 类型的 lfring，泛型比 `interface{}` 性能提升从最少 5% 到最多13.8%，平均提升约 8.4%，而对`Hybrid`类型的 lfring，泛型比 `interface{}` 性能提升度不大，从最低 -4% 到最高 7.5%，平均提升约 3.1%。
 
-  但令人吃惊的是，随着容量的不断上升，作为对照组的 `Channel` 的性能近乎与线性增长，并且在 64 之后超出了无锁队列的实现，这一现象将在后文中进行分析。单看 `Channel` 本身，在引入泛型后的性能提升巨大，从最小的 10.7% 一直到 77.1%，从趋势上看甚至如果容量更大时性能提升会更多，平均提升约为 50.4%。 
-  
 2. 生产者与消费者比例变化
   {% iframe with-producer.html 100% 500 %}
 
-  在容量固定为 32 时，对于 `NodeBased` 类型的 lfring，泛型比 `interface{}` 性能提升从最少 5.2% 到最多 27.2%，平均提升约 17.4%，整体上看在生产者比例较低时，性能提升更明显；而对`Hybrid`类型的 lfring，泛型比 `interface{}` 性能提升并不明显，从最低 -0.1% 到最高 15.3%，平均提升约 5%；对照组 `Channel` ，对比情况也类似，在生产者比例较低时，性能提升巨大，而在消费者比例较低时区别不大，从最低 -9% 到最高 134%，平均提升约 54.1%
+  在容量固定为 32 时，对于 `NodeBased` 类型的 lfring，泛型比 `interface{}` 性能提升从最少 5.2% 到最多 27.2%，平均提升约 17.4%，整体上看在生产者比例较低时，性能提升更明显；而对`Hybrid`类型的 lfring，泛型比 `interface{}` 性能提升度同样稍逊，从最低 -0.1% 到最高 15.3%，平均提升约 5%。
 
 3. 总线程数变化
   {% iframe with-thread.html 100% 500 %}
 
-  在容量固定为 32 时，对于 `NodeBased` 类型的 lfring，泛型比 `interface{}` 性能提升从最少 3% 到最多 35.9%，平均提升约 16.9%；而对`Hybrid`类型的 lfring，除了 2 线程（一个生产者，一个消费者）性能提升较为明显，其他几乎一致，可认为没有明显改善；对照组 `Channel` ，在 2 线程时性能有所降低，但其余情况下性能都有大幅提升，从最低 -12.2% 到最高 109%，平均提升约 46%
+  在容量固定为 32 时，对于 `NodeBased` 类型的 lfring，泛型比 `interface{}` 性能提升从最少 3% 到最多 35.9%，平均提升约 16.9%；而对`Hybrid`类型的 lfring，除了 2 线程（一个生产者，一个消费者）性能提升较为明显，其他提升度相对较小，改善不明显。
+
+从测试结果上看，改造了泛型以后，性能非但没有劣化，反倒有所提升，而`NodeBased` 类型的 ring 要比  `Hybrid` 类型的性能提升更明显。后文将具体分析其原因。
 
 
 
@@ -81,24 +106,24 @@ Golang 在 2009 年公开发布的时候，就没有包含泛型特性，从 200
 
 对于泛型，市面上可见的三种处理方式：
 
-1. 不处理（C ），不会对语言添加任何复杂度，但会让编码更慢（slows programers）
-2. 在编译期进行单态化或宏扩展（C++），生成大量代码。不产生运行时开销，但由于单态化的代码会导致 icache miss 增多从而影响性能。这种方式会让编译更慢（slows compilation）
-3. 隐式装箱/拆箱（Java），可以共用一套泛型函数，实例对象在运行时做强制转换。虽然共享代码可以提高 icache 效率，但运行时的类型转换、运行时通过查表进行函数调用都会限制优化、降低运行速度，因此这种方式会让执行更慢（slows execution）
+1. 不处理（C ），不会对语言添加任何复杂度，但会让编程的过程更慢（slows programers）
+2. 在编译期进行单态化或宏扩展（C++），生成大量代码。不产生运行时开销，但由于单态化的代码可能导致 icache miss 增多从而影响部分性能。由于会在编译器生成代码，这种方式会让编译更慢（slows compilation）
+3. 隐式装箱/拆箱（Java），可以共用一套泛型函数，实例对象在运行时做强制转换。虽然共享代码可以提高 icache 效率，但运行时的类型转换、运行时通过查表进行函数调用都会限制编译优化、降低运行速度，因此这种方式会让执行更慢（slows execution）
 
-rsc 的文章并没有归纳所有的泛型实践，比如[C# 的实现](https://docs.microsoft.com/en-us/previous-versions/ms379564(v=vs.80)?redirectedfrom=MSDN#generics-implementation)：对于值类型，采用类似 C++ 的方式用实际类型替换，而对于引用类型，则直接改写为 `Object`，当前 go1.18 的泛型实现，和 C# 有点类似，不过，C# 中泛型实例化的操作都是在运行时的，所以相对来说也可以归在 ”slow execution“。此外，在一篇专门记录 go 泛型讨论的文章 [Summary of Go Generics Discussions](https://docs.google.com/document/d/1vrAy9gMpMoS3uaVphB32uVXX4pi-HnNjkMEgyAHX4N4/edit#heading=h.5nkda67to6u0) 里面总结了十几种实现泛型的方法。总之，各种实现之间也大都是在上面的三个”slow“之间抉择。
+rsc 的文章并没有归纳所有的泛型实践，比如[C# 的实现](https://docs.microsoft.com/en-us/previous-versions/ms379564(v=vs.80)?redirectedfrom=MSDN#generics-implementation)：对于值类型，采用类似 C++ 的方式用实际类型替换，而对于引用类型，则直接改写为 `Object`，当前 go1.18 的泛型实现，和 C# 有点类似，不过，C# 中泛型实例化的操作都是在运行时的，所以相对来说也可以归在 ”slow execution“。此外，在一篇专门记录 go 泛型讨论的文章 [Summary of Go Generics Discussions](https://docs.google.com/document/d/1vrAy9gMpMoS3uaVphB32uVXX4pi-HnNjkMEgyAHX4N4/edit#heading=h.5nkda67to6u0) 里面总结了十几种实现泛型的方法。总之，各种实现也大都是在上面的三个”slow“之间抉择。
 
-总之，go 团队一方面认为直接使用 `interface{}` 等等折中的办法能解决大多数问题，因此引入泛型并不着急，另一方面也认为还没有找到能让泛型实现的与 go 语言其他部分紧密配合的方法。因此泛型便一拖再拖。
+总之，go 团队一方面认为直接使用 `interface{}` 的折中办法能解决大多数问题，因此引入泛型并不着急，另一方面也自认为还没有找到能让泛型实现的与 go 语言其他部分紧密配合的方法。结果泛型就一拖再拖，拖了 10 年终于在 1.18 版本发布了。
 
 在 go1.18 中，泛型的实现可以用一句话来概括：*GCShape Stenciling with Dictionaries*。
 
-- [Stenciling](https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-stenciling.md) 是一种泛型实现方式，指的就是类似 monomorphizing 的办法，对同一个泛型函数，给每个实际类型都生成一个实现，在编译之后，所有对泛型函数的调用，都会被替换为生成的实例类型函数的调用。这是类似 C++的实现。然而由于 Go 的 Type Alias 特性，相同底层类型的多个别称类型，就会生成多个实例函数。
-- [Dictionaries](https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-dictionaries.md) 恰好相反，在编译期，对每个泛型函数，只会生成单个汇编代码块，它将作为一个参数传入泛型函数中。dictionary 中主要包含的就是所有可能涉及到的实例类型的 `runtime._type` 引用。在泛型函数被实际调用时，如果函数逻辑涉及到对泛型参数的方法调用，就可以通过 dictionary + 偏移量来获得实例类型的 `runtime._type` ，而后再进一步获得 `itab` 信息并找到函数地址（对 interface 约束的泛型参数）。
+- [Stenciling](https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-stenciling.md) 是一种泛型实现方式，指的就是类似 monomorphizing 的办法，对同一个泛型函数，给每个实际类型都生成一个实现，在编译之后，所有对泛型函数的调用，都会被替换为生成的实例类型函数的调用。这是类似 C++的实现。然而由于 Go 的 Type Alias 特性，相同底层类型的多个别称类型，就会生成多个实例函数，所以链接时去重是一个大工程。
+- [Dictionaries](https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-dictionaries.md) 恰好相反，在编译期，对每个泛型函数，只会生成单个汇编代码块，它将作为一个参数传入泛型函数中。dictionary 中主要包含的就是所有可能涉及到的实例类型的 `runtime._type` 引用。在泛型函数被实际调用时，如果函数逻辑涉及到对泛型参数的方法调用，就可以通过 dictionary + 偏移量来获得实例类型的 `runtime._type` ，而后再进一步获得 `itab` 信息并找到函数地址。
 
 Go 的泛型，在 Stenciling 和 Dictionaries 之间，做了一个折中，既不是给所有泛型类型都生成自己独一无二的实现，又不是一种泛型类型全都用一套实现，而是按照 GCShape 的维度来划分：同一个 GCShape 下共享一套实现，不同的 GCShape，生成各自的实现。
 
 所以，GCShape 是什么？
 
-在 [go1.18 的泛型实现文档](https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries-go1.18.md)中用一句话对其进行了概况：*Two concrete types are in the same gcshape grouping if and only if they have the same underlying type or they are both pointer types*。即当且仅当两个具体类型，其底层类型完全一致，或是这两个类型都是指针类型时，它们的 GCShape 才是一致的。
+在 [go1.18 的泛型实现文档](https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries-go1.18.md)中用一句话对其进行了概括：*Two concrete types are in the same gcshape grouping if and only if they have the same underlying type or they are both pointer types*。即当且仅当两个具体类型，其底层类型完全一致，或是这两个类型都是指针类型时，它们的 GCShape 才是一致的。
 
 
 
@@ -107,16 +132,11 @@ Go 的泛型，在 Stenciling 和 Dictionaries 之间，做了一个折中，既
 为了更具象化的了解 go 泛型的底层实现，我们通过几个例子来尝试泛型，并看一看 go 的编译器是怎么处理它们的：
 
 ```go
-package main
-
-import "fmt"
-
-type Number interface {
-	~int64 | ~float32 | ~uint8
-}
+type Number interface { ~int64 | ~float32 | ~uint8 }
 
 type u8 uint8
 
+// 数值类型约束的泛型
 func numeric[T Number](left, right T) T {
 	if left > right {
 		return (left - right) * 8
@@ -124,9 +144,9 @@ func numeric[T Number](left, right T) T {
 	return (right - left) * 4
 }
 
-type Animal interface {
-	say() string
-}
+type Animal interface { say() string }
+
+// 接口类型约束的泛型
 func doSay[T Animal](e T) string { return e.say() }
 
 type Cat struct { name string }
@@ -135,6 +155,7 @@ func (c *Cat) say() string { return c.name }
 type Dog struct { name string }
 func (c *Dog) say() string { return c.name }
 
+// 实例类型约束的泛型
 func putToArr[T Dog | Cat](e T) []T {
 	arr := make([]T, 1)
 	arr[0] = e
@@ -179,30 +200,30 @@ func main() {
 
 ```assembly
 main.numeric[go.shape.int64_0] STEXT dupok nosplit size=107 args=0x18 locals=0x10 funcid=0x0 align=0x0
-	0x0000 00000 (main.go:11)	TEXT	main.numeric[go.shape.int64_0](SB), DUPOK|NOSPLIT|ABIInternal, $16-24
+	TEXT	main.numeric[go.shape.int64_0](SB), DUPOK|NOSPLIT|ABIInternal, $16-24
 	...
-	0x000e 00014 (main.go:11)	MOVQ	AX, main..dict+24(SP)
-	0x0013 00019 (main.go:11)	MOVQ	BX, main.left+32(SP)
-	0x0018 00024 (main.go:11)	MOVQ	CX, main.right+40(SP)
-	0x001d 00029 (main.go:11)	MOVQ	$0, main.~r0(SP)
-	0x0025 00037 (main.go:12)	MOVQ	main.left+32(SP), CX
-	0x002a 00042 (main.go:12)	CMPQ	main.right+40(SP), CX ## if left > right
-	0x002f 00047 (main.go:12)	JLT	51
-	0x0031 00049 (main.go:12)	JMP	79
-	0x0033 00051 (main.go:13)	MOVQ	main.left+32(SP), AX
-	0x0038 00056 (main.go:13)	SUBQ	main.right+40(SP), AX ## AX = left - right
-	0x003d 00061 (main.go:13)	SHLQ	$3, AX                ## AX << 3 as AX = AX*8
-	0x0041 00065 (main.go:13)	MOVQ	AX, main.~r0(SP)
-	0x0045 00069 (main.go:13)	MOVQ	8(SP), BP
-	0x004a 00074 (main.go:13)	ADDQ	$16, SP
-	0x004e 00078 (main.go:13)	RET
-	0x004f 00079 (main.go:15)	MOVQ	main.right+40(SP), AX
-	0x0054 00084 (main.go:15)	SUBQ	main.left+32(SP), AX  ## AX = right - left
-	0x0059 00089 (main.go:15)	SHLQ	$2, AX                ## AX << 2 as AX = AX*4
-	0x005d 00093 (main.go:15)	MOVQ	AX, main.~r0(SP)
-	0x0061 00097 (main.go:15)	MOVQ	8(SP), BP
-	0x0066 00102 (main.go:15)	ADDQ	$16, SP
-	0x006a 00106 (main.go:15)	RET
+	MOVQ	AX, main..dict+24(SP)
+	MOVQ	BX, main.left+32(SP)
+	MOVQ	CX, main.right+40(SP)
+	MOVQ	$0, main.~r0(SP)
+	MOVQ	main.left+32(SP), CX
+	CMPQ	main.right+40(SP), CX ## if left > right
+	JLT	51
+	JMP	79
+	MOVQ	main.left+32(SP), AX
+	SUBQ	main.right+40(SP), AX ## AX = left - right
+	SHLQ	$3, AX                ## AX << 3 as AX = AX*8
+	MOVQ	AX, main.~r0(SP)
+	MOVQ	8(SP), BP
+	ADDQ	$16, SP
+	RET
+	MOVQ	main.right+40(SP), AX
+	SUBQ	main.left+32(SP), AX  ## AX = right - left
+	SHLQ	$2, AX                ## AX << 2 as AX = AX*4
+	MOVQ	AX, main.~r0(SP)
+	MOVQ	8(SP), BP
+	ADDQ	$16, SP
+	RET
 	...
 main.numeric[go.shape.float32_0] STEXT dupok nosplit size=139 args=0x10 locals=0x10 funcid=0x0 align=0x0
 	...
@@ -210,64 +231,64 @@ main.numeric[go.shape.uint8_0] STEXT dupok nosplit size=103 args=0x10 locals=0x1
 	...
 ```
 
-我们最先发现的就是，函数真的生成了三个版本！它们的名字分别是 `main.numeric[go.shape.int64_0]`，`main.numeric[go.shape.float32_0]`， `main.numeric[go.shape.uint8_0]`，正好对应了泛型约束中的 `~int64`、`~float32`、`~uint8`，其中我们定义的别名 `u8` 没有出现输出代码中，而 `u8` 被替换为了其底层类型 `uint8`。
+我们最先发现的就是，函数真的生成了三个版本！它们的名字分别是 `main.numeric[go.shape.int64_0]`，`main.numeric[go.shape.float32_0]`， `main.numeric[go.shape.uint8_0]`，正好对应了泛型约束中的 `~int64`、`~float32`、`~uint8`，而我们定义的别名 `u8` 没有出现输出代码中，而 `u8` 被替换为了其底层类型 `uint8`。
 
 由于三个不同 GCShape 所生成的代码，几乎一致（除了`float32` 中用 X0 寄存器替换 BX，用 MOVSS 指令替换 MOVQ 这类整数和浮点数的指令差异），因此只保留了`int64` 的代码。 三种数值类型的 GCShape，生成了三个函数，代表了 Stenciling。
 
-在程序开头我们发现，除了按照 calling convention 将传入参数 `left` 和 `right` 从栈上拷贝到 BX 和 CX 寄存器，还拷贝了一个名为 `main..dict` 的入参，放入 AX（并且按顺序来看，该参数还是第一个入参）。这实际上代表了 Dictionaries：对于相同的 GCShape，可能映射到不同的具体类型，那么当调用方法时，到底调用哪一个呢？这就需要在传入的这个 `main..dict` 结构中进行二次检索才能找得到。不过这里的例子中并没有用到 `main..dict` 的场景。
+在程序开头我们发现，除了按照 calling convention 将传入参数 `left` 和 `right` 从栈上拷贝到 BX 和 CX 寄存器，还拷贝了一个名为 `main..dict` 的入参，放入 AX（并且按顺序来看，该参数还是第一个入参）。这其实就是 Dictionaries：对于相同的 GCShape，可能映射到不同的具体类型，那么当调用方法时，到底调用哪一个呢？这就需要在传入的 `main..dict` 结构中进行二次检索才能找到。不过这里的例子中并没有用到 `main..dict` 的场景。
 
 再来看一看开启了编译优化的结果：
 
 ```assembly
 main.numeric[go.shape.int64_0] STEXT dupok nosplit size=27 args=0x18 locals=0x0 funcid=0x0 align=0x0
-	0x0000 00000 (main.go:11)	TEXT	main.numeric[go.shape.int64_0](SB), DUPOK|NOSPLIT|ABIInternal, $0-24
+	TEXT	main.numeric[go.shape.int64_0](SB), DUPOK|NOSPLIT|ABIInternal, $0-24
 	...
-	0x0000 00000 (main.go:12)	CMPQ	CX, BX  ## register based argument
-	0x0003 00003 (main.go:12)	JGE	16
-	0x0005 00005 (main.go:13)	SUBQ	CX, BX
-	0x0008 00008 (main.go:13)	SHLQ	$3, BX
-	0x000c 00012 (main.go:13)	MOVQ	BX, AX
-	0x000f 00015 (main.go:13)	RET
-	0x0010 00016 (main.go:15)	SUBQ	BX, CX
-	0x0013 00019 (main.go:15)	SHLQ	$2, CX
-	0x0017 00023 (main.go:15)	MOVQ	CX, AX
-	0x001a 00026 (main.go:15)	RET
+	CMPQ	CX, BX  ## register based argument
+	JGE	16
+	SUBQ	CX, BX
+	SHLQ	$3, BX
+	MOVQ	BX, AX
+	RET
+	SUBQ	BX, CX
+	SHLQ	$2, CX
+	MOVQ	CX, AX
+	RET
 ```
 
 显而易见，通过栈传参没了，直接替换为了寄存器传参（[proposal](https://go.googlesource.com/proposal/+/refs/changes/78/248178/1/design/40724-register-calling.md)），另外 `mian..dict` 既然没用，也不必出现了。
 
 另外，非优化版本中的各种来回在寄存器和栈直接传值，也全部优化成了直接在寄存器中运算。
 
-##### Struct 类型泛型 - 1：putToArray
+##### Struct 类型泛型 ~ 1：putToArray
 
-由于编译优化和上文类似，因此直接展示优化后的 `putToArray()` 的汇编结果：
+由于编译优化和上文类似，因此直接展示开启编译优化后的 `putToArray()` 的汇编结果：
 
 ```assembly
 main.putToArr[go.shape.struct { <unlinkable>.name string }_0] STEXT dupok size=159 args=0x18 locals=0x30 funcid=0x0 align=0x0
-	0x0000 00000 (main.go:32)	TEXT	main.putToArr[go.shape.struct { <unlinkable>.name string }_0](SB), DUPOK|ABIInternal, $48-24
+	TEXT	main.putToArr[go.shape.struct { <unlinkable>.name string }_0](SB), DUPOK|ABIInternal, $48-24
 	...
-	0x0019 00025 (main.go:34)	MOVQ	CX, main..autotmp_7+24(SP)
-	0x001e 00030 (main.go:34)	MOVQ	BX, main..autotmp_8+32(SP)
+	MOVQ	CX, main..autotmp_7+24(SP)
+	MOVQ	BX, main..autotmp_8+32(SP)
 	## AX，BX，CX 存放 makeslice 需要的三个入参，type，len，cap
-	0x0023 00035 (main.go:33)	LEAQ	type.go.shape.struct { <unlinkable>.name string }_0(SB), AX
-	0x002a 00042 (main.go:33)	MOVL	$1, BX
-	0x002f 00047 (main.go:33)	MOVQ	BX, CX
+	LEAQ	type.go.shape.struct { <unlinkable>.name string }_0(SB), AX
+	MOVL	$1, BX
+	MOVQ	BX, CX
 	...
-	0x0032 00050 (main.go:33)	CALL	runtime.makeslice(SB)       ## 堆上构造并初始化容量为 1 的 slice，首地址存入 AX
+	CALL	runtime.makeslice(SB)       ## 堆上构造并初始化容量为 1 的 slice，首地址存入 AX
 	## 入参的底层类型是 string，包含一个 8 字节的 "str unsafe.Pointer" 和 8 字节的 "len int"
-	0x0037 00055 (main.go:34)	MOVQ	main..autotmp_7+24(SP), DX  ## (AX) + 8 <= string.len
-	0x003c 00060 (main.go:34)	MOVQ	DX, 8(AX)
+	MOVQ	main..autotmp_7+24(SP), DX  ## (AX) + 8 <= string.len
+	MOVQ	DX, 8(AX)
 	...
-	0x0049 00073 (main.go:34)	MOVQ	main..autotmp_8+32(SP), DX  ## (AX) <= string.str
-	0x004e 00078 (main.go:34)	MOVQ	DX, (AX)
-	0x0051 00081 (main.go:34)	JMP	101
+	MOVQ	main..autotmp_8+32(SP), DX  ## (AX) <= string.str
+	MOVQ	DX, (AX)
+	JMP	101
 	...
 	## 函数返回的 slice，AX 已经存储了地址，再向 BX，CX 中存放 len == cap == 1
-	0x0065 00101 (main.go:35)	MOVL	$1, BX
-	0x006a 00106 (main.go:35)	MOVQ	BX, CX
-	0x006d 00109 (main.go:35)	MOVQ	40(SP), BP
-	0x0072 00114 (main.go:35)	ADDQ	$48, SP
-	0x0076 00118 (main.go:35)	RET
+	MOVL	$1, BX
+	MOVQ	BX, CX
+	MOVQ	40(SP), BP
+	ADDQ	$48, SP
+	RET
 	...
 ```
 
@@ -279,37 +300,37 @@ main.putToArr[go.shape.struct { <unlinkable>.name string }_0] STEXT dupok size=1
 
 ```assembly
 main.doSay[go.shape.*uint8_0] STEXT dupok size=118 args=0x10 locals=0x30 funcid=0x0 align=0x0
-	0x0000 00000 (main.go:22)	TEXT	main.doSay[go.shape.*uint8_0](SB), DUPOK|ABIInternal, $48-16
+	TEXT	main.doSay[go.shape.*uint8_0](SB), DUPOK|ABIInternal, $48-16
 	...
-	0x0014 00020 (main.go:22)	MOVQ	AX, main..dict+56(SP)
-	0x0019 00025 (main.go:22)	MOVQ	BX, main.e+64(SP)     ## 入参 e
-	0x001e 00030 (main.go:22)	MOVUPS	X15, main.~r0+8(SP) 
-	0x0024 00036 (main.go:22)	MOVQ	main..dict+56(SP), DX ## DX 存放 dict 地址
+	MOVQ	AX, main..dict+56(SP)
+	MOVQ	BX, main.e+64(SP)     ## 入参 e
+	MOVUPS	X15, main.~r0+8(SP) 
+	MOVQ	main..dict+56(SP), DX ## DX 存放 dict 地址
 	...
-	0x0029 00041 (main.go:22)	TESTB	AL, (DX)
-	0x002b 00043 (main.go:22)	LEAQ	16(DX), CX            ## dict+16 存入 CX
-	0x002f 00047 (main.go:22)	MOVQ	main.e+64(SP), AX     ## 方法隐式参数：receiver
-	0x0034 00052 (main.go:22)	MOVQ	16(DX), BX            ## dict+16 指向的数据即 (*Dog).say 方法地址
-	0x0038 00056 (main.go:22)	MOVQ	CX, DX                ## 按目前的 calling convention，DX 存放 closure ctx
+	TESTB	AL, (DX)
+	LEAQ	16(DX), CX            ## dict+16 存入 CX
+	MOVQ	main.e+64(SP), AX     ## 方法隐式参数：receiver
+	MOVQ	16(DX), BX            ## dict+16 指向的数据即 (*Dog).say 方法地址
+	MOVQ	CX, DX                ## 按目前的 calling convention，DX 存放 closure ctx
 	...
-	0x003b 00059 (main.go:22)	CALL	BX                    ## 跳转到 (*Dog).say
-	0x003d 00061 (main.go:22)	MOVQ	AX, main..autotmp_3+24(SP)
-	0x0042 00066 (main.go:22)	MOVQ	BX, main..autotmp_3+32(SP)
-	0x0047 00071 (main.go:22)	MOVQ	AX, main.~r0+8(SP)
-	0x004c 00076 (main.go:22)	MOVQ	BX, main.~r0+16(SP)
-	0x0051 00081 (main.go:22)	MOVQ	40(SP), BP
-	0x0056 00086 (main.go:22)	ADDQ	$48, SP
-	0x005a 00090 (main.go:22)	RET
+	CALL	BX                    ## 跳转到 (*Dog).say
+	MOVQ	AX, main..autotmp_3+24(SP)
+	MOVQ	BX, main..autotmp_3+32(SP)
+	MOVQ	AX, main.~r0+8(SP)
+	MOVQ	BX, main.~r0+16(SP)
+	MOVQ	40(SP), BP
+	ADDQ	$48, SP
+	RET
 	...
 main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=141 args=0x18 locals=0x38 funcid=0x0 align=0x0
 	...
-	0x0030 00048 (main.go:22)	LEAQ	16(DX), CX
-	0x0034 00052 (main.go:22)	MOVQ	main.e+72(SP), AX
-	0x0039 00057 (main.go:22)	MOVQ	main.e+80(SP), BX
-	0x003e 00062 (main.go:22)	MOVQ	16(DX), SI             ## dict+16 存入 SI
-	0x0042 00066 (main.go:22)	MOVQ	CX, DX
-	0x0045 00069 (main.go:22)	PCDATA	$1, $1
-	0x0045 00069 (main.go:22)	CALL	SI                     ## 跳转到 Animal.say
+	LEAQ	16(DX), CX
+	MOVQ	main.e+72(SP), AX
+	MOVQ	main.e+80(SP), BX
+	MOVQ	16(DX), SI             ## dict+16 存入 SI
+	MOVQ	CX, DX
+	PCDATA	$1, $1
+	CALL	SI                     ## 跳转到 Animal.say
 	...
 <unlinkable>..dict.doSay[*<unlinkable>.Dog] SRODATA dupok size=24
 	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
@@ -325,44 +346,44 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 	
 "".doSay[go.shape.*uint8_0] STEXT dupok size=124 args=0x10 locals=0x38 funcid=0x0 align=0x0
 	...
-	0x0014 00020 (main.go:22)	MOVQ	AX, ""..dict+64(SP)
-	0x0019 00025 (main.go:22)	MOVQ	BX, "".e+72(SP)         ## 入参 e
-	0x001e 00030 (main.go:22)	MOVUPS	X15, "".~r0+16(SP)
-	0x0024 00036 (main.go:22)	MOVQ	"".e+72(SP), AX
-	0x0029 00041 (main.go:22)	MOVQ	AX, ""..autotmp_3+8(SP)
-	0x002e 00046 (main.go:22)	MOVQ	""..dict+64(SP), CX     ## CX 存放 dict 地址
+	MOVQ	AX, ""..dict+64(SP)
+	MOVQ	BX, "".e+72(SP)         ## 入参 e
+	MOVUPS	X15, "".~r0+16(SP)
+	MOVQ	"".e+72(SP), AX
+	MOVQ	AX, ""..autotmp_3+8(SP)
+	MOVQ	""..dict+64(SP), CX     ## CX 存放 dict 地址
 	...
-	0x0033 00051 (main.go:22)	TESTB	AL, (CX)
-	0x0035 00053 (main.go:22)	MOVQ	16(CX), CX              ## dict+16 指向 Cat/Dog 的 itab
-	0x0039 00057 (main.go:22)	TESTB	AL, (CX)
-	0x003b 00059 (main.go:22)	MOVQ	24(CX), CX              ## itab+24 即为实际方法列表地址
+	TESTB	AL, (CX)
+	MOVQ	16(CX), CX              ## dict+16 指向 Cat/Dog 的 itab
+	TESTB	AL, (CX)
+	MOVQ	24(CX), CX              ## itab+24 即为实际方法列表地址
 	...
-	0x0040 00064 (main.go:22)	CALL	CX                      ## 方法列表中只有一个方法，直接调用就是 say()
-	0x0042 00066 (main.go:22)	MOVQ	AX, ""..autotmp_4+32(SP)
-	0x0047 00071 (main.go:22)	MOVQ	BX, ""..autotmp_4+40(SP)
-	0x004c 00076 (main.go:22)	MOVQ	AX, "".~r0+16(SP)
-	0x0051 00081 (main.go:22)	MOVQ	BX, "".~r0+24(SP)
-	0x0056 00086 (main.go:22)	MOVQ	48(SP), BP
-	0x005b 00091 (main.go:22)	ADDQ	$56, SP
-	0x005f 00095 (main.go:22)	NOP
-	0x0060 00096 (main.go:22)	RET
+	CALL	CX                      ## 方法列表中只有一个方法，直接调用就是 say()
+	MOVQ	AX, ""..autotmp_4+32(SP)
+	MOVQ	BX, ""..autotmp_4+40(SP)
+	MOVQ	AX, "".~r0+16(SP)
+	MOVQ	BX, "".~r0+24(SP)
+	MOVQ	48(SP), BP
+	ADDQ	$56, SP
+	NOP
+	RET
 	...
 "".doSay[go.shape.interface { "".say() string }_0] STEXT dupok size=170 args=0x18 locals=0x58 funcid=0x0 align=0x0
 	...
-	0x002f 00047 (main.go:22)	MOVQ	"".e+112(SP), CX         ## 入参 e.data (参见 iface)
-	0x0034 00052 (main.go:22)	MOVQ	CX, ""..autotmp_5+24(SP)
-	0x0039 00057 (main.go:22)	MOVQ	"".e+104(SP), BX         ## 入参 e.tab (参见 iface)
-	0x003e 00062 (main.go:22)	LEAQ	type."".Animal(SB), AX   ## Animal type
-	0x0045 00069 (main.go:22)	PCDATA	$1, $1
-	0x0045 00069 (main.go:22)	CALL	runtime.assertI2I(SB)    ## 校验传入的 e 是否是 Animal，返回值 itab 存入 AX
-	0x004a 00074 (main.go:22)	MOVQ	AX, ""..autotmp_3+64(SP)
-	0x004f 00079 (main.go:22)	MOVQ	""..autotmp_5+24(SP), CX
-	0x0054 00084 (main.go:22)	MOVQ	CX, ""..autotmp_3+72(SP)
-	0x0059 00089 (main.go:22)	TESTB	AL, (AX)
-	0x005b 00091 (main.go:22)	MOVQ	24(AX), DX               ## itab+24 即为实际方法列表地址
-	0x005f 00095 (main.go:22)	MOVQ	CX, AX
+	MOVQ	"".e+112(SP), CX         ## 入参 e.data (参见 iface)
+	MOVQ	CX, ""..autotmp_5+24(SP)
+	MOVQ	"".e+104(SP), BX         ## 入参 e.tab (参见 iface)
+	LEAQ	type."".Animal(SB), AX   ## Animal type
+	PCDATA	$1, $1
+	CALL	runtime.assertI2I(SB)    ## 校验传入的 e 是否是 Animal，返回值 itab 存入 AX
+	MOVQ	AX, ""..autotmp_3+64(SP)
+	MOVQ	""..autotmp_5+24(SP), CX
+	MOVQ	CX, ""..autotmp_3+72(SP)
+	TESTB	AL, (AX)
+	MOVQ	24(AX), DX               ## itab+24 即为实际方法列表地址
+	MOVQ	CX, AX
 	...
-	0x0062 00098 (main.go:22)	CALL	DX                       ## 方法列表中只有一个方法，直接调用就是 say()
+	CALL	DX                       ## 方法列表中只有一个方法，直接调用就是 say()
 	...
 ""..dict.doSay[*"".Cat] SRODATA dupok size=24
 	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
@@ -388,9 +409,9 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 
 这里我们会发现，由于指针类型的 GCShape 是完全相同的，那么当传入的参数分别是 `*Cat/*Dog` 时，如何才能找到正确的 `say()` 呢？
 
-通过汇编代码我们发现，泛型函数需要先到`dict` 中找到对应类型的 interface `itab`，再通过`itab` 里面的方法列表找到方法进行调用。相比非泛型下的 interface 接口调用，多了一个寻址 dict 的步骤，可以预见这种方式一定更慢。而对 `Animal` 的泛型调用更夸张，中间竟然还穿插了一次运行时的类型校验函数调用。
+通过汇编代码可知，泛型函数需要先到`dict` 中找到对应类型的 interface `itab`，再通过`itab` 里面的方法列表找到方法进行调用。相比非泛型下的 interface 接口调用，多了一次寻址 dict 的步骤，可以预见这种方式一定更慢。而对 `Animal` 的泛型调用更夸张，中间竟然还穿插了一次运行时的类型校验函数调用。
 
-有关上述测试，在 Vicent Marti 的文章 [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower) 中都有详述。
+上述测试主要参考了 Vicent Marti 的文章 [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower) 中设计的测试，更详细的解读参见该文。
 
 
 
@@ -398,28 +419,28 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 
 #### 3.1 简单看看汇编
 
-基于前一节的介绍，我们已经对 go 泛型所生成的汇编代码有了一定的认识，那么现在我们直接将两个版本（interface{} 和 generics）的 lfring 其汇编结果进行比较，来直观的进行体会：
+基于前一节的介绍，我们已经对 go 泛型所生成的汇编代码有了一定的认识，那么现在我们直接将两个版本（interface{} 和 generics）的 lfring 汇编结果进行比较，来直观的进行体会：
 
 ```assembly
 ###### interface{} 代码经过精简，省略了无关本文的部分
 <unlinkable>.(*nodeBased).Offer STEXT size=293 args=0x18 locals=0x30 funcid=0x0 align=0x0
-	0x0018 00024 (node_based.go:72)	MOVQ	AX, <unlinkable>.r+56(SP)         ## receiver
-	0x001d 00029 (node_based.go:72)	MOVQ	BX, <unlinkable>.value+64(SP)     ## eface._type
-	0x0022 00034 (node_based.go:72)	MOVQ	CX, <unlinkable>.value+72(SP)     ## eface.data
-	0x0027 00039 (node_based.go:72)	LEAQ	type.interface {}(SB), AX
-	0x002e 00046 (node_based.go:72)	CALL	runtime.newobject(SB)             ## 堆上创建 interface{} 类型对象
-	0x003c 00060 (node_based.go:72)	MOVUPS	<unlinkable>.value+64(SP), X0   ## 将 eface 赋值到创建的对象上
-	0x0041 00065 (node_based.go:72)	MOVUPS	X0, (AX)                        ## MOVUPS SSE 指令一次性移动 128bit
+	MOVQ	AX, <unlinkable>.r+56(SP)         ## receiver
+	MOVQ	BX, <unlinkable>.value+64(SP)     ## eface._type
+	MOVQ	CX, <unlinkable>.value+72(SP)     ## eface.data
+	LEAQ	type.interface {}(SB), AX
+	CALL	runtime.newobject(SB)             ## 堆上创建 interface{} 类型对象
+	MOVUPS	<unlinkable>.value+64(SP), X0   ## 将 eface 赋值到创建的对象上
+	MOVUPS	X0, (AX)                        ## MOVUPS SSE 指令一次性移动 128bit
   ... 之后完全相同
 
 ###### generics 代码经过精简，省略了无关本文的部分
 <unlinkable>.(*nodeBased[go.shape.int_0]).Offer STEXT dupok size=249 args=0x18 locals=0x20 funcid=0x0 align=0x0
-	0x0018 00024 (node_based.go:72)	MOVQ	BX, <unlinkable>.r+48(SP)         ## receiver
-	0x001d 00029 (node_based.go:72)	MOVQ	CX, <unlinkable>.value+56(SP)     ## value
-	0x0022 00034 (node_based.go:72)	LEAQ	type.go.shape.int_0(SB), AX
-	0x0029 00041 (node_based.go:72)	CALL	runtime.newobject(SB)             ## 堆上创建 go.shape.int_0 类型对象
-	0x002e 00046 (node_based.go:72)	MOVQ	<unlinkable>.value+56(SP), CX
-	0x0033 00051 (node_based.go:72)	MOVQ	CX, (AX)                          ## 为创建的对象赋值为 value
+	MOVQ	BX, <unlinkable>.r+48(SP)         ## receiver
+	MOVQ	CX, <unlinkable>.value+56(SP)     ## value
+	LEAQ	type.go.shape.int_0(SB), AX
+	CALL	runtime.newobject(SB)             ## 堆上创建 go.shape.int_0 类型对象
+	MOVQ	<unlinkable>.value+56(SP), CX
+	MOVQ	CX, (AX)                          ## 为创建的对象赋值为 value
   ... 之后完全相同
 ```
 
@@ -430,24 +451,24 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 ```assembly
 ###### interface{}
 	...
-	0x0111 00273 (performance_test.go:174)	MOVQ	(DX)(BX*8), AX       ## 入参放到 AX
-	0x0115 00277 (performance_test.go:174)	CALL	runtime.convT64(SB)  ## 入参是 64bit int，convT64 将其分配在堆上
-	0x011a 00282 (performance_test.go:174)	MOVQ	<unlinkable>.buffer.itab+48(SP), CX
-	0x011f 00287 (performance_test.go:174)	MOVQ	24(CX), DX           ## Buffer.iface.fun 得到接口第一个方法地址
-	0x0123 00291 (performance_test.go:174)	LEAQ	type.int(SB), BX     ## interface{} 类型的 value：eface._type
-	0x012a 00298 (performance_test.go:174)	MOVQ	AX, SI
-	0x012d 00301 (performance_test.go:174)	MOVQ	<unlinkable>.buffer.data+64(SP), AX ## receiver
-	0x0132 00306 (performance_test.go:174)	MOVQ	SI, CX               ## interface{} 类型的 value：eface.data
-	0x0135 00309 (performance_test.go:174)	CALL	DX                   ## Offer(receiver, eface._type, eface.data)
+	MOVQ	(DX)(BX*8), AX       ## 入参放到 AX
+	CALL	runtime.convT64(SB)  ## 入参是 64bit int，convT64 将其分配在堆上
+	MOVQ	<unlinkable>.buffer.itab+48(SP), CX
+	MOVQ	24(CX), DX           ## Buffer.iface.fun 得到接口第一个方法地址
+	LEAQ	type.int(SB), BX     ## interface{} 类型的 value：eface._type
+	MOVQ	AX, SI
+	MOVQ	<unlinkable>.buffer.data+64(SP), AX ## receiver
+	MOVQ	SI, CX               ## interface{} 类型的 value：eface.data
+	CALL	DX                   ## Offer(receiver, eface._type, eface.data)
 	...
 	
 ###### generics
 	...
-	0x00be 00190 (performance_test.go:173)	MOVQ	<unlinkable>.buffer.itab+40(SP), R8
-	0x0126 00294 (performance_test.go:175)	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun
-	0x012a 00298 (performance_test.go:175)	MOVQ	(DI)(R10*8), BX      ## 入参放到 BX
-	0x012e 00302 (performance_test.go:175)	MOVQ	SI, AX               ## receiver
-	0x0131 00305 (performance_test.go:175)	CALL	CX                   ## Offer(receiver, int value)
+	MOVQ	<unlinkable>.buffer.itab+40(SP), R8
+	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun
+	MOVQ	(DI)(R10*8), BX      ## 入参放到 BX
+	MOVQ	SI, AX               ## receiver
+	CALL	CX                   ## Offer(receiver, int value)
 	...
 ```
 
@@ -470,31 +491,35 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 ```assembly
 ###### interface{}
 	...
-	0x0126 00294 (performance_test.go:174)	MOVQ	24(R8), DX           ## Buffer.iface.fun 得到接口第一个方法地址
-	0x012a 00298 (performance_test.go:174)	LEAQ	(DI)(R10*8), CX      ## interface{} 类型的 value：eface.data
-	0x012e 00302 (performance_test.go:174)	MOVQ	SI, AX               ## receiver
-	0x0131 00305 (performance_test.go:174)	LEAQ	type.*int(SB), BX    ## interface{} 类型的 value：eface._type
-	0x0138 00312 (performance_test.go:174)	CALL	DX                   ## Offer(receiver, eface._type, eface.data)
+	MOVQ	24(R8), DX           ## Buffer.iface.fun 得到接口第一个方法地址
+	LEAQ	(DI)(R10*8), CX      ## interface{} 类型的 value：eface.data
+	MOVQ	SI, AX               ## receiver
+	LEAQ	type.*int(SB), BX    ## interface{} 类型的 value：eface._type
+	CALL	DX                   ## Offer(receiver, eface._type, eface.data)
 	...
 	
 ###### generics
 	...
-	0x0126 00294 (performance_test.go:175)	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun
-	0x012a 00298 (performance_test.go:175)	LEAQ	(DI)(R10*8), BX      ## 入参放到 BX
-	0x012e 00302 (performance_test.go:175)	MOVQ	SI, AX               ## receiver
-	0x0131 00305 (performance_test.go:175)	CALL	CX                   ## Offer(receiver, int value)
+	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun
+	LEAQ	(DI)(R10*8), BX      ## 入参放到 BX
+	MOVQ	SI, AX               ## receiver
+	CALL	CX                   ## Offer(receiver, int value)
 	...
 ```
 
-可以看到在传入了指针后，`interface{}` 不再调用  `runtime.convT64(SB)` 了。另外，从 0x0131 00312 这一行也可以发现，type 变成了 `*int`。
+可以看到在传入了指针后，`interface{}` 不再调用  `runtime.convT64(SB)` 了。另外，从第 6 行也可以发现，type 变成了 `*int`。
+
+另外，我们省略了对 `Hybrid` 类型汇编结果的展示。考虑到第一节的对比中，`Hybrid` 类型的性能提升相比 `NodeBased` 更不明显，我认为主要原因是 `Hybrid` 本来就更慢，因此减少一次堆内存分配所能产生的效应就更小（[Amdahl's Law](https://en.wikipedia.org/wiki/Amdahl%27s_law)）。
 
 
 
 ### 4. 总结
 
-在前面的文章中，我们先通过测试发现，将 lfring 改造为泛型后，性能有大约 5%~10% 左右的提升。之后分析了 go 泛型的原理以及对几种泛型编译结果的解读。最后通过对 lfring 的泛型、`interface{}` 两种形式的性能、编译结果的对比，得出了性能提升的主要原因是，对非指针类型参数，`interface{}` 在转换过程中需要一次额外的堆内存分配，而泛型不需要。
+在前面的文章中，我们先通过测试发现，将 lfring 改造为泛型后，性能有大约 5%~10% 左右的提升。之后分析了 go 泛型的原理以及对几种泛型编译结果的解读。最后通过对 lfring 的泛型、`interface{}` 两种形式的性能、编译结果的对比，得出了性能提升的主要原因是：对非指针类型参数，`interface{}` 在转换过程中需要一次额外的堆内存分配，而泛型不需要。
 
-但结合第二节对于泛型的分析，我们也会发现 go 当前泛型实现的缺陷：对于传入接口类型的泛型参数，调用泛型函数需要进行两次内存寻址才能找到正确的方法地址，在这种场景下，泛型反倒会降低性能。
+但由于性能测试中的数据类型恰好选取了值类型而非指针，因此使测试得出了性能更优的片面结论，在全面了解了泛型的实现原理并做了测试后，我们最终可知：只在实际类型是值类型时才会提升性能，而指针类型并不行。
+
+基于第二节对于泛型的分析，我们还发现了 go 当前泛型实现的缺陷：对于传入接口类型的泛型参数，调用泛型函数需要进行两次内存寻址才能找到正确的方法地址，在这种场景下，泛型反倒会降低性能。
 
 最后，引用 Vicent Marti 的文章 [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower) 中最后对于 go 泛型使用场景的总结：
 
@@ -504,8 +529,7 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 - **不建议用泛型** 来尝试去虚化（de-virtualize）或内涵方法调用，这根本没用。这是因为所有指针类型的 GCShape 都一样，所以真正的方法信息还是存放在运行时 dictionary 中的。
 - **不建议用泛型** 在需要给泛型函数传入一个接口的任何场景。因为实例化 GCShape 时，对于接口类型参数，泛型并没有降低虚化程度，反倒还引入了额外的一层来在全局哈希表中查找方法。只要在性能敏感的场景，都不要传入接口，而是传入实例指针。
 - **不建议用泛型** 重写基于接口的 API。由于目前泛型实现的限制，使用接口（除了 `interface{}`）的行为要比用泛型更容易预测。泛型在进行方法调用时有可能会产生的两次间接查找，坦率的讲这很可怕。
-- **DO NOT** despair and/or weep profusely, as there is no technical limitation in the language design for Go Generics that prevents an (eventual) implementation that uses monomorphization more aggressively to inline or de-virtualize method calls.
-- **也别忧伤**，因为 Go 泛型在实现中并不存在某些技术上的限制，来阻止它最终发展为以真正的单态化（monomorphization）方式来内联和去虚化方法调用。 
+- **也别忧伤**，因为 Go 泛型在实现中并未存在任何技术上的限制来阻止它最终发展成以真正的单态化（monomorphization）方式来内联和去虚化方法调用的实现。 
 
 
 
@@ -517,3 +541,4 @@ main.doSay[go.shape.interface { <unlinkable>.say() string }_0] STEXT dupok size=
 4. [Generics implementation - Stenciling](https://github.com/golang/proposal/blob/master/design/generics-implementation-stenciling.md)
 5. [Generics can make your Go code slower](https://planetscale.com/blog/generics-can-make-your-go-code-slower)
 6. [Type Parameters Proposal](https://go.googlesource.com/proposal/+/HEAD/design/43651-type-parameters.md)
+6. [Go Data Structures: Interfaces](https://research.swtch.com/interfaces)
