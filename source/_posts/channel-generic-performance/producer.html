@@ -1,0 +1,380 @@
+<!--
+	THIS EXAMPLE WAS DOWNLOADED FROM https://echarts.apache.org/examples/en/editor.html?c=line-smooth&code=PYBwLglsB2AEC8sDeAoWsBEAbApgcx2gBMMAuZNdTAZwAtgB3M2MAJwFccAaS9DIgIZgBzANq8qGAHLAiOAEIDqOIgFoC0HKwgBjahh5VJMuYuVqI0MFoBmAnTgMS-ACQCeAI21qNW3fsMjTHcvCAsrW3tHQKMMAGFaAWhNLHVCPz0nIMwEpJTVS2tWOwcMCQBdGJocXB1rEnJUbOlZBSUVNM1tTPI2Tiq-EzbzAojiqOY-7mdgz29OjP1yOyxlAdnQ8KKSx2WBVenm3OSahe6l2BW1mfjEk9TCyNK9g4kAX0o3wIxlbRwL8RGJpBDDQAQAW12mCGZg6vnOWRBYDcICh2Es0Ru1HBwGAYFokw4hxBDAEADccABBaAQcFCKDQZhXYmxViEOSsAAyAg8NQAYsBWAAtLTAAAiQhEL2uzWUtXqAFlWkz9jKQUlafSYCqDusMDpgFhBcwMABiGw2AAsRGtiNigmEYhm6GB2T4ZP2nGYloAnAAGACMloAHAA2AB0oaj0ajAHZ1rEABqUgAeEGoAEliDgU8w_QnJABNVPprNyXPkP3O2Bfauut0YD1YL3kUMAVijbZ9PvDACZ-wOBwW-Mm05nsxXYPnq3xi2Oyzm89Xa26KKv3Z6obG2zve7Gez7fUefW3h5hR6WJ3mzxg55fy0vVyu3fXmk2W7BY7HewBmNs_3tw1jH9LVDH0f2DL8bwvccH0rG871gxdK2XAtXxBd8t2_ANfwjNsA3wwiA1DaCSyQydp3XTBEIXCjULrGdMEw5gv2DS1WPDYM_VDHDe0tX1SPnK94MY28yNox83WfbJ0NiZjyFjUD22A8NLX_UM_WDPj41EmCJJEqixKEuCp3o1dZMkeTP37CD8PDcCHJ_BzBPvZCpwQ8ThNMp80NEqzQwAv01LbcMcJ_WMAwDECXPI69RJoryqyfGZyhQd4qnQ0EITRGF2i2J5MWaZFURNLAMTtSRsVxfFCX6G5SQpalNUgbVpRZSQ2WzLkeX5QURVYcVJR1NVYjlHA6hUJU5GG9q-A1OkWsZNq9QNI1WBNU0PB_P0dr9Cq-AdKVYEBF8_M3ZhbL9H1FM4iC7uDWyYv09z4s8kykqk3zDKs_CeO3YM-xwoHexwp7Eo84y3I-7JpKCCyN2bKEuzbPdQPssCIK_HcwfeiHXLonyGO-87WwApzwNCttQKcgNtxxqG8dilDCfMs7EeYUNv33LTI3_bjeMtemKMZ57oaCWGgTZj9Yz9f9iMAy0AwezmQJ0wy9PB17IYJz6ifXRsSc_K6Qwe-zgx9MC_W_XshbiwyEveszTuJ9nWxRkMwPsvdNJ_X2f1tgz9YdqGnZkqWkYCyCZfDK2g17YM22_AOXvtt6Q-S7JUqMWHMrBSETRCeZ4X8fbMGKtEys0UufhxPECV6Ik9QaqkaQWhkZr1TqOW5XksAFYVRQlR1lqxGpxsVZUR-aeatSWy5VVmzBVuNcgzRlogPBl6vDqdVmXY_X3NNjLi-xAjGo8F3S0-FrX8ckmGvv1qy1ODMNYzw3sUa_3sSKv7W7aDtfe-4tH6rgNq7WAbZNLcV9pxaBXEEHJ0ooA_-zNdZ7yfobROX5j4A0tP7P-d9A5gODjrB-eswH-R_kfEK_psKhl9KeQhTMU4oKId5dBztMEQLbA9c2AFwwdk_kgkWiVQ5w3DswHcV0saqU0sRAC7YRG3xYWLbOoCGzP3NqGB6gFZa9h9n7ZRqdUEcPIRgyhhs_zXRlpaUKfpto-j3MrYxbDVHLhSulCQudsoFzmGEUY2wJh6nLqVcqeoqp11qovDAzcmpt1avPXUNwu5aB7r1AeA0h5HWZBEseE0iBTShLkm4M9FodxuMvdaq9TR8WDDYPi28hrkBOmHfeUJfY8S0gDa6vTuauJIUAtB5iuGWIgfgv8akIzcRmRpHiAyGykOAeoihmjDagWujhCMMsdlWytgs5oSzhkgNWW-LBO0nH-lUgwm5oFL7qyGawwZpi1FUAllQeGTEsGv0jrGSMP4AqAvCgckERyzEnIsWsnhvCIIJ1UupTS2kQWxDBa89A7yXSSPIFTKKiLT4bMxmrfWGtcYqNFuIyW7TvR80VhGc29KfTmx9Miosjy0U1g0WciBAK_yQUAqGG2zDRaiMdhnIIWc3kZRuHnNExx8jF0yCElEFdwlYlrjVBudVmhxNbrPCpzRUndV7v3fqg1h5JJGpVfJE9ppT3VLq8pdrYhVI2taa0FomnmtaRIql5ACL9gtn6f5LLZxsopR8rFsBwoGM_n8qm8a1KJpDdRMNLNRlQo_FAz-h4_mgWTUZdh7KMVrm4Zmi2ys8IJyrbw3-DyXkivTpwtppaoRzO0T2RRfMeKCrrYWhtZCIXpq5Zm9i7Fuz2IMZaeRtbiVsv7csyVpyMLrIFduOyAF82ovDZi31UadEnj9IBV-m7U1Np9S25gtMooCoBgLEMvSZ1gJJQzMlYixVGAleiqVzQZUmjlacR44xShKpKqvSuhUQSRI1SwRu9VyQt2au3J1HV2RpJ6n3Pqg9mkWpiWNApRT9X2sQ4kkpzQXU1N2n6LanqjrespRe1svpZZ4L4qxy0rGT0vO3SWsZH5iJdgPTHAMDirrOIIb21R87jkrMhcOqEsbDwgxjo-hsz6b4mMLdxz54CD7UKcQGUKwZOOabTc23jUJ-KJ3Yz2bixn3GmfPeZ707Y6E9gJVHbGQrNYafs2e-jTnyD4IDN2KdgM7Pkoc_5jNHSww_iigDDsiX2zJfC2-vzEbd1KweldIN3T475a0ql0VUlPHZ0oJUSgGBIBgFwMwesVWcxgBNAwCA-JYAgAGkQdgDhWAAAodACBAPYVrbh4AbpYLQNkAgiDUHgCGAAlBVDAHg8RgGAOCE0K2wBrY21UDA2g8C0Ca6vBwYwyhfsq2tw0kAQB1YkD8egTBNXtSqwdgg1TMACDHOdjllWUxkV3hlkEv7V4ddkN1rQAQbg7xadWDAAZS58F7IjzAP4UcYEtOj0M6Pgzo59Oj4TBOEelbeeV74bgAew6i3wEHmA7hEGABSVgsADTsCsPod45WUBvCAA
+	⚠ Please be aware that this chart is not an official demo of Apache ECharts but is made by user-generated code.
+-->
+<!DOCTYPE html>
+<html lang="en" style="height: 100%">
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="height: 100%; margin: 0">
+  <div id="container" style="height: 100%"></div>
+
+  
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+  <!-- Uncomment this line if you want to dataTool extension
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.3.3/dist/extension/dataTool.min.js"></script>
+  -->
+  <!-- Uncomment this line if you want to use gl extension
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js"></script>
+  -->
+  <!-- Uncomment this line if you want to echarts-stat extension
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts-stat@latest/dist/ecStat.min.js"></script>
+  -->
+  <!-- Uncomment this line if you want to use map
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@4.9.0/map/js/china.js"></script>
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@4.9.0/map/js/world.js"></script>
+  -->
+  <!-- Uncomment these two lines if you want to use bmap extension
+  <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=YOUR_API_KEY"></script>
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.3.3/dist/extension/bmap.min.js"></script>
+  -->
+
+  <script type="text/javascript">
+    var dom = document.getElementById('container');
+    var myChart = echarts.init(dom, null, {
+      renderer: 'canvas',
+      useDirtyRect: false
+    });
+    var app = {};
+    
+    var option;
+
+    option = {
+  "legend": {
+    "show": true,
+    "data": [
+      "interface 1.17",
+      "interface 1.18",
+      "interface 1.19",
+      "generics 1.18",
+      "generics 1.19"
+    ]
+  },
+  "series": [
+    {
+      "name": "interface 1.17",
+      "type": "line",
+      "smooth": true,
+      "waveAnimation": false,
+      "renderLabelForZeroData": false,
+      "selectedMode": false,
+      "animation": false,
+      "color": "#ff4d4d",
+      "data": [
+        {
+          "value": 691603.0505050505,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 1673151.4747474748,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 2751735.54,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3332272.49,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4862959.02,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4987858.878787879,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4420314.262626262,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3858733.707070707,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 1901437.3333333333,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        }
+      ]
+    },
+    {
+      "name": "interface 1.18",
+      "type": "line",
+      "smooth": true,
+      "waveAnimation": false,
+      "renderLabelForZeroData": false,
+      "selectedMode": false,
+      "animation": false,
+      "color": "#b30000",
+      "data": [
+        {
+          "value": 706626.44,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 1622811.7777777778,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 2572616.27,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3120707.2680412373,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4742229.76,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4941563.565656566,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4773257.3,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4115517.99,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 2064311.7676767677,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        }
+      ]
+    },
+    {
+      "name": "interface 1.19",
+      "type": "line",
+      "smooth": true,
+      "waveAnimation": false,
+      "renderLabelForZeroData": false,
+      "selectedMode": false,
+      "animation": false,
+      "color": "#6b0101",
+      "data": [
+        {
+          "value": 595687.9797979798,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 1624592.2626262626,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 2680854.2474226803,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3283500.32,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4731497.6,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4893693.41,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4551466.7272727275,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3936895.292929293,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 2090823.9494949495,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        }
+      ]
+    },
+    {
+      "name": "generics 1.18",
+      "type": "line",
+      "smooth": true,
+      "waveAnimation": false,
+      "renderLabelForZeroData": false,
+      "selectedMode": false,
+      "animation": false,
+      "color": "#248f24",
+      "data": [
+        {
+          "value": 1517327.12,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3782929.9595959596,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 5124004.66,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 5841176.23,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 6152902.090909091,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 5493273.63,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4225014.26,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3629574.606060606,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 1694353.5714285714,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        }
+      ]
+    },
+    {
+      "name": "generics 1.19",
+      "type": "line",
+      "smooth": true,
+      "waveAnimation": false,
+      "renderLabelForZeroData": false,
+      "selectedMode": false,
+      "animation": false,
+      "color": "#248f24",
+      "data": [
+        {
+          "value": 1502339.306122449,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3705457.0102040814,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 5060391.17,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 5801101.202020202,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 6189061.02020202,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 5309701.82,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 4543686.94,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 3871584.8,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        },
+        {
+          "value": 1682351.112244898,
+          "XAxisIndex": 0,
+          "YAxisIndex": 0
+        }
+      ]
+    }
+  ],
+  "title": {
+    "text": "with producer(capacity=32, threads=12)",
+    "bottom": "bottom",
+    "right": "center"
+  },
+  "tooltip": {
+    "show": true,
+    "trigger": "axis"
+  },
+  "xAxis": [
+    {
+      "name": "producers",
+      "data": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "6",
+        "8",
+        "9",
+        "10",
+        "11"
+      ]
+    }
+  ],
+  "yAxis": [
+    {
+      "name": "handover counts"
+    }
+  ]
+}
+
+    if (option && typeof option === 'object') {
+      myChart.setOption(option);
+    }
+
+    window.addEventListener('resize', myChart.resize);
+  </script>
+</body>
+</html>
