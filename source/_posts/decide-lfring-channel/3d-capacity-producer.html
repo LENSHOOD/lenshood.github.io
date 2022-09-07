@@ -1,0 +1,362 @@
+<!--
+	THIS EXAMPLE WAS DOWNLOADED FROM https://echarts.apache.org/examples/en/editor.html?c=bar3d-simplex-noise&gl=1&theme=dark&code=CQOg5gpgLgygxgJwJYAcoAoBQACbByACyihQGcAuAekoDMBDUqAGwE8QArUgEwiaQDcEIAHbRKwlAFtKpJJJRMIADwC0wgPZJSEAAIAmEABYQABhlyFytZu0dSeTAEoQXdaPQ0ArsLhQkb7HRHbABvHGx-OgQIuiYAWSRhbABebABJYRpEpCgWAG5wyOjI-LolFOwVDKzhHPzwuDdSdUUQJnUwdBKE4QAaGNKlRwLcSRYAYQIoqBBtKAB5NH9hLFxcdHUlgNSw3CUAQSUtAGYAEXJQ8NxclAgLvHawB1wAX17wlkOT88u17Bu7vgSp4IM9sG9wgAvL6kM4XXZrAH3YGg8IQ3BgZBcOG_NZlLQAGUSgIRfz4ohguUU8OwjXaCHuAGIaCy8OCruD3n98aQAAqaYRQCAM3Fk4mUljU0K0lrqEV4Zms9l_dFrfhICAAd3GbigCBa8I5uGo2Donig6gASuooHQhRc9SCOarcHwwERDX9RnREp6vbhSFNXJqHQgQVz_dgAI6eWJ1e6eJh6uh4CP-xJC4SyXIXACMIAArEblWsXmiI9pkBAKNgANoc0lrJBcC4mNNrYR0SSAvBwKbCURMVPFulypkAMX2AHZTqcAELj8fD_1I_CkTwIehwUHt3BcO10C71yN1gBEelP_Vz_WOAE5DAXbwAOEDHQxvj_vwwAXV3a1r56Xtgej9M-ABsj63oWJgFjBcEFr-xa4ABF43lexzHE-Jh6MYuZgYhJ4oUBhhXoYYFPhh-a3iY1G0TRegEZGRH9GBV5gVOt4Qfmhg_n-yGAf0T5XnoYFgXeBj4XxZ6odgt7CYYuZ6FOJhGIx_rMdguZtrJhgwXoKm3mpXoabm17YAWuZTrmt5QSYxxGX8AGGEBZmGHot76ccphYT5Jg-Q5_6ns5_QgZpJhTjxegGLej65hR7FvgF_HBdgxykSYZFiSAYG8UhZ4pSRmlTsVeh4aYDFSU5QGscBJiKU-HHZU-SX5UBQmaQWU56J1L63phxUFhZdktVVoGkfeUX5lFI1BS52mKaZGEGMcU4rWtq2SXlo2aWZYHYbeWkgEpM1Pi5LF2U-cVGAhlWnqdIVXgWulYSpIlvWB70nUBaWaZxT5Pu5IC5gpIPA7mN1bXdxEhQWxx6E-EHZfZt33dgNXw1O5GwaYyOQ6j7U4bBCPGGBuZfWNwEiRZhgvmBhko3NV4cXT1mvhVeMuWZl3HI-U4gPeAuGALEOEaeeFndgT4FhRdWviYpNRTx9OQ-LD3AccdVPWBQPYRlfl4TNqupTecNTg1UEeYbYHQ9gukrYNKmGFOVvVf0D6WR9XmWd7VldS7gk3s-MFO0YuOi0bcmpbmGvdVBFHx5hmEi0xYvW1e2nw-5il82R_s7cJt4RcD_P62JVNhyncMS4pPGDQWRjK6LVdq2-T2Pl5CVkX1_0zc3xu21OBZKXepiN5XMmFQ70seUdwPw514O9zJNWPk-B1XXDEEawrS9tf0RN1Zxr7J-pp595HmE2TF-bR7v6c3jxCu2VpL91Xf-eaVhpOrdlM05dXOVFZTQWqVUB7NRb_zVu-DyIkpqDS0vpBSf8Uo_TEoXRaR0x6n0gbbfoXVlJkWAcg122ABowUwkDXKECUrtQIYXCiIAAZMMzs1W6ODI4fXfIPeun5eHEPvgPHCb4DCgJAYpfhH8cLg3-vXBqcizYcUNvDau1EMqYxAPgpSWjVpKNRqFGmHkh6vTwkLGmD5dHfTwSJMS6jVp2LWqwlWyi3aCWOKJHKXtHHh2cWjQSHkDrkQ0d3YGX4LEB1IZxTCV1OoxMHpjMJskWKcWjkLbKm1vGoy0vvGy3VirZTioNdib9br1U5iFJ2MVHxHWYUwiup9upp00iFcKUsYLHysm5KWztboNKAqFLWJhNb5MVgYweM1eloQiWbVejCF6dM6uMgsjTCr_RstLbWdVNkvzJj0pZJD7ydULrhUyJzTLgJThMyWgkHw0TadZe5B0-qLMaZHKyRS4ZAz0CtRaVCLl7IER9Bqg9tYrW4Qg55ZTUoZUwgwmKM0LIyTMvpTGbltZ4U3rDeW8LFJ9P3sIuKBk15EpstimSP1mYexfE7NyIksK_NPgim268Gr6Q0exdlmNumQ0ZSxUCokKlQQ-qSvektlJlwkgjSV5F0kpx5Yk0hGE4kGEUjhAxXjZU4oEdLOypNerS0xvDBqwqrxmWOFpTqiN_pWqtYZYsAVAx0C4IkMA9wmBdgAEbCigGCF0oomwtiacWTs3Z7gEBYO6rEy4vSjnlIyGck59gFkXFGv4q48Drk3HQbcKa1j7ltEeSGiKbyDzfFhaCsEK0wXGbi1KT5dIPnrtHJtZqzXVsmW48GQsb4Yu3rfHpNsVqlTho2ltzadmFpIW4r5NkXzyPkVg4yAkrm1p5l8lSdcN11zbfKzC4VsJeQ4lEniGFt1ZNrYpOGUEEF60ujK-pkK7xLVlnTF9nFC4zRSq5GC3t8yvtfVy0WKV9HFULs-RhcUIOXXVafFB-93JHKmm-Om_UAMpwKtksiNzGFmLrXWhdjlZq8vMlhaOP814fpFULTlR8Ea827ucmDQFI5Oy0Rrapcz54UYEdSzq6jAW0efFxj-CkzXkV6kpPyGEMIn0XZkwOHFdbk2Am7amDV8zywKUs1Dp9UY_VhnbVJPsfYMdkzbJZTsAZ8zibE6WSmap7VglpPmmzEH6yU-1QamMxJeWfG-8K00GYUwssVNyxyRlrzGYFsK-95akzcUYOKbjVpOyU6ZN2xVVpltHdlvOX6tKYWMKMmKB0EZ530dLdF2szZ5z00TWG9cHwlaS3UxdRtCpiVMkLLyJmCNG3s-iqKfMe0aZ64FI2Hm3GDXfK-e5Bi3F52YwdIuV7gbSyky13rjSz1CzXvu8DZct7jvDlt1yZrYoWyUhRCto3-J91NSBwZuFRGiPfvowufklmMM7sh_DgU-56e8-xAw753Jrzpu_drmsWZHQ-rDt6797P-aWQevaCl3HacXX3CbJyMKvgGkNG7Z5z773BrBHmOtXO3vfme2C4VMPZWUvlmiG2_uItO4MuJcsFaqt-_xHBpq16F0RveOtsM9p1okcBmKsOjo8Qi8ViRemzZXYa3retGUJHtasn5Ky2VwuCbYSlezNMRIxSBhZC34MjspxwR5-BXDsNi78t1CRkcxcvtptRLqeEZMEf59pWCQtVWfO-SkiRaXbY8w4uDfmdN_M-4Saa-8kmGtg1BvS1rPi3tSyTqHIF8Cq0lJ8Uru8pPXwJwTr7sbPj2sVJCxo1V8u72Z9Rv1odOE9dV_4qU8JWs131y96VHKcKi-ozd0I-nUVyIZQvYn7SBjBkZX5ihgvXezw9-E9qpLR0zY82_WvlC_ymmR_Cv1fmRXHyE8P404Du-zZHQL4g639Sj8A9jnZc3VvLcQpcWjM1HEO831_0f9fE0YIJT9jBstm0QCPMPpDVICOMukQDx9LoF4NEjNfYQCacYJ45tYh5eMzVOIsDXInZ2J7wgYDtMUIJjVj9Qsno15Cxeczw5V-lyE6pooaC9MutOdKDe0aD2seZQMGtBZBYD9Tw5V7NYIvlLIjob0BsaCJslksIvJQVH8aC3ct4YoVINMpYtMaDtsKJgY3xCweZTCxd9DXInpgZRJXwu4UN8I7U_wHUnVhAXV8A3VJBPUEBvVywGxixmwLgQIg0uwexIBRBkA4Ac1cAY0Jx9h9hTh40lw_w00M0twdxiw81Dw6wJ0rx95O5YYNFCD9UxJt1-lqIcJB4jAOJYoKIMcCMyU8iAZ6oGdt1J4v5Bpepm96iSE65xIqV5YXd-1e9UcyIVIx1R1t0ND5Zldsp5kOkWd-JEUA8zUopychCms6jAo2cYtSYclZkOl55NjkoJYIJUDdIKC8JLjSYhNQoIo91SZCwxDYNSFg461jA91lJPjn9F10M0Y3ldVCwyJS8S0hNJDAEupGE98LcUtboaEWI9o4pC5TADiukr9CN5VRJ_o8IVI7w1t1shMz1dVOpDN4pktwdYTIUlk6oa5y1O00ExC5NSFh55Z64sUotQoAZNY2l4YlNyUxIbFBUyTu5oNTNf9B40dqJsoqCVUM8CNW88Eno3xdclJH8NcotaEyJVpWVD1Lpj0Fizwx88FJs0D8dr1ZTApMltIIp4Y7J8xH0-oHTzT-JMkzJpZ9JrJaY5ijDcs8FBlAUvJwoys8Fp925TAnT19GlyVp43j-ZqiNi85CprShYbC9pKcDYSlGkaouoYpJUmoZ8vkrI85aFRIMttY49vdqCMymM8FC53JpshZcttI6ZMpTI0lhtKyVYTs8ilIZ0gZHkHk0S7srEO1BlGEFF51XtXEcoClGERSCN_s8EAYhFHY1c1cIdgyGo9tE4K8eYEcFS603oS46JaJ34NTBp9IoJG91j35XkpDcyJMKJ8Tbo7srSVo1kfMajmtqdXTpYyIGEWEWF9SAJ-crE60ZzN064ujAocEOS986zCwIJEKlkoK-dnjvcsIopZDnp5DDcbZMZwZRJBUpVJUjizwcEsyopIk-YmtO5SLgK4TSES0tSwzS5TZXcjTnwmFw8myjldiGcOV2I6LTx-dXSuoZZ8xSSkM-oxCN8zJxS7wpYWjR8a1DCh4PlrVrUmCAIN9yVUDCZsNkMgUUL18a8rFVobJjAIorLqU5zq95TSE_yPoppitEtyIEkNTdjjDtzvKZKfFXlD1SZHZeFQllKAUOJ_oPpTAiS9DQqP5zNOJML7F7FbLFij85K3J-pjFntxFdkb8azB4ooXwllirELjLr9LFGLBl_oJJdZsKyrzwj9EyPoxUeF1snzC0j8syztgVQ5Qc30YC8FdIxNHZ5dztkCFTpdyDo5y4NMsCrTQtOIqs5Cy5iDzo4pupICdyrt9DBrNkFIG9NF8ExCWDXEu5SpXw2qpNOCFT6oLIgkj13wgLxDNVcFSFRIMJsJTBX4X4aCszv5YFsNcMzEtLnqZJaFiTSoVJ-S3EYahK5V_LLsqlh8zFzDbo5VCShddJWrvtpKLD9461PYqU0FLJ8CEJHDixnDnVXUPUvUfVwhvxMAXhHBwhhhGbhggA
+	⚠ Please be aware that this chart is not an official demo of Apache ECharts but is made by user-generated code.
+-->
+<!DOCTYPE html>
+<html lang="en" style="height: 100%">
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="height: 100%; margin: 0">
+  <div id="container" style="height: 100%"></div>
+
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/jquery"></script>
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+  <!-- Uncomment this line if you want to dataTool extension
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.3.3/dist/extension/dataTool.min.js"></script>
+  -->
+  <!-- Uncomment this line if you want to use gl extension
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js"></script>
+  -->
+  <!-- Uncomment this line if you want to echarts-stat extension
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts-stat@latest/dist/ecStat.min.js"></script>
+  -->
+  <!-- Uncomment this line if you want to use map
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@4.9.0/map/js/china.js"></script>
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@4.9.0/map/js/world.js"></script>
+  -->
+  <!-- Uncomment these two lines if you want to use bmap extension
+  <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=YOUR_API_KEY"></script>
+  <script type="text/javascript" src="https://fastly.jsdelivr.net/npm/echarts@5.3.3/dist/extension/bmap.min.js"></script>
+  -->
+
+  <script type="text/javascript">
+    var dom = document.getElementById('container');
+    var myChart = echarts.init(dom, 'dark', {
+      renderer: 'canvas',
+      useDirtyRect: false
+    });
+    var app = {};
+    
+    var option;
+
+    $.getScript(
+  'https://fastly.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.js'
+).done(function () {
+  var valMin = Infinity;
+  var valMax = -Infinity;
+  console.log(valMin, valMax);
+  myChart.setOption(
+    (option = {
+  xAxis3D: {
+    type: 'log'
+  },
+  yAxis3D: {
+    type: 'value'
+  },
+  zAxis3D: {
+    type: 'value'
+  },
+  grid3D: {
+    axisLine: {
+      lineStyle: { color: '#fff' }
+    },
+    axisPointer: {
+      lineStyle: { color: '#fff' }
+    },
+    viewControl: {
+      // autoRotate: true
+    },
+    light: {
+      main: {
+        shadow: true,
+        quality: 'ultra',
+        intensity: 1.5
+      }
+    }
+  },
+  series: [
+    {
+      id: 0,
+      name: 'channel',
+      color: '#FA7DDBFF',
+      type: 'surface',
+      data: [
+        ["2", 1, 394598.3434343434],
+        ["2", 2, 986599.505050505],
+        ["2", 3, 1338024.16],
+        ["2", 4, 1468331.9090909092],
+        ["2", 6, 1679651.44],
+        ["2", 8, 1266392.6],
+        ["2", 9, 1241270.4],
+        ["2", 10, 940520.9],
+        ["2", 11, 517199.03],
+        ["4", 1, 429203.0808080808],
+        ["4", 2, 1074422.9591836734],
+        ["4", 3, 1404663.64],
+        ["4", 4, 1777216.02],
+        ["4", 6, 2012879.68],
+        ["4", 8, 1572578.9387755103],
+        ["4", 9, 1494221.22],
+        ["4", 10, 1211332.3737373736],
+        ["4", 11, 602910.27],
+        ["8", 1, 603818.45],
+        ["8", 2, 1540800.2626262626],
+        ["8", 3, 1968829.1414141415],
+        ["8", 4, 2532865.63],
+        ["8", 6, 2876850.03],
+        ["8", 8, 2450864.61],
+        ["8", 9, 2265148.69],
+        ["8", 10, 1796919.32],
+        ["8", 11, 813597.9494949495],
+        ["16", 1, 858301.306122449],
+        ["16", 2, 2301546.102040816],
+        ["16", 3, 3327879.92],
+        ["16", 4, 4037550.47],
+        ["16", 6, 4517623.171717172],
+        ["16", 8, 3980547.43],
+        ["16", 9, 3130259.8383838385],
+        ["16", 10, 2829127.46],
+        ["16", 11, 1297414.9081632653],
+        ["32", 1, 1244555.49],
+        ["32", 2, 3454593.673469388],
+        ["32", 3, 4752739.09],
+        ["32", 4, 5505892.214285715],
+        ["32", 6, 5989118.326530612],
+        ["32", 8, 5080196.35],
+        ["32", 9, 3899951.13],
+        ["32", 10, 3446129.01010101],
+        ["32", 11, 1806173.6],
+        ["64", 1, 1642241.2121212122],
+        ["64", 2, 4392261.255102041],
+        ["64", 3, 6397113.29],
+        ["64", 4, 7270461.21],
+        ["64", 6, 7750538.14],
+        ["64", 8, 7049783.828282828],
+        ["64", 9, 6243755.343434343],
+        ["64", 10, 4724342.212121212],
+        ["64", 11, 2415885.878787879],
+        ["128", 1, 1900476.7272727273],
+        ["128", 2, 4892520.216494845],
+        ["128", 3, 7266376.737373738],
+        ["128", 4, 8366643.18],
+        ["128", 6, 8929168.793814434],
+        ["128", 8, 7963818.575757576],
+        ["128", 9, 6961349.66],
+        ["128", 10, 5992577.618556701],
+        ["128", 11, 2479559.282828283],
+        ["256", 1, 2078505.357142857],
+        ["256", 2, 5460015.6122448975],
+        ["256", 3, 7978598.857142857],
+        ["256", 4, 8899586.010101011],
+        ["256", 6, 9457974.111111112],
+        ["256", 8, 8450905.191919193],
+        ["256", 9, 7167032.12371134],
+        ["256", 10, 6287756.37755102],
+        ["256", 11, 3043883.95],
+        ["512", 1, 2076426.163265306],
+        ["512", 2, 5342180.98989899],
+        ["512", 3, 7961768.474226804],
+        ["512", 4, 9118720.767676767],
+        ["512", 6, 9664799.62],
+        ["512", 8, 8706322.686868686],
+        ["512", 9, 7337572.12244898],
+        ["512", 10, 5803618.958762887],
+        ["512", 11, 3105765.888888889]
+      ],
+      shading: 'lambert'
+  },
+    {
+      id: 1,
+      name: 'hybrid',
+      color: '#7DFAA5FF',
+      type: 'surface',
+      data: [
+        ["2", 1, 3753480.505050505],
+        ["2", 2, 3840455.131313131],
+        ["2", 3, 3615491.1326530613],
+        ["2", 4, 3721325.131313131],
+        ["2", 6, 3623998.878787879],
+        ["2", 8, 3835230.5555555555],
+        ["2", 9, 3807023.793814433],
+        ["2", 10, 3812329.102040816],
+        ["2", 11, 3933201.696969697],
+        ["4", 1, 4051711.696969697],
+        ["4", 2, 4779798.818181818],
+        ["4", 3, 5299741.234693877],
+        ["4", 4, 5946450.848484849],
+        ["4", 6, 5801373.89],
+        ["4", 8, 4976796.865979382],
+        ["4", 9, 4727230.285714285],
+        ["4", 10, 4745776.62886598],
+        ["4", 11, 4131688.9270833335],
+        ["8", 1, 3979020],
+        ["8", 2, 4514871.06185567],
+        ["8", 3, 5340349.171717172],
+        ["8", 4, 5647827.757575758],
+        ["8", 6, 6050107.010204081],
+        ["8", 8, 5576633.989690722],
+        ["8", 9, 5177424.1122448975],
+        ["8", 10, 5066136.418367347],
+        ["8", 11, 4777380.313131313],
+        ["16", 1, 4010384.4897959186],
+        ["16", 2, 4581636.78],
+        ["16", 3, 5508535.459183673],
+        ["16", 4, 6311493.2],
+        ["16", 6, 6163227.326530612],
+        ["16", 8, 5365543.319148936],
+        ["16", 9, 4917419.114583333],
+        ["16", 10, 4989023.816326531],
+        ["16", 11, 4315919.927835052],
+        ["32", 1, 3779004.121212121],
+        ["32", 2, 4970856.867346939],
+        ["32", 3, 5633672.43298969],
+        ["32", 4, 6015691.262626262],
+        ["32", 6, 6072563.760416667],
+        ["32", 8, 5311133.37755102],
+        ["32", 9, 5155035.102040816],
+        ["32", 10, 5007464.670103093],
+        ["32", 11, 4300757.306122449],
+        ["64", 1, 3899765.9484536084],
+        ["64", 2, 4795626.244897959],
+        ["64", 3, 5788355.404040404],
+        ["64", 4, 6710871.62244898],
+        ["64", 6, 6482695.151515151],
+        ["64", 8, 5551437.845360825],
+        ["64", 9, 5366968.69072165],
+        ["64", 10, 5049244.12371134],
+        ["64", 11, 4357915.969072165],
+        ["128", 1, 3940835.414141414],
+        ["128", 2, 4985385.4387755105],
+        ["128", 3, 5739155.3838383835],
+        ["128", 4, 6479774.724489796],
+        ["128", 6, 6121324.625],
+        ["128", 8, 5462305.907216495],
+        ["128", 9, 5243464.226804123],
+        ["128", 10, 4890004.9387755105],
+        ["128", 11, 4580367.278350515],
+        ["256", 1, 4307387.948979592],
+        ["256", 2, 4778378.255102041],
+        ["256", 3, 5625903.151515151],
+        ["256", 4, 6317924.96969697],
+        ["256", 6, 6650734.313131313],
+        ["256", 8, 5622884.357142857],
+        ["256", 9, 5281571.717171717],
+        ["256", 10, 5058386.525773196],
+        ["256", 11, 4476794.1632653065],
+        ["512", 1, 4245489.59],
+        ["512", 2, 5053012.9],
+        ["512", 3, 5493757.632653061],
+        ["512", 4, 6359795.4949494945],
+        ["512", 6, 6502317.204081632],
+        ["512", 8, 5356803.37755102],
+        ["512", 9, 5653950.06185567],
+        ["512", 10, 4831434.535353536],
+        ["512", 11, 4541466.346938776]
+      ],
+      shading: 'lambert'
+  },
+    {
+      id: 2,
+      name: 'generic',
+      color: '#FAAD7DFF',
+      type: 'surface',
+      data: [
+        ["2", 1, 5673453.731958763],
+        ["2", 2, 5902475.479591837],
+        ["2", 3, 5682128.67],
+        ["2", 4, 5806558.96],
+        ["2", 6, 5553928.40625],
+        ["2", 8, 5604460.131313131],
+        ["2", 9, 5606788.642857143],
+        ["2", 10, 5312235.979591837],
+        ["2", 11, 5061992.857142857],
+        ["4", 1, 6581540.161616161],
+        ["4", 2, 7407061.55],
+        ["4", 3, 7054844.070707071],
+        ["4", 4, 6716618.546391753],
+        ["4", 6, 6564272.835051547],
+        ["4", 8, 6601897.071428572],
+        ["4", 9, 6688160.395833333],
+        ["4", 10, 6185749.183673469],
+        ["4", 11, 5601124.5051546395],
+        ["8", 1, 7273065.06],
+        ["8", 2, 8201505.28],
+        ["8", 3, 7636379.673469388],
+        ["8", 4, 7541690.653061224],
+        ["8", 6, 7543471.275510204],
+        ["8", 8, 7467320.793814433],
+        ["8", 9, 7365571.775510204],
+        ["8", 10, 7428031.393939394],
+        ["8", 11, 5820198.642857143],
+        ["16", 1, 7006283.07],
+        ["16", 2, 7680593.04],
+        ["16", 3, 7589844.979591837],
+        ["16", 4, 7424966.602040816],
+        ["16", 6, 7295868.680412371],
+        ["16", 8, 7667776.69072165],
+        ["16", 9, 7972943.49],
+        ["16", 10, 6946611.6632653065],
+        ["16", 11, 5627998.191919192],
+        ["32", 1, 7236100.878787879],
+        ["32", 2, 8364185.88],
+        ["32", 3, 7822430.404040404],
+        ["32", 4, 7687023.3838383835],
+        ["32", 6, 7584262.909090909],
+        ["32", 8, 7455209.244897959],
+        ["32", 9, 7502868.270833333],
+        ["32", 10, 7379953.959183673],
+        ["32", 11, 5584683.282828283],
+        ["64", 1, 7284185.555555556],
+        ["64", 2, 8350294.565656566],
+        ["64", 3, 7218022.204081632],
+        ["64", 4, 7615669.686868687],
+        ["64", 6, 7229637.918367347],
+        ["64", 8, 7753732.040816327],
+        ["64", 9, 7398828],
+        ["64", 10, 6974619.676767677],
+        ["64", 11, 5728301.8367346935],
+        ["128", 1, 7543985.67],
+        ["128", 2, 8315232.888888889],
+        ["128", 3, 7815245.846938776],
+        ["128", 4, 7273994.747474748],
+        ["128", 6, 7468621.295918368],
+        ["128", 8, 7461934.3838383835],
+        ["128", 9, 7793610.434343434],
+        ["128", 10, 6798862.06185567],
+        ["128", 11, 5649622.737373738],
+        ["256", 1, 7423870.212121212],
+        ["256", 2, 7975228.565656566],
+        ["256", 3, 7700882.602040816],
+        ["256", 4, 7627065.333333333],
+        ["256", 6, 7315756.43298969],
+        ["256", 8, 7406880.489795919],
+        ["256", 9, 7595694.132653061],
+        ["256", 10, 7424966.704081632],
+        ["256", 11, 6018254.3838383835],
+        ["512", 1, 7401041.7272727275],
+        ["512", 2, 8346921.333333333],
+        ["512", 3, 7512851.793814433],
+        ["512", 4, 7663302.01010101],
+        ["512", 6, 7617261.848484849],
+        ["512", 8, 7574210.636363637],
+        ["512", 9, 7727859.649484536],
+        ["512", 10, 6976405.3367346935],
+        ["512", 11, 5846238.4639175255]
+      ],
+      shading: 'lambert'
+  }
+  ]
+})
+  );
+});
+
+
+    if (option && typeof option === 'object') {
+      myChart.setOption(option);
+    }
+
+    window.addEventListener('resize', myChart.resize);
+  </script>
+</body>
+</html>
