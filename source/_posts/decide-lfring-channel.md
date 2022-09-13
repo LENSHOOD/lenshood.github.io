@@ -9,7 +9,7 @@ categories:
 - Go
 ---
 
-{% asset_img head-pic.jpg 300 %}
+{% asset_img head-pic.jpg 500 %}
 
 本文分析了 lfring 和 channel 在不同场景下的性能表现，并给出了在哪些场景中引入 lfring 才更佳的建议。
 
@@ -51,7 +51,7 @@ categories:
 
 结合上面三个图我们会发现，在生产者消费者相等，容量变化的场景下，channel 展现了一条近似线性增长的曲线：容量越大，性能越好。同时，元素数超过 64，其性能就已经超越了 lfring。
 
-再看从第二张线程变化的图上，channel 和其他两条 lfring 的曲线区分度不高，说明线程数对其产生的影响比较一致。
+再看从第二张线程变化的图上，channel 和其他两条 lfring 的曲线区分度不高，只有在单线程和超出 CPU 逻辑核数后，lfring 和 channel 产生了偏离。因此线程数产生的影响相对一致。
 
 而最后第三张展现生产者消费者比例变化的图上，我们发现 lfring 在生产者消费者不均衡（可认为生产端和消费端不等速）时所表现出的性能稳定性更好，而 channel 更适合等速的场景。
 
@@ -65,7 +65,7 @@ categories:
 
 基于上述假设，我们控制线程数不变，在两个轴上分别对队列容量、生产者消费者比例进行改变，得到了如下的三维图：
 
-{% iframe 3d-capacity-producer-all.html 100% 500 %}
+{% iframe 3d-capacity-producer.html 100% 500 %}
 
 结果是明确的：channel 的性能表现像一个山丘，而 lfring 更像是平原。从中，我们可以得出如下结论：
 
