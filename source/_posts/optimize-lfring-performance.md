@@ -17,6 +17,16 @@ categories:
 
 <!-- more -->
 
+---
+
+Lock Free Ring Buffer 系列文章：
+
+1. [一个简单的 Lock Free Ring Buffer，有多简单？](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/)
+2. [探索引入泛型对 lfring 产生的性能影响](https://lenshood.github.io/2022/08/01/optimize-lfring-performance/)
+3. [lfring 和 channel，到底要怎么选？](https://lenshood.github.io/2022/09/04/decide-lfring-channel/)
+
+---
+
 ### 1. 引入泛型
 
 随着 go1.18 的发布，等待了 10 年的泛型终于发布了。想想去年写的 [lfring](https://github.com/LENSHOOD/go-lock-free-ring-buffer) 的库，正是因为 go 没有泛型的支持，对数据的存取全部都用了 `interface{}`，导致整个流程中反复的进行类型转换，用户在使用的时候也需要大量类型推断。

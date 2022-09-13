@@ -22,6 +22,16 @@ Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特�
 
 <!-- more -->
 
+---
+
+Lock Free Ring Buffer 系列文章：
+
+1. [一个简单的 Lock Free Ring Buffer，有多简单？](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/)
+2. [探索引入泛型对 lfring 产生的性能影响](https://lenshood.github.io/2022/08/01/optimize-lfring-performance/)
+3. [lfring 和 channel，到底要怎么选？](https://lenshood.github.io/2022/09/04/decide-lfring-channel/)
+
+---
+
 ### Ideology
 
 原理上 Ring Buffer 简单优雅：

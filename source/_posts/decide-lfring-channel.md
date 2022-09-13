@@ -15,6 +15,16 @@ categories:
 
 <!-- more -->
 
+---
+
+Lock Free Ring Buffer 系列文章：
+
+1. [一个简单的 Lock Free Ring Buffer，有多简单？](https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/)
+2. [探索引入泛型对 lfring 产生的性能影响](https://lenshood.github.io/2022/08/01/optimize-lfring-performance/)
+3. [lfring 和 channel，到底要怎么选？](https://lenshood.github.io/2022/09/04/decide-lfring-channel/)
+
+---
+
 ### Generics 与对照组 Channel
 
 在 lfring 的引入 generics 一文中，我们仅对比了在`interface{}` 和 generics 两种场景下，lfring 的性能变化，而没有涉及到对照组 channel 在引入 generics 后的变化。
