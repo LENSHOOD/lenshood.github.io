@@ -53,11 +53,11 @@ Lock Free Ring Buffer 系列文章：
 
 再看实测值，似乎比 lfring 性能还要更好。为了进一步的定量分析，我们再次将 lfring 和 channel 放在一起进行测试：
 
-{% iframe capacity-all.html 100% 500 %}
+{% iframe capacity-all.html 100% 600 %}
 
-{% iframe thread-all.html 100% 500 %}
+{% iframe thread-all.html 100% 600 %}
 
-{% iframe producer-all.html 100% 500 %}
+{% iframe producer-all.html 100% 600 %}
 
 结合上面三个图我们会发现，在生产者消费者相等，容量变化的场景下，channel 展现了一条近似线性增长的曲线：容量越大，性能越好。同时，元素数超过 64，其性能就已经超越了 lfring。
 
