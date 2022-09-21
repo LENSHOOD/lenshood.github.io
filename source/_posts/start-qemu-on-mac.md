@@ -65,3 +65,36 @@ categories:
    6. 现在，重启 qemu，完整的启动命令：`qemu-system-x86_64 -machine type=q35,accel=hvf -smp 2 -m 1G -drive file=node0,index=0,media=disk -netdev tap,id=nd0,ifname=tap0,script=./qemu-ifup,downscript=./qemu-ifdown -device e1000,netdev=nd0`
    7. 输入 `nmcli c reload` 重新加载网络连接，之后在 `ifconfig` 中就能看到网卡已经获取到了三层网络地址
    8. 为了方便下一次启动自动配置网络，在 `/etc/sysconfig/network-script/ifcfg-{nic_name}` 中配置 `ONBOOT = yes`
+
+
+
+初始化 k8s 集群：
+
+1. 关闭前述 vm 的 swap：在 `/etc/fstab` 中将 swap 相关的行注释掉，之后重启。（关闭 swap 的主要原因是 swap 的存在让 kubelet 难以管理 pod 的内存使用，不过在 [v1.22 alpha 中已经尝试支持 swap](https://kubernetes.io/blog/2021/08/09/run-nodes-with-swap-alpha/)）
+2. 安装 container runtime，这里选择的是安装 cri-o，[安装文档](https://github.com/cri-o/cri-o/blob/main/install.md#install-packaged-versions-of-cri-o)，完成后执行 `sudo systemctl start crio`
+
+3. 安装 kubeadm、kubelet、kubeadm
+
+   可以选择国内 yum 源：
+
+   ```shell
+   cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+   [kubernetes]
+   name=Kubernetes
+   baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+   enabled=1
+   gpgcheck=1
+   repo_gpgcheck=1
+   gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+   EOF
+   ```
+
+   安装：`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`
+
+4. 可以正式开始启动 `kubeadm`
+
+   `kubeadm init --pod-network-cidr=10.244.0.0/16 --image-repository=registry.aliyuncs.com/google_containers --kubernetes-version=stable --cri-socket=unix:///var/run/crio/crio.sock`
+
+   可以看到这里使用了国内的镜像源，此外 cri-o 必须要配置其 socket。
+
+5. 
