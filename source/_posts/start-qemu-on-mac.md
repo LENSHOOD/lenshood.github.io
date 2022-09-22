@@ -71,7 +71,10 @@ categories:
 初始化 k8s 集群：
 
 1. 关闭前述 vm 的 swap：在 `/etc/fstab` 中将 swap 相关的行注释掉，之后重启。（关闭 swap 的主要原因是 swap 的存在让 kubelet 难以管理 pod 的内存使用，不过在 [v1.22 alpha 中已经尝试支持 swap](https://kubernetes.io/blog/2021/08/09/run-nodes-with-swap-alpha/)）
+
 2. 安装 container runtime，这里选择的是安装 cri-o，[安装文档](https://github.com/cri-o/cri-o/blob/main/install.md#install-packaged-versions-of-cri-o)，完成后执行 `sudo systemctl start crio`
+
+   > [覆写沙箱的 pause 镜像](registry.cn-hangzhou.aliyuncs.com/google_containers/pause)非常重要，如果忘记这一步，会导致 kubeadm 无法创建 control plane 的 pod。[pause (intra container)的作用？](https://jimmysong.io/kubernetes-handbook/concepts/pause-container.html)
 
 3. 安装 kubeadm、kubelet、kubeadm
 
@@ -97,4 +100,11 @@ categories:
 
    可以看到这里使用了国内的镜像源，此外 cri-o 必须要配置其 socket。
 
-5. 
+   > 在这个过程中，遇到了 cri-o 在拉镜像时报的 `Unknown key "keyPaths"` 的问题，搜了下发现是一个[未修复的 bug](https://github.com/cri-o/cri-o/issues/6197#issuecomment-1236397274)，可以采用 issue 内的办法临时解决。
+
+5. 现在按照 kubeadm 的提示，把 `/etc/kubernetes/admin.conf` 拷贝到 `$HOME/.kube/config` 之后就可以用 kubectl 连接集群了；另外，kubeadm 的输出中也包含了如何加入工作节点的命令，可以保留下来以备后面加入节点
+6. 安装网络插件（这里选最简单的 Flannel）：`kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml`，当 kube-system ns 下出现 coredns 的 pod 时，说明网络插件安装成功了
+7. 加入 Worker Node
+   1. 以相同的方式初始化另一个 qemu vm
+   2. 执行先前保存的加入命令，或是执行：`kubeadm join --token <token> <control-plane-host>:<control-plane-port> --discovery-token-ca-cert-hash sha256:<hash>` 命令内的参数如何获取见[这里](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#join-nodes)
+   3. 把 control plane 的 `/etc/kubernetes/admin.conf` 拷贝到 Worker Node，即可使用 kubectl
