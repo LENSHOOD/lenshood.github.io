@@ -1,15 +1,21 @@
 ---
-title: 在 Mac 上启动 QEMU 安装 Linux
+title: MacOS 上安装基于 QEMU 的 K8S 集群
 date: 2022-09-20 09:44:23
 tags:
 - qemu
 - macos
-- linux
+- k8s
 categories:
-- System
+- Kubernetes
 ---
 
-本文介绍了如何在 mac 上安装 qemu 并启动一个 vm 来初始化 linux。
+{% asset_img head-pic.jpg 500 %}
+
+本文介绍了如何在 mac 上基于 qemu 来配置并启动一个 k8s 集群。
+
+<!-- more -->
+
+### QEMU 启动 VM
 
 1. 安装 qemu
 
@@ -68,7 +74,7 @@ categories:
 
 
 
-初始化 k8s 集群：
+### 初始化 k8s 集群：
 
 1. 关闭前述 vm 的 swap：在 `/etc/fstab` 中将 swap 相关的行注释掉，之后重启。（关闭 swap 的主要原因是 swap 的存在让 kubelet 难以管理 pod 的内存使用，不过在 [v1.22 alpha 中已经尝试支持 swap](https://kubernetes.io/blog/2021/08/09/run-nodes-with-swap-alpha/)）
 
@@ -108,3 +114,17 @@ categories:
    1. 以相同的方式初始化另一个 qemu vm
    2. 执行先前保存的加入命令，或是执行：`kubeadm join --token <token> <control-plane-host>:<control-plane-port> --discovery-token-ca-cert-hash sha256:<hash>` 命令内的参数如何获取见[这里](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#join-nodes)
    3. 把 control plane 的 `/etc/kubernetes/admin.conf` 拷贝到 Worker Node，即可使用 kubectl
+
+
+
+### Host 连接集群
+
+创建 kubeconfig 来允许宿主机访问，流程参考[这里](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-certs/#kubeconfig-additional-users)
+
+1. 生成当前集群的 kubeadm config 文件
+   - 获取当前集群的 kubeadm 配置：`kubectl get cm kubeadm-config -n kube-system -o=jsonpath="{.data.ClusterConfiguration}"`，并将其保存生成一个 kubeadm.conf
+   - 使用 kubeadm 生成一个 kubeconfig 输出到 stdout：`kubeadm kubeconfig user --config kubeadm.conf --client-name outter-admin`  该命令生成了一个名为 `outter-admin` 的用户
+   - 创建一个 clusterrolebinding，将 `outter-admin` 用户和内置的 clusterrole: `cluster-admin` 绑定起来：`kubectl create clusterrolebinding outter-admin-for-cluster-admin --clusterrole=cluster-admin --user=outter-admin`
+   - 更新宿主机上的 `~/.kube/config` 文件，将 kubeconfig 合并进去
+2. 在宿主机验证
+   - 执行 `kubectl get nodes` 就可以看到前文部署的两个节点
