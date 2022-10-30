@@ -9,7 +9,7 @@ categories:
 - Kubernetes
 ---
 
-{% asset_img head-pic.jpg 500 %}
+{% asset_img header.jpg 500 %}
 
 本文介绍了如何在 mac 上基于 qemu 来配置并启动一个 k8s 集群。
 
@@ -31,11 +31,18 @@ categories:
 
    `qemu-img create $DISK_NAME $DISK_SIZE`
 
-   DISK_NAME 是虚拟磁盘名称，这里名称设置的是 `node0`，DISK_SIZE 是容量，这里选择的是 `15G` 足够 CentOS 的安装。
+   DISK_NAME 是虚拟磁盘名称，这里DISK_NAME设置的是 `node0`，DISK_SIZE 是容量，这里选择的是 `15G` 足够 CentOS 的安装。
 
-4. 挂载 iso 并启动 emu
+4. 挂载 iso 并启动 qemu
 
-   `qemu-system-x86_64 -machine type=q35,accel=hvf -smp 2 -m 1G -drive file=node0,index=0,media=disk -cdrom CentOS-Stream-8-x86_64-latest-dvd1.iso`
+   ```shell
+   qemu-system-x86_64 \
+     -machine type=q35,accel=hvf \
+     -smp 2 \
+     -m 1G \
+     -drive file=node0,index=0,media=disk \
+     -cdrom CentOS-Stream-8-x86_64-latest-dvd1.iso
+   ```
 
    关于 qemu 启动参数的详细见[这里](https://www.qemu.org/docs/master/system/invocation.html#hxtool-0)。
 
@@ -62,19 +69,34 @@ categories:
 
    5. 至此，我们可以为 qemu 添加网络相关的配置：
 
-      `-netdev tap,id=nd0,ifname=tap0,script=./qemu-ifup,downscript=./qemu-ifdown -device e1000,netdev=nd0,mac=xx:xx:xx:xx:xx:xx`
+      ```shell
+      qemu-system-x86_64 \
+        -netdev tap,id=nd0,ifname=tap0,script=./qemu-ifup,downscript=./qemu-ifdown \
+        -device e1000,netdev=nd0,mac=xx:xx:xx:xx:xx:xx
+      ```
 
       其中 `-netdev` 定义了采用 tap 网络，并启动名为 tap0 的虚拟设备。`-device` 配置具体的设备，通过 `id=nd0` 与定义进行关联。如果不指定 mac 地址，则默认地址只有一个，如果要启动多个 vm 则会导致冲突。
 
       此外，`script` 和 `downscript` 分别配置两个脚本，在 qemu 启动、终止时执行。正好当 tap0 被 qemu 创建后，还没有和 bridge 做关联，所以 script 和 downscript 的内容可以分别为：`ifconfig bridge0 addm tap0` 和 `ifconfig bridge0 deletem tap0`（其中 `bridge0` 是我们在 mac 上创建的网桥名称）。
 
-   6. 现在，重启 qemu，完整的启动命令：`qemu-system-x86_64 -machine type=q35,accel=hvf -smp 2 -m 1G -drive file=node0,index=0,media=disk -netdev tap,id=nd0,ifname=tap0,script=./qemu-ifup,downscript=./qemu-ifdown -device e1000,netdev=nd0`
+   6. 现在，重启 qemu，完整的启动命令：
+
+      ```shell
+      qemu-system-x86_64 \
+        -machine type=q35,accel=hvf \
+        -smp 2 \
+        -m 1G \
+        -drive file=node0,index=0,media=disk \
+        -netdev tap,id=nd0,ifname=tap0,script=./qemu-ifup,downscript=./qemu-ifdown -device e1000,netdev=nd0
+      ```
+
    7. 输入 `nmcli c reload` 重新加载网络连接，之后在 `ifconfig` 中就能看到网卡已经获取到了三层网络地址
+
    8. 为了方便下一次启动自动配置网络，在 `/etc/sysconfig/network-script/ifcfg-{nic_name}` 中配置 `ONBOOT = yes`
 
 
 
-### 初始化 k8s 集群：
+### 初始化 k8s 集群
 
 1. 关闭前述 vm 的 swap：在 `/etc/fstab` 中将 swap 相关的行注释掉，之后重启。（关闭 swap 的主要原因是 swap 的存在让 kubelet 难以管理 pod 的内存使用，不过在 [v1.22 alpha 中已经尝试支持 swap](https://kubernetes.io/blog/2021/08/09/run-nodes-with-swap-alpha/)）
 
@@ -102,17 +124,39 @@ categories:
 
 4. 可以正式开始启动 `kubeadm`
 
-   `kubeadm init --pod-network-cidr=10.244.0.0/16 --image-repository=registry.aliyuncs.com/google_containers --kubernetes-version=stable --cri-socket=unix:///var/run/crio/crio.sock`
+   ```shell
+   kubeadm init \
+     --pod-network-cidr=10.244.0.0/16 \
+     --image-repository=registry.aliyuncs.com/google_containers \
+     --kubernetes-version=stable \
+     --cri-socket=unix:///var/run/crio/crio.sock
+   ```
 
    可以看到这里使用了国内的镜像源，此外 cri-o 必须要配置其 socket。
 
    > 在这个过程中，遇到了 cri-o 在拉镜像时报的 `Unknown key "keyPaths"` 的问题，搜了下发现是一个[未修复的 bug](https://github.com/cri-o/cri-o/issues/6197#issuecomment-1236397274)，可以采用 issue 内的办法临时解决。
 
 5. 现在按照 kubeadm 的提示，把 `/etc/kubernetes/admin.conf` 拷贝到 `$HOME/.kube/config` 之后就可以用 kubectl 连接集群了；另外，kubeadm 的输出中也包含了如何加入工作节点的命令，可以保留下来以备后面加入节点
-6. 安装网络插件（这里选最简单的 Flannel）：`kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml`，当 kube-system ns 下出现 coredns 的 pod 时，说明网络插件安装成功了
+
+6. 安装网络插件（这里选最简单的 Flannel）：
+
+   ```shell
+   kubectl apply \
+     -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+   ```
+
+   当 kube-system ns 下出现 coredns 的 pod 时，说明网络插件安装成功了
+
 7. 加入 Worker Node
+
    1. 以相同的方式初始化另一个 qemu vm
-   2. 执行先前保存的加入命令，或是执行：`kubeadm join --token <token> <control-plane-host>:<control-plane-port> --discovery-token-ca-cert-hash sha256:<hash>` 命令内的参数如何获取见[这里](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#join-nodes)
+
+   2. 执行先前保存的加入命令，或是执行：
+
+      `kubeadm join --token <token> <control-plane-host>:<control-plane-port> --discovery-token-ca-cert-hash sha256:<hash>` 
+
+      命令内的参数如何获取见[这里](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#join-nodes)
+
    3. 把 control plane 的 `/etc/kubernetes/admin.conf` 拷贝到 Worker Node，即可使用 kubectl
 
 
@@ -122,9 +166,25 @@ categories:
 创建 kubeconfig 来允许宿主机访问，流程参考[这里](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-certs/#kubeconfig-additional-users)
 
 1. 生成当前集群的 kubeadm config 文件
-   - 获取当前集群的 kubeadm 配置：`kubectl get cm kubeadm-config -n kube-system -o=jsonpath="{.data.ClusterConfiguration}"`，并将其保存生成一个 kubeadm.conf
-   - 使用 kubeadm 生成一个 kubeconfig 输出到 stdout：`kubeadm kubeconfig user --config kubeadm.conf --client-name outter-admin`  该命令生成了一个名为 `outter-admin` 的用户
-   - 创建一个 clusterrolebinding，将 `outter-admin` 用户和内置的 clusterrole: `cluster-admin` 绑定起来：`kubectl create clusterrolebinding outter-admin-for-cluster-admin --clusterrole=cluster-admin --user=outter-admin`
+
+   - 获取当前集群的 kubeadm 配置：
+
+     `kubectl get cm kubeadm-config -n kube-system -o=jsonpath="{.data.ClusterConfiguration}"`
+
+     并将其保存生成一个 kubeadm.conf
+
+   - 使用 kubeadm 生成一个 kubeconfig 输出到 stdout：
+
+     `kubeadm kubeconfig user --config kubeadm.conf --client-name outter-admin`  
+
+     该命令生成了一个名为 `outter-admin` 的用户
+
+   - 创建一个 clusterrolebinding，将 `outter-admin` 用户和内置的 clusterrole: `cluster-admin` 绑定起来
+
+     `kubectl create clusterrolebinding outter-admin-for-cluster-admin --clusterrole=cluster-admin --user=outter-admin`
+
    - 更新宿主机上的 `~/.kube/config` 文件，将 kubeconfig 合并进去
+
 2. 在宿主机验证
+
    - 执行 `kubectl get nodes` 就可以看到前文部署的两个节点
