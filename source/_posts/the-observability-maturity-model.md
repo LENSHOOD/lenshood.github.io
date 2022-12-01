@@ -15,51 +15,31 @@ categories:
 
 ## 序言
 
-At StackState, we have spent eight years in the monitoring and observability space. During this time, we have spoken with countless DevOps engineers, architects, SREs, heads of IT operations and CTOs, and we have heard the same struggles over and over. 
+在StackState，我们已经在监控和可观察性领域度过了八年时间。在这段时间里，我们与无数的DevOps工程师、架构师、SRE、IT运营主管和CTO交谈过，我们反复听到同样的挣扎。
 
-在StackState，我们在监控和可观察性领域已经花了八年时间。在这段时间里，我们与无数的DevOps工程师、架构师、SRE、IT运营主管和CTO交谈过，我们反复听到同样的挣扎。
-
-Today’s consumers are used to great technology that works all the time. They have little tolerance for outages or performance issues. These expectations push businesses to stay competitive through frequent releases, ever-faster response and greater reliability. At the same time, the move towards cloudbased applications – with all of their ever-changing functions, microservices and containers – makes IT environments more complex and harder than ever to operate and monitor.
-
-今天的消费者已经习惯了一直在工作的伟大技术。他们对故障或性能问题的容忍度很低。这些期望促使企业通过频繁的发布、更快的响应和更高的可靠性来保持竞争力。同时，向基于云的应用的转变--所有不断变化的功能、微服务和容器--使IT环境变得更加复杂，比以往更难操作和监控。
+今天的消费者已经习惯了从不宕机的伟大技术。他们对故障或性能问题的容忍度很低。这些期望促使企业通过频繁的发布、更快的响应和更高的可靠性来保持竞争力。同时，向基于云的应用的转变--所有不断变化的功能、微服务和容器--使IT环境变得更加复杂，比以往更难运维和监控。
 
 As a result, we have seen great commonalities in the monitoring challenges that are unfolding globally, such as this colorful issue described by a customer:
 
-因此，我们看到在全球范围内展开的监测挑战有很大的共性，例如一位客户描述的这个丰富多彩的问题。
+因此，我们看到在全球范围内展开的有关监控的挑战有很大的共性，例如一位客户描述的如下丰富多彩的问题。
 
-> “When something big broke in the infrastructure, storage, networking equipment or something like that... every time we saw the same movie. The monitoring gets red, red, red, thousands of alarms, nobody knows what’s the root cause. Everybody is panicked – real total chaos.”
->
-> "当基础设施、存储、网络设备或类似的东西出现大故障时......每次我们都看到同样的电影。监控变得红色，红色，红色，成千上万的警报，没有人知道什么是根本原因。每个人都很惊慌--真正的完全混乱"。
->
-> \- Georg Höllebauer, Enterprise Metrics Architect at APA-Tech
+> "当基础设施、存储、网络设备或类似的东西出现大故障时......每次我们都像在看一部同样的电影。监控变得红色，红色，红色，成千上万的警报，没有人知道什么是根本原因。每个人都很惊慌--真正的完全混乱"。
 >
 > \- Georg Höllebauer, APA-Tech的企业指标架构师
 
-
-
-I witnessed this problem first-hand eight years ago when I was part of a team of two consultants working at a major Dutch bank, helping them improve the reliability of their mission-critical applications. They were a mature enterprise with multiple monitoring tools in place for their complex environment, but they could not find the root cause of problems quickly. As a result of many siloed tools and lack of unified view of their IT environment, customer experience was directly suffering. When something broke, it took too long to find and fix the core problem. We knew we had to find a better way, and the technology we built to meet this bank’s needs became the foundation for StackState.
-
-八年前，我亲眼目睹了这个问题，当时我是一个由两名顾问组成的团队的一员，在一家大型荷兰银行工作，帮助他们提高其关键任务应用程序的可靠性。他们是一个成熟的企业，为其复杂的环境配备了多种监控工具，但他们无法迅速找到问题的根源。由于许多孤立的工具和缺乏对其IT环境的统一看法，客户体验直接受到影响。当有东西损坏时，要花很长时间才能找到并解决核心问题。我们知道我们必须找到一个更好的方法，而我们为满足这家银行的需求而建立的技术成为StackState的基础。
-
-Since we released the original Monitoring Maturity Model in 2017, it has become clear that the original monitoring tools – which simply notified IT teams when something broke – were no longer sufficient for many other organizations as well. Today’s engineers need to immediately understand the priorities and context surrounding a problem: what’s the impact on customer experience and business results? Then, if the impact is high: why did it break and how do we fix it?
+八年前，我亲眼目睹了这个问题，当时我是一个由两名顾问组成的团队的一员，在一家大型荷兰银行工作，帮助他们提高其关键任务应用程序的可靠性。他们是一个成熟的企业，为其复杂的环境配备了多种监控工具，但他们无法迅速找到问题的根因。由于许多孤立的工具和缺乏对其IT环境的统一视图，客户体验直接受到影响。当有什么东西损坏时，要花很长时间才能找到并解决核心问题。我们知道我们必须找到一个更好的方法，而我们为满足这家银行的需求而建立的技术成为StackState的基础。
 
 自从我们在2017年发布最初的监控成熟度模型以来，很明显，最初的监控工具--只是在出现故障时通知IT团队--对于许多其他组织也不再足够。今天的工程师需要立即了解一个问题的优先级和背景：对客户体验和业务成果的影响是什么？然后，如果影响很大：为什么会发生故障，我们该如何修复它？
 
-The concept of observability has evolved from monitoring to answer those questions. Observability is vital in maintaining the level of service reliability needed for business success. Unfortunately, navigating the monitoring and observability space is hard, especially as AIOps enters the picture. Many vendors are making a lot of noise in the market and new open source projects are popping up left and right. It’s hard to know who really does what, and even harder to know which capabilities really matter.
+可观察性的概念是从监控中发展出来，专为回答上述问题的。可观察性对于维持业务成功所需的服务可靠性水平至关重要。不幸的是，在监控和可观察性的空间里航行是很困难的，特别是当AIOps映入眼帘时。许多供应商在市场上大肆宣传，新的开源项目也层出不穷。但很难知道谁真正做了什么，更难知道哪些功能真正重要。
 
-可观察性的概念是从监测中发展出来的，以回答这些问题。可观察性对于保持业务成功所需的服务可靠性水平至关重要。不幸的是，在监控和可观察性的空间里航行是很困难的，特别是当AIOps进入画面时。许多供应商在市场上大肆宣传，新的开源项目也层出不穷。很难知道谁真正做了什么，更难知道哪些功能真正重要。
-
-The Observability Maturity Model is based on extensive experience with real problems in live environments, discussions with customers and prospects, research into the latest technologies and conversations with leading analyst firms such as Gartner. We hope it will help you shine some light in the darkness. Our goal is not to present you with the perfect model of what your observability journey should look like. We know it doesn’t work like that. To quote [a famous British statistician](https://www.lacan.upc.edu/admoreWeb/2018/05/all-models-are-wrong-but-some-are-useful-george-e-p-box/), “All models are wrong, some are useful.” Rather, we wrote this Observability Maturity Model to help you identify where you are on the observability path, understand the road ahead and provide a map to help you find your way.
-
-可观察性成熟度模型是基于对实际环境中真实问题的广泛经验、与客户和潜在客户的讨论、对最新技术的研究以及与Gartner等领先分析公司的对话。我们希望它能帮助你在黑暗中照亮一些光。我们的目标不是向你展示你的可观察性旅程应该是什么样子的完美模型。我们知道它并不像那样工作。引用[一位著名的英国统计学家](https://www.lacan.upc.edu/admoreWeb/2018/05/all-models-are-wrong-but-some-are-useful-george-e-p-box/)的话，"所有的模型都是错的，有些是有用的"。相反，我们编写这个可观察性成熟度模型是为了帮助你确定你在可观察性道路上的位置，了解前面的道路，并提供一张地图来帮助你找到你的路。
-
-May this model be useful to you on your journey!
+可观察性成熟度模型是基于对实际环境中真实问题的广泛经验、与客户和潜在客户的讨论、对最新技术的研究以及与Gartner等领先分析公司的对话而形成的。我们希望它能帮助你在黑暗中照亮一些光。我们的目标不是向你展示你的可观察性旅程应该是什么样子的完美模型。我们认为它并不应像那样工作。引用[一位著名的英国统计学家](https://www.lacan.upc.edu/admoreWeb/2018/05/all-models-are-wrong-but-some-are-useful-george-e-p-box/)的话，"所有的模型都是错的，但有些是有用的"。相反，我们编写这个可观察性成熟度模型是为了帮助你确定你在可观察性道路上的位置，了解前面的道路，并提供一张地图来帮助你找到你自己的路。
 
 愿这个模型在你的旅程中对你有用!
 
 Lodewijk Bogaards 
 
-Co-founder and Chief Technology Officer 
+合伙人与 CTO
 
 StackState
 
@@ -67,91 +47,53 @@ StackState
 
 ## 引言：为什么要采用可观察性成熟度模型？
 
-Monitoring has been around for decades as a way for IT operations teams to gain insight into the availability and performance of their systems. To meet market demands, innovate faster and better support business objectives, IT organizations require a deeper and more precise understanding of what is happening across their technology environments. Getting this insight is not easy, as today’s infrastructure and applications span multiple technologies, use multiple architectures and are more dynamic, distributed and modular in nature. 
-
-作为IT运营团队深入了解其系统的可用性和性能的一种方式，监控已经存在了几十年。为了满足市场需求，更快地创新和更好地支持业务目标，IT组织需要更深入和更精确地了解他们的技术环境中正在发生什么。获得这种洞察力并不容易，因为今天的基础设施和应用程序跨越多种技术，使用多种架构，并且在本质上更加动态、分布和模块化。
-
-Change is also a way of life in IT and research shows 76% of problems are caused by changes.*[1]* In order to maintain reliability in the face of all these challenges, a company’s monitoring strategy must evolve to observability.
+作为IT运营团队深入了解其系统的可用性和性能的一种方式，监控已经存在了几十年。为了满足市场需求，更快地创新和更好地支持业务目标，IT组织需要更深入和更精确地了解他们的技术环境中正在发生什么。获得这种洞察力并不容易，因为今天的基础设施和应用程序跨越多种技术，使用多种架构，并且在本质上更加动态、分布式和模块化。
 
 变化也是IT行业的一种生活方式，研究表明76%的问题是由变化引起的。*[1]*为了在所有这些挑战面前保持可靠性，公司的监控策略必须向可观察性发展。
 
-Most enterprises find it difficult to find the right monitoring strategy to manage their environments reliably. Over 65% of enterprise organizations have more than 10 monitoring tools, often running as siloed solutions.*[2]* This segregated structure limits the ability of SRE and IT operations teams to detect, diagnose and address performance issues quickly. When issues occur, teams try to find the root cause by combining teams, processes and tools, or by manually piecing together siloed data fragments. This traditional approach to monitoring is time consuming and does not provide the insights needed to improve business outcomes. Troubleshooting is just too slow and your most crucial customer-facing systems may be down for hours, resulting in millions in lost revenue.
+大多数企业发现很难找到正确的监控策略来可靠地管理其环境。超过65%的企业组织有超过10个监控工具，通常作为孤立的解决方案运行。*[2]*这种分离的结构限制了SRE和IT运营团队快速检测、诊断和解决性能问题的能力。当问题发生时，团队试图通过结合团队、流程和工具，或通过手动拼凑筒仓式的数据碎片来找到根因。这种传统的监控方法很耗时，而且不能提供改善业务成果所需的洞察力。排错的速度太慢，你最关键的面向客户的系统可能会瘫痪几个小时，导致数百万的收入损失。
 
-大多数企业发现很难找到正确的监控策略来可靠地管理其环境。超过65%的企业组织有超过10个监控工具，通常作为孤立的解决方案运行。*[2]*这种分离的结构限制了SRE和IT运营团队快速检测、诊断和解决性能问题的能力。当问题发生时，团队试图通过结合团队、流程和工具，或通过手动拼凑筒状的数据碎片来找到根本原因。这种传统的监控方法很耗时，而且不能提供改善业务成果所需的洞察力。排除故障的速度太慢，你最关键的面向客户的系统可能会瘫痪几个小时，导致数百万的收入损失。
+> 66%的MTTR用于识别是什么变化导致了故障*[3]*。
 
-> 66% of MTTR is spent on identifying change that is causing a problem.*[3]*
->
-> 66%的MTTR用于识别造成问题的变化*[3]*。
+向动态云、容器、微服务和无服务器架构进军的运动，加上维护混合环境和遗留记录系统的需要，进一步加剧了对更先进能力的需求。
 
+为了满足这些需求，可观察性实践已经发展起来，将监控方面的进展与更全面的方法结合起来，对整个技术环境中发生的事情提供更深入的洞察力和更精确的理解。可观察性成熟度模型在可观察性的发展过程中定义了四个不同的级别，如下页表 1 所述。
 
-
-The move to dynamic cloud, containers, microservices and serverless architectures, combined with the need to maintain hybrid environments and legacy systems of record, further exacerbates the need for more advanced capabilities.
-
-向动态云、容器、微服务和无服务器架构的转移，加上维护混合环境和传统记录系统的需要，进一步加剧了对更先进能力的需求。
-
-Observability practices have evolved to meet these needs, combining advances in monitoring with a more holistic approach that provides deeper insights and a more precise understanding of what is happening across technology environments. The Observability Maturity Model defines four distinct levels in the evolution of observability, as described in Table 1 on the following page.
-
-为了满足这些需求，可观察性实践已经发展起来，将监测方面的进展与更全面的方法结合起来，对整个技术环境中发生的事情提供更深入的洞察力和更精确的理解。可观察性成熟度模型在可观察性的发展过程中定义了四个不同的级别，如下页表 1 所述。
-
-> Cloud and container migrations are driving the need for greater observability maturity.
->
-> 云和容器的迁移正在推动对更大的可观察性成熟度的需求。
+> 向云和容器的迁移正在推动对更高级的可观察性成熟度的需求。
 
 
 
-| Level                                  | Goal                                                         | Functionality                                                |
-| -------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| \1. Monitoring                         | Ensure that individual components are working as expected.确保个别部件按预期工作。 | • Tracks basic health of individual components in IT systems • Looks at events; triggers alerts and notifications • Tells you that something went wrong… but not what- 追踪IT系统中各个组件的基本健康状况 - 查看事件；触发警报和通知 - 告诉你出了问题......但不是什么问题 |
-| \2. Observability                      | Determine why the system is not working.确定系统不工作的原因。 | • Gives insights into system behavior by observing its outputs • Focuses on results inferred from metrics, logs and traces, combined with existing monitoring data • Delivers baseline data to help investigate what went wrong and why- 通过观察系统的输出，深入了解系统的行为 - 注重从指标、日志和跟踪中推断出的结果，结合现有的监测数据 - 提供基线数据，帮助调查出错的原因。 |
-| \3. Casual Observability               | Find the cause of the incident and determine its impact across the system.找到事件的原因并确定其对整个系统的影响。 | • Provides more comprehensive insights to help determine what caused a problem • Adds ability to track topology changes in the IT stack over time, building on Level 1 and Level 2 foundations • Generates extensive, correlated information that helps reduce time needed to identify what went wrong, why the issue occurr提供更全面的见解，以帮助确定问题的原因 - 在一级和二级基础上，增加追踪IT堆栈中随时间变化的拓扑结构的能力 - 生成广泛的相关信息，帮助减少确定出错的原因、问题发生的原因所需的时间。 |
-| \4. Proactive Observability With AIOps | Analyze large volumes of data, automate responses and prevent anomalies from becoming problems.分析大量的数据，自动化反应，防止异常情况变成问题。 | • Uses AI and ML to find patterns in large volumes of data • Combines AI/ML with data from Levels 1-3 to provide the most comprehensive analysis across the stack • Detects anomalies early and gives sufficient warnings to prevent failures- 使用人工智能和ML在大量数据中寻找模式 - 将人工智能/ML与1-3级的数据结合起来，在整个堆栈中提供最全面的分析 - 尽早发现异常，并发出足够的警告以防止失败 |
+| Level                                                        | Goal                                                 | Functionality                                                |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------ |
+| 1.监控Monitoring                                             | 确保单个组件按预期工作。                             | • 追踪IT系统中各个组件的基本健康状况<br/>• 查看事件；触发警报和通知<br/>• 告诉你出了问题...但不是什么问题 |
+| 2.可观察性Observability                                      | 确定系统不工作的原因。                               | • 通过观察系统的输出，深入洞察系统的行为<br/>• 结合现有的监控数据，聚焦于从指标、日志和追踪中推断出结果 <br/>• 提供基线数据，帮助调查出错的原因 |
+| 3. 因果可观察性Casual Observability                          | 找到事件的原因并确定其对整个系统的影响。             | • 提供更全面的洞察，以帮助确定问题的原因 <br/>• 在一级和二级基础上，增加追踪IT栈中拓扑结构随时间变化的能力 <br/>• 生成广泛的相关性信息，帮助减少确定出错的原因、问题发生的原因所需的时间 |
+| 4. 使用 AIOps 的主动式可观察性Proactive Observability With AIOps | 分析大量的数据，自动化反响应，防止异常情况变成问题。 | • 使用AI和ML在大量数据中寻找模式 <br/>• 将AI/ML与1-3级的数据结合起来，在整个堆栈中提供最全面的分析 <br/>• 尽早发现异常，并发出足够的警告以防止故障 |
 
-Table 1: Defining the levels of observability maturity
+表1: 定义可观察性成熟度的级别
 
-表1: 界定可观察性成熟度的级别
-
-Each level of observability builds on the foundation established in previous levels to add capabilities in capturing, tracking and analyzing data. The new functionality enables deeper observability at each stage, resulting in improved IT reliability and customer satisfaction, as shown in Figure 1 below. Although you can marginally improve results within a level by enhancing processes, most teams need to collect new types of data to advance to the next maturity level and realize greater benefits.
-
-每个级别的可观察性都建立在前几个级别建立的基础上，以增加捕捉、跟踪和分析数据的能力。新的功能使每个阶段的可观察性更加深入，从而提高了IT可靠性和客户满意度，如下图1所示。尽管你可以通过加强流程来略微改善一个级别内的结果，但大多数团队需要收集新类型的数据来提升到下一个成熟度级别并实现更大的收益。
+每个级别的可观察性都建立在前几个级别建立的基础上，以增加捕捉、追踪和分析数据的能力。新的功能使每个阶段的可观察性更加深入，从而提高了IT可靠性和客户满意度，如下图1所示。尽管你可以通过加强流程来略微改善一个级别内的结果，但大多数团队需要收集新类型的数据来提升到下一个成熟度级别并实现更大的收益。
 
 {% asset_img figure1.png %}
 
-Figure 1: Observability maturity and how it affects IT reliability
+图1：可观察性成熟度以及它如何影响IT可靠性
 
-图1：可观察性的成熟度以及它如何影响IT可靠性
+可观察性成熟度模型是基于对各行业企业的研究和对话，并经过其他从业者、分析师和思想领袖的验证。它旨在帮助你：
 
-The Observability Maturity Model is based on research and conversations with enterprises across industries and has been validated with other practitioners, analysts and thought leaders. It is designed to help you: 
-
-可观察性成熟度模型是基于对各行业企业的研究和对话，并经过其他从业者、分析家和思想领袖的验证。它旨在帮助你。
-
-- Understand different types of data and how monitoring and observability practices can help your organization collect actionable information. 
-- 了解不同类型的数据以及监测和可观察性实践如何帮助你的组织收集可操作的信息。
-- Understand the differences between monitoring, observability and AIOps. 
+- 了解不同类型的数据以及监控和可观察性实践如何帮助你的组织收集可操作的信息。
 - 理解监控、可观察性和AIOps之间的区别。
-- Evaluate your organization’s current level of maturity. 
 - 评估你的组织目前的成熟度。
-- Guide your team to a higher level of maturity. 
 - 引导你的团队达到一个更高的成熟度。
 
-Use this model to learn clear steps you can take to improve observability in your organization so you can ultimately deliver more reliable and resilient applications to your customers. 
-
-使用这个模型，你可以学习明确的步骤来提高你的组织中的可观察性，这样你就可以最终向你的客户提供更可靠和有弹性的应用。
+使用这个模型，你可以了解明确的步骤来提高你的组织中的可观察性，这样你就可以最终向你的客户提供更可靠和有韧性的应用。
 
 
 
-## Level 1: Monitoring
+## Level 1: 监控 Monitoring
 
-*Goal: Ensure that individual components are working as expected*
+*目的：确保单个组件按预期工作*
 
-The first level, Monitoring, is not new to IT. A monitor tracks a specific parameter of an individual system component to make sure it stays within an acceptable range. If the value moves out of the range, the monitor triggers an action, such as an alert, state change, notification or warning.
-
-第一个层次，监控，对IT行业来说并不陌生。监控器跟踪单个系统组件的特定参数，以确保它保持在一个可接受的范围内。如果数值超出了范围，监控器就会触发一个动作，如警报、状态改变、通知或警告。
-
-With traditional monitoring, which often encompasses application performance monitoring (APM), infrastructure monitoring, API monitoring, network monitoring and various other domain-centric tooling, the use case is, “Notify me when something is not operating satisfactorily.” You can think of monitoring in terms of traffic light colors:
-
-- The component is available and healthy (green) 
-- The component is at risk (orange or yellow) 
-- The component is broken (red)
+第一个层次，监控，对IT行业来说并不陌生。监控器跟踪单个系统组件的特定参数，以确保它保持在一个可接受的范围内。如果数值超出了范围，监控器就会触发一个动作，如报警、状态改变、通知或警告。
 
 传统的监控通常包括应用性能监控（APM）、基础设施监控、API监控、网络监控和其他各种以领域为中心的工具，其用例是："当某些东西运行得不理想时通知我。" 你可以用交通灯的颜色来考虑监控。
 
@@ -161,120 +103,80 @@ With traditional monitoring, which often encompasses application performance mon
 
 Monitoring looks at pre-defined sets of values with pre-defined sets of failure modes. It focuses on basic component-level parameters, such as availability, performance and capacity and generates events that report on the state of the monitored value. 
 
-监测着眼于预先定义的数值集和预先定义的故障模式集。它专注于基本的组件级参数，如可用性、性能和容量，并产生报告监测值状态的事件。
+监控着眼于预先定义的数值集和预先定义的故障模式集。它专注于基本的组件级参数，如可用性、性能和容量，并产生报告监控值状态的事件。
 
-**Events** are noteworthy changes in the IT environment. Though events may be purely informative, they often describe critical incidents that require action. Events may trigger **alerts or notifications** that arrive via various channels, such as email, chat, a mobile app or an incident management system. 
-
-**事件**是IT环境中值得注意的变化。虽然事件可能是纯粹的信息，但它们往往描述了需要采取行动的关键事件。事件可能触发**警报或通知，通过各种渠道到达，如电子邮件、聊天、移动应用程序或事件管理系统。
-
-As a first step towards observability, implement monitoring to get basic insights into the health and status of individual components and be notified when something breaks. Below, Table 2 gives an overview of the key capabilities for Level 1.
+**事件**是IT环境中值得注意的变化。虽然事件可能是纯粹的信息，但它们往往描述了需要采取行动的关键事件。事件可能触发**警报或通知**，通过各种渠道到达，如电子邮件、聊天、移动应用程序或事件管理系统。
 
 作为实现可观察性的第一步，实施监控以获得对各个组件的健康和状态的基本了解，并在出现故障时得到通知。下面，表2给出了第1级的关键能力概述。
 
 | Level 1: Monitoring                                          |
 | ------------------------------------------------------------ |
-| Use basic traffic-light monitoring to understand the availability of the individual components that make up your IT services.使用基本的交通灯监控来了解构成你的IT服务的各个组件的可用性。 |
-| **System Input** Events and component-level metrics (e.g., “API response time is higher than our SLO of five seconds”) 事件和组件级指标（例如，"API响应时间高于我们的SLO五秒"）。**System Output** Alerts or notifications (e.g., “order fulfillment service is down”)警报或通知（例如，"订单执行服务中断了"）。 |
-| **What You Get** • Basic information such as the health status of a component — is it working? • Alerts and notifications when issues occur • Easiest way to get started; many open-source and SaaS solutions are available - 基本信息，如一个组件的健康状态--它在工作吗？- 当问题发生时发出警报和通知 - 最简单的入门方式；有许多开源和SaaS解决方案可用 |
+| 使用基本的交通灯监控来了解构成你的IT服务的各个组件的可用性。 |
+| **System Input** <br/>事件和组件级指标（例如，"API响应时间高于我们的SLO五秒"）。<br/><br/>**System Output** <br/>警报或通知（例如，"订单执行服务中断了"）。 |
+| **What You Get** <br/>• 基本信息，如一个组件的健康状态--它在工作吗？<br/>• 当问题发生时发出警报和通知 <br/>• 最简单的入门方式；有许多开源和SaaS解决方案可用 |
 
-Table 2: Level 1 summary
+表2: 第1级摘要
 
+### 下一步：可观察性 
 
+监控让你对整个环境的状态有有限的了解。它向你显示单个组件的健康状况，但通常没有关于全局的信息。它告诉你有些东西坏了，但没有告诉你原因，也没有告诉你该找谁，更没有告诉你原始问题是从什么时候和在什么地方开始的。
 
-### Next Step: Observability 
+设置和维护监控检查和通知渠道需要大量的手工工作。在第1级，你还需要手动进行根因分析和影响分析，而且你的数据集有限。调查问题的来源需要时间。此外，一个问题可能会引起来自多个组件的报警风暴，造成进一步的混乱和延迟，无法准确地找出根本原因。
 
-Monitoring gives you limited insights into the state of the overall environment. It shows you individual component health but generally no information about the big picture. It tells you something is broken but not why, who to call, nor when and where the original problem started. 
-
-监测让你对整个环境的状态有有限的了解。它向你显示单个组件的健康状况，但通常没有关于大局的信息。它告诉你有些东西坏了，但没有告诉你原因，也没有告诉你该找谁，更没有告诉你原始问题是什么时候和什么地方开始的。
-
-Setting up and maintaining monitoring checks and notification channels requires a lot of manual work. At Level 1, you also need to do root cause analysis and impact analysis manually and you have a limited set of data. Investigating the sources of problems takes time. In addition, a single issue may cause storms of alerts from multiple components, causing further confusion and delays in pinpointing the root cause. 
-
-设置和维护监控检查和通知渠道需要大量的手工工作。在第1级，你还需要手动进行根本原因分析和影响分析，而且你的数据集有限。调查问题的来源需要时间。此外，一个问题可能会引起来自多个组件的警报风暴，造成进一步的混乱和延迟，无法准确地找出根本原因。
-
-While monitoring can detect a limited number of known types of failures, or “known unknowns,” Level 2, Observability, can help you discover unknown and unexpected failure modes, or “unknown unknowns.” As you move from Level 1 to Level 2, you will gain more in-depth information that provides a better understanding of the availability, performance and behavior of your services. 
-
-虽然监控可以检测到有限的已知故障类型，或 "已知的未知数"，但第2级，可观察性，可以帮助你发现未知和意外的故障模式，或 "未知的未知数"。随着你从第1级到第2级，你将获得更深入的信息，对你的服务的可用性、性能和行为有更好的了解。
-
-## Level 2: Observability 
-
-*Goal: Determine why the system is not working*
+虽然监控可以检测到有限的已知故障类型，或 "已知的未知"，但第2级，可观察性，可以帮助你发现未知和意外的故障模式，或 "未知的未知"。随着你从第1级到第2级，你将获得更深入的信息，对你的服务的可用性、性能和行为有更好的了解。
 
 
 
-To keep today’s complex and dynamic IT systems running reliably, you need to not only know what’s working (monitoring) but also understand why it’s not working (observability). 
+## Level 2: 可观察性 Observability 
+
+*目标：确定系统不工作的原因。*
 
 为了保持当今复杂多变的IT系统的可靠运行，你不仅需要知道什么在工作（监控），还需要了解它为什么不工作（可观察性）。
 
-Traditional monitoring tracks the basic health of a component or system. Observability evolved naturally to provide deeper insights into the behavior of a system over time. When something goes wrong and your team receives an alert, you need to quickly figure out, “What happened? Where, when, why and who do we call?” Observability data helps you answer these questions. At its full maturity (Level 4), observability provides all the data you need, in the proper context, to automatically detect and remediate issues and even to proactively identify and prevent them. 
+传统的监控是跟踪一个部件或系统的基本健康状况。可观察性自然而然地发展起来，以提供对一个系统随时间变化的行为的更深入的洞察力。当出了问题，你的团队收到警报时，你需要迅速搞清楚："发生了什么？在哪里，什么时候，为什么，我们应该找谁？" 可观察性数据帮助你回答这些问题。在其完全成熟时（第4级），可观察性在适当的背景下提供你所需要的所有数据，以自动检测和补救问题，甚至主动识别和预防问题。
 
-传统的监测是跟踪一个部件或系统的基本健康状况。可观察性自然而然地发展起来，以提供对一个系统随时间变化的行为的更深入的洞察力。当出了问题，你的团队收到警报时，你需要迅速搞清楚："发生了什么？在哪里，什么时候，为什么，我们应该找谁？" 可观察性数据帮助你回答这些问题。在其完全成熟时（第4级），可观察性在适当的背景下提供你所需要的所有数据，以自动检测和补救问题，甚至主动识别和预防问题。
+当报警弹出时，你要了解系统的状态以找到问题的根源。在第二级，可观察性通常通过关注三种关键类型的遥测数据来提供系统洞察力。**指标**，**日志**和**追踪**。*[4]* 可观察性的这三个支柱是从IT组件（如微服务、应用程序和数据库）中收集的，以提供对系统行为的整体看法。每个支柱都提供不同类型的信息，如下表3所示。
 
-When an alert pops up, you look to understand the state of your system to find the problem’s source. At Level 2, observability typically delivers system insights by focusing on three critical types of telemetry data: **metrics**, **logs** and **traces**. *[4]* These three pillars of observability are collected from IT components such as microservices, applications and databases to provide an overall perspective into a system’s behavior. Each pillar gives a different type of information, as outlined in Table 3 below.
-
-当警报弹出时，你要了解系统的状态以找到问题的根源。在第二级，可观察性通常通过关注三种关键类型的遥测数据来提供系统洞察力。**指标**，**日志**和**跟踪**。*[4]* 可观察性的这三个支柱是从IT组件（如微服务、应用程序和数据库）中收集的，以提供对系统行为的整体看法。每个支柱都提供不同类型的信息，如下表3所示。
-
-| Pillar      | Definition                                                   |
-| ----------- | ------------------------------------------------------------ |
-| **Metrics** | Numerical measurements that help you understand the performance and status of services — for example, the famous four golden signals: latency, traffic, error rate and saturation.*[5]*帮助你了解服务性能和状态的数字测量--例如，著名的四大黄金信号：延迟、流量、错误率和饱和度*[5]*。 |
-| **Logs**    | Time-stamped records of relevant events that happen in a system (e.g., transactions, warnings, errors), which help you understand a system’s behavior at a given point in time.对系统中发生的相关事件（如事务、警告、错误）的时间戳记录，这有助于你了解系统在某一特定时间点的行为。 |
-| **Traces**  | Detailed snapshots showing how data flows through an application from end to end (e.g., a user request), which help troubleshoot performance and sometimes give code-level visibility into how your app performs.详细的快照显示数据如何从头到尾流经一个应用程序（例如，用户请求），这有助于排除性能故障，有时还能让人看到你的应用程序的代码级性能。 |
-
-Table 3: Three pillars of observability 
+| 支柱     | 定义                                                         |
+| -------- | ------------------------------------------------------------ |
+| **指标** | 帮助你了解服务性能和状态的数字度量--例如，著名的四大黄金信号：延迟、流量、错误率和饱和度*[5]*。 |
+| **日志** | 对系统中发生的相关事件（如事务、警告、错误）的时间戳记录，这有助于你了解系统在某一特定时间点的行为。 |
+| **追踪** | 详细的快照显示数据如何从头到尾流经一个应用程序（例如，用户请求），这有助于排除性能故障，有时还能让人看到你的应用程序的代码级性能。 |
 
 表3：可观察性的三大支柱 
 
-These three pillars, along with events and alerts, are typically plotted on dashboards so teams can easily keep track of important activities. Some observability tools provide out-of-the box dashboards that bring together these different types of data on one screen and allow you to deep-dive into them for further investigation. 
-
 这三个支柱，连同事件和警报，通常被绘制在仪表盘上，这样团队就可以轻松地跟踪重要的活动。一些可观察性工具提供了开箱即用的仪表盘，将这些不同类型的数据集中在一个屏幕上，并允许你深入研究这些数据以进一步调查。
 
-Level 2 data has much greater breadth and depth than Level 1, and it often involves some data consolidation across your environment into a single view. You may need to build additional dashboards if you want more insights, especially if your environment has multiple domains and you are using multiple monitoring tools.
-
-二级数据比一级数据有更大的广度和深度，它通常涉及到将整个环境的一些数据整合到一个单一的视图中。如果你想获得更多的洞察力，你可能需要建立额外的仪表盘，特别是当你的环境有多个域，并且你使用多个监控工具时。
+第二级的数据比第一级数据有更好的广度和深度，它通常涉及到将整个环境的一些数据整合到一个单一的视图中。如果你想获得更多的洞察力，你可能需要建立额外的仪表盘，特别是当你的环境有多个域，并且你使用多个监控工具时。
 
 
 | Level 2: Observability                                       |
 | ------------------------------------------------------------ |
-| Observe the behavior of IT environments by capturing metrics, logs and traces in addition to events and health state.除了事件和健康状态外，还通过捕捉指标、日志和跟踪来观察IT环境的行为。 |
-| **System Input** Level 1 inputs + comprehensive metrics, logs and traces第1级输入+综合指标、日志和追踪 **System Output** Level 1 outputs + comprehensive dashboards with graphs, gauges, flame charts, logs, etc.1级输出+综合仪表盘，包括图表、仪表、火焰图、日志等。 |
-| **What You Get** • Deeper, broader and more holistic view of overall system health by collecting additional data from more sources, which better supports problem diagnosis • Ability to discover unknown failure modes in addition to known types of failures • Beneficial insights from individual types of data — e.g., traces help identify performance bottlenecks, metrics make excellent KPIs and logs can be used to find software defects通过从更多的来源收集额外的数据，更深入、更广泛、更全面地了解整个系统的健康状况，从而更好地支持问题诊断 - 除了已知的故障类型外，还能发现未知的故障模式 - 从个别类型的数据中获得有益的见解 - 例如，跟踪有助于识别性能瓶颈，指标是优秀的KPI，日志可用于发现软件缺陷 |
+| 除了事件和健康状态外，还通过捕捉指标、日志和跟踪来观察IT环境的行为。 |
+| **System Input** <br/>第1级输入+综合指标、日志和追踪 <br/><br/>**System Output** <br/>1级输出+综合仪表盘，包括图表、仪表、火焰图、日志等。 |
+| **What You Get** <br/>• 通过从更多的来源收集额外的数据，更深入、更广泛、更全面地了解整个系统的健康状况，从而更好地支持问题诊断 <br/>• 除了已知的故障类型外，还能发现未知的故障模式 <br/>• 从个别类型的数据中获得有益的见解 -- 例如，跟踪有助于识别性能瓶颈，指标是优秀的KPI，日志可用于发现软件缺陷 |
 
-Table 4: Level 2 summary
+表4: 第2级摘要
 
+那么此时挑战就变成了如何解决来自太多仪表盘的信息。在第2级，你可以通过手动关联数据来推断可疑的事故原因，但这种方法往往涉及跨系统的复杂手动查询。
 
+在第2级，团队还没有开发出一种自动化的方法来统一和关联来自不同工具和领域的孤立数据，所以要找出问题的根因仍然需要耗费大量的人力和时间。因此，与更高的成熟度相比，MTTD和MTTR要高一些，客户受到的不利影响更大，损失的收入也更多。
 
-The challenge then becomes how to resolve information from too many dashboards. At Level 2, you can infer suspected reasons for incidents by manually correlating data, but this approach often involves complex manual queries across systems. 
-
-那么挑战就变成了如何解决来自太多仪表盘的信息。在第2级，你可以通过手动关联数据来推断可疑的事故原因，但这种方法往往涉及跨系统的复杂手动查询。
-
-At Level 2, teams have not yet developed an automated way to unify and correlate the siloed data from various tools and domains, so it is still labor intensive and time consuming to pinpoint the root cause of an issue. Consequently, MTTD and MTTR are higher than they should be, customers are more adversely affected and more revenue is lost than at higher maturity levels. 
-
-在第2级，团队还没有开发出一种自动化的方法来统一和关联来自不同工具和领域的孤立数据，所以要找出问题的根本原因仍然需要耗费大量的人力和时间。因此，与更高的成熟度相比，MTTD和MTTR要高一些，客户受到的不利影响更大，损失的收入也更多。
-
-### Next Step: Causal Observability
-
-Observability generates a huge amount of data and sorting out the meaningful information can be difficult. 
+### 下一步：因果可观察性
 
 可观察性产生了大量的数据，整理出有意义的信息可能很困难。
 
-At Level 2, your team is likely challenged by both data silos and volume, which cause inefficiencies in cross-domain and cross-team troubleshooting. 
-
 在第二级，你的团队可能受到数据孤岛和数据量的挑战，这导致跨领域和跨团队的故障排除效率低下。
 
-When something goes wrong, too many people get involved because nobody knows where the problem is, resulting in incident ping-pong and blame games. You may need to build ad hoc solutions to query multiple observability silos to troubleshoot a single issue. Creating these queries requires practitioners with development skills, knowledge of data structures and understanding of system architecture. 
+当出现问题时，由于没有人知道问题出在哪里，所以有太多人牵扯进来，从而导致了事件的乒乓化和指责游戏。你可能需要建立专门的解决方案来查询多个可观察性筒仓，以解决单一问题。创建这些查询需要从业人员具备开发技能、数据结构知识和对系统架构的理解。
 
-当出现问题时，由于没有人知道问题出在哪里，所以有太多人参与进来，从而导致了事件的乒乓化和指责游戏。你可能需要建立专门的解决方案来查询多个可观察性筒仓，以解决单一问题。创建这些查询需要从业人员具备开发技能、数据结构知识和对系统架构的理解。
-
-In addition, the telemetry-centric and siloed views typical in Level 2 often require substantial manual work to extract actionable insights. Setting up efficient dashboards can take considerable time and they require ongoing maintenance. Root cause analysis, impact analysis and alert noise reduction are important in maintaining a reliable and resilient stack, but these activities are challenging at this level. 
-
-此外，第2级中典型的以遥测为中心的筒仓式视图往往需要大量的手工工作来提取可操作的洞察力。设置高效的仪表盘可能需要相当长的时间，而且需要持续的维护。根源分析、影响分析和减少警报噪音对于维护一个可靠和有弹性的堆栈非常重要，但这些活动在这个级别是具有挑战性的。
-
-Note: Teams are increasingly adopting the OpenTelemetry standard to facilitate the capture of metrics, logs and traces. OpenTelemetry is extremely helpful to efficiently collect these types of data, but it was not designed to bridge silos, create better context for data or to analyze the data. 
+此外，第2级中典型的以遥测为中心的筒仓式视图往往需要大量的手工工作来提取可操作的洞察力。设置高效的仪表盘可能需要相当长的时间，而且需要持续的维护。根因分析、影响分析和减少报警噪音对于维护一个可靠和有韧性的栈非常重要，但这些活动在这个级别是具有挑战性的。
 
 注意：团队越来越多地采用OpenTelemetry标准，以促进指标、日志和跟踪的采集。OpenTelemetry对于有效地收集这些类型的数据是非常有帮助的，但它并不是为了弥合孤岛，为数据创造更好的背景或分析数据而设计的。
 
-In order to move to Level 3 and understand how your observability data is related, you need to provide context for events, logs, metrics and traces across the data silos in your IT environment. At Level 3, Causal Observability, you get a precise map of the topology of your business processes, applications and infrastructure and you can track how it all changes over time. When something goes wrong, you can use this contextual data combined with automation to quickly determine the cause of an issue without having to manually wade through silos of uncorrelated data.
+为了进入第三级，了解你的可观察性数据是如何关联的，你需要为IT环境中跨数据筒仓的事件、日志、指标和追踪提供上下文。在第三级，即因果可观察性，你可以得到你的业务流程、应用程序和基础设施的拓扑结构的精确地图，你可以跟踪它如何随时间变化。当出现问题时，你可以利用这些上下文数据与自动化相结合，快速确定问题的原因，而不必手动处理不相关的数据孤岛。
 
-为了进入第三级，了解你的可观察性数据是如何关联的，你需要为IT环境中的事件、日志、指标和跨数据仓的追踪提供背景。在第三级，即因果观察能力，你可以得到你的业务流程、应用程序和基础设施的拓扑结构的精确地图，你可以跟踪它如何随时间变化。当出现问题时，你可以利用这些上下文数据与自动化相结合，快速确定问题的原因，而不必手动处理不相关的数据孤岛。
+
 
 ## Level 3: Causal Observability
 
