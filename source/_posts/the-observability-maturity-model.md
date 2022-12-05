@@ -21,8 +21,6 @@ categories:
 
 今天的消费者已经习惯了从不宕机的伟大技术。他们对故障或性能问题的容忍度很低。这些期望促使企业通过频繁的发布、更快的响应和更高的可靠性来保持竞争力。同时，向基于云的应用的转变--所有不断变化的功能、微服务和容器--使IT环境变得更加复杂，比以往更难运维和监控。
 
-As a result, we have seen great commonalities in the monitoring challenges that are unfolding globally, such as this colorful issue described by a customer:
-
 因此，我们看到在全球范围内展开的有关监控的挑战有很大的共性，例如一位客户描述的如下丰富多彩的问题。
 
 > "当基础设施、存储、网络设备或类似的东西出现大故障时......每次我们都像在看一部同样的电影。监控变得红色，红色，红色，成千上万的警报，没有人知道什么是根本原因。每个人都很惊慌--真正的完全混乱"。
