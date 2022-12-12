@@ -223,17 +223,21 @@ State management 定义了基于事务操作的能力 `/v1.0/state/<storename>/t
 
 每个应用 Pod 携带两种 sidecar，再加上 dapr 和 Service Mesh 自己的控制面应用（高可用方案主备或多副本），这些资源开销是无法忽略，甚至是非常明显的。
 
-而由于 Service Mesh 的流量劫持，网络调用需要先经过 dapr sidecar，再经过 Service Mesh sidecar，被代理两次，也会造成一定的性能开销。
+而由于 Service Mesh 网络代理的流量劫持，网络调用需要先经过 dapr sidecar，再经过网络代理 sidecar，被代理两次，也会造成一定的性能开销。
 
 随着分布式能力抽象层的不断扩展，到底哪些属于开发侧，哪些属于运维侧，也许不会像现在这样泾渭分明了。因此已经有对 Multi-Runtime 与 Service Mesh 能力边界越来越模糊的讨论。
 
 ### Sidecarless？
 
-上一节的问题其实不只是 dapr 下的场景，实际上它是 sidecar 模式自有的限制，因此在 Service Mesh 领域的讨论中，已经有提出 Sidecarless 的概念了，即通过 DaemonSet 而不是 Sidecar 的形式来部署 Service Mesh 数据面。
+上一节的问题其实不只是 dapr 下的场景，实际上它是 sidecar 模式自有的限制，因此在 Service Mesh 领域的讨论中，已经有提出 Sidecarless 的概念了，即通过 DaemonSet 而不是 Sidecar 的形式来部署网络代理。
 
-那么，Mecha 是否也可能成为一种 DaemonSet 呢？
+对于网络代理的 Sidecarless 化，支持方认为它能带来高性能、低资源消耗的优点，而反对方则认为它会导致安全性与隔离性差、故障的爆炸半径过大等缺点。
 
+那么，Mecha 是否也可能会走向 Sidecarless 呢？
 
+与网络代理的 Sidecarless 类似，如果将 Mecha 做成 Daemonset，其优劣势也差不多。而 Daemonset 形式的 Mecha，由于只启动一次，可能会在 Serverless 的场景下大幅缩短 Serverless 函数的执行时间。对此 dapr 项目也有相关的[讨论](https://github.com/dapr/dapr/issues/5385)。
+
+就像今年 Cilium 发布支持 Service Mesh 能力的办法，实际上通过 eBPF 在内核态实现 L3 L4 层能力，而对应的 L7 层能力则交给用户态的 Envoy 处理这种将问题一分为二的思想，也许多运行时架构的未来方案也可能是折中或是多种方式结合的。例如采用在 Node 上按 Service Account 或 Namespace 运行多实例，或是轻量级 Sidecar 做协议转换＋DaemonSet 做流量管理和网络调用。
 
 
 
@@ -259,10 +263,36 @@ Layotto 的开发者，在讨论多运行时架构的[文章](https://www.infoq.
 
 因此实际上的所谓分布式能力抽象层可能会是如下图所示的样子：
 
-{% asset_img 16.png %}
+{% asset_img 16.webp %}
 
 各类可信协议不再二次抽象，而是直接支持，对其余的私有协议再进行抽象。这种直接支持开源协议的思路，部分缓解了定义抽象能力的困境问题。
 
 
 
-## 贴近现实
+## 未来展望
+
+虽然多运行时架构这种理念从提出到现在只有两年，但已经很少有人会否认它所带来的价值，不论是 dapr 还是 layotto 的快速发展，都印证了头部企业对这一领域的投资逻辑。
+
+当然目前从理论到实践可能都不够成熟，大家在落地实践的过程中也都会或多或少遇到前文提到的一些局限。但这些局限所处的层次大都是工程化、技术选择等具体的问题，相信随着各方技术的不断整合，实践的不断完善，问题都能解决。
+
+对多运行时架构实践的未来，结合当下的限制、挑战以及趋势，我们也许能勾勒出某种未来可能的架构形态：
+
+{% asset_img 17.png %}
+
+在这一架构形态下：
+
+- 分布式能力抽象层更多的负责对私有协议的抽象，而既成标准协议（对前文 “可信协议” 的另一种提法）作为“既成的”抽象能力，在Mecha 层只做协议转换或直接透传
+- Mecha 与网络代理层进程级耦合，各类特性不再明确区分开发侧与运维侧。进程在 Node 上按租户或 namespace 划分多实例
+- 接入现代化的可观察性体系，提升对故障的洞察分析能力，降低由于架构分层带来的问题诊断困难
+
+总之，不管是架构形态怎么变、能力怎么抽象，让业务逻辑不断内聚，越来越面向接口、面向能力编程的趋势不会改变，服务化体系的未来值得期待。
+
+
+
+## Reference
+
+1. [Multi-Runtime Microservices Architecture](https://www.infoq.com/articles/multi-runtime-microservice-architecture/)
+2. [Dapr](https://dapr.io/)
+3. [死生之地不可不察：论API标准化对Dapr的重要性](https://skyao.io/talk/202111-important-of-api-standardization-for-dapr/) 
+4. [Layotto](https://mosn.io/layotto/#/zh/README)
+5. [如何看待 Dapr、Layotto 这种多运行时架构？](https://www.infoq.cn/article/5n0ahsjzpdl3mtdahejx)
