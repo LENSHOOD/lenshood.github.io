@@ -14,9 +14,35 @@ categories:
 
 ### 企业运维的挑战
 
+近 10 年间，企业线上服务与 IT 基础设施的规模不断扩大，各种与之匹配的研发实践、生态如微服务、DevOps、云原生等等也不断的发展。
+
+> Canonical 发布的 [*Kubernetes and cloud native operations report 2022*](https://juju.is/cloud-native-kubernetes-usage-report-2022) 中显示：超过 40% 的受访者所在的组织运行了超过 100 台机器（包括VM、Bare Metal 等），而超过 20% 的受访者所在的组织，拥有超过 10 个 Kubernetes 生产集群。
+
+业务复杂度的提升以及规模的扩大，让运维工作愈发关键且困难。如何监控整个线上系统，如何获悉规模巨大的线上系统的运行状态，成为了一大挑战。
+
+规模扩大的同时，对线上故障的定位也越来越困难。毕竟规模越大的业务，其所涉及到的各种应用、服务、基础设施等环节可能越复杂。
+
+> 66% 的 [MTTR](https://cloud.google.com/blog/products/devops-sre/using-the-four-keys-to-measure-your-devops-performance) 用于识别是什么变化导致了故障
+>
+> -- [DEJ: 2022 State of Managing IT Performance Study – Key Takeaways](https://www.dej.cognanta.com/2022/07/14/2022-state-of-managing-it-performance-study-key-takeaways/)
+
+处理故障的大部分时间都花费在定位问题上，说明日趋复杂的系统让问题的定位更难。
+
+变更、变更频率、devops
 
 
-### 可观测性趋势
+
+### 定义可观测性
+
+系统形成洞察，发展趋势洞察的更深
+
+可观测性能力目标：
+
+更全面的收集系统上下文
+
+更有效的关联各层级数据
+
+更自动化的寻找问题根因
 
 
 
