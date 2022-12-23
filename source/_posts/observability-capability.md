@@ -151,16 +151,19 @@ APM 和可观测性工具的关键功能性需求包括：
 - 能够对多种遥测类型（例如跟踪、指标和日志）执行交互式询问以检测“未知的未知(unknown unknowns)”——即识别意外事件的根原
 - 应用程序安全功能，通常通过代理或框架提供
 
-基于上述关键需求，根据六个用例场景划分出六种关键能力：
+基于上述关键需求，划分出六种关键能力：
 
-| 用例                        | 能力                             |
-| --------------------------- | -------------------------------- |
-| 应用程序所有者/业务线 (LOB) | 应用程序调试及分布式剖析（ADDP） |
-| DevOps/应用开发             | 行为分析                         |
-| 数字体验监控（DEM）         | 商业分析                         |
-| IT运维                      | IT 服务和基础设施监控            |
-| 安全运维                    | 根因分析                         |
-| SRE/平台运维                | 运行时应用程序自我保护（RASP）   |
+**应用程序调试及分布式剖析（ADDP）**：识别代码内的缺陷及错误的根源，来缓解性能下降问题
+
+**行为分析**：支撑对用户及应用行为的探索和分类
+
+**业务分析**：通过统计各项业务 KPI （如转化率、弃购率、业务健康度）来为营销人员和应用开发者提供对整个业务条线的洞察力
+
+**IT 服务和基础设施监控**：以类似 SLA、OLA、SLO 的形式为开发者、DevOps、运维团队等提供基础设施、关键服务的健康度
+
+**根因分析**：通过 APM 等技术建立问题、原因、影响的关系链条，支撑故障修复
+
+**运行时应用程序自我保护（RASP）**：在运行时识别易受攻击的组件并在一定程度上阻止风险请求
 
 #### 解决方案领导者
 
@@ -168,7 +171,33 @@ Gartner 在上述报告发布的同时，还发布了[*Magic Quadrant for Applic
 
 {% asset_img Magic-Quadrant.png %}
 
-如图可见，在魔力象限的解决方案领导者中，Datadog 和 Dynatrace 遥遥领先，研究这两家商业公司的方案，我们也许能些许构建可观测性能力的具象化认知。
+如图可见，在魔力象限的解决方案领导者中，Datadog 和 Dynatrace 遥遥领先，研究这些商业化解决方案，我们也许能些许构建可观测性能力的具象化认知。
+
+[**Datadog**](https://www.datadoghq.com/)
+
+Datadog 主推的是纯 SaaS 化的一站式解决方案。
+
+用户只需要通过部署 Agent、提供凭证等方式即可将主机、容器、网络、流水线、各种云服务等 DevOps 全生命周期内涉及到的多种系统、应用、服务等的数据接入 Datadog 平台。
+
+但 Datadog 只支持 SaaS 服务形式，因此所有的数据都由 Datadog 来管理。
+
+除了APM、日志分析、用户体验监控等常见的能力，Datadog 在数据关联和系统集成方面拥有一定优势。
+
+例如Datadog 原生支持了 600+种平台、云厂商、服务等的指标和事件的收集：
+
+<img src="https://imgix.datadoghq.com/video/short-integrations-comp.mp4?fm=webm&fit=max"  style="zoom:25%;" />
+
+此外，通过 [Service Catalog](https://www.datadoghq.com/product/service-catalog/) 功能，能够将各层级服务之间的状态、依赖、实时性能聚合在一起展示（类似时间序列拓扑结构）：
+
+<img src="https://imgix.datadoghq.com/img/products/usm/light-service-map-min.png?ch=Width%2cDPR%2cSave-Data&fm=png&auto=format&fit=max&w=1498" style="zoom:50%;" />
+
+<img src="https://imgix.datadoghq.com/video/products/service-catalog/service-catalog-section-2-v3.mp4?fm=webm&fit=max"  style="zoom:20%;" />
+
+[**Dynatrace**](https://www.dynatrace.com/)
+
+Dynatrace 提供的也是类似的一站式解决方案 ”Dynatrace Software Intelligence Platform“。但与 Datadog 不同之处在于该解决方案可以定制化的进行私有部署，按 License 付费。
+
+{% asset_img dynatrace-platform.png %}
 
 
 
