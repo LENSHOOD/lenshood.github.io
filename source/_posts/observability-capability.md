@@ -10,6 +10,12 @@ categories:
 - Software Engineering
 ---
 
+{% asset_img header.jpg 500 %}
+
+本文通过介绍可观测性成熟度模型，讨论了企业可观测性能力的建设。
+
+<!-- more -->
+
 ## 运维挑战与可观测性
 
 近 10 年间，企业线上服务与 IT 基础设施的规模不断扩大，各种与之匹配的研发实践、生态如微服务、DevOps、云原生等等也不断的发展。在 Canonical 发布的 [*Kubernetes and cloud native operations report 2022*](https://juju.is/cloud-native-kubernetes-usage-report-2022) 中显示：超过 40% 的受访者所在的组织运行了超过 100 台机器（包括VM、Bare Metal 等），而超过 20% 的受访者所在的组织，拥有超过 10 个 Kubernetes 生产集群。
