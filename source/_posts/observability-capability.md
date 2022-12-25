@@ -124,7 +124,7 @@ AIOps 能够提升效率，提高根因分析的准确率，甚至预测异常�
 >
 > --《可观测性成熟度模型》
 
-![](https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure2.png)
+<img src="https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure2.png" style="zoom:30%;" />
 
 如上图所示，将原本孤立的数据比如服务的注册发现、自动化部署、请求追踪等等数据汇聚，形成完整的拓扑结构，那么第一级与第二级已经实现收集的各种遥测数据就都可以挂载在拓扑图上。
 
@@ -132,7 +132,7 @@ AIOps 能够提升效率，提高根因分析的准确率，甚至预测异常�
 
 因此，除了构建拓扑结构来关联数据，留存基于时间的快照也非常关键。一旦拥有了随时间变化的拓扑结构快照，就可以在时间线上自由的对比拓扑的变化并查看对应的遥测数据。
 
-![](https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure4.png)
+<img src="https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure4.png" style="zoom:30%;" />
 
 透过时间序列下的拓扑结构视图，数据孤岛被弥合起来，大大加快了根因分析的速度。关联起来的数据也易于建立模式，为自动化分析奠定基础。当然，建立这样的数据模型并不容易，除了技术上的挑战，可能还涉及组织上的变革。目前已经有例如 [`OpenTelemetry`](https://opentelemetry.io/) 这类开放标准，尝试先从遥测数据收集的角度建立初步的关联，虽然遥测数据只是第一步，但也是一个良好的开始。
 
@@ -191,13 +191,13 @@ Datadog 主推的是纯 SaaS 化的一站式解决方案。
 
 例如Datadog 原生支持了 600+种平台、云厂商、服务等的指标和事件的收集：
 
-<img src="https://imgix.datadoghq.com/video/short-integrations-comp.mp4?fm=webm&fit=max"  style="zoom:25%;" />
+<video autoplay muted width="800"><source src="https://imgix.datadoghq.com/video/short-integrations-comp.mp4?fm=webm&fit=max" type="video/mp4"></video>
 
 此外，通过 [Service Catalog](https://www.datadoghq.com/product/service-catalog/) 功能，能够将各层级服务之间的状态、依赖、实时性能聚合在一起展示（类似时间序列拓扑结构）：
 
 <img src="https://imgix.datadoghq.com/img/products/usm/light-service-map-min.png?ch=Width%2cDPR%2cSave-Data&fm=png&auto=format&fit=max&w=1498" style="zoom:50%;" />
 
-<img src="https://imgix.datadoghq.com/video/products/service-catalog/service-catalog-section-2-v3.mp4?fm=webm&fit=max"  style="zoom:20%;" />
+<video autoplay muted width="800"><source src="https://imgix.datadoghq.com/video/products/service-catalog/service-catalog-section-2-v3.mp4?fm=webm&fit=max" type="video/mp4"></video>
 
 [**Dynatrace**](https://www.dynatrace.com/)
 
@@ -248,7 +248,7 @@ SaaS 方案通常按接入的主机数量收费，接入后享受商业服务，
 
 在研发层面，即使是自研平台，也势必会通过整合各类开源软件来协助实现可观测性能力。不同的开源软件可能解决的是不同方向的问题，如通过 Prometheus 实现 Metrics 监控和报警，通过 EFK 来监控日志，通过 Skywalking 来实现分布式追踪。但这些方案相互之间数据结构不统一，数据的存储与分析也都各自为战，如何更好的利用及整合它们很有挑战性。OpenTelemetry 项目的发展在一定程度上解决了采集探针和数据结构不统一的问题，但在采集到数据之后对数据进行分析和展现的能力上并没有标准化的方案。
 
-{% asset_img cncf.png %}
+{% asset_img cncf.png 500 %}
 
 （CNCF Landscape 中的可观测性部分）
 
