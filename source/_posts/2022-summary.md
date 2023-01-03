@@ -68,9 +68,31 @@ So I've transferred to another business unit at Sep. , and start to access some 
 
 ### 4. Part-time Attempt
 
+In the middle of 2022, I and my wife started a part-time job with other friends -- we sale Chinese Huangjiu.
+
+It was really a coincidence to start the Huangjiu sales business. When one of my best friends encounter an opportunity that he can buy a very good quality Huangjiu product directly from the distillery, with good price.
+
+So we built a company to do re-packaging and marketing, then our business started.
+
+It's feel really nice when we can migrate some work experiences to our own business. But there's also many challenges because none of us have sale anything to anyone before. And all the staff like register brand, design the label and box, talk to suppliers and distributors, would done by ourselves.
+
+Hope we can sale a plenty of Huangjiu in 2023! 
 
 
-## Investing
+
+## Life
+
+### Investing
+
+The investment performance in 2022 was such a disaster. The total return were about -12.5%. Maybe it was because of a bad year, maybe it was because of poor investment decisions. In a word, last year was the worst year in five years.
+
+My investment portfolio is combined with three parts: about 70% funds from investment advisor service, about 25% funds bought by my self, about 5% low risk stocks mostly bank stocks. Comparing the performance in 2022, the return of investment advisor service were basically as same as self-buy funds. So I have good reason to suspect the value of advisors, but maybe the performance from advisor would become better in good years, I still need some time to prove it.
+
+There's no doubt that 2022 was a tough year, poor economy in China mainland, high inflation in other countries like US. I Wish my investment would got a huge rebound in 2023.
+
+### Others
+
+
 
 
 
