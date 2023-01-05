@@ -92,7 +92,15 @@ There's no doubt that 2022 was a tough year, poor economy in China mainland, hig
 
 ### Others
 
+When I typing this sentence, China have already performed relaxation about Covid policy. And in the aspect of after-Covid time, at least I feel my whole 2022 was full of terrifying and hopeless.
 
+Almost every city had been locked down one or more times, especially Shanghai in April. With the zero-Covid policy enhanced over and over again, there were too many horrible things had happened. People died because all kinds of strange reasons such as lack of ambulance lead to go to hospital delayed, or encountered car accident in the way of centralized isolation(27 dies), or got burned by fire because of forced locked in home and no way out.
+
+Not to mention the continuously anxiety about "get arrest" by anyone who claimed they have the rights to taken people to quarantine. There was almost no travel with my wife in the whole year, also be afraid of be taken away.
+
+However, in the end of year, due to some serious reasons(include mass protests), the policy suddenly reversed like a joke, no one prepared for that so many people could not buy enough medicines or get medical services, and death continued.
+
+After all that, I've lost any bit of confidence to the gov. Yes I may still live here, work here, pay the tax. But from this time I would keep full suspicion about any policy the gov published, and show no trust to anyone who work in there.
 
 
 
