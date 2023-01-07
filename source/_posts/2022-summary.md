@@ -106,3 +106,21 @@ After all that, I've lost any bit of confidence to the gov. Yes I may still live
 
 ## New Year Plan
 
+1. Architecture and solution design
+   - case
+   - book
+2. External impact
+   - article
+   - session
+   - open source
+3. Cloud knowledge
+   - OS
+   - visualization
+   - network
+   - storage
+   - k8s
+4. reading
+   - two classical
+   - one performance
+   - maybe DB
+5. travel
