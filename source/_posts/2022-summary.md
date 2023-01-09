@@ -106,21 +106,30 @@ After all that, I've lost any bit of confidence to the gov. Yes I may still live
 
 ## New Year Plan
 
-1. Architecture and solution design
-   - case
-   - book
-2. External impact
-   - article
-   - session
-   - open source
-3. Cloud knowledge
-   - OS
-   - visualization
-   - network
-   - storage
-   - k8s
-4. reading
-   - two classical
-   - one performance
-   - maybe DB
-5. travel
+### Architecture and solution design
+
+I already got involved in two or three projects that need to do architecture design or make solutions. But obviously I did it just by intuition rather than methodology.
+
+So it's important and urgent for me to build sense about architecture and solution design. Practice is a good way, but also I prepare to read some books to build systematic knowledge.
+
+### External impact
+
+- article
+- session
+- open source
+
+### Cloud knowledge
+
+- OS
+- visualization
+- network
+- storage
+- k8s
+
+### reading
+
+- two classical
+- one performance
+- maybe DB
+
+### travel
