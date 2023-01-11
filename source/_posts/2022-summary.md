@@ -11,13 +11,13 @@ categories:
 
 2022 has passed. What a year!
 
-Take one word to summary my 2022, I think it will be "*lack of splendid*". Expand to some words, then I choose *deceleration*, *chaotic*, *pursuing*.
+Take one word to summary my 2022, I think it would be "*lack of splendid*". Expand to some words, then I would choose *deceleration*, *chaotic*, *pursuing*.
 
 Deceleration means I feel my personal growing became slower than before in 2022, including work, study, input and output. I spent four months occupied in a tough project that I don't like. Only read a few books. Barely involved in open source. Not much writing.
 
-Chaotic refer to the whole world and my life. Too many events were happened, too many disappointment, too many anger, too few hope.
+Chaotic refers to the whole world and my life. Too many events were happened, too many disappointment, too many anger, too few hope.
 
-Pursuing. I seems lost my goal in 2022, always trying, not much gain. I did produce some outcome, but not enough to satisfy me. What would happened to me in the next three to five years? How to keep my advantages? What could I be interested in?
+Pursuing. In 2022 I seems lost my goal, always trying, not much gain. I did produce some outcome, but not enough to satisfy me. What would happened to me in the next three to five years? How to keep my advantages? What could I be interested in?
 
  
 
@@ -27,11 +27,11 @@ Pursuing. I seems lost my goal in 2022, always trying, not much gain. I did prod
 
 Last year, I spent most part of my work time to deal with the upstream and downstream of the business logic development.
 
-As one of architecture roles in an inner system developing team, I tried to make business analysis and modeling, did some cross function requirement design. Previously as a contributor role, I did thought less of modeling and pre-design, but as an architecture, the oversight to business problem let me take it more seriously. In the meantime, I strongly feel I need some methodology and systematic knowledge in design field, this year I should take some time to read correlate books.
+As one of architecture roles in an inner system developing team, I tried to make business analysis and modeling, did some cross function requirement design. Previously as a contributor role, I did thought less of modeling and pre-design, but as an architect, the sights of business problem let me treat it more seriously. In the meantime, I strongly feel I need some methodology and systematic knowledge in design field, this year I should take some time to read correlate books.
 
 Two experienced colleagues and one consulting project, lead me to the cloud native field. There are so many fun and challenges in such field, last year I dipped into kubernetes, service mesh, multi-runtime, chaos engineering, etc... At last I found that I really enjoyed the world of cloud native: growing and very active open source community, healthy ecology and huge investments from big company. All above have pushing forward cloud native to move fast.
 
-Taking a performance engineering project as an entry point, I start to access to performance optimization filed. That experience drive me go back to learn the operating system knowledge from begin. And also, lead me to transfer to another department.
+Taking a performance engineering project as an entry point, I start to access to performance optimization field. That experience drive me go back to learn the operating system knowledge from begin. And also, lead me to transfer to another department.
 
 ### 2. Learning and Writing
 
@@ -46,21 +46,21 @@ Most of them were began in 2021 and I finished them in 2022, those books include
 - [WIP] *The Art of Multi-Processors Programing*  Yes, this book last two years to read, and still unfinished... The first six chapters was killing me because full of formulas and theories. Hope I can finish it in 2023.
 - [WIP] *Xv6 Book*  This is the handbook (or teaching book?) of a teaching OS, very good for OS beginners combined with 6.S081.
 
-My writings in 2022 were 11 articles in total(include translations), that was average, not satisfied. But some of them I do took a lot of effort:
+My writings in 2022 were 11 articles in total(include translations), that was average, not satisfied me. But some of them I do took a lot of effort:
 
 - The Design of Golang Runtime: 
 
-  I spent quite a lot of time to read the code of golang runtime, and try to understand it in the form of drawing. It was spilt to two parts: computing and storing, the storing contains memory management but still lack of GC part. 
+  I spent quite a lot of time to read the code of golang runtime, and try to understand it in the form of drawing. It was spilt to two parts: computing and storing, the storing contains memory management but currently still lack of GC part. 
 
   Once I finished the computing part, I've made a presentation to my colleagues, and got very good feedbacks, that's encouraged me   to continue my attempt of explain software design by drawing.
 
 - How to Read Code: This article was finally published in Thoughtworks Insights, I describe some experiences to read code, include five steps: find a good codebase, read the manual first, read into details, write an article about it and make a presentation.
 
-### 3. Sector Transfer
+### 3. Department Transfer
 
-Earlier in 2022, I've been thinking about make some change of personal work, find a new job or change sector.
+Earlier in 2022, I've been thinking about make some change of personal work, find a new job or change department.
 
-The reason was quite simple, current sector can no longer provide me chance and project that I enjoy. The full of stereotyped system integration and business development work make me so tired and lack of interested. So I decide to try some difference.
+The reason was quite simple, my work in current department can no longer provide me chance and project that I enjoy. The full of stereotyped system integration and business development work make me so tired and lack of interested. So I decide to try some difference.
 
 After six years of business-logic focused development, I want to try some upstream or downstream work, such as architecture design, devops, software efficiency, system development, and so on.
 
@@ -86,7 +86,7 @@ Hope we can sale a plenty of Huangjiu in 2023!
 
 The investment performance in 2022 was such a disaster. The total return were about -12.5%. Maybe it was because of a bad year, maybe it was because of poor investment decisions. In a word, last year was the worst year in five years.
 
-My investment portfolio is combined with three parts: about 70% funds from investment advisor service, about 25% funds bought by my self, about 5% low risk stocks mostly bank stocks. Comparing the performance in 2022, the return of investment advisor service were basically as same as self-buy funds. So I have good reason to suspect the value of advisors, but maybe the performance from advisor would become better in good years, I still need some time to prove it.
+My investment portfolio is combined with three parts: about 70% from investment advisor service, about 25% mutual funds bought by my self, about 5% low risk stocks mostly bank stocks. Comparing the performance in 2022, the return of investment advisor service were basically as same as self-buy mutual funds. So I have good reason to suspect the value of advisors, but maybe the performance from advisor would become better in good years, I still need some time to prove it.
 
 There's no doubt that 2022 was a tough year, poor economy in China mainland, high inflation in other countries like US. I Wish my investment would got a huge rebound in 2023.
 
@@ -96,7 +96,7 @@ When I typing this sentence, China have already performed relaxation about Covid
 
 Almost every city had been locked down one or more times, especially Shanghai in April. With the zero-Covid policy enhanced over and over again, there were too many horrible things had happened. People died because all kinds of strange reasons such as lack of ambulance lead to go to hospital delayed, or encountered car accident in the way of centralized isolation(27 dies), or got burned by fire because of forced locked in home and no way out.
 
-Not to mention the continuously anxiety about "get arrest" by anyone who claimed they have the rights to taken people to quarantine. There was almost no travel with my wife in the whole year, also be afraid of be taken away.
+Not to mention the continuously anxiety about "get arrested" by someone who claimed they have the rights to take people to quarantine. There was almost no travel with my wife in the whole year, also be afraid of be taken away.
 
 However, in the end of year, due to some serious reasons(include mass protests), the policy suddenly reversed like a joke, no one prepared for that so many people could not buy enough medicines or get medical services, and death continued.
 
@@ -114,22 +114,32 @@ So it's important and urgent for me to build sense about architecture and soluti
 
 ### External impact
 
-- article
-- session
-- open source
+There's no doubt about the benefits from personal impact building. Maybe in 2023 I can somehow extend my external impact. 
+
+At before I usually did it by write articles and published them in company publication. It's good but not enough. In addition to that, I may try participate industry summit to make some shares, or write useful open source software and earn stars.
+
+Maybe I can also call for help from my departments, endorsed by company brand to join some write of industry standard or white paper.
 
 ### Cloud knowledge
 
-- OS
-- visualization
-- network
-- storage
-- k8s
+There's huge scale of knowledges in cloud field. This year I really should put my working focus on cloud.
 
-### reading
+And the sub items from cloud I want to strengthen this year, include:
 
-- two classical
-- one performance
-- maybe DB
+- OS: architecture, design and code
+- Visualization: like OpenStack and KVM
+- Network: basic knowledge and network planning
+- Storage: distributed FS such as Ceph
+- K8s: source code
 
-### travel
+### Reading
+
+I need to continuously read classical books, I hope I can read at least two of such books.
+
+Besides, there would be good if I can read some books about observability, performance optimization and database.
+
+### Travel
+
+The gate were finally be opened after three years. 
+
+I wish we can travel aboard and go to some country we have never been to. It's very interesting and relaxing in travel, especially in somewhere have huge difference from China.
