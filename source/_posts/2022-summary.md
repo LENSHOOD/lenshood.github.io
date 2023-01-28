@@ -19,7 +19,9 @@ Chaotic refers to the whole world and my life. Too many events were happened, to
 
 Pursuing. In 2022 I seems lost my goal, always trying, not much gain. I did produce some outcome, but not enough to satisfy me. What would happened to me in the next three to five years? How to keep my advantages? What could I be interested in?
 
- 
+<!-- more -->
+
+
 
 ## Career
 
