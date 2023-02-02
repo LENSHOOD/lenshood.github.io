@@ -36,13 +36,19 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       run: npm ci
     
-    # Deploy hexo blog website.
-    - name: Deploy
-      id: deploy
-      uses: sma11black/hexo-action@v1.0.3
-      with:
-        deploy_key: ${{ secrets.DEPLOY_KEY }}
-    # Use the output from the `deploy` step(use for test action)
-    - name: Get the output
+    - name: Hexo
       run: |
-        echo "${{ steps.deploy.outputs.notify }}"
+        pandoc --version
+        npm i -g hexo-cli
+        npm i
+        hexo clean && hexo g
+
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4.3.3
+      with:
+        ssh-key: ${{ secrets.DEPLOY_KEY }}
+        repository-name: lenshood/lenshood.github.io
+        branch: master # The branch the action should deploy to.
+        folder: public # The folder the action should deploy.
+        single-commit: true
+        commit-message: "Deploy by source"
