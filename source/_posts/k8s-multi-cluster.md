@@ -97,21 +97,34 @@ categories:
 
    {% asset_img network-gateway.jpg %}
 
-   如图所示，网关路由的形态很简单，首先通过在集群中安装网关来打通集群内外，之后任何涉及对其他集群的访问，网关都应当了解访问目的集群的地址（网关地址），并路由数据包至目的集群。
+   如图所示，网关路由的形态很简单，首先通过在集群中安装网关来打通集群内外，之后任何涉及对其他集群的访问，网关都应当了解访问目的集群的地址（网关地址），并路由数据包至目的集群。通过控制面设置合理的路由策略就可以满足细粒度的隔离场景。
 
-   网关路由的模型非常类似于 [istio 的多网络模型](https://istio.io/latest/docs/ops/deployment/deployment-models/#multiple-networks)，跨集群业务应用间的网络活动被网关转发代理实现通信，由于跨集群网络其 IP 地址可能存在冲突，因此需要通过合理的服务发现和治理机制确保服务名的唯一性。
+   网关路由的模型非常类似于 [Istio 的多网络模型](https://istio.io/latest/docs/ops/deployment/deployment-models/#multiple-networks)，跨集群业务应用间的网络活动被网关转发代理实现通信，由于跨集群网络其 IP 地址可能存在冲突，因此需要通过合理的服务发现和治理机制确保服务名的唯一性。另外，由于服务可能会被暴露在公网，安全性也是非常重要的一个考量点，Istio 的多网络模型中跨网通信要求必须通过 Istio Proxy 并建立 mTLS 连接。
 
 2. Overlay 网络
 
    {% asset_img network-overlay.jpg %}
 
-   我们知道很多 CNI 的工作模式就是在集群内构建了 Overlay 网络，因此如果能对单集群的 Overlay 网络进行扩展，使得多个集群之间共享同一个子网，也就实现了集群间整体的互联互通。
+   如图所示，多集群间的节点，虽然处于不同的云、不同的 VPC，但都被接入在同一个 Overlay 内，因此实现了直连。
 
-   
+   我们知道很多 CNI 实现的工作原理就是在集群内构建 Overlay 网络，如果能对单集群的 Overlay 网络进行扩展，使得多个集群之间共享同一个子网，也就实现了集群间整体的互联互通。通过创建不同的子网，即可满足不同的隔离度要求。
+
+   Overlay 网络的本质是隧道技术，通常是在三层网络上构建隧道从而传输二层网络包，来实现虚拟网络。Overlay 网络的优势在于它构建的虚拟扁平网络让上层通信不再依赖复杂的路由策略，但类似 VxLan 的技术，只对网络数据包进行了再封装，并没有任何安全性可言，因此当用于公网间建立隧道的时候会采用加密协议传输，如 IPSec，WireGuard 等。
 
 #### 服务发现与治理
 
+当实现了管理跨集群网络后，之后就需要考虑在应用层面的服务发现与治理问题。在单集群场景下，K8s 通过 DNS + Service 实现对应用地址的解析和应用访问的治理，因此在多集群场景，最简单直接的方式就是扩展现有的 DNS + Service 模式。
 
+考虑到不同集群内运行的应用是动态变化的，因此假设`cluster-0` 中的 `app-0` 创建了 `app-svc-0` ，该 Service 会被 `cluster-1` 中的应用 `app-1` 所依赖，那么多集群管理软件就应当及时的将 `cluter-0.app-svc-0` 的信息同步到`cluster-1` 从而让 `app-1` 能知道 `app-0` 的访问地址。
+
+[Multi-Cluster Services API](https://github.com/kubernetes/enhancements/blob/master/keps/sig-multicluster/1645-multi-cluster-services-api/README.md) 是 K8s “Multicluster SIG（多集群特别兴趣小组）” 发起的一项标准，它将单集群的 Service 概念扩展到多集群，以实现跨集群的服务发现治理，Multi-Cluster Services API 定义了 “集群组 ClusterSet” 的概念，并定义了如下的两种 CRD 来描述跨集群服务（以下假设集群组中存在两个集群 `cluster-0` 和 `cluster-1`）：
+
+- ServiceExport：若`cluster-0`中的 Service `svc-0` 期望被暴露给集群组，则在`cluster-0` 中创建一个与 `svc-0` 同名的 ServiceExport，这代表`svc-0`变成了一个 “集群组服务（Clusterset Service）”，在集群组内的所有集群中公开。
+- ServiceImport：多集群管理软件应当能发现上述创建的 ServiceExport，进而在集群组所有集群中创建 ServiceImport（包括`svc-0` 所在的`cluster-0`），这代表一个集群组服务被导入到当前集群。与此同时，多集群管理软件还应在 `cluster-1` 中创建名为 `svc-0` 的 Service 并绑定实际指向`clustrer-0.svc-0` 地址的 EndpointSlice。
+
+因此，`cluster-1` 中的应用能够直接通过访问 `cluster-1.svc-0` 来访问到 `cluster-0.svc-0` 实现了对外部集群服务的访问。
+
+上述方案通过 ServiceExport 和 ServiceImport 的概念，实现了对单集群 DNS + Service 的多集群扩展。
 
 ### 跨集群应用调度
 
@@ -216,7 +229,7 @@ spec:
 
 通过上述例子我们可以发现，集群生命周期的管理，在兼容不同的云时，存在如下难点：不同云提供商、以及各种私有云方案，其基础设施操作 API 都不同，并且除了 K8s 自管方案，公有云都存在代管方案，如 AKS，GKE 等，创建集群时需要区分。
 
-[ClusterAPI](https://github.com/kubernetes-sigs/cluster-api) 是 K8s “Cluster Lifecycle SIG（特别兴趣小组）” 发起的项目，Cluster API 尝试通过定义标准基础设施 API 来统一集群生命周期管理，各类云厂商自行提供实现了标准 API 的 “Provider” 来支持自动创建集群资源，由于其官方背景，目前已有[数十种 Provider](https://cluster-api.sigs.k8s.io/reference/providers.html) 可供选择（不仅包含 aws 等公有云，还包含了 OpenStack，OCI 等其他方案）。
+[ClusterAPI](https://github.com/kubernetes-sigs/cluster-api) 是 K8s “Cluster Lifecycle SIG（集群生命周期特别兴趣小组）” 发起的项目，Cluster API 尝试通过定义标准基础设施 API 来统一集群生命周期管理，各类云厂商自行提供实现了标准 API 的 “Provider” 来支持自动创建集群资源，由于其官方背景，目前已有[数十种 Provider](https://cluster-api.sigs.k8s.io/reference/providers.html) 可供选择（不仅包含 aws 等公有云，还包含了 OpenStack，OCI 等其他方案）。
 
 也许未来 Cluster API 可能会成为集群声明周期管理的标准。
 
