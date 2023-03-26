@@ -1,6 +1,6 @@
 ---
-title: Kubernetes 多集群的发展与趋势
-date: 2023-02-07 20:33:21
+title: Kubernetes 多集群的原理、现状与发展趋势（上）
+date: 2023-03-09 20:33:21
 tags:
 - multi-cluster
 - multi-cloud
