@@ -117,9 +117,11 @@ categories:
 
 当实现了管理跨集群网络后，之后就需要考虑在应用层面的服务发现与治理问题。在单集群场景下，K8s 通过 DNS + Service 实现了对应用地址的解析和应用访问的治理，因此在多集群场景，最简单直接的方式就是扩展现有的 DNS + Service 模式。
 
-考虑到不同集群内运行的应用是动态变化的，因此假设`cluster-0` 中的 `app-0` 创建了 `app-svc-0` ，该 Service 会被 `cluster-1` 中的应用 `app-1` 所依赖，那么多集群管理软件就应当及时的将 `cluter-0.app-svc-0` 的信息同步到`cluster-1` 从而让 `app-1` 能访问 `app-0` 。
+考虑到不同集群内运行的应用是动态变化的，因此假设`cluster-0` 中的 `app-0` 创建了 `svc-0` ，该 Service 会被 `cluster-1` 中的应用 `app-1` 所依赖，那么多集群管理软件就应当及时的将 `cluter-0.svc-0` 的信息同步到`cluster-1` 从而让 `app-1` 能访问 `app-0` 。
 
 [Multi-Cluster Services API](https://github.com/kubernetes/enhancements/blob/master/keps/sig-multicluster/1645-multi-cluster-services-api/README.md) 是 K8s “Multicluster SIG（多集群特别兴趣小组）” 发起的一项标准，它将单集群的 Service 概念扩展到多集群，以实现跨集群的服务发现治理，Multi-Cluster Services API 定义了 “集群组 ClusterSet” 的概念，并定义了如下的两种 CRD 来描述跨集群服务（以下假设集群组中存在两个集群 `cluster-0` 和 `cluster-1`）：
+
+{% asset_img service-discovery.jpg %}
 
 - ServiceExport：若`cluster-0`中的 Service `svc-0` 期望被暴露给集群组，则在`cluster-0` 中创建一个与 `svc-0` 同名的 ServiceExport，这代表`svc-0`变成了一个 “集群组服务（Clusterset Service）”，在集群组内的所有集群中公开。
 - ServiceImport：多集群管理软件应当及时发现上述创建的 ServiceExport，进而在集群组所有集群中创建 ServiceImport（包括`svc-0` 所在的`cluster-0`），这代表一个集群组服务被导入到当前集群。与此同时，多集群管理软件还应在 `cluster-1` 中创建名为 `svc-0` 的 Service 并创建绑定实际`clustrer-0.svc-0` 地址的 EndpointSlice。
@@ -146,7 +148,7 @@ categories:
 
 通过调度策略，我们期望能解决 ”什么样的应用” 需要被调度到 “哪类集群” 的问题。显然，应用有其自身独特的属性集，集群也一样。从属性集的角度看，调度策略问题就可以转化为应用与集群属性集之间的最优匹配问题。
 
-{% asset_img sched-chain.jpg. %}
+{% asset_img sched-chain.jpg %}
 
 举例说明，应用的属性集可能包括：命名空间、资源依赖、副本数、镜像名、租户归属、应用亲和性/反亲和性、最小资源需求等等，集群的属性集可能包括 AZ、地区（Region）、节点数、已分配 Pod 数、资源总量/余量、污点（Taint）等等。
 
