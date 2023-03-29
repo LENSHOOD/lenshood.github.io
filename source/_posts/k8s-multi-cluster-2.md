@@ -38,9 +38,9 @@ KubeFed 的整体架构如下图所示：
 
 首先，在部署模型上，KubeFed 作为控制面独占一个 K8s 集群，称为 Host Cluster，而实际部署应用的集群，称为 Member Cluster。任何 K8s 集群，想要成为集群联邦内的一个成员，都需要通过 KubeFed 来进行 “Join”，“Join” 实际上是在 Host Cluster 中创建了一种类型为 `KubeFedCluster` 的自定义资源（即上图中的 “Cluster Configuration”），在其中描述了待加入集群的 API 端点，证书、Token 等用于从外部连接到集群的信息，KubeFed 会通过这类信息来向 Member Cluster 下达指令。
 
-#### 资源模型扩展
+#### 应用模型扩展
 
-Member Cluster 加入后，怎么定义跨集群的资源呢？在 KubeFed 的概念中，任何可以下发的资源类型，都需要被定义为 “联邦资源类型”（FederatedType，如上图），之后才能被 KubeFed 识别并调度。
+Member Cluster 加入后，怎么定义跨集群的应用资源呢？在 KubeFed 的概念中，任何可以下发的应用资源类型，都需要被定义为 “联邦资源类型”（FederatedType，如上图），之后才能被 KubeFed 识别并调度。
 
 举例说明，当期望在集群联邦中创建标准的 Deployment 资源时，需要：
 
@@ -146,6 +146,94 @@ KubeFed 在最初的设计中通过引入 ”ServiceDNSRecord“ 类型来通过
 但是在 KubeFed v2 的 [KEP](https://github.com/kubernetes-sigs/kubefed/blob/master/docs/keps/20200619-kubefed-pull-reconciliation.md#other-main-reconciliation-loops) 中提到，KubeFed 将不再使用 ServiceDNSRecord 相关的功能，而是寻求其他方案例如 Service Mesh 等来实现服务注册于发现的功能，因此现在我们会看到，KubeFed 的源码中已经不再包含相关的控制逻辑了。
 
 ### 1.2 Karmada
+
+[Karmada](https://karmada.io/) 是华为开源的多集群管理系统，目前是 CNCF 的沙箱项目。Karmada 在多集群管理上功能非常丰富，在集群管理、灵活调度、应用模型等方面都提供了较为完善的解决方案。
+
+从部署架构上看（如下图），Karmard 多集群控制面是逻辑上的概念，其控制面进程支持部署在任意 K8s 集群或是 VM 上。控制面组件中，Karmada API Server 用于接受请求，创建的资源存储在 etcd，Karmada Scheduler 用于产生调度决策，而 Karmada 自有的资源，则分别被其对应的 Karmada Controllers 监听并执行实际的动作。可以看到 Karmada 控制面组件的设计与 K8s 非常相似。
+
+![](https://karmada.io/zh/assets/images/architecture-37447d3b4fceeae700e488373138d808.png)
+
+下图是 Karmada 在进行多集群管理过程中引入的一些概念和自有资源，其中：
+
+- Resource Template：指在 Karmada 上下文中的 K8s 资源，如 Deployment，DaemonSet 等等
+- PropagationPolicy：资源传播策略，用于定义某个资源模板需要以某些规则下发，可以认为是对调度器的提示
+- ResourceBinding：产生调度决策后，会将资源模板与实际下发的集群绑定起来存储在 ResourceBinding 中
+- OverridePolicy：对某些特定集群中下发的资源属性进行修改，覆盖模板值
+- Work：实际操作资源下发的组件
+
+![](https://karmada.io/zh/assets/images/karmada-resource-relation-0e46a98d960615afc1860e2b4e1f4ca1.png)
+
+#### 应用模型扩展
+
+Karmada 多集群管理的工作流程是通过用户在 Karmada 上下文（即通过 Karmada API Server）中创建 K8s 资源开始的，用户创建的 K8s 资源在 Karmada 中称为 Resource Template。
+
+如下以一个最简单的 Nginx Deployment 为例：
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+```
+
+在单集群语境下，上述 Deployment 在创建后 K8s 集群会通过 Kubelet 在某个节点上实际启动 Nginx 容器，而在 Karmada 多集群语境下，该资源会被 Karmada 控制面保存，而不会立即开始尝试启动容器，Karmada 会将该 Deployment 视为一种创建 Nginx 应用的 ”模板“。
+
+之后用户需要再创建一个 PropagationPolicy 资源来描述这个 Nginx 应用实际需要运行的集群：
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: nginx-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nginx
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - member1
+        - member2
+    replicaScheduling:
+      replicaDivisionPreference: Weighted
+      replicaSchedulingType: Divided
+      weightPreference:
+        staticWeightList:
+          - targetCluster:
+              clusterNames:
+                - member1
+            weight: 1
+          - targetCluster:
+              clusterNames:
+                - member2
+            weight: 2
+```
+
+可见，PropagationPolicy 能通过 `resourceSelectors` 选中 Nginx Deployment（即选中了资源模板），之后在 `placement` 段中定义 Nginx 应用的调度策略，`clusterAffinity` 定义了该应用与 Member 集群的亲和性，在这里指 Nginx 需要在 `member1`和 `member2`中创建。`replicaScheduling` 段则描述了资源模板中的 `replicas: 6` 实际上在 Member 集群中的副本数，`replicaDivisionPreference` 和 `replicaSchedulingType` 指明六个副本需要按权重平均分配在 Member 集群中，由于 `weightPreference`  定义了 `member1`和 `member2 `的权重比例是 1:2，因此实际上在  `member1` 会部署 2 个副本，而 `member2` 会部署 4 个副本。
+
+Karmada 的应用资源模型设计是前向兼容的，避免了 KubeFed 中需要修改原始应用资源的问题，从单集群演进而来的应用，最少只需要增加 PropagationPolicy 就能过渡到多集群。
+
+#### 跨集群动态调度
+
+
+
+
 
 ### 1.3 OCM
 
