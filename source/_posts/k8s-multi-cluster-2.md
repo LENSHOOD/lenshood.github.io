@@ -231,7 +231,45 @@ Karmada 的应用资源模型设计是前向兼容的，避免了 KubeFed 中需
 
 #### 跨集群动态调度
 
+Karmada 的应用跨集群调度实现的很完善，通过多个组件相互配合，不仅实现了传统的由用户指定的亲和性、权重、分组等调度偏好，还支持 Taint/Tolerantion、优先级、基于资源的调度，故障转移，动态重调度等更加自动化的调度方式。
 
+在 Karmada 中与调度相关的组件关系如下图：
+
+{% asset_img karmada-sched.jpg %}
+
+在 Karmada 中，应用期望部署在哪些集群中，副本数有多少，实际状态是什么，都存储在 ResourceBinding 对象中。因此整个调度逻辑也都围绕着 ResourceBinding 来组织。如上图所示，与调度相关的组件包括了调度器 scheduler、重调度器 de-scheduler 以及污点管理器 taint-manager，这些组件产生的调度决策都会作用于 ResourceBinding 上。
+
+##### 灵活的调度模式
+
+在前面示例的 PropagationPolicy 中，已经展示了集群亲和性的配置，除了直接通过 Cluster 名称，还可以以采用如标签等方式选择合适的集群。此外，还可以通过 PropagationPolicy 中的 SpreadConstraint 特性来对集群进行分组。调度器 scheduler 通过读取 ResourceBinding 中与 PropagationPolicy 相关的信息来产生调度决策，并将决策结果写回 ResourceBinding。
+
+假如 Member Cluster 出现了故障，集群控制器 cluster-controller 会在对应的 Karmada Cluster 对象上打污点，污点管理器 taint-manager 得知 Member Cluster 上存在污点后，也会修改原调度决策，并将修改作用在 ResourceBinding 上。
+
+##### 动态重调度
+
+重调度器 de-scheduler 通过 estimator 来获取应用在集群中的实际状态，进而决定是否修改原调度决策，这一修改也会落在 ResourceBinding 上。
+
+每个 estimator 都对应一个 Member Cluster，estimator 通过检查应用在当前 Member Cluster 中的目标副本数，和实际副本数是否一致来发现调度失败的情况，de-scheduler 汇总所有 estimator 的信息，就能够知晓某个应用的现状，并决定是否要发起重调度。
+
+#### 网络连通与服务发现
+
+Karmada 支持借助 [Submariner](https://submariner.io/) 或 [Istio](https://istio.io/) 来实现 Member Cluster 之间的网络连通性。通过实现 [Multi-Cluster Services API](https://github.com/kubernetes/enhancements/blob/master/keps/sig-multicluster/1645-multi-cluster-services-api/README.md) 来支持跨集群的服务注册与发现能力。
+
+##### 网络连通
+
+Submariner 为 K8s 多集群提供了基于 Overlay 网络的连通方案，能够实现跨 L3 层的 Overlay，且不要求多集群使用相同的 CNI 插件。
+
+![](https://submariner.io/images/submariner/architecture.jpg)
+
+上图是 Submariner 的总体架构，可以看到它本质上是通过 VxLan 技术建立的 Overlay 网络。每个集群内安装 Gateway 来接受跨集群的流量，所有跨集群流量都会通过 Route Agent 路由至 Gateway。Gateway 之间通过公有网络建立基于 IPSec 的加密通道，在其上传输跨集群流量。Broker 可以视为 Submariner 的控制平面，用于控制和协调。
+
+#####服务发现
+
+Karmada 基于 Multi-Cluster Services API 的 ServiceExport 和 ServiceImport 实现了相关控制逻辑来构建跨集群的服务发现。
+
+{% asset_img karmada-sd.jpg %}
+
+如上图所示，当 Member Cluster 0 中的某个服务，通过用户创建 ServiceExport 来进行发布后，再在 Member Cluster 1 中创建 ServiceImport 来将服务导入。此时 Karmada 的相关控制器会在 Member Cluster 1 中创建对应的 Service 以及 Endpoint，指向 Member Cluster 0 中的服务。
 
 
 
