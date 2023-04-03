@@ -269,9 +269,9 @@ Karmada 基于 Multi-Cluster Services API 的 ServiceExport 和 ServiceImport �
 
 {% asset_img karmada-sd.jpg %}
 
-如上图所示，当 Member Cluster 0 中的某个服务，通过用户创建 ServiceExport 来进行发布后，再在 Member Cluster 1 中创建 ServiceImport 来将服务导入。此时 Karmada 的相关控制器会在 Member Cluster 1 中创建对应的 Service 以及 Endpoint，指向 Member Cluster 0 中的服务。
+如上图所示，当 Member Cluster 0 中的某个服务 Service 需要被导出时，先由用户创建 ServiceExport。此时 Karmada 的 ServiceExport 控制器会监听到 Member Cluster 0 中创建的 ServiceExport 对象，并配合 EndpointSlice 控制器将 Member Cluster 0 中需要导出的 Service 和对应的 Endpoints 复制一份到 Karmada 控制集群，以备后续导出。
 
-
+接下来，用户在需要导入服务的集群中（图中是 Member Cluster 1）创建 ServiceImport。一旦 ServiceImport 对象被创建，ServiceImport 控制器就会基于待发布的 Service（Original Service） 创建出对应的 “派生” Service（Derived Service），并和 Endpoints 一并通过 Propagation 机制下发到 Member Cluster 1，实现对 Service 的导入。
 
 ### 1.3 OCM
 
