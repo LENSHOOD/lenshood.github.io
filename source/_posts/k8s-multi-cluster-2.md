@@ -1,5 +1,5 @@
 ---
-title: Kubernetes 多集群（下）：方案与演进
+title: 理解 K8s 多集群（下）：解决方案的选择与演进趋势
 date: 2023-03-26 13:19:34
 tags:
 - multi-cluster
