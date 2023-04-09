@@ -275,6 +275,98 @@ Karmada 基于 Multi-Cluster Services API 的 ServiceExport 和 ServiceImport �
 
 ### 1.3 OCM
 
+[OCM](https://open-cluster-management.io/) 即 Open Cluster Management，是阿里与红帽共同推出的一种 K8s 多集群实现方案。其最大的特色在于采用借鉴了 K8s 控制面组件+Kubelet 架构模式的所谓 [“Hub-Agent” 设计架构](https://open-cluster-management.io/concepts/architecture/#hub-spoke-architecture)，通过一个小型轻量级的控制集群，就能够管理多至数千个集群。
+
+![](https://github.com/open-cluster-management-io/OCM/raw/main/assets/ocm-arch.png)
+
+上图所示的是 OCM 的总体架构，可以发现它与 KubeFed 或 Karmada 最大的区别就在于，其每一个工作集群（OCM 中称为 Managed Cluster）中都安装有一个 “Klusterlet” 组件（恰好类比于 Kubelet）。在多集群管理流程中，控制集群（OCM 中称为 Hub Cluster）只负责生成各个 ManagedCluster 中应当被下发的应用资源模板（OCM 中称为 “处方”），实际的资源管理与状态上报工作，是由 Klusterlet 主动向 Hub Cluster 拉取处方，基于处方的内容管理应用的生命周期，并定期推送应用资源的状态。
+
+正如 OCM 的架构概念所述：“试想，如果Kubernetes中没有kubelet，而是由控制平面直接操作容器守护进程，那么对于一个中心化的控制器，管理一个超过5000节点的集群，将会极其困难。 同理，这也是OCM试图突破可扩展性瓶颈的方式，即将“执行”拆分卸入各个单独的代理中，从而让hub cluster可以接受和管理数千个集群。” 比对 Karmada 是通过在控制面创建每个工作集群对应一个的 Work 组件来实施集群管理，OCM 的 Klusterlet 就类似于把 Karmada 的 Work 放在了工作集群上运行。
+
+#### 应用模型扩展
+
+OCM 是通过名为 `ManifestWork` 的对象来描述应用：
+
+```yaml
+apiVersion: work.open-cluster-management.io/v1
+kind: ManifestWork
+metadata:
+  namespace: <target managed cluster>
+  name: hello-work-demo
+spec:
+  workload:
+    manifests:
+      - apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: hello
+          namespace: default
+        spec:
+          ... ...
+status:
+  conditions:
+    ... ...
+  resourceStatus:
+    manifests:
+      - conditions:
+          ... ...
+        resourceMeta:
+          group: apps
+          kind: Deployment
+          name: hello
+          ... ...
+```
+
+一个 `ManifestWork` 能够描述多个应用资源，此外每一个 Managed Cluster 在 Hub Cluster 中都拥有一个命名空间，`ManifestWork` 创建在哪个命名空间中，对应 Managed Cluster 的 Klusterlet 就会将其拉取下来，并如实的创建应用资源。而应用资源实际的状态信息，也会由 Klusterlet 更新回 `ManifestWork` 中。
+
+不过，显然 OCM 的应用模型扩展并没有考虑前向兼容的问题。
+
+#### 动态调度
+
+与 Karmada 很类似，OCM 也是通过名为 `Placement` 的对象来实现动态调度：
+
+```yaml
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: placement1
+spec:
+  numberOfClusters: 3
+  clusterSets:
+    - prod
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            purpose: test
+        claimSelector:
+          matchExpressions:
+            - key: platform.open-cluster-management.io
+              operator: In
+              values:
+                - aws
+```
+
+当`Placement` 创建过后，调度逻辑会按照其描述来生成名为 `PlacementDecision` 的调度决策：
+
+```yaml
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: PlacementDecision
+metadata:
+  labels:
+    cluster.open-cluster-management.io/placement: placement1
+  name: placement1-decision-1
+status:
+  decisions:
+    - clusterName: cluster1
+    - clusterName: cluster2
+    - clusterName: cluster3
+```
+
+相关控制器监听到调度决策后就会按要求在 Managed Cluster 的命名空间中创建 `ManifestWork`，完成调度流程。
+
+另外，OCM 的 Add-on 插件体系也提供了灵活的框架来允许用户自定义并扩展内建的调度逻辑。
+
 ### 1.4 Rancher
 
 ## 2. 演进趋势
@@ -282,5 +374,6 @@ Karmada 基于 Multi-Cluster Services API 的 ServiceExport 和 ServiceImport �
 1. 真的需要扁平网络吗？（跨集群 pod 同一个网络）
 2. 跨集群方案怎么解决数据同步问题
 3. 如何统一管理传统云资源，如 VM，块存储，VPC 等
+3. 多租 [k8s multiple tenancy wg](https://github.com/kubernetes/community/blob/master/wg-multitenancy/annual-report-2020.md)
 
 ## 3. 总结
