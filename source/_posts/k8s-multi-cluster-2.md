@@ -367,7 +367,32 @@ status:
 
 另外，OCM 的 Add-on 插件体系也提供了灵活的框架来允许用户自定义并扩展内建的调度逻辑。
 
-### 1.4 Rancher
+### 1.4 Gardener
+
+[Gardener](https://gardener.cloud/) 是 SAP 开源的 K8s 多集群解决方案，与前面几种方案不同，Gardener 专注于 K8s 集群即服务（Kubernetes-as-a-Service）。
+
+在设计概念上，Gardener 期望作为一种管理大量 K8s 集群的组件，借助 Gardner，用户能够实现在接入各种不同类型底层基础设施的同时，方便的在其上构建标准的 K8s 集群。
+
+与 Cluster-Api 不同，Gardener 更进一步，除了能在各种差异化基础设施上管理 K8s 集群的生命周期，还能够确保在这些基础设施上运行的 K8s 集群具有完全相同的版本、配置和行为，这能简化应用的多云迁移。Gardener 还提供了[一个页面](https://k8s-testgrid.appspot.com/conformance-all)专门介绍其不同版本的标准化K8s 集群与不同云提供商的兼容情况。
+
+![](https://gardener.cloud/__resources/gardener-architecture-detailed_945c90.png)
+
+上图所示的是 Gardener 的整体架构图。从垂直分层的角度看，Gardener 自身及其管理的 K8s 集群可分为三层：
+
+- Garden Cluster：Gardener 的控制集群，主要用于定义并管理实际的 K8s 工作集群。
+
+- Seed Cluster：Gardener 并不是直接在基础设施上创建工作集群的，相反，Gardener 定义了 Seed 集群的概念。在 Seed 集群中以标准 K8s Workload 的形式运行着多个工作集群的控制面。这种 ”K8s in K8s“ 的形式简化了工作集群控制面的高可用设计，也非常易于扩展。
+
+- Shoot Cluster：工作集群的数据面节点，可以视为实际的工作集群。
+
+在 Garden Cluster 中用户可以通过构建 `Seed` 对象（Gardener 定义的一种 CR，下同）来描述 Seed 集群，而通过 `Shoot` 对象来描述 Shoot 集群，最后通过构建 `CloudProfile` 对象来描述下层基础设施的配置。通常在每一个 IaaS Region 中都会运行一个 Seed Cluster，由它来持有当前 IaaS Region 下工作集群的控制面。每个 Seed Cluster 中都运行着 Gardenlet 用来从 Garden Cluster 中获取工作集群的创建需求。实际的集群创建动作也是由 Gardenlet 来完成的。
+
+因此 Gardener 的设计类似于将 K8s 的概念扩展到了多集群领域：
+
+- Kubernetes 控制面 = Garden 集群
+- Kubelet = Gardenlet
+- Node = Seed 集群
+- Pod = Shoot 集群
 
 ## 2. 演进趋势
 
