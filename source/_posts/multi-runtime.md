@@ -26,9 +26,9 @@ categories:
 
 然而随着业务的快速发展，组织规模的不断扩大，微服务越来越多，系统规模越来越大则是服务化体系架构演进的必然。这就带来了两方面复杂度的上升：
 
-1. 服务治理与接入的复杂度
+1. 服务治理与能力接入的复杂度
    - 服务治理代表了系统中服务资源的地图及其获取途径，例如通过注册发现服务提供图谱能力，路由、网关、LB 服务提供获取途径。
-   - 服务接入则代表了如何使用系统中的服务能力，例如通过中间件提供的 API 协议或是封装的 SDK 来接入该中间件。
+   - 能力接入则代表了如何使用系统中的服务能力，例如通过中间件提供的 API 协议或是封装的 SDK 来接入该中间件。
    - 各种业务服务越多、中间件越复杂，整个系统服务治理与接入复杂度就会急剧上升。
 2. 团队协作的复杂度
    - 该复杂度主要体现在团队的认知负载上，复杂的依赖、沟通、协作将明显拖慢交付进度
@@ -78,12 +78,12 @@ Bilgin Ibryam 认为，应用之间对分布式能力的需求，无外乎这四
 >
 > 因此上述由 Bilgin 归纳的分布式应用四大类需求，其实我们很容易就可以和单机应用进行合理的类比：
 >
-> | 支撑能力 | 单机应用                     | 分布式应用                       |
-> | -------- | ---------------------------- | -------------------------------- |
-> | 生命周期 | 用户态进程                   | Kubernetes                       |
-> | 网络     | 网络协议、域名解析、路由服务 | 注册中心、负载均衡、Service Mesh |
-> | 状态     | 文件系统                     | 数据库、对象存储、块存储         |
-> | 绑定     | 标准库、系统调用             | 事件分发、分布式事务、消息路由   |
+> | 支撑能力 | 单机应用                     | 分布式应用                        |
+> | -------- | ---------------------------- | --------------------------------- |
+> | 生命周期 | 用户态进程                   | Kubernetes                        |
+> | 网络     | 网络协议、域名解析、路由服务 | 服务发现/注册、负载均衡、流量管理 |
+> | 状态     | 文件系统                     | 数据库、对象存储、块存储          |
+> | 绑定     | 标准库、系统调用             | 事件分发、分布式事务、消息路由    |
 >
 > 从上述类比来看我们发现，单单是 Kubernetes 可能还不足以称为是 “云原生操作系统”，除非有一种解决方案，能在分布式环境下，把其他几项支撑能力也进行归一化整合，才能理直气壮的冠此大名。
 
@@ -248,15 +248,19 @@ State management 定义了基于事务操作的能力 `/v1.0/state/<storename>/t
 
 ### Sidecarless？
 
-上一节对资源消耗以及性能的问题其实不只是 dapr 下的场景，实际上它是 sidecar 模式自有的限制，因此在 Service Mesh 领域的讨论中，已经有提出 Sidecarless 的概念了，即通过 DaemonSet 而不是 Sidecar 的形式来部署网络代理。
+Dapr 官方标注的[数据面资源消耗](https://doczs.dapr.io/operations/performance-and-scalability/perf-service-invocation/#data-plane-performance)是在 1k TPS 下使用 0.48 vCPU + 23MiB 内存，对请求的延迟 P90 1.4ms，P99 2.1ms。而 Istio 官方标注的 v1.16 版本[数据面 envoy 资源消耗](https://istio.io/v1.16/docs/ops/deployment/performance-and-scalability/#performance-summary-for-istio-hahahugoshortcode-s0-hbhb)是在 1k TPS 下使用 0.35 vCPU + 40MiB 内存，请求延迟 P90 2.65ms。简单计算一下，不论是 dapr 还是 Istio，在 1000 个服务实例的场景下，基本产生 3~5k vCPU + 20~40GiB 内存的资源消耗。
+
+的确，资源消耗以及性能的问题其实不只是 dapr 下的场景，实际上它是 sidecar 模式自有的限制，因此在 Service Mesh 领域的讨论中，已经有提出 Sidecarless 的概念了，即通过 DaemonSet 而不是 Sidecar 的形式来部署网络代理。
 
 对于网络代理的 Sidecarless 化，支持方认为它能带来高性能、低资源消耗的优点，而反对方则认为它会导致安全性与隔离性差、故障的爆炸半径过大等缺点。
 
 那么，Mecha 是否也可能会走向 Sidecarless 呢？
 
-与网络代理的 Sidecarless 类似，如果将 Mecha 做成 Daemonset，其优劣势也差不多。而 Daemonset 形式的 Mecha，由于只启动一次，可能会在 Serverless 的场景下大幅缩短 Serverless 函数的执行时间。对此 dapr 项目也有相关的[讨论](https://github.com/dapr/dapr/issues/5385)。
+与网络代理的 Sidecarless 类似，如果将 Mecha 做成 DaemonSet，其优劣势也差不多。而 DaemonSet 形式的 Mecha，由于只启动一次，可能会在 Serverless 的场景下大幅缩短 Serverless 函数的执行时间。对此 dapr 项目也有相关的[讨论](https://github.com/dapr/dapr/issues/5385)。
 
 就像今年 Cilium 发布支持 Service Mesh 能力的办法，通过 eBPF 在内核态实现 L3 L4 层能力，而对应的 L7 层能力则交给用户态的 Envoy 处理这种将问题一分为二的思想，也许多运行时架构的未来方案也可能是折中或是多种方式结合的。例如采用在 Node 上按 Service Account 或 Namespace 运行多实例，或是轻量级 Sidecar 做协议转换＋DaemonSet 做流量管理和网络调用。
+
+当然 DaemonSet 也有其固有的缺陷，资源被共享从而降低消耗的同时，故障也被共享了，而且故障产生的伤害面也变大了，此外还会导致 DaemonSet 被应用使用的争抢问题，以及应用之间的数据暴露风险。到底后续将会如何演进，我们拭目以待。
 
 
 
