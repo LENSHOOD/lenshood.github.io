@@ -189,6 +189,48 @@ Mecha 不仅成功的将分布式能力从耦合的业务进程中抽取出来�
 
 Dapr 期望通过定义一个能容纳所有需求的分布式能力抽象层，来彻底解放业务逻辑。从归一化的角度看，不得不说这是一种大胆而富有野心的尝试，理想条件下的确能非常优雅地解决问题。但现实总是充斥着各种跳脱出理想的情况，dapr 在推广的过程中遇到了很多限制与挑战。
 
+### 与 Service Mesh 整合
+
+作为面向开发侧提供的能力抽象层，dapr 在网络能力上包含了 mTLS、Observability 与 Resiliency（即超时重试熔断等），但并没有包含诸如负载均衡、动态切换、金丝雀发布等运维侧的流量管理能力。
+
+{% asset_img 14.png %}
+
+因此对于不断走向成熟的业务系统，可能既要 Service Mesh 在运维侧的流量管理能力，又要 dapr 在开发侧的分布式抽象能力，不管谁先谁后，都将面临一个问题：怎样搭配使用它们才是正确的？某些场景下可以做适配，如：
+
+- 对于 distributed tracing 的能力，如果采用 Service Mesh 来实现，则需要考虑将原本 dapr 直连的中间件也加入 mesh 网络，否则会 trace 不到。但从 distributed tracing 本身功能角度讲，更应该使用 dapr。
+- mTLS 应该只在 dapr 或者 Service Mesh 中开启，而不应该都开启。
+
+但 dapr 与 Service Mesh 配合使用中难以避免的是开销的问题，包括资源开销和性能开销。
+
+每个应用 Pod 携带两种 sidecar，再加上 dapr 和 Service Mesh 自己的控制面应用（高可用方案主备或多副本），这些资源开销是无法忽略，甚至是非常可观的。而由于 Service Mesh 网络代理的流量劫持，网络调用需要先经过 dapr sidecar，再经过网络代理 sidecar，被代理两次，也会造成一定的性能开销。
+
+下表是汇总的 [Dapr 官方标注的 daprd 资源与性能消耗数据](https://doczs.dapr.io/operations/performance-and-scalability/perf-service-invocation/#data-plane-performance)，以及 [Istio v1.16（最新版未找到）官方标注的 envoy 资源与性能消耗数据](https://istio.io/v1.16/docs/ops/deployment/performance-and-scalability/#performance-summary-for-istio-hahahugoshortcode-s0-hbhb)：
+
+|           | **CPU**   | **Mem** | **Latency P90** **@1k TPS** |
+| --------- | --------- | ------- | --------------------------- |
+| **daprd** | 0.48 vCPU | 23 MiB  | 1.4ms                       |
+| **envoy** | 0.35 vCPU | 40 MiB  | 2.65ms                      |
+
+简单计算一下就会发现，当拥有 1000 个业务实例时，dapr + istio 的 Sidecar 进程可能会消耗 800+ vCPU 和 60+ GiB 内存。
+
+随着分布式能力抽象层的不断扩展，到底哪些属于开发侧，哪些属于运维侧，也许不会像现在这样泾渭分明了。因此已经有对 Multi-Runtime 与 Service Mesh 能力边界越来越模糊的讨论。
+
+### Sidecarless？
+
+从上一节的表格我们发现，资源消耗以及性能的问题其实不只是 dapr 下的场景，实际上它是 sidecar 模式自有的限制，因此在 Service Mesh 领域的讨论中，已经有提出 Sidecarless 的概念了，即通过 DaemonSet 而不是 Sidecar 的形式来部署网络代理。
+
+{% asset_img 18.png %}
+
+对于网络代理的 Sidecarless 化，支持方认为它能带来高性能、低资源消耗的优点，而反对方则认为它会导致安全性与隔离性差、故障的爆炸半径过大等缺点。
+
+那么，Mecha 是否也可能会走向 Sidecarless 呢？
+
+与网络代理的 Sidecarless 类似，如果将 Mecha 做成 DaemonSet，其优劣势也差不多。而 DaemonSet 形式的 Mecha，由于只启动一次，可能会在 Serverless 的场景下大幅缩短 Serverless 函数的执行时间。对此 dapr 项目也有相关的[讨论](https://github.com/dapr/dapr/issues/5385)。
+
+就像今年 Cilium 发布支持 Service Mesh 能力的办法，通过 eBPF 在内核态实现 L3 L4 层能力，而对应的 L7 层能力则交给用户态的 Envoy 处理这种将问题一分为二的思想，也许多运行时架构的未来方案也可能是折中或是多种方式结合的。例如采用在 Node 上按 Service Account 或 Namespace 运行多实例，或是轻量级 Sidecar 做协议转换＋DaemonSet 做流量管理和网络调用。
+
+当然 DaemonSet 也有其固有的缺陷，资源被共享从而降低消耗的同时，故障也被共享了，而且故障产生的伤害面也变大了，此外还会导致 DaemonSet 被应用使用的争抢问题，以及应用之间的数据暴露风险。到底后续将会如何演进，我们拭目以待。
+
 ### 定义抽象能力的（API）的困境
 
 分布式能力抽象层，是对分布式场景下需求的抽象性定义，抽象作为一种共识，其要义就在于保留共性而排除个性。但实际当中会发现，同类型中间件的差异化恰恰体现在了一些高级的、细分的专有特性上，很多业务对中间件选型的原因也在于这些专有特性上。
@@ -225,42 +267,13 @@ State management 定义了基于事务操作的能力 `/v1.0/state/<storename>/t
 
    就像前文提到的事务能力，对于不支持的基础设施必须要明确报错，否则可能导致业务不正确。这种情况就只能在业务侧做限制，本质上是侵入了业务层。
 
-这四种解决思路从权衡与折中的角度，覆盖了绝大多数能力缺失的场景。假如跳出“抽象共识”这一限制，我们是否可以试图构建出一套包含了所有分布式能力的“大全集”呢？显然只是理论可行，但不现实。然而，在企业实际的场景下，这个“全集”的规模可能并不一定像我们想象的那么庞大，因此就有可能提供额外的一种思路，即对分布是抽象层进行扩展，将有限规模的“个性”全部包含进去，从而规避上述问题。蚂蚁 Layotto 的设计中体现了这种方案，详见下文。
+这四种解决思路从权衡与折中的角度，覆盖了绝大多数能力缺失的场景，本质上这些思路属于 **“坚守 API 能力交集”** 的办法。假如跳出“抽象共识”这一限制，我们是否可以试图构建出一套包含了所有分布式能力的“大全集”呢？显然只是理论可行，但不现实。
 
-### 与 Service Mesh 整合
+然而，在企业实际的场景下，这个“全集”的规模可能并不一定像我们想象的那么庞大，因此就有可能提供额外的一种思路，即对分布是抽象层进行扩展，将有限规模的“个性”全部包含进去，形成 **“并集”** 从而规避上述问题。
 
-作为面向开发侧提供的能力抽象层，dapr 在网络能力上包含了 mTLS、Observability 与 Resiliency（即超时重试熔断等），但并没有包含诸如负载均衡、动态切换、金丝雀发布等运维侧的流量管理能力。
+{% asset_img 19.png %}
 
-{% asset_img 14.png %}
-
-因此对于不断走向成熟的业务系统，可能既要 Service Mesh 在运维侧的流量管理能力，又要 dapr 在开发侧的分布式抽象能力，不管谁先谁后，都将面临一个问题：怎样搭配使用它们才是正确的？某些场景下可以做适配，如：
-
-- 对于 distributed tracing 的能力，如果采用 Service Mesh 来实现，则需要考虑将原本 dapr 直连的中间件也加入 mesh 网络，否则会 trace 不到。但从 distributed tracing 本身功能角度讲，更应该使用 dapr。
-- mTLS 应该只在 dapr 或者 Service Mesh 中开启，而不应该都开启。
-
-但 dapr 与 Service Mesh 配合使用中难以避免的是开销的问题，包括资源开销和性能开销。
-
-每个应用 Pod 携带两种 sidecar，再加上 dapr 和 Service Mesh 自己的控制面应用（高可用方案主备或多副本），这些资源开销是无法忽略，甚至是非常可观的。
-
-而由于 Service Mesh 网络代理的流量劫持，网络调用需要先经过 dapr sidecar，再经过网络代理 sidecar，被代理两次，也会造成一定的性能开销。
-
-随着分布式能力抽象层的不断扩展，到底哪些属于开发侧，哪些属于运维侧，也许不会像现在这样泾渭分明了。因此已经有对 Multi-Runtime 与 Service Mesh 能力边界越来越模糊的讨论。
-
-### Sidecarless？
-
-Dapr 官方标注的[数据面资源消耗](https://doczs.dapr.io/operations/performance-and-scalability/perf-service-invocation/#data-plane-performance)是在 1k TPS 下使用 0.48 vCPU + 23MiB 内存，对请求的延迟 P90 1.4ms，P99 2.1ms。而 Istio 官方标注的 v1.16 版本[数据面 envoy 资源消耗](https://istio.io/v1.16/docs/ops/deployment/performance-and-scalability/#performance-summary-for-istio-hahahugoshortcode-s0-hbhb)是在 1k TPS 下使用 0.35 vCPU + 40MiB 内存，请求延迟 P90 2.65ms。简单计算一下，不论是 dapr 还是 Istio，在 1000 个服务实例的场景下，基本产生 3~5k vCPU + 20~40GiB 内存的资源消耗。
-
-的确，资源消耗以及性能的问题其实不只是 dapr 下的场景，实际上它是 sidecar 模式自有的限制，因此在 Service Mesh 领域的讨论中，已经有提出 Sidecarless 的概念了，即通过 DaemonSet 而不是 Sidecar 的形式来部署网络代理。
-
-对于网络代理的 Sidecarless 化，支持方认为它能带来高性能、低资源消耗的优点，而反对方则认为它会导致安全性与隔离性差、故障的爆炸半径过大等缺点。
-
-那么，Mecha 是否也可能会走向 Sidecarless 呢？
-
-与网络代理的 Sidecarless 类似，如果将 Mecha 做成 DaemonSet，其优劣势也差不多。而 DaemonSet 形式的 Mecha，由于只启动一次，可能会在 Serverless 的场景下大幅缩短 Serverless 函数的执行时间。对此 dapr 项目也有相关的[讨论](https://github.com/dapr/dapr/issues/5385)。
-
-就像今年 Cilium 发布支持 Service Mesh 能力的办法，通过 eBPF 在内核态实现 L3 L4 层能力，而对应的 L7 层能力则交给用户态的 Envoy 处理这种将问题一分为二的思想，也许多运行时架构的未来方案也可能是折中或是多种方式结合的。例如采用在 Node 上按 Service Account 或 Namespace 运行多实例，或是轻量级 Sidecar 做协议转换＋DaemonSet 做流量管理和网络调用。
-
-当然 DaemonSet 也有其固有的缺陷，资源被共享从而降低消耗的同时，故障也被共享了，而且故障产生的伤害面也变大了，此外还会导致 DaemonSet 被应用使用的争抢问题，以及应用之间的数据暴露风险。到底后续将会如何演进，我们拭目以待。
+蚂蚁 Layotto 的设计中体现了这种方案，详见下文。
 
 
 
@@ -268,7 +281,7 @@ Dapr 官方标注的[数据面资源消耗](https://doczs.dapr.io/operations/per
 
 蚂蚁金服作为 dapr 的早起使用者，在落地的过程中结合遇到的问题及业务思考，在 2021 年年中推出了自研的 Mecha 方案：layotto。
 
-### Layotto 的架构
+### 单一 Sidecar
 
 {% asset_img 15.png %}
 
@@ -288,9 +301,17 @@ Layotto 的开发者，在讨论多运行时架构以及 layotto 落地实践的
 
 {% asset_img 16.webp 500 %}
 
-各类可信协议不再二次抽象，而是直接支持，对其余的私有协议再进行抽象。这种直接支持开源协议的思路，部分缓解了定义抽象能力的困境问题。
+各类可信协议不再二次抽象，而是直接支持（通过 MOSN 底座），对其余的私有协议再进行抽象。这种直接支持开源协议的思路，部分缓解了定义抽象能力的困境问题。
 
+### 灵活的扩展模型
 
+前文提到的 API 扩展形成 “并集”，Layotto 通过提供 In-Tree 形式的私有 API 注册点，实现了不修改 Layotto 代码就能扩展 API 能力：
+
+![](https://user-images.githubusercontent.com/26001097/131614952-ccfc7d11-d376-41b0-b16c-2f17bfd2c9fc.png)
+
+从代码角度看，Layotto 是通过暴露 API 注册钩子，暴露启动入口，来允许用户自行扩展代码，之后再调用启动函数启动进程。这样扩展 API 代码与 Layotto package 级隔离，但编译后可形成同一个二进制文件。
+
+另外，通过 MOSN 的 WASM 插件能力，Layotto 也支持通过 WASM 镜像来扩展 API Filter。
 
 ## 未来展望
 
@@ -304,9 +325,11 @@ Layotto 的开发者，在讨论多运行时架构以及 layotto 落地实践的
 
 在这一架构形态下：
 
-- 分布式能力抽象层更多的负责对私有协议的抽象，而既成标准协议（对前文 "可信协议" 的另一种提法）作为 "既成的" 抽象能力，在Mecha 层只做协议转换或直接透传
-- Mecha 与网络代理层进程级耦合，各类特性不再明确区分开发侧与运维侧。进程在 Node 上按租户或 namespace 划分多实例
-- 接入现代化的可观察性体系，提升对故障的洞察分析能力，降低由于架构分层带来的问题诊断困难
+- 分布式能力抽象层提供标准能力抽象，以及灵活扩展的私有协议的能力
+- 既成标准协议（对前文 "可信协议" 的另一种提法）作为 "既成的" 抽象能力，在Mecha 层只做协议转换或直接透传
+- Mecha 与网络代理层进程级耦合，各类特性不再明确区分开发侧与运维侧
+- 进程在 Node 上按租户/namespace 以及高可用要求划分多实例
+- 接入现代化的可观测性体系，提升对故障的洞察分析能力，降低由于架构分层带来的问题诊断困难
 
 总之，不管是架构形态怎么变、能力怎么抽象，让业务逻辑不断内聚，越来越面向接口、面向能力编程的趋势不会改变，服务化体系的未来值得期待。
 
