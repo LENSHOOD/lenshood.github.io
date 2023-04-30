@@ -459,15 +459,18 @@ K8s multi-tenancy Sig 曾发表过一篇题为 [*A Multi-Tenant Framework for Cl
 
 ### 2.2 有状态应用的调度
 
+前文跨集群动态调度的内容中，默认被调度应用是无状态且能够任意在集群间迁移的。然而，实际上在很多领域如高性能计算、AI 训练、数据处理等场景下，使用的都是有状态应用。显然，有状态应用不能像无状态应用一样简单的中断并重启，因此需要特别关注有状态应用在迁移过程中的数据备份恢复与一致性。
+
+#### 基于备份恢复资源和卷的迁移
 
 
-### 2.3 统一管理云资源
+
+#### 基于 Checkpoint / Restore 的迁移
 
 
 
-1. 真的需要扁平网络吗？（跨集群 pod 同一个网络）
-2. 跨集群方案怎么解决数据同步问题
-3. 如何统一管理传统云资源，如 VM，块存储，VPC 等
-3. 多租 [k8s multiple tenancy wg](https://github.com/kubernetes/community/blob/master/wg-multitenancy/annual-report-2020.md)
+#### 专用的有状态调度器
+
+
 
 ## 3. 总结
