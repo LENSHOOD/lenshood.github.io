@@ -463,7 +463,23 @@ K8s multi-tenancy Sig 曾发表过一篇题为 [*A Multi-Tenant Framework for Cl
 
 #### 基于备份恢复资源和卷的迁移
 
+对于有状态应用，我们很容易想在迁移之前可能需要备份的 “状态位置“ 就包括：
 
+- 在 etcd 中存储的资源对象本身
+- 应用所绑定的持久卷
+
+因此只要将源集群中的上述内容备份，之后在新集群上恢复就能实现基本的有状态应用迁移了。
+
+[Velero](https://velero.io/) 是 VMware 出品的一款开源的云原生迁移工具，其原理就如上文所述，资源对象和卷快照被备份到云存储服务（如 S3）中，之后可以将其提取出来恢复到新集群。
+
+![19](https://velero.io/docs/main/img/backup-process.png)
+
+Velero 通过几个基本的 CR 和控制器来管理整个迁移过程：
+
+- `Backup` 和 `BackupController` 负责备份过程
+- `Restore` 和 `RestoreController `负责恢复过程
+
+类似 Velero 的这种迁移方式，能够很大程度的解决有状态应用的迁移问题。但由于应用的复杂性，这种方式并没能妥善处理应用内存中的状态数据，以及操作系统磁盘缓存中的数据，因此如果不对应用进行特殊改造，可能会发生迁移后数据丢失的问题。
 
 #### 基于 Checkpoint / Restore 的迁移
 
