@@ -483,7 +483,15 @@ Velero 通过几个基本的 CR 和控制器来管理整个迁移过程：
 
 #### 基于 Checkpoint / Restore 的迁移
 
+[CRIU](https://github.com/checkpoint-restore/criu) 是 Linux 下的一个用户态软件，它可以获取一个正在运行中的进程的快照，将快照复制到其他的机器上后，又能完全恢复出该进程，并保持打快照时的程序状态。
 
+![](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*_Q6fGfowYBKnQ8XjkJpp6g.png)
+
+CRIU 所创建的进程快照包含了包括进程内存、文件描述符、进程树、地址空间信息、设备信息等等各种与进程相关数据，因此可以非常完整的恢复整个进程。基于 CRIU 技术可以方便的实现容器的热迁移。
+
+adrianreber 在 K8s 的 sig-node 兴趣小组中提交了一个名为 [*KEP-2008: Forensic Container Checkpointing*](https://github.com/kubernetes/enhancements/blob/master/keps/sig-node/2008-forensic-container-checkpointing/README.md) 的提案，正是采用了 CRIU 技术来扩展 Kubelet 以实现容器迁移（以及取样分析等），通过调用该 Kubelet API，就可以对任意容器创建一个快照拷贝，并将其用于分析、迁移等用途。[该功能](https://kubernetes.io/blog/2022/12/05/forensic-container-checkpointing-alpha/)目前已经在 [K8s v1.25 版本中 alpha](https://kubernetes.io/zh-cn/docs/reference/node/kubelet-checkpoint-api/)。
+
+通过 Checkpoint / Restore 能力，结合前文对资源对象和持久卷的备份/恢复，就可以相对更完整的实现有状态应用的迁移。
 
 #### 专用的有状态调度器
 
