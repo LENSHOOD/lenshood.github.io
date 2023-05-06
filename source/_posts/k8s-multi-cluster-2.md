@@ -13,6 +13,8 @@ categories:
 
 本文（分上下两部分）介绍了 K8s 多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s 多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。
 
+[*理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素*](https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/)
+
 本篇是下半部分，主要讨论目前实现 K8s 多集群的开源方案、对现状问题的讨论以及可能的演进方向。
 
 <!-- more -->
@@ -21,7 +23,7 @@ categories:
 
 上一篇我们已经讨论了实现多集群管理所涉及到的 4 个核心问题：
 
-- 部署模型：包括了多集群管理控制面所处的位置、集群间网络连通性以及跨集群的服务注册于发现
+- 部署模型：包括了多集群管理控制面所处的位置、集群间网络连通性以及跨集群的服务注册与发现
 - 跨集群应用调度：涉及了通用调度模型以及需要通过不同的调度策略对应用和集群的属性进行匹配
 - 应用模型扩展：应用模型需要在规格和状态上进行扩展，同时也应考虑前向兼容性以及支持自定义资源
 - 集群即资源：为了更灵活的自动扩缩，将集群视为可以进行生命周期管理的资源，并考虑合理的状态模型
@@ -30,7 +32,7 @@ categories:
 
 ### 1.1 KubeFed
 
-[KubeFed](https://github.com/kubernetes-sigs/kubefed) 是 Kubernetes 多集群特别兴趣小组构建的一套多集群管理方案，是相对较早的试图解决多集群管理问题的开源方案。KubeFed 主要聚焦于通过定义集群联邦来解决跨集群应用模型的定义、应用调度以及服务发现问题。由于多方面的原因，目前 KubeFed 已经归档，不再活跃更新。
+[KubeFed](https://github.com/kubernetes-sigs/kubefed) 是 Kubernetes 多集群特别兴趣小组（multi-cluster SIG）构建的一套多集群管理方案，是相对较早的试图解决多集群管理问题的开源方案。KubeFed 主要聚焦于通过定义集群联邦来解决跨集群应用模型的定义、应用调度以及服务发现问题。由于多方面的原因，目前 KubeFed [已经归档](https://groups.google.com/g/kubernetes-sig-multicluster/c/lciAVj-_ShE)，不再活跃更新。
 
 KubeFed 的整体架构如下图所示：
 
@@ -46,7 +48,7 @@ Member Cluster 加入后，怎么定义跨集群的应用资源呢？在 KubeFed
 
 **1. 创建 CRD，类型起名叫 “FederatedDeployment”，代表新增一种 FederatedType：**
 
-一个 FederatedType，在 Spec 定义中必须包含三种元素即：Template，Placement 和 Overrides（如上图），其中 Template 表示 KubeFed 将实际创建的真实的资源，在这里便是原生的 Deployment；Placement 代表该 Deployment 将被部署在哪些 Member Cluster 中；而 Overrides 则是用于当某些 Member Cluster 中部署的 Deployment 与其他集群不太一样，差异化的部分会定义在 Overrides 中。
+一个 FederatedType，在 Spec 定义中必须包含三种元素即：Template，Placement 和 Overrides（如上图），其中 Template 表示 KubeFed 将实际创建的真实资源，在这里便是原生的 Deployment；Placement 代表该 Deployment 将被部署在哪些 Member Cluster 中；而 Overrides 则是用于当某些 Member Cluster 中部署的 Deployment 与其他集群不太一样时，将差异化的部分定义在 Overrides 中。
 
 [示例](https://github.com/kubernetes-sigs/kubefed/blob/master/example/sample1/federateddeployment.yaml)如下：
 
@@ -79,7 +81,7 @@ spec:
 
 **2. 创建了 FederatedType 之后，还需要将其注册至 KubeFed**
 
-上述 FederatedDeployment，是由用户定义的 CRD，为了使 KubeFed 能真正的监听这个 CRD 从而实现应用分发，还需要注册一下。
+上述 FederatedDeployment，是由用户定义的 CR，为了使 KubeFed 能真正的监听这个 CR 从而实现应用分发，还需要注册一下。
 
 通过[定义一个 “FederatedTypeConfig” 对象](https://github.com/kubernetes-sigs/kubefed/blob/d6f10d29c3785dc55abc954dec0afeddce4893ef/charts/kubefed/templates/federatedtypeconfig.yaml#L39)实现注册：
 
@@ -143,7 +145,7 @@ KubeFed 在最初的设计中通过引入 ”ServiceDNSRecord“ 类型来通过
 
 任何需要跨集群发布的服务都应创建 ServiceDNSRecord 类型来告知 KubeFed 可以将对应的服务地址注册到外部的 DNS 服务中，以实现服务的注册和发现。
 
-但是在 KubeFed v2 的 [KEP](https://github.com/kubernetes-sigs/kubefed/blob/master/docs/keps/20200619-kubefed-pull-reconciliation.md#other-main-reconciliation-loops) 中提到，KubeFed 将不再使用 ServiceDNSRecord 相关的功能，而是寻求其他方案例如 Service Mesh 等来实现服务注册于发现的功能，因此现在我们会看到，KubeFed 的源码中已经不再包含相关的控制逻辑了。
+但是在 KubeFed v2 的 [KEP](https://github.com/kubernetes-sigs/kubefed/blob/master/docs/keps/20200619-kubefed-pull-reconciliation.md#other-main-reconciliation-loops) 中提到，KubeFed 将不再使用 ServiceDNSRecord 相关的功能，而是寻求其他方案例如 Service Mesh 等来实现服务注册与发现的功能，因此现在我们会看到，KubeFed 的源码中已经不再包含相关的控制逻辑了。
 
 ### 1.2 Karmada
 
@@ -225,7 +227,7 @@ spec:
             weight: 2
 ```
 
-可见，PropagationPolicy 能通过 `resourceSelectors` 选中 Nginx Deployment（即选中了资源模板），之后在 `placement` 段中定义 Nginx 应用的调度策略，`clusterAffinity` 定义了该应用与 Member 集群的亲和性，在这里指 Nginx 需要在 `member1`和 `member2`中创建。`replicaScheduling` 段则描述了资源模板中的 `replicas: 6` 实际上在 Member 集群中的副本数，`replicaDivisionPreference` 和 `replicaSchedulingType` 指明六个副本需要按权重平均分配在 Member 集群中，由于 `weightPreference`  定义了 `member1`和 `member2 `的权重比例是 1:2，因此实际上在  `member1` 会部署 2 个副本，而 `member2` 会部署 4 个副本。
+可见，PropagationPolicy 能通过 `resourceSelectors` 选中 Nginx Deployment（即选中了资源模板），之后在 `placement` 段中定义 Nginx 应用的调度策略，`clusterAffinity` 定义了该应用与 Member 集群的亲和性，在这里指 Nginx 需要在 `member1`和 `member2`集群中创建。`replicaScheduling` 段则描述了资源模板中的 `replicas: 6` 实际在 Member 集群中的副本数，`replicaDivisionPreference` 和 `replicaSchedulingType` 指明六个副本需要按权重平均分配在 Member 集群中，由于 `weightPreference`  定义了 `member1`和 `member2 `的权重比例是 1:2，因此在  `member1` 会部署 2 个副本，而 `member2` 会部署 4 个副本。
 
 Karmada 的应用资源模型设计是前向兼容的，避免了 KubeFed 中需要修改原始应用资源的问题，从单集群演进而来的应用，最少只需要增加 PropagationPolicy 就能过渡到多集群。
 
@@ -241,7 +243,7 @@ Karmada 的应用跨集群调度实现的很完善，通过多个组件相互配
 
 ##### 灵活的调度模式
 
-在前面示例的 PropagationPolicy 中，已经展示了集群亲和性的配置，除了直接通过 Cluster 名称，还可以以采用如标签等方式选择合适的集群。此外，还可以通过 PropagationPolicy 中的 SpreadConstraint 特性来对集群进行分组。调度器 scheduler 通过读取 ResourceBinding 中与 PropagationPolicy 相关的信息来产生调度决策，并将决策结果写回 ResourceBinding。
+在前面示例的 PropagationPolicy 中，已经展示了集群亲和性的配置，除了直接通过 Cluster 名称，还可以采用如 Label/Tag 等方式选择合适的集群。此外，也支持通过 PropagationPolicy 中的 SpreadConstraint 特性来对集群进行分组（例如选择在同一个 Region 内的集群）。调度器 scheduler 通过读取 ResourceBinding 中与 PropagationPolicy 相关的信息来产生调度决策，并将决策结果写回 ResourceBinding。
 
 假如 Member Cluster 出现了故障，集群控制器 cluster-controller 会在对应的 Karmada Cluster 对象上打污点，污点管理器 taint-manager 得知 Member Cluster 上存在污点后，也会修改原调度决策，并将修改作用在 ResourceBinding 上。
 
@@ -249,7 +251,7 @@ Karmada 的应用跨集群调度实现的很完善，通过多个组件相互配
 
 重调度器 de-scheduler 通过 estimator 来获取应用在集群中的实际状态，进而决定是否修改原调度决策，这一修改也会落在 ResourceBinding 上。
 
-每个 estimator 都对应一个 Member Cluster，estimator 通过检查应用在当前 Member Cluster 中的目标副本数，和实际副本数是否一致来发现调度失败的情况，de-scheduler 汇总所有 estimator 的信息，就能够知晓某个应用的现状，并决定是否要发起重调度。
+每个 estimator 都对应一个 Member Cluster，estimator 通过检查应用在当前 Member Cluster 中的目标副本数和实际副本数是否一致来发现调度失败的情况，de-scheduler 汇总所有 estimator 的信息后，就能够知晓某个应用的现状，并决定是否要发起重调度。
 
 #### 网络连通与服务发现
 
@@ -281,7 +283,7 @@ Karmada 基于 Multi-Cluster Services API 的 ServiceExport 和 ServiceImport �
 
 上图所示的是 OCM 的总体架构，可以发现它与 KubeFed 或 Karmada 最大的区别就在于，其每一个工作集群（OCM 中称为 Managed Cluster）中都安装有一个 “Klusterlet” 组件（恰好类比于 Kubelet）。在多集群管理流程中，控制集群（OCM 中称为 Hub Cluster）只负责生成各个 ManagedCluster 中应当被下发的应用资源模板（OCM 中称为 “处方”），实际的资源管理与状态上报工作，是由 Klusterlet 主动向 Hub Cluster 拉取处方，基于处方的内容管理应用的生命周期，并定期推送应用资源的状态。
 
-正如 OCM 的架构概念所述：“试想，如果Kubernetes中没有kubelet，而是由控制平面直接操作容器守护进程，那么对于一个中心化的控制器，管理一个超过5000节点的集群，将会极其困难。 同理，这也是OCM试图突破可扩展性瓶颈的方式，即将“执行”拆分卸入各个单独的代理中，从而让hub cluster可以接受和管理数千个集群。” 比对 Karmada 是通过在控制面创建每个工作集群对应一个的 Work 组件来实施集群管理，OCM 的 Klusterlet 就类似于把 Karmada 的 Work 放在了工作集群上运行。
+正如 OCM 的[架构概念](https://open-cluster-management.io/concepts/architecture/#hub-spoke-architecture)所描述的：“试想，如果Kubernetes中没有kubelet，而是由控制平面直接操作容器守护进程，那么对于一个中心化的控制器，管理一个超过5000节点的集群，将会极其困难。 同理，这也是OCM试图突破可扩展性瓶颈的方式，即将“执行”拆分卸入各个单独的代理中，从而让hub cluster可以接受和管理数千个集群。” 比对 Karmada 是通过在控制面创建每个工作集群对应一个的 Work 组件来实施集群管理，OCM 的 Klusterlet 就类似于把 Karmada 的 Work 放在了工作集群上运行。
 
 #### 应用模型扩展
 
@@ -414,27 +416,27 @@ K8s 本身对多租户的支持一直不太完善，从目前来看大致存在�
 
 {% asset_img logical-tenancy.jpg %}
 
-逻辑隔离最大的问题在于这是一种 “存在于控制面” 的隔离，即仅在与控制面交互时会受到隔离的限制。某一个 ns 下的租户，可能无法通过 API Server 查看或修改其他 ns 下的工作负载，但实际上由于 [K8s 对数据面网络连通性的要求](https://kubernetes.io/zh-cn/docs/concepts/services-networking/#the-kubernetes-network-model)，Pod 之间默认是连通的，因此如果不加以限制，租户之间的应用实际上完全可以相互访问。
+逻辑隔离最大的问题在于这是一种 “在控制面上” 的隔离，即仅在与控制面交互时会受到隔离的限制。某一个 ns 下的租户，可能无法通过 API Server 查看或修改其他 ns 下的工作负载，但实际上由于 [K8s 对数据面网络连通性的要求](https://kubernetes.io/zh-cn/docs/concepts/services-networking/#the-kubernetes-network-model)，Pod 之间默认是连通的，因此如果不加以限制，租户之间的应用实际上完全可以相互访问。
 
-通过设置合理的 [NetworkPolicy](https://kubernetes.io/zh-cn/docs/concepts/services-networking/network-policies/) 来控制 Pod 之间的网络流量策略，能够在一定程度上解决上述问题，不过 NetworkPolicy 需要通过 CNI 插件来实现，因此对集群选择的 CNI 也提出了要求。
+通过设置合理的 [NetworkPolicy](https://kubernetes.io/zh-cn/docs/concepts/services-networking/network-policies/) 来控制 Pod 之间的网络流量策略，能够在一定程度上解决上述问题，不过 NetworkPolicy 需要通过 CNI 插件来实现，因此对集群选择的 CNI 插件也提出了一定要求。
 
-另外，数据面隔离还涉及到容器运行时的问题。传统的容器运行时采用的都是共享系统内核的策略，那么就有理由相信恶意容器可能会利用内核漏洞突破容器的限制，访问在同一节点上其他租户的数据。有诸如 Kata Containers、gVisor、Firecracker 等安全容器方案能缓解该问题。
+另外，数据面隔离还涉及到容器运行时的问题。传统的容器运行时采用的都是共享系统内核的策略，那么就有理由相信恶意容器可能会利用内核漏洞突破容器的限制，访问在同一节点上其他租户的数据。对于这一问题，目前有诸如 [Kata Containers](https://github.com/kata-containers/kata-containers)、[gVisor](https://github.com/google/gvisor)、[Firecracker](https://github.com/firecracker-microvm/firecracker) 等安全容器方案在尝试解决。
 
 #### 基于多集群的隔离
 
-上述逻辑隔离的策略毕竟安全性和隔离性都比较低，在需要更高隔离等级的多租户场景下并不适合。
+上述逻辑隔离的策略毕竟安全性和隔离性都比较低，在需要更高隔离等级的多租户场景下可能并不适合。
 
-因此本文重点讨论的多集群方案就能很容易的被应用在租户隔离场景下。每个租户拥有自己独立的集群，虽然基础设施可能都处于同一家云提供商，但通过 AZ、VPC 等手段能够方便快捷的实现租户间的物理隔离。
+因此本文重点讨论的多集群方案就很容易被用于租户隔离的场景。每个租户拥有自己独立的集群，虽然基础设施可能都处于同一家云提供商，但通过 AZ、VPC 等手段能够方便快捷的实现租户间更高的隔离度（甚至物理隔离）。
 
 {% asset_img physical-tenancy.jpg %}
 
-通过 K8s 多集群来实现租户隔离，的确是一种隔离性和安全性都更佳的方案，但 K8s 集群本身的复杂性也导致了小规模集群场景下控制面组件对资源的过多消耗。假如租户应用实际只需要 2 个数据面节点就足够，但为了集群的正常运转，仍旧需要最少 3 个节点来部署控制面组件，以实现最低的组件选举要求。
+通过 K8s 多集群来实现租户隔离，的确是一种隔离性和安全性都更佳的方案，但 K8s 集群本身的复杂性也导致了小规模集群场景下控制面组件对资源的过多消耗。假如租户应用实际只需要 2 个数据面节点就足够，但为了集群的正常运转，仍旧需要最少 3 个节点来部署控制面组件（以实现最低的组件选举要求）。
 
-K8s 集群控制面资源在总资源中的占比，与数据面节点数量成反比，假如有大量小规模集群租户的存在，那么要么会导致多租户服务提供商的资源成本过高，要么会导致租户使用服务的底价过高，这两点都不利于业务发展。
+K8s 集群控制面资源在总资源中的占比，与数据面节点数量成反比，假如有大量小规模集群租户的存在，要么会导致多租户服务提供商的资源成本过高，要么会导致租户使用服务的起始底价过高，这两点都不利于业务发展。
 
 #### 基于虚拟集群的隔离
 
-K8s multi-tenancy Sig 曾发表过一篇题为 [*A Multi-Tenant Framework for Cloud Container Services*](https://github.com/kubernetes-sigs/cluster-api-provider-nested/blob/main/virtualcluster/doc/vc-icdcs.pdf) 的论文以阐述他们对现有多租户解决方案中：**逻辑隔离安全性不足**和**集群隔离资源利用率差**这两种问题的解法：扩展 K8s 集群，实现租户拥有独立的控制面组件，并共享数据节点。
+K8s multi-tenancy SIG 曾发表过一篇题为 [*A Multi-Tenant Framework for Cloud Container Services*](https://github.com/kubernetes-sigs/cluster-api-provider-nested/blob/main/virtualcluster/doc/vc-icdcs.pdf) 的论文以阐述他们对现有多租户解决方案中：**逻辑隔离安全性不足**和**集群隔离资源利用率差**这两种问题的解法：扩展 K8s 集群，实现租户拥有独立的控制面组件，并共享数据节点。
 
 {% asset_img virtual-cluster.png %}
 
@@ -445,17 +447,17 @@ K8s multi-tenancy Sig 曾发表过一篇题为 [*A Multi-Tenant Framework for Cl
 1. Tenant Operator：用来维护并管理租户的控制平面，并存储租户控制平面的访问凭据
 2. Syncer Controller：用来将租户下发的资源请求转发到超级集群，并将超级集群中实际运行的租户资源状态上报给租户集群
 3. vn-agent：由于租户控制平面不直接拥有 Kubelet，因此租户需要直接对接点进行的一些操作如 `log`、`exec` 等操作由 vn-agent 来代理
-4. Enhanced kubeproxy：由于租户 Pod 运行在 VPC 网路中，为了让超级集群能正常管理 Pod，通过 ⑤ 中的 agent 与 kubeproxy 建立 gRPC 连接，来同步网络信息与路由规则
+4. Enhanced kubeproxy：由于租户 Pod 运行在 VPC 中，为了让超级集群能正常管理 Pod，通过 ⑤ 中的 agent 与 kubeproxy 建立 gRPC 连接，来同步网络信息与路由规则
 
 可以发现虚拟集群的方案有点类似于前文 Gardner 的 “Cluster in Cluster” 的方案，目的也是尽可能的降低多集群的资源消耗，同时实现足够安全的租户隔离。
 
 #### 灵活的多租策略
 
-通过上述几种不同的多租户实现方案，我们能发现目前 K8s 多租户存在的问题。
+通过上述几种不同的多租户实现方案，我们能发现目前 K8s 在多租户上存在的一些问题。
 
-目前在实际当中，为了数据安全，基于 K8s 的多租户策略会更多采用多集群的隔离方案。因而上述虚拟集群的方法的确能缓解一部分多集群租户产生的资源浪费。
+通常在实际当中，为了数据安全，基于 K8s 的多租户策略会更倾向于采用多集群的隔离方案。因而上述虚拟集群的方法的确能缓解一部分多集群租户产生的资源浪费。
 
-也许下一代的 K8s 多租户方案，会结合虚拟集群与多集群，实现上层租户需求和底层实际的集群彻底解耦，租户与集群呈现 N:N 的灵活映射关系，这样就能在兼顾资源隔离的同时，提升资源利用率。
+也许下一代的 K8s 多租户方案，会结合虚拟集群与多集群，实现上层租户需求和底层实际的集群彻底解耦，租户与集群呈现 M:N 的灵活映射关系，这样就能在兼顾资源隔离的同时，提升资源利用率。
 
 ### 2.2 有状态应用的调度
 
@@ -463,14 +465,14 @@ K8s multi-tenancy Sig 曾发表过一篇题为 [*A Multi-Tenant Framework for Cl
 
 #### 基于备份恢复资源和卷的迁移
 
-对于有状态应用，我们很容易想在迁移之前可能需要备份的 “状态位置“ 就包括：
+对于有状态应用，我们很容易想到在迁移之前需要备份的 “状态位置“ 可能包括：
 
 - 在 etcd 中存储的资源对象本身
 - 应用所绑定的持久卷
 
 因此只要将源集群中的上述内容备份，之后在新集群上恢复就能实现基本的有状态应用迁移了。
 
-[Velero](https://velero.io/) 是 VMware 出品的一款开源的云原生迁移工具，其原理就如上文所述，资源对象和卷快照被备份到云存储服务（如 S3）中，之后可以将其提取出来恢复到新集群。
+[Velero](https://velero.io/) 是 VMware 出品的一款开源的云原生迁移工具，其原理就如上文所述，资源对象和卷快照被备份到云存储服务中（如 S3），之后可以将其提取出来恢复到新集群。
 
 ![19](https://velero.io/docs/main/img/backup-process.png)
 
@@ -479,7 +481,7 @@ Velero 通过几个基本的 CR 和控制器来管理整个迁移过程：
 - `Backup` 和 `BackupController` 负责备份过程
 - `Restore` 和 `RestoreController `负责恢复过程
 
-类似 Velero 的这种迁移方式，能够很大程度的解决有状态应用的迁移问题。但由于应用的复杂性，这种方式并没能妥善处理应用内存中的状态数据，以及操作系统磁盘缓存中的数据，因此如果不对应用进行特殊改造，可能会发生迁移后数据丢失的问题。
+类似 Velero 的这种迁移方式，能够很大程度的解决有状态应用的迁移问题。但由于应用的复杂性，这种方式并没能妥善处理应用内存中的状态数据，以及操作系统磁盘缓存中的数据，因此如果不对应用进行特殊改造，就会存在发生迁移后数据丢失的风险。
 
 #### 基于 Checkpoint / Restore 的迁移
 
@@ -491,13 +493,13 @@ CRIU 所创建的进程快照包含了包括进程内存、文件描述符、进
 
 adrianreber 在 K8s 的 sig-node 兴趣小组中提交了一个名为 [*KEP-2008: Forensic Container Checkpointing*](https://github.com/kubernetes/enhancements/blob/master/keps/sig-node/2008-forensic-container-checkpointing/README.md) 的提案，正是采用了 CRIU 技术来扩展 Kubelet 以实现容器迁移（以及取样分析等），通过调用该 Kubelet API，就可以对任意容器创建一个快照拷贝，并将其用于分析、迁移等用途。[该功能](https://kubernetes.io/blog/2022/12/05/forensic-container-checkpointing-alpha/)目前已经在 [K8s v1.25 版本中 alpha](https://kubernetes.io/zh-cn/docs/reference/node/kubelet-checkpoint-api/)。
 
-通过 Checkpoint / Restore 能力，结合前文对资源对象和持久卷的备份/恢复，就可以相对更完整的实现有状态应用的迁移。
+通过 Checkpoint / Restore 能力，结合前文对资源对象和持久卷的备份/恢复，就可以相对更安全、完整的实现有状态应用的迁移。
 
 #### 有状态应用调度逻辑
 
 基于上述方式我们能够在一定场景下实现有状态应用的迁移过程。
 
-对调度器而言，产生调度决策之前需要判断被调度的实体是无状态还是有状态应用，因此可以通过特殊的标签、annotation 等方式对有状态应用进行标记，以实现对有状态应用的调度。
+对调度器而言，产生调度决策之前首先需要判断被调度的应用是无状态还是有状态，因此可以通过特殊的标签、annotation 等方式对有状态应用进行标记，以实现对有状态应用的调度。
 
 在产生有状态应用的调度决策后，再通过专有的 Worker 执行调度逻辑，先保存现场，再在新的集群上恢复。
 
