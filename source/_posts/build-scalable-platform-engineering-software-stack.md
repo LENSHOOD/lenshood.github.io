@@ -10,7 +10,7 @@ categories:
 - Software Engineering
 ---
 
-## 平台工程不是新概念
+## 平台工程是新概念吗？
 
 1. 什么是平台工程？
 2. DevOps 与 IT 基础设施

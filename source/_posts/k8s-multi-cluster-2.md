@@ -1,5 +1,5 @@
 ---
-title: 理解 K8s 多集群（下）：解决方案的选择与演进趋势
+title: 理解 K8s 多集群（下）：解决方案对比与演进趋势
 date: 2023-03-26 13:19:34
 tags:
 - multi-cluster
@@ -265,7 +265,7 @@ Submariner 为 K8s 多集群提供了基于 Overlay 网络的连通方案，能�
 
 上图是 Submariner 的总体架构，可以看到它本质上是通过 VxLan 技术建立的 Overlay 网络。每个集群内安装 Gateway 来接受跨集群的流量，所有跨集群流量都会通过 Route Agent 路由至 Gateway。Gateway 之间通过公有网络建立基于 IPSec 的加密通道，在其上传输跨集群流量。Broker 可以视为 Submariner 的控制平面，用于控制和协调。
 
-#####服务发现
+##### 服务发现
 
 Karmada 基于 Multi-Cluster Services API 的 ServiceExport 和 ServiceImport 实现了相关控制逻辑来构建跨集群的服务发现。
 
