@@ -11,9 +11,11 @@ categories:
 
 {% asset_img header.jpg 500 %}
 
-本文（分上下两部分）介绍了 K8s 多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s 多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。
+> [理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/)
+>
+> [理解 K8s 多集群（下）：解决方案对比与演进趋势](https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/)
 
-[*理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素*](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/)
+本文（分上下两部分）介绍了 K8s 多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s 多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。
 
 本篇是下半部分，主要讨论目前实现 K8s 多集群的开源方案、对现状问题的讨论以及可能的演进方向。
 
@@ -414,7 +416,7 @@ K8s 本身对多租户的支持一直不太完善，从目前来看大致存在�
 
 因此基于 ns 的逻辑隔离是相对简单的一种多租户形式。只要结合访问控制策略，将租户用户对集群的访问权限限定在某个 ns 下，就能实现最基础的多租。通过设置 ResourceQuota 对象，也可以限制 ns 的资源配额。
 
-{% asset_img logical-tenancy.jpg %}
+{% asset_img logic-tenancy.jpg %}
 
 逻辑隔离最大的问题在于这是一种 “在控制面上” 的隔离，即仅在与控制面交互时会受到隔离的限制。某一个 ns 下的租户，可能无法通过 API Server 查看或修改其他 ns 下的工作负载，但实际上由于 [K8s 对数据面网络连通性的要求](https://kubernetes.io/zh-cn/docs/concepts/services-networking/#the-kubernetes-network-model)，Pod 之间默认是连通的，因此如果不加以限制，租户之间的应用实际上完全可以相互访问。
 
@@ -513,3 +515,6 @@ adrianreber 在 K8s 的 sig-node 兴趣小组中提交了一个名为 [*KEP-2008
 
 上述现状体现了企业在多集群领域的确存在差异化的需求。因此企业在决定采纳多集群技术之前，需要明确当下的痛点和问题，澄清建设多集群的目标，并考量开源方案落地集成和改造的时间和金钱成本。
 
+> [理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/)
+>
+> [理解 K8s 多集群（下）：解决方案对比与演进趋势](https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/)

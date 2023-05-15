@@ -11,6 +11,10 @@ categories:
 
 {% asset_img header.jpg 500 %}
 
+> [理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/)
+>
+> [理解 K8s 多集群（下）：解决方案对比与演进趋势](https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/)
+
 本文（分上下两部分）介绍了 K8s 多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s 多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。
 
 本篇是上半部分，主要讨论 K8s 多集群的目的、实现多集群所面临的核心问题以及方案。
@@ -301,4 +305,6 @@ status:
 
 下一篇，我们将通过介绍实际的案例来探究目前开源方案是怎么解决多集群核心问题的，另外也会讨论目前多集群管理遇到的新问题以及可能的演进趋势。
 
-[*理解 K8s 多集群（下）：解决方案的选择与演进趋势*](https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/)
+> [理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/)
+>
+> [理解 K8s 多集群（下）：解决方案对比与演进趋势](https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/)
