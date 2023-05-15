@@ -40,7 +40,7 @@ categories:
 
 上述实际情况大量存在于各类企业，这与 “You build it, you run it” 的 DevOps 精神是完全相悖的。此外由于与 DevOps 相关的工作通产会被代理给更资深的人员，因此他们的时间也被明显的侵占了。而随着云原生的不断发展，各类新的概念和实践被提出，研发人员愈发的感觉到知识追赶的压力，也就越来越抵触做 DevOps 相关的事情。
 
-{% asset_imgcncf-landscape.png %}
+{% asset_img cncf-landscape.png %}
 
 真正具备了高 DevOps 成熟度的企业，有如下两种不同的实践：
 
