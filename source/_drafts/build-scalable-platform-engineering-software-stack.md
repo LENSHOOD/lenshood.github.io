@@ -34,7 +34,7 @@ categories:
 
 许多企业没有精力和人才来构建整个 DevOps 体系，就只好先从便宜且收效快的地方入手：找原来的运维团队抽调几个人，采用开源方案搭建内部的代码仓（如 GitLab）和流水线（如 Jenkins），再手写一些通用的脚本来实现基础的制品部署。能有更多投入的企业，还会建设一些需求管理工具、资产管理工具等（对接云服务提供商的 API）。
 
-![](https://kubesphere.io/images/devops/dev-ops.png)
+<img src="https://kubesphere.io/images/devops/dev-ops.png" style="zoom: 67%;" />
 
 但在业务开发团队的视角下，这些与 DevOps 相关的工作似乎还是 Tech Lead 或者专职 DevOps（是的，真有这一岗位）的职责。究其原因仍然是普通开发人员玩不转或者根本不想考虑代码到底如何才能交付上线。
 
@@ -67,7 +67,7 @@ categories:
 
 基于以上能力，白皮书描绘了平台工程的能力图谱，以及其所处的位置，即处于产品应用团队与能力服务提供者之间：
 
-![](https://tag-app-delivery.cncf.io/whitepapers/platforms/assets/platform_components.png)
+<img src="https://tag-app-delivery.cncf.io/whitepapers/platforms/assets/platform_components.png" style="zoom: 67%;" />
 
 #### 企业诉求的变化
 
@@ -99,8 +99,47 @@ categories:
 
 ### 可扩展的能力抽象层
 
-1. 统一应用模型
-2. 分布式能力抽象
+作为平台架构的最上层，能力抽象层的目标是通过提供合理的抽象与接口，让应用在开发态和运行态都能更关注于业务本身，而将运维能力侧和公共组件侧的需求尽可能代理出去。
+
+#### 统一应用模型
+
+通常意义上，应用在 Day2 阶段的持续时间要远大于 Day0 和 Day1，这也就导致了交付和运维的工作是繁杂和冗长的。软件部署早已不是把包丢到服务器上然后启动进程就完事，还包括配置管理、服务拓扑、副本扩缩、流量分发、监控、审计、成本优化等等各种要求。
+
+为了满足这些要求，需要通过各种工具和手段来实现，而正如前文提到的，很多开发者可能并不想去了解这些玩意儿到底如何使用。毕竟作为应用开发者，他们更清楚自己软件的入口是`/index`，而不清楚从主域名经过几层 Nginx 才能路由到到`/index`。
+
+通过定义一套标准的应用交付模型，就可以将应用开发团队和平台团队的关注点进行分离，由开发者定义特定应用在交付和运行中的需求，由平台团队来实现这些需求。
+
+[OAM（Open Application Model](https://github.com/oam-dev/spec/blob/master/README.md)就是这样的一种模型标准。
+
+<img src="https://github.com/oam-dev/spec/blob/master/assets/overview.png?raw=true" style="zoom: 50%;" />
+
+平台团队提供 ComponentDefinition 来描述不同应用的部署模型，如`通过 K8s Deployment 部署的无状态后端服务`，`直接推送 CDN 的静态前端页面` 等。应用开发者只需挑选某个 Component 来描述应用，并设置一些属性参数，如镜像名、ENV、端口号等等即可。
+
+同时，平台团队还提供了对 Traits 和 Scopes 的定义，这允许开发者为他们的应用添加运维特征如动态扩缩，灰度发布，负载均衡等，以及分组特征如安全组，AZ等。
+
+因此，开发者只需要将应用模型以类似 `yaml` 的形式维护在代码仓内，随着 [GitOps](https://www.weave.works/blog/what-is-gitops-really) 流程，应用就会顺滑的交付上线。
+
+> [Kubevela]([kubevela.io](https://kubevela.io/)) 实现并扩展了 OAM。
+
+#### 分布式能力抽象
+
+在成规模的服务化体系中，应用可能依赖了越来越多的中间件以及三方服务，它们提供了应用实现业务目标所需要的各种分布式能力。然而，传统的 SDK 集成方式让这些分布式能力变成了一个个的孤岛，难以统一治理，导致维护困难、升级困难，降低了整体的研发效率。
+
+平台可以将各种分布式能力进行归类和抽象，为应用提供统一的分布式能力抽象层，因而应用只需要通过抽象层调用标准化能力，由平台团队维护实际的能力实现组件。
+
+[多运行时架构](https://www.lenshood.dev/2022/12/06/multi-runtime/)就是基于上述思想提出的解决方案：
+
+<img src="https://www.lenshood.dev/2022/12/06/multi-runtime/3.webp" style="zoom:67%;" />
+
+多运行时架构的理念，是将各种分布式能力归纳为 4 个部分：生命周期、网络、状态以及绑定。传统场景下，这四大能力是由各类基础设施和中间件来提供的。
+
+<img src="https://www.lenshood.dev/2022/12/06/multi-runtime/7.png" style="zoom:50%;" />
+
+通过`Mircologic + Mecha`，即微业务与所谓“机甲”相组合的方式，将业务对分布式能力的需求全部交给 Mecha 运行时来代理，而真实提供分布式能力的组件，通过 Mecha 与业务应用隔离。
+
+平台通过为每一个业务应用提供 Mecha 运行时，隔离需求与实现，因此能够方便的对各种中间件进行维护和扩展。
+
+> 多运行时架构的实现方案有 [Dapr](https://dapr.io/)、[Layotto](https://mosn.io/layotto/#/zh/README) 等等
 
 
 
