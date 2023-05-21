@@ -119,7 +119,7 @@ categories:
 
 因此，开发者只需要将应用模型以类似 `yaml` 的形式维护在代码仓内，随着 [GitOps](https://www.weave.works/blog/what-is-gitops-really) 流程，应用就会顺滑的交付上线。
 
-> [Kubevela]([kubevela.io](https://kubevela.io/)) 实现并扩展了 OAM。
+> [Kubevela]([kubevela.io](https://kubevela.io/)) 实现并扩展了 OAM
 
 #### 分布式能力抽象
 
@@ -139,7 +139,7 @@ categories:
 
 平台通过为每一个业务应用提供 Mecha 运行时，隔离需求与实现，因此能够方便的对各种中间件进行维护和扩展。
 
-> 多运行时架构的实现方案有 [Dapr](https://dapr.io/)、[Layotto](https://mosn.io/layotto/#/zh/README) 等等
+> 多运行时架构的实现方案有 [Dapr](https://dapr.io/)、[Layotto](https://mosn.io/layotto/#/zh/README) 等
 
 
 
@@ -150,21 +150,84 @@ categories:
 3. 安全
 4. IaC
 5. 可观测性
+6. Nocalhost
+7. Serverless
 
 
 
 ### 可扩展的资源编排层
 
-1. 跨集群
-2. 动态调度
-3. 资源抽象
-4. 灵活网络
-5. 集群标准化
-6. 集群即资源
+据 [CNCF 2022 Annual Survey](https://www.cncf.io/reports/cncf-annual-survey-2022/) 中的数据，CNCF End User 所在组织对 K8s 的采纳率已经达到 89%（其中 64% 已经应用在生产环境），K8s 作为云原生事实标准的地位愈发稳固。K8s 通过优秀的资源抽象能力，屏蔽了各类 CSP 在计算存储网络三大资源上的差异化。因此，包括应用及前文描述的各类 DevOps 组件，都建议运行在以 K8s 生态为基础的容器资源上。平台有义务为上层提供灵活的、开箱即用的、标准化的生命周期管理与资源编排能力，以支持各类应用和服务的运行。
+
+根据 [CNCF 对云原生的定义](https://github.com/cncf/toc/blob/main/DEFINITION.md)，云原生应用应该能在云上自由的弹性扩展。从这一点看，理想的云原生基础设施，应该能为应用提供无限的资源和难以察觉的扩缩速度，这当然不现实。不过，企业在业务发展过程中确实存在很多场景（例如隔离性、可用性、合规性或使用成本等），需要将应用运行在正确的位置上，并且支持位置的动态调整。对于这些需求，企业可以采用基于多集群技术而构建的可扩展资源编排解决方案。
+
+笔者在文章 [*理解 K8s 多集群*](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/) 中，描述了实现多集群管理的核心要素，为了支撑可扩展资源编排，如下列举几个设计要点：
+
+#### 跨集群动态调度
+
+多集群本质上是为了让应用运行在更合适的位置。为了高可用、成本控制、合规性等目的，业务应用可能会被动态调度到不同的 K8s 集群上。实施调度的关键是调度策略。
+
+通过调度策略，我们期望能解决 ”什么样的应用” 需要被调度到 “哪类集群” 的问题。显然，应用有其自身独特的属性集，集群也一样。从属性集的角度看，调度策略问题就可以转化为应用与集群属性集之间的最优匹配问题。
+
+<img src="https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/sched-chain.jpg" style="zoom:50%;" />
+
+应用的属性集可能包括：命名空间、资源依赖、副本数、镜像名、租户归属、应用亲和性/反亲和性、最小资源需求等等，集群的属性集可能包括 AZ、地区（Region）、节点数、已分配 Pod 数、资源总量/余量、污点（Taint）等等。
+
+进行调度决策时，待调度应用与待选集群的属性集依次通过所有过滤型决策器和打分型决策器，最终找到一个（或一组，考虑多副本高可用）分数最高的集群，调度完成。而下达调度决策的前提，是多集群控制面能准确的获悉集群中的各种状态，因此状态数据的收集也至关重要。
+
+#### 应用模型扩展
+
+为了满足多集群管理的需求，传统的单集群应用模型需要进行扩展，以允许应用开发者能定义应用的部署偏好，从而更符合实际的业务目标。
+
+对应用模型的扩展可以分为规格扩展和状态扩展。
+
+对于规格扩展，又可分为两类：限制（constrains）和提示（hints）：
+
+- 限制（constrains）：代表了应用对跨集群管理的强制性要求，如亲和性/反亲和性，最小副本数，污点容忍性（Taints Tolerations）等等
+- 提示（hints）：代表了对多集群管理决策与动作的非强制性提示，如优先级，副本分配偏好，资源需求等等
+
+而状态扩展主要扩展的是应用在多个集群上的状态。这包括应用实际在每个集群上的副本数，运行健康状况，曾经被调度的历史等等。状态扩展恰恰是为了将收集到的状态数据聚合在应用模型上，以便于调度器的工作。
+
+根据前文描述的 OAM 模型，平台团队可以针对限制和提示定义多种 Traits，以供应用开发者选用。
+
+#### 集群标准化
 
 
 
-### 可扩展的基础设施层
+###可扩展的基础设施层
 
-1. 多云适配
-2. 混合云
+在可扩展的资源编排层中，抽象资源通过 K8s 以标准的 CRI、CSI、CNI 形式提供给上层，这给了基础设施层很大的灵活度和扩展性。基础设施层可以自由的通过多云和混合云等技术来根据实际需要向上提供底层的计算、存储、网络资源。
+
+#### 集群即资源
+
+K8s 是对基础设施层的抽象，因此从整体上看，基础设施层的目标就是向资源编排层交付 K8s 集群。然而不论是基于云虚拟机自建 K8s，还是直接使用 CSP 定制化和代管的集群（如 EKS，GKE 等），在各种 CSP 上构建 K8s 集群都涉及到许多适配性工作。
+
+[ClusterAPI（简称 CAPI）](https://github.com/kubernetes-sigs/cluster-api) 是 K8s “Cluster Lifecycle SIG（集群生命周期特别兴趣小组）” 发起的项目，CAPI 尝试通过定义标准基础设施 API 来统一集群生命周期管理，各类 CSP 自行提供实现了标准 API 的 “Provider” 来支持自动化操作集群资源，由于其官方背景，目前已有[数十种 Provider](https://cluster-api.sigs.k8s.io/reference/providers.html) 可供选择（不仅包含 aws 等公有云，还包含了 OpenStack，OCI 等其他方案）。
+
+<img src="https://cluster-api.sigs.k8s.io/images/management-cluster.svg" alt="CAPI 架构" style="zoom:67%;" />
+
+CAPI 的价值不仅在于对各种 CSP 的全面适配，更重要的是通过它能够实现集群的自动化创建和销毁，也就是实现了**集群即资源**，从极大的缩短了资源编排层的扩展速度。
+
+#### 简化 PaaS 资源管理
+
+在实际当中，除了计算、存储、网络三大基础资源外，业务应用还会依赖大量由 CSP 提供的 PaaS 中间件服务（如数据库、消息服务、负载均衡等）。虽然通过前文介绍的多运行时架构，应用开发者能够不必关心具体中间件的实现和维护，但对于平台团队而言，大多数 PaaS 服务都是非 K8s 的，通常企业会通过维护自己的 Terraform 模块库来实现对资源的自动化管理，但想要将它们纳入 K8s 下统一管理仍需要可观的人力付出，尤其是在跨云场景下更加复杂。
+
+[Crossplane](https://www.crossplane.io/) 正是为了解决这一问题而诞生。
+
+<img src="https://docs.crossplane.io/media/composition-how-it-works.svg" style="zoom: 50%;" />
+
+与 CAPI 类似，Crossplane 通过 Provider 实现对具体 PaaS 资源的操作，在其[官方市场](https://marketplace.upbound.io/)中已经有数十家 CSP 开发的 Providers。Crossplane 允许用户自己定义资源，并通过标准的控制器模式来完成对资源的管理。因此，通过 Crossplane 可以声明式的管理 PaaS 资源。实际的资源申请场景中，Crossplane 借鉴了 K8s PV 与 PVC 的概念，资源提供方通过创建资源定义，来发布可用的资源，而资源使用方通过构建 Claim 来发出对资源的请求。最后，通过 Crossplane 控制器就能完成这一需求匹配过程。
+
+#### 跨云网络
+
+通常，CSP 会默认提供 VPC 来实现灵活的隔离，而跨云之间更是完全隔离，想要互相通信只能通过专线或公网路由。
+
+在多云架构下或多或少会存在跨云网络连通需求，采用 Overlay 网络的方式，可以在不同的云或 VPC 之间建立虚拟扁平网络，实现直接网络连通。
+
+![](https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/network-overlay.jpg)
+
+Overlay 网络的本质是隧道技术，通常是在三层网络上构建隧道传输二层网络包来实现虚拟网络。Overlay 网络的优势在于它构建的虚拟扁平网络让上层通信不再依赖复杂的路由策略，但类似 [VxLan](https://en.wikipedia.org/wiki/Virtual_Extensible_LAN) 的技术，只对网络数据包进行了再封装，并没有任何安全性可言，因此当用于公网间建立隧道的时候会采用加密协议传输，如 [IPSec](https://en.wikipedia.org/wiki/IPsec)，[WireGuard](https://www.wireguard.com/) 等。
+
+> 相关开源组件有 [Kilo](https://kilo.squat.ai/)、[Submariner](https://submariner.io/) 等
+
+​		
