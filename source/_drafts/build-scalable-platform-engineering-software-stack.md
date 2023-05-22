@@ -119,7 +119,7 @@ categories:
 
 因此，开发者只需要将应用模型以类似 `yaml` 的形式维护在代码仓内，随着 [GitOps](https://www.weave.works/blog/what-is-gitops-really) 流程，应用就会顺滑的交付上线。
 
-> [Kubevela]([kubevela.io](https://kubevela.io/)) 实现并扩展了 OAM
+> [KubeVela]([kubevela.io](https://kubevela.io/)) 实现并扩展了 OAM
 
 #### 分布式能力抽象
 
@@ -145,13 +145,28 @@ categories:
 
 ###可扩展的 DevOps 组件层
 
-1. CI/CD
-2. 应用生命周期
-3. 安全
-4. IaC
-5. 可观测性
-6. Nocalhost
-7. Serverless
+#### CI/CD
+
+DevOps 组件层所提供的最基本的能力应该就是 CI/CD Pipeline 了。通过 Pipeline 来拉取 Repo 中的代码，并一步步的执行编译、检查、测试、部署、发布，这就是所有企业尝试 DevOps 工具的第一步。
+
+<img src="https://images.contentstack.io/v3/assets/blt300387d93dabf50e/blt5011b7706b99630a/6388867529632c37569f030f/Guide-To-GitOps-Diagrams4.png" style="zoom:50%;" />
+
+CI/CD Pipeline 的运行，本质上是执行了一个 DAG，各个阶段具体做的事情只是挂载在 DAG 节点上的细节。因此大多数的 CI/CD 工具实际上都是一个 Workflow Engine。
+
+上一节提到的实现了 OAM 的 KubeVela，就基于 OAM 模型扩展了 Workflow 的定义，通过 Workflow 扩展定义，可以将 Pipeline 的部分直接集成在 OAM 模型当中。
+
+<img src="https://camo.githubusercontent.com/3c9f24e500b84bc31c744c623573b11e00247f49364fe7bc673e03faa56ee631/68747470733a2f2f7374617469632e6b75626576656c612e6e65742f696d616765732f312e362f776f726b666c6f772d617263682e706e67" style="zoom: 50%;" />
+
+KubeVela 自身实际上就是一个 CD 系统，并通过[workflow 插件](https://github.com/kubevela/workflow/tree/main)支持了部分预定义步骤的执行（如编译镜像等）。此外，KubeVela 还支持在 Workflow 定义的各个 Pipeline Step 中触发外部的 CI 系统，这就实现了方便扩展能力（KubeVela 称这一设计为 [Unified Declarative CI/CD](https://kubevela.io/docs/tutorials/s2i)）。
+
+
+
+1. 应用生命周期
+2. 安全
+3. IaC
+4. 可观测性
+5. Nocalhost
+6. Serverless
 
 
 
