@@ -159,14 +159,35 @@ CI/CD Pipeline 的运行，本质上是执行了一个 DAG，各个阶段具体�
 
 KubeVela 自身实际上就是一个 CD 系统，并通过[workflow 插件](https://github.com/kubevela/workflow/tree/main)支持了部分预定义步骤的执行（如编译镜像等）。此外，KubeVela 还支持在 Workflow 定义的各个 Pipeline Step 中触发外部的 CI 系统，这就实现了方便扩展能力（KubeVela 称这一设计为 [Unified Declarative CI/CD](https://kubevela.io/docs/tutorials/s2i)）。
 
+#### 资源管理 + IaC
+
+在实际当中，除了计算、存储、网络三大基础资源外，业务应用还会依赖大量由 CSP 提供的 PaaS 中间件服务（如数据库、消息服务、负载均衡等）。虽然通过前文介绍的多运行时架构，应用开发者能够不必关心具体中间件的实现和维护，但对于平台团队而言，大多数 PaaS 服务都是非 K8s 的，通常企业会通过维护自己的 Terraform 模块库来实现对资源的自动化管理，但想要将它们纳入 K8s 下统一管理仍需要可观的人力付出，尤其是在跨云场景下更加复杂。
+
+[Crossplane](https://www.crossplane.io/) 正是为了解决这一问题而诞生。
+
+<img src="https://docs.crossplane.io/media/composition-how-it-works.svg" style="zoom: 50%;" />
+
+Crossplane 通过 Provider 实现对具体 PaaS 资源的操作，在其[官方市场](https://marketplace.upbound.io/)中已经有数十家 CSP 开发的 Providers。Crossplane 允许用户自己定义资源，并通过标准的控制器模式来完成对资源的管理。因此，通过 Crossplane 可以声明式的管理 PaaS 资源。实际的资源申请场景中，Crossplane 借鉴了 K8s PV 与 PVC 的概念，资源提供方通过创建资源定义，来发布可用的资源，而资源使用方通过构建 Claim 来发出对资源的请求。最后，通过 Crossplane 控制器就能完成这一需求匹配过程。
+
+因此，应用的资源配置可以直接以 Claim 的形式在代码仓中维护，随着 GitOps 配置和变更资源。
+
+#### 可观测性
+
+常见的可观测性能力通过 Metrics、Logs 以及 Tracing 来分别采集系统的指标、日志和链路追踪。
+
+在 [OpenTelemetry](https://opentelemetry.io/) 出现以前，上述三种不同种类的观测数据各自存在特定的探针、数据格式以及标准，从而导致后端系统的选择绑定了几种方案而难以替换和扩展。
+
+OpenTelemetry（简称 otel） 作为可观测性系统前后端之间的抽象层，整合了一套标准数据模型，使得数据探针和数据处理系统不在相互依赖。
+
+<img src="https://opentelemetry.io/img/otel_diagram.png" style="zoom:67%;" />
+
+除了各种开源方案对 otel 的支持外，包括 AWS、Azure 和 GCP 在内的许多 CSP 都在其产品内支持了 otel 标准。因此引入 otel 能够极大的增强在可观测性能力上的扩展性。
+
+#### 安全
 
 
-1. 应用生命周期
-2. 安全
-3. IaC
-4. 可观测性
-5. Nocalhost
-6. Serverless
+
+#### 研发态
 
 
 
@@ -222,16 +243,6 @@ K8s 是对基础设施层的抽象，因此从整体上看，基础设施层的�
 <img src="https://cluster-api.sigs.k8s.io/images/management-cluster.svg" alt="CAPI 架构" style="zoom:67%;" />
 
 CAPI 的价值不仅在于对各种 CSP 的全面适配，更重要的是通过它能够实现集群的自动化创建和销毁，也就是实现了**集群即资源**，从极大的缩短了资源编排层的扩展速度。
-
-#### 简化 PaaS 资源管理
-
-在实际当中，除了计算、存储、网络三大基础资源外，业务应用还会依赖大量由 CSP 提供的 PaaS 中间件服务（如数据库、消息服务、负载均衡等）。虽然通过前文介绍的多运行时架构，应用开发者能够不必关心具体中间件的实现和维护，但对于平台团队而言，大多数 PaaS 服务都是非 K8s 的，通常企业会通过维护自己的 Terraform 模块库来实现对资源的自动化管理，但想要将它们纳入 K8s 下统一管理仍需要可观的人力付出，尤其是在跨云场景下更加复杂。
-
-[Crossplane](https://www.crossplane.io/) 正是为了解决这一问题而诞生。
-
-<img src="https://docs.crossplane.io/media/composition-how-it-works.svg" style="zoom: 50%;" />
-
-与 CAPI 类似，Crossplane 通过 Provider 实现对具体 PaaS 资源的操作，在其[官方市场](https://marketplace.upbound.io/)中已经有数十家 CSP 开发的 Providers。Crossplane 允许用户自己定义资源，并通过标准的控制器模式来完成对资源的管理。因此，通过 Crossplane 可以声明式的管理 PaaS 资源。实际的资源申请场景中，Crossplane 借鉴了 K8s PV 与 PVC 的概念，资源提供方通过创建资源定义，来发布可用的资源，而资源使用方通过构建 Claim 来发出对资源的请求。最后，通过 Crossplane 控制器就能完成这一需求匹配过程。
 
 #### 跨云网络
 
