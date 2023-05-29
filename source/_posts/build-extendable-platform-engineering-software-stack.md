@@ -10,6 +10,12 @@ categories:
 - Software Engineering
 ---
 
+本文介绍了企业在构建平台工程能力时如何通过可扩展的软件栈架构来满足多样的场景与诉求。
+
+
+
+<!-- more -->
+
 ## 平台工程是新概念吗？
 
 [平台工程（Platform Engineering）](https://platformengineering.org/blog/what-is-platform-engineering)，是通过在企业内部建设一整套工具链、资源和知识库，来更好的为研发人员构建工作流，以使研发团队在 DevOps 实践上更易于达成 [DORA Metrics](https://cloud.google.com/blog/products/devops-sre/using-the-four-keys-to-measure-your-devops-performance) 所描绘的高效能团队要求。
@@ -258,7 +264,7 @@ Gardener 除了能在各种差异化基础设施上管理 K8s 集群的生命周
 
 
 
-###可扩展的基础设施层
+### 可扩展的基础设施层
 
 在可扩展的资源编排层中，抽象资源通过 K8s 以标准的 CRI、CSI、CNI 形式提供给上层，这给了基础设施层很大的灵活度和扩展性。基础设施层可以自由的通过多云和混合云等技术来根据实际需要向上提供底层的计算、存储、网络资源。
 
