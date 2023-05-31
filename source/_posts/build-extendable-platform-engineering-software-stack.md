@@ -10,6 +10,8 @@ categories:
 - Software Engineering
 ---
 
+{% asset_img head-pic.jpg 500 %}
+
 本文介绍了企业在构建平台工程能力时如何通过可扩展的软件栈架构来满足多样的场景与诉求。
 
 
