@@ -212,3 +212,10 @@ END;
 
 > 在前面的例子中，虽然观测指标少，但至少有 CPU 使用率和 IO 写入速率，这两项监控指标帮助我们完成了后续的关键优化动作。
 
+
+
+### 扩展阅读
+
+[PostgreSQL: Populating a Database](https://www.postgresql.org/docs/current/populate.html)
+
+[PostgreSQL: Sequence](https://www.postgresql.org/docs/current/sql-createsequence.html)
