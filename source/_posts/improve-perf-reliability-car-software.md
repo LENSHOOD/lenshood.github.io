@@ -202,7 +202,7 @@ GQM 即“Goal - Question - Metrics”，可译为“目标 - 问题 - 指标”
 - [《2023年三季度汽车投诉分析报告》，车质网](https://www.12365auto.com/dcbg/20231010/514044-all.shtml#p2)
 - [《软件架构：架构模式、特征及实践指南》，Mark Richards / Neal Ford](https://book.douban.com/subject/35487561/)
 - [SQuaRE 系统与软件质量模型：ISO/IEC 25010:2011，国际标准](https://www.iso.org/standard/35733.html)
-- [SQuaRE 质量测量框架：ISO/IEC 25020:2019，国家标准](https://www.iso.org/standard/72117.html)
+- [SQuaRE 质量测量框架：ISO/IEC 25020:2019，国际标准](https://www.iso.org/standard/72117.html)
 - [GQM 分析法，Victor Basili 和 David Weiss](https://ieeexplore.ieee.org/document/5010301)
 - [《性能工程实践》](https://mp.weixin.qq.com/s/6y0HqQ5d_7EAZNmZL0wNuw)
 - [故障树分析（FTA）](https://en.wikipedia.org/wiki/Fault_tree_analysis)
