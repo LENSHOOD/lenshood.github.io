@@ -141,6 +141,7 @@ site_state: true
 # Value before `||` delimiter is the target permalink, value after `||` delimiter is the name of Font Awesome icon.
 social:
   GitHub: https://github.com/LENSHOOD || fab fa-github
+  RSS: atom.xml || fa fa-rss
   #E-Mail: mailto:yourname@gmail.com || fa fa-envelope
   #Weibo: https://weibo.com/yourname || fab fa-weibo
   #Google: https://plus.google.com/yourname || fab fa-google
@@ -269,7 +270,7 @@ follow_me:
   #Twitter: https://twitter.com/username || fab fa-twitter
   #Telegram: https://t.me/channel_name || fab fa-telegram
   #WeChat: /images/wechat_channel.jpg || fab fa-weixin
-  #RSS: /atom.xml || fa fa-rss
+  RSS: /atom.xml || fa fa-rss
 
 # Related popular posts
 # Dependencies: https://github.com/tea3/hexo-related-popular-posts
