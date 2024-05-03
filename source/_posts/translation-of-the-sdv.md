@@ -7,6 +7,8 @@ categories:
 - Software Defined Vehicle
 ---
 
+{% asset_img header.jpg 500 %}
+
 本文翻译自 Gregor Resing（IBM）的文章 [The Software Defined Vehicle](https://www.ibm.com/blogs/digitale-perspektive/2023/06/the-software-defined-vehicle/)。
 
 <!-- more -->

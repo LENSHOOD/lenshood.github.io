@@ -10,6 +10,8 @@ categories:
 - Software Engineering
 ---
 
+![image](https://raw.githubusercontent.com/madaan/pie-perf/main/docs/static/images/mainfig-v4.jpg)
+
 >本文是对论文 [LEARNING PERFORMANCE-IMPROVING CODE EDITS](https://openreview.net/pdf?id=ix7rLVHXyY) 的翻译
 
 <!-- more -->
