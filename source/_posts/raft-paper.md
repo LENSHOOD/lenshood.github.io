@@ -8,6 +8,8 @@ categories:
 - Software Engineering
 ---
 
+{% asset_img header.jpg 500 %}
+
 > 本文是对 raft paper 的翻译，原文请见 https://raft.github.io/raft.pdf
 
 ## 摘要
