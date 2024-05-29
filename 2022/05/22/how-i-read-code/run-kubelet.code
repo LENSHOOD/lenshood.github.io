@@ -1,0 +1,16 @@
+func RunKubelet(kubeServer *options.KubeletServer, kubeDeps *kubelet.Dependencies, runOnce bool) error {
+	// 各种配置
+	hostname, err := nodeutil.GetHostname(kubeServer.HostnameOverride)
+	nodeName, err := getNodeName(kubeDeps.Cloud, hostname)
+	makeEventRecorder(kubeDeps, nodeName)
+	... ...
+	
+	// 创建 kubelet
+	k, err := createAndInitKubelet(...)
+	... ...
+
+	// 启动 kubelet
+	startKubelet(k, podCfg, &kubeServer.KubeletConfiguration, kubeDeps, kubeServer.EnableServer)
+
+	return nil
+}
