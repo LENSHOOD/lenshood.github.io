@@ -171,13 +171,105 @@ In simple terms, we need a risc-v env to run the binary. And in such circumstanc
 
 
 
-## 2. Setup risc-v platform by QEMU
+## 2. Setup risc-v platform based on QEMU
 
+We have successfully compiled the example rust code with risc-v target. Now we need to have a virtual machine to simulate the risc-v environment, of cause you can do it on real hardware like Raspberry PI, but virtual machine can help us setup the target platform in a second, that would incredibly save time in the initial stages of development.
 
+Here, we choose QEMU because it's very easy to use, open soured and could integrate to rust seamlessly.
+
+It's quite simple to setup the QEMU with rust integration, we only need to add two lines in the previous `.cargo/config.toml`:
+
+``` toml
+[build]
+target = "riscv64gc-unknown-none-elf"
+
+### The following lines are newly added
+[target.riscv64gc-unknown-none-elf]
+runner = "qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel "
+```
+
+I'm not gonna describe much detail of QEMU in this article, please check [here](https://www.qemu.org/docs/master/system/invocation.html#hxtool-0) to see the usage of QEMU if you needed.
+
+In short, in the above lines, we set the "runner" of target "riscv64gc-unknown-none-elf" as a command line that can bring up QEMU. You may already noticed, the QEMU binary we execute is "qemu-system-riscv64", which means there are many different binaries that are for other platforms.
+
+Once we set the [runner](https://doc.rust-lang.org/cargo/reference/config.html#targettriplerunner) for some target, then every time we execute cargo `cargo run`, the target file of our program will be passed as an argument to the command we put into "runner" field. That also why we put the `-kernel` param of QEMU in the end.
+
+All set, let's give it a try! 
+
+```shell
+Finished dev [unoptimized + debuginfo] target(s) in 0.99s
+     Running `qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`
+```
+
+It went very well, no "cannot execute binary file" error ever again, and the QEMU seems running.
+
+Because we can't output anything, the only way to verify the correctness of our program is run as debug mode, and check the value of "i" in memory.
 
 
 
 ## 3. Debugger is our closest friend
+
+No matter now or later, the debugger is always a super important helper to us. Without a debugger, we cannot learn the current program status easily, and can only use the logger to print context with many restrictions.
+
+I'm using the GDB as the debugger in the next series of articles, but you can also choose other debuggers like lldb or rust-gdb, they are quite same.
+
+So, how to introduce gdb in to our project?
+
+Step 1, we need to let QEMU be able to accept a GDB connection, additionally, pause QEMU to wait for a gdb connection. That requires us to add two params: `-s -S`in to the runner command:
+
+```toml
+[target.riscv64gc-unknown-none-elf]
+runner = "qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel "
+```
+
+The `-s` is a shorthand for `-gdb tcp::1234`, which means to listen the GDB connection on tcp port 1234.
+
+The `-S` ask QEMU not start to run until a GDB connection comes in.
+
+Step 2, run GDB in remote debug mode. I use Clion as my local IDE, so I can simply create a remote debug in the "Run/Debug Configuration", with the remote args as `localhost:1234`, and choose the symbol file to `target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`.
+
+After complete the above two steps, when we run `cargo run` again, set a break point in the first line of `main()`, and click debug on Clion, we should see the `Debugger connected to localhost:1234` in the debug tab. And if we stop the debugger, QEMU will stop too, and shows: `qemu-system-riscv64: QEMU: Terminated via GDBstub`.
+
+But nothing happens expect the debugger connected. Why?
+
+Actually, we haven't completed our program when we added `#![no_main]` in the previous content. `#![no_main]` only tells rust compiler "you don't need to worry about the program entry anymore, we the developer will take care of that". But in fact we didn't do anything related to program entry at all!
+
+Hence right now we need to let QEMU understand where to start run our code. And that requires a [linker script](https://sourceware.org/binutils/docs/ld/Scripts.html) `.ld`, just like this:
+
+```ld
+/* entry.ld */
+OUTPUT_ARCH( "riscv" )
+ENTRY( main )
+
+SECTIONS
+{
+  . = 0x80000000;
+
+  .text : {
+    *(.text*)
+  }
+
+  .rodata : {
+    *(.rodata*)
+  }
+
+  .data : {
+    *(.data*)
+  }
+
+  .bss : {
+    *(.bss*)
+  }
+}
+```
+
+So linker script is basically define the memory layout of the output binary, and since the rust risc-v cross toolchain will generate the target file as ELF format, we defined the layout as ELF style.
+
+The above `ld` file is quite simple, the four sections are basic ELF sections and nothing special here. The only fields we need to put our eyes on are the fields on top.
+
+`OUTPUT_ARCH( "riscv" )` indicates the target file is for the risc-v platform. And `ENTRY( main )` points out our program entry is a symbol called `main`, which is our main function indeed.
+
+
 
 
 
