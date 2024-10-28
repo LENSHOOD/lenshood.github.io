@@ -269,7 +269,51 @@ The above `ld` file is quite simple, the four sections are basic ELF sections an
 
 `OUTPUT_ARCH( "riscv" )` indicates the target file is for the risc-v platform. And `ENTRY( main )` points out our program entry is a symbol called `main`, which is our main function indeed.
 
+The `. = 0x80000000` stands for put the entry onto the address 0x80000000, so that our binary will starts from that. QEMU supports many different hardware architectures, particularly in risc-v, the RAM address starts from 0x80000000. We can execute a very simple command to prove that:
 
+```shell
+$ qemu-system-riscv64 -monitor stdio
+QEMU 9.1.0 monitor - type 'help' for more information
+(qemu) info mtree
+address-space: cpu-memory-0
+address-space: memory
+  0000000000000000-ffffffffffffffff (prio 0, i/o): system
+    0000000000001000-000000000000ffff (prio 0, rom): riscv.spike.mrom
+    0000000001000000-000000000100000f (prio 1, i/o): riscv.htif.uart
+    0000000002000000-0000000002003fff (prio 0, i/o): riscv.aclint.swi
+    0000000002004000-000000000200bfff (prio 0, i/o): riscv.aclint.mtimer
+    0000000080000000-0000000087ffffff (prio 0, ram): riscv.spike.ram
+
+address-space: I/O
+  0000000000000000-000000000000ffff (prio 0, i/o): io
+```
+
+We start a risc-v virtual machine with `-monitor stdio`, that would not just run a VM instance, but also bring us into an interactive interface, we can check the current memory regions by `info mtree`, apparently the RAM begins at `0000000080000000`.
+
+Now we have our `ld` file, but we still need to activate the script in our program, which need to modify the `.cargo/config.toml`:
+
+```toml
+[build]
+target = "riscv64gc-unknown-none-elf"
+### The following line is newly added
+rustflags = ['-Clink-arg=-Tsrc/entry.ld']
+
+[target.riscv64gc-unknown-none-elf]
+runner = "qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel "
+```
+
+And one anther step is, let the entry symbol be recognized. Generally, rust would mangle most of the symbols, to make sure all symbols have their own unique name. But as we have set the `ENTRY( main )`, so we need to let the `main` stays "main", not other mangled names. To achieve that, we have to change the function signature of `main()` like this:
+
+```rust
+... ...
+#[no_mangle]
+extern "C" fn main() {
+... ...
+```
+
+`#[no_mangle]` force the compiler not mangle this function, and `extern "C" ` is a declaration of FFI, to export the function with C ABI.
+
+After all of the above modification, I'm sure the program can stop at the first line of main if there is a breakpoint.
 
 
 
