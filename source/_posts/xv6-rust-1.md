@@ -173,7 +173,7 @@ In simple terms, we need a risc-v env to run the binary. And in such circumstanc
 
 ## 2. Setup risc-v platform based on QEMU
 
-We have successfully compiled the example rust code with risc-v target. Now we need to have a virtual machine to simulate the risc-v environment, of cause you can do it on real hardware like Raspberry PI, but virtual machine can help us setup the target platform in a second, that would incredibly save time in the initial stages of development.
+We have successfully compiled the example rust code with risc-v target. Now we need to have a virtual machine to simulate the risc-v environment, of course you can do it on real hardware like Raspberry PI, but virtual machine can help us setup the target platform in a second, that would incredibly save time in the initial stages of development.
 
 Here, we choose QEMU because it's very easy to use, open soured and could integrate to rust seamlessly.
 
@@ -211,9 +211,9 @@ Because we can't output anything, the only way to verify the correctness of our 
 
 No matter now or later, the debugger is always a super important helper to us. Without a debugger, we cannot learn the current program status easily, and can only use the logger to print context with many restrictions.
 
-I'm using the GDB as the debugger in the next series of articles, but you can also choose other debuggers like lldb or rust-gdb, they are quite same.
+I'm using the GDB as the debugger in the next series of articles, but you can also choose other debuggers like lldb or rust-gdb, they are quite the same.
 
-So, how to introduce gdb in to our project?
+So, how to introduce gdb into our project?
 
 Step 1, we need to let QEMU be able to accept a GDB connection, additionally, pause QEMU to wait for a gdb connection. That requires us to add two params: `-s -S`in to the runner command:
 
@@ -228,13 +228,13 @@ The `-S` ask QEMU not start to run until a GDB connection comes in.
 
 Step 2, run GDB in remote debug mode. I use Clion as my local IDE, so I can simply create a remote debug in the "Run/Debug Configuration", with the remote args as `localhost:1234`, and choose the symbol file to `target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`.
 
-After complete the above two steps, when we run `cargo run` again, set a break point in the first line of `main()`, and click debug on Clion, we should see the `Debugger connected to localhost:1234` in the debug tab. And if we stop the debugger, QEMU will stop too, and shows: `qemu-system-riscv64: QEMU: Terminated via GDBstub`.
+After completing the above two steps, when we run `cargo run` again, set a breakpoint in the first line of `main()`, and click debug on Clion, we should see the `Debugger connected to localhost:1234` in the debug tab. And if we stop the debugger, QEMU will stop too, and shows: `qemu-system-riscv64: QEMU: Terminated via GDBstub`.
 
-But nothing happens expect the debugger connected. Why?
+But nothing happens except the debugger connected. Why?
 
-Actually, we haven't completed our program when we added `#![no_main]` in the previous content. `#![no_main]` only tells rust compiler "you don't need to worry about the program entry anymore, we the developer will take care of that". But in fact we didn't do anything related to program entry at all!
+Actually, we haven't completed our program when we added `#![no_main]` in the previous content. `#![no_main]` only tells rust compiler "you don't need to worry about the program entry anymore, we the developer will take care of that". But in fact we didn't do anything related to the program entry at all!
 
-Hence right now we need to let QEMU understand where to start run our code. And that requires a [linker script](https://sourceware.org/binutils/docs/ld/Scripts.html) `.ld`, just like this:
+Hence, right now we need to let QEMU understand where to start running our code. And that requires a [linker script](https://sourceware.org/binutils/docs/ld/Scripts.html) `.ld`, just like this:
 
 ```ld
 /* entry.ld */
@@ -269,7 +269,7 @@ The above `ld` file is quite simple, the four sections are basic ELF sections an
 
 `OUTPUT_ARCH( "riscv" )` indicates the target file is for the risc-v platform. And `ENTRY( main )` points out our program entry is a symbol called `main`, which is our main function indeed.
 
-The `. = 0x80000000` stands for put the entry onto the address 0x80000000, so that our binary will starts from that. QEMU supports many different hardware architectures, particularly in risc-v, the RAM address starts from 0x80000000. We can execute a very simple command to prove that:
+The `. = 0x80000000` stands for putting the entry onto the address 0x80000000, so that our binary will start from that. QEMU supports many different hardware architectures, particularly in risc-v, the RAM address starts from 0x80000000. We can execute a very simple command to prove that:
 
 ```shell
 $ qemu-system-riscv64 -monitor stdio
@@ -302,7 +302,7 @@ rustflags = ['-Clink-arg=-Tsrc/entry.ld']
 runner = "qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel "
 ```
 
-And one anther step is, let the entry symbol be recognized. Generally, rust would mangle most of the symbols, to make sure all symbols have their own unique name. But as we have set the `ENTRY( main )`, so we need to let the `main` stays "main", not other mangled names. To achieve that, we have to change the function signature of `main()` like this:
+And one another step is, let the entry symbol be recognized. Generally, rust would mangle most of the symbols, to make sure all symbols have their own unique name. But as we have set the `ENTRY( main )`, we need to let the `main` stays "main", not other mangled names. To achieve that, we have to change the function signature of `main()` like this:
 
 ```rust
 ... ...
@@ -313,11 +313,83 @@ extern "C" fn main() {
 
 `#[no_mangle]` force the compiler not mangle this function, and `extern "C" ` is a declaration of FFI, to export the function with C ABI.
 
-After all of the above modification, I'm sure the program can stop at the first line of main if there is a breakpoint.
+After all of the above modifications, I'm sure the program can stop at the first line of main if there is a breakpoint.
 
 
 
-## 4. What the xv6 is all about?
+## 4. Things are getting complicated
+
+In the previous chapter, I ensured the program could be stopped at the first line, but I bet you have tried, the debugger can no longer step over to the second line. And if you pause the program through gdb, the current memory address turns out to be 0x0. Something's wrong here.
+
+There is a CSR called `mstatus` in risc-v to indicate any event that caused the trap, we could check the value of `mcause` to investigate why our program is in a failure.
+
+Execut `info all-registers` in gdb, will show value of all registers:
+
+```gdb
+(gdb) info all-registers
+zero           0x0	0
+ra             0x0	0x0
+sp             0xfffffffffffffff0	0xfffffffffffffff0
+gp             0x0	0x0
+tp             0x0	0x0
+
+... ...
+
+mscratch       0x0	0
+mepc           0x0	0
+mcause         0x1	1
+mtval          0x0	0
+
+... ...
+```
+
+The `mcause` shows value of `0x1`, refer to the risc-v document([Table 14. Machine cause register (mcause) values after trap.](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view)), `0x1` means "Instruction access fault".
+
+But how can it be? It won't be insufficient access permission, after all we haven't set any privileged level, so our program is running on the machine mode, which is the highest privileged mode, we can literally do everything.
+
+If we move one step forward, decompile the program with obj-dump, and see the assembly code here:
+
+```assembly
+0000000080000000 <main>:
+    80000000:   1141                    addi    sp,sp,-16
+    80000002:   3e700513                li      a0,999
+    80000006:   c62a                    sw      a0,12(sp)
+    80000008:   45b2                    lw      a1,12(sp)
+    8000000a:   0015851b                addiw   a0,a1,1
+    8000000e:   e02a                    sd      a0,0(sp)
+    80000010:   00b54763                blt     a0,a1,8000001e <.Lpcrel_hi0>
+    80000014:   a009                    j       80000016 <main+0x16>
+    80000016:   6502                    ld      a0,0(sp)
+    80000018:   c62a                    sw      a0,12(sp)
+    8000001a:   0141                    addi    sp,sp,16
+    8000001c:   8082                    ret
+```
+
+Yes, the stack pointer! `sp` is initially zero, so that after line 80000000, the `sp` will be set to `0x0 - 0xf = `(we are on the 64-bit platform). 
+
+Unfortunately, at line 80000006, the value of a0 will be saved to `sp + 12`, which is `0xfffffffffffffffc`, but obviously this address is illegal. If you remember, we only create a VM with 128MiB memory, which means the available physical address range is `0x80000000 ~ 0x88000000`.
+
+To make it correct, let's set the `sp` in the first place:
+
+```rust
+#![no_std]
+#![no_main]
+#[no_mangle]
+extern "C" fn main() {
+    unsafe { core::arch::asm!("la sp, 0x80001000") }
+    
+    let mut i = 999;
+    i = i + 1;
+}
+```
+
+We add one line of asm to set the `sp` equals to `0x80001000`, since our program is quite simple and will not grow to even `0x800000ff`, so our code section is safe and has no chance to be overridden. 
+
+Finally, the program can be run correctly, and if you like, add a `panic!()` at the end of the program, otherwise when `main()` is return, the program will fail again because we didn't tell it what to do next after `main()` returned.
+
+
+
+## 5. What the xv6 is all about?
 
 
 
