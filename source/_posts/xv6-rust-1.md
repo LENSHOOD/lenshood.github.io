@@ -391,5 +391,13 @@ Finally, the program can be run correctly, and if you like, add a `panic!()` at 
 
 ## 5. What the xv6 is all about?
 
+After all the above sections, now we can get back to talking more about xv6.
 
+Quote from the name of the xv6 book, *xv6: a simple, Unix-like teaching operating system*. Yes, xv6 was inspired by Unix v6, and since the Unix needs to run on specific hardware like PDP-11, and with many low-level details, in 2006, MIT decided to modeled on Unix v6, rewrite it by ANSI C, with multiprocessor support been added, at last created xv6.
+
+As we mentioned at the beginning of this article, the xv6 was running on x86 at first, but then they ported it to risc-v. That's why we provide this entire article to discuss how to run rust on risc-v platform, with the knowledge in this article, I believe we could get our local environment ready to go, and get to know some basic low-level information about risc-v instructions, linker script and ASM in rust.
+
+Basically, although it does not contain many lines of code, xv6 is still a full functional operating system, it has virtualized CPU and memory as process and virtual memory, it supports concurrency, and contains an Unix-like file system to implement persistent. It has user space and kernel space, with a group of system calls (but not compliant with POSIX for clarity and simplicity). Like Unix, xv6 remains macro kernel concept, so it has only one kernel binary.
+
+In the next articles, we will take a close look at the detailed components design of xv6, and then try to port each one of the components to rust...
 
