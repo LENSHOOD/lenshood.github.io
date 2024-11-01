@@ -1,5 +1,5 @@
 ---
-title: [xv6 rust 0x1] Starting is the hardest part
+title: /Xv6 Rust 0x01/ - Starting is the hardest part
 date: 2024-10-23 22:27:59
 tags:
 - xv6
@@ -18,6 +18,8 @@ As a perfect way to kill time, I have migrated most of xv6 from C to Rust. You c
 Therefore, I believe it would be cool for me to share my experiences through a series of articles detailing how I did this, complete with a more structured approach and clear procedures.
 
 All right, let's get started...
+
+<!-- more -->
 
 ## 1. Rust on risc-v
 
