@@ -83,6 +83,14 @@ The above content shows the `stack0` has address `0x80015800`, with `Ndx = 2` me
 
 Basically the `entry.S` only responsible for initialized the stack pointer, and then jump to rust code directly.
 
+At last, please don't forget to update the program entry in the `entry.ld`:
+
+```ld
+... ...
+ENTRY( _entry )
+... ...
+```
+
 
 
 ## 2. Machine -> Supervisor
@@ -116,7 +124,8 @@ extern "C" fn start() {
     w_pmpcfg0(0xf);
 
     // ask for clock interrupts.
-    timerinit();
+    // Note: here we could safely comment the timer init, because it won't be needed for a period 
+    // timerinit();
 
     // keep each CPU's hartid in its tp register, for cpuid().
     let id = r_mhartid();
@@ -151,6 +160,35 @@ Generally speaking, when any trap like interrupt or exception happens, the instr
 
 So I suppose you have understood the code logic here: at first set the `kmain` to `mepc`, then do some work, at last call `mret` so that the program will jump to the `kmain`, while the privileged mode is switched to S-mode as well.
 
-> How does risc-v deal with the privilege switch?
+> **How does risc-v deal with the privileged mode switch?**
 >
-> 
+> *.... RISC-V Privileged Specification Chapter 1.2 ...*
+>
+> *A hart normally runs application code in U-mode until some trap (e.g., a supervisor call or a timer*
+> *interrupt) forces a switch to a trap handler, which usually runs in a more privileged mode. The hart*
+> *will then execute the trap handler, which will eventually resume execution at or after the original*
+> *trapped instruction in U-mode. Traps that increase privilege level are termed vertical traps, while traps*
+> *that remain at the same privilege level are termed horizontal traps. The RISC-V privileged architecture*
+> *provides flexible routing of traps to different privilege layers.*
+>
+> *.... RISC-V Privileged Specification Chapter 1.2 ...*
+>
+> Generally, when a trap happens, the address of where the cause the trap will be saved in `mepc` or `sepc`, regarding the current privileged mode. After trap handled by specific handler, it should call either `mret` or `sret` to return to the previous mode, which is stored in the `MPP` or `SPP` filed of the `mstatus`.
+
+
+
+## 3. We need UART
+
+With the `mret` is executed, program is running into a new file: [`main.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/main.rs#L97), which is hard to tell if it's new, because we already have one, one not exactly since we will introduce a new function `kmain` to replace our previous `main`.
+
+Don't be frighten by a lot of new functions are called within `kmain`, we are not gonna need them currently, the only one function we should pay our attention on is the `Uart::init()`:
+
+```rust
+#[no_mangle]
+pub extern "C" fn kmain() {
+    if cpuid() == 0 {
+        Uart::init();
+      ... ...
+}
+```
+
