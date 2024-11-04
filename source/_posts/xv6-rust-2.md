@@ -20,6 +20,8 @@ In our latest code, we set the entry of our code as `main()`, and after that, we
 However, xv6 will do more in the stage of initialization, it chooses to have an individual ASM file to put the very initial code in it, and the ASM file named "[entry.S](https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/asm/entry.S)"(some part of code or comment will be truncated, please click the link attached to the file to see the full code):
 
 ```assembly
+### entry.S
+
 .section .text
 .global _entry
 _entry:
@@ -38,7 +40,7 @@ spin:
 The above code basically set up a 4096-bytes stack, for every hart, and the start address of stack, which we have set to `0x80001000` in our previous code, comes from a constant `stack0` that located in the "[start.rs]((https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/start.rs#L13))".
 
 ```rust
-### start.rs
+// start.rs
 ... ...
 #[repr(C, align(16))]
 struct Stack0Aligned([u8; 4096 * NCPU]);
@@ -91,6 +93,15 @@ ENTRY( _entry )
 ... ...
 ```
 
+And declare the `entry.S` in `main.rs`:
+
+```rust
+// main.rs
+... ...
+global_asm!(include_str!("entry.S"));
+... ...
+```
+
 
 
 ## 2. Machine -> Supervisor
@@ -98,6 +109,8 @@ ENTRY( _entry )
 No doubt that the last line of ASM `call start` will bring us to the `start()`, and here is the core part of the [`start()`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/start.rs#L16):
 
 ```rust
+// start.rs
+
 #[no_mangle]
 extern "C" fn start() {
     // set M Previous Privilege mode to Supervisor, for mret.
@@ -181,14 +194,76 @@ So I suppose you have understood the code logic here: at first set the `kmain` t
 
 With the `mret` is executed, program is running into a new file: [`main.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/main.rs#L97), which is hard to tell if it's new, because we already have one, one not exactly since we will introduce a new function `kmain` to replace our previous `main`.
 
-Don't be frighten by a lot of new functions are called within `kmain`, we are not gonna need them currently, the only one function we should pay our attention on is the `Uart::init()`:
+Don't be frighten by a lot of new functions are called within `kmain`, we are not gonna need them currently, the only functions we should pay our attention on are the `Uart::init()` and `Console::init()`:
+
+```rust
+// main.rs
+
+#[no_mangle]
+pub extern "C" fn kmain() {
+    // The cpuid() returns the hart id, according to the last article 
+    // we run qemu with only one cpu, so we could just comment it
+    // if cpuid() == 0 {
+        Uart::init();
+        Console::init();
+        printf!("\nxv6 kernel is booting...\n\n");
+      ... ...
+}
+```
+
+QEMU generic [virtual platform](https://www.qemu.org/docs/master/system/riscv/virt.html) for risc-v supports a "NS16550 compatible UART". According to the memory address mapping we talked in the last chapter:
+
+```shell
+$ qemu-system-riscv64 -monitor stdio
+QEMU 9.1.0 monitor - type 'help' for more information
+(qemu) info mtree
+address-space: cpu-memory-0
+address-space: memory
+  0000000000000000-ffffffffffffffff (prio 0, i/o): system
+    0000000000001000-000000000000ffff (prio 0, rom): riscv.spike.mrom
+    0000000001000000-000000000100000f (prio 1, i/o): riscv.htif.uart
+    0000000002000000-0000000002003fff (prio 0, i/o): riscv.aclint.swi
+    0000000002004000-000000000200bfff (prio 0, i/o): riscv.aclint.mtimer
+    0000000080000000-0000000087ffffff (prio 0, ram): riscv.spike.ram
+
+address-space: I/O
+  0000000000000000-000000000000ffff (prio 0, i/o): io
+```
+
+UART address starts from `0x1000000`. And there are about 10 registers to config and control the UART (for more details refer to the [16550 specification](http://byterunner.com/16550.html)).
+
+Let's go back to code. We can find all UART related code in the file [`uart.rs`](https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/uart.rs). And basically `Uart::init()` initialize the UART in the mode of 8 bits + 38.4k baud rate + FIFO with interrupt.
+
+In fact, after initialize, we could directly put or get chars by the following code:
+
+```rust
+// uart.rs
+// Please note that there are much more functions and line of code in the original uart.rs, 
+// but we won't need those right now, only the code here is necessary.
+
+pub fn putc_sync(self: &mut Self, c: u8) {  
+  // wait for Transmit Holding Empty to be set in LSR.
+  while (ReadReg!(LSR) & LSR_TX_IDLE) == 0 {}
+  WriteReg!(THR, c);
+}
+
+fn getc(self: &Self) -> i8 {
+  return if ReadReg!(LSR) & 0x01 != 0 {
+    // input data is ready.
+    ReadReg!(RHR) as i8
+  } else {
+    -1
+  };
+}
+```
+
+Let's have a quick test to print a "A" to the console:
 
 ```rust
 #[no_mangle]
-pub extern "C" fn kmain() {
-    if cpuid() == 0 {
-        Uart::init();
-      ... ...
+extern "C" fn kmain() {
+  Uart::init();
+  unsafe { UART_INSTANCE.putc_sync('A' as u8) }
 }
 ```
 
