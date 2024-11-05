@@ -85,11 +85,19 @@ The above content shows the `stack0` has address `0x80015800`, with `Ndx = 2` me
 
 Basically the `entry.S` only responsible for initialized the stack pointer, and then jump to rust code directly.
 
-At last, please don't forget to update the program entry in the `entry.ld`:
+At last, please don't forget to update the program entry in the `entry.ld`, as well as the text section:
 
 ```ld
 ... ...
 ENTRY( _entry )
+... ...
+/* As we declared ".section .text" in the beginning of entry.S, 
+ * we shoud put the "*(.text)" here with the first order.
+ * This will ensure the entry.S is at the beginning of the binary.
+ */
+.text : {
+  *(.text) *(.text*)
+}
 ... ...
 ```
 
@@ -266,4 +274,13 @@ extern "C" fn kmain() {
   unsafe { UART_INSTANCE.putc_sync('A' as u8) }
 }
 ```
+
+```shell
+... ...
+     Finished dev [unoptimized + debuginfo] target(s) in 0.07s
+     Running `qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`
+A
+```
+
+Awesome, we have printed the first letter! Since we can print a letter, then the `printf!()` is around the corner.
 
