@@ -9,9 +9,11 @@ categories:
 - Rust
 ---
 
-With the help of the previous article, right now we have a good foundation about run rust on risc-v platform.
+With the help of the previous article, right now we have a good foundation for running rust on risc-v platform.
 
 In the second episode, we are going to jump into some real code of xv6, and take care of the initialize from machine level to supervisor level, and finally, make the `printf!()` macro available in our code!
+
+<!-- more -->
 
 ## 1. Short but important assembly code
 
@@ -85,7 +87,7 @@ The above content shows the `stack0` has address `0x80015800`, with `Ndx = 2` me
 
 Basically the `entry.S` only responsible for initialized the stack pointer, and then jump to rust code directly.
 
-At last, please don't forget to update the program entry in the `entry.ld`, as well as the text section:
+Finally, please don't forget to update the program entry in the `entry.ld`, as well as the text section:
 
 ```ld
 ... ...
@@ -157,11 +159,11 @@ extern "C" fn start() {
 }
 ```
 
-Actually I even cannot even call it a piece of "rust" code, because if you clone the repo and go through the related code, you may found almost all functions here (like `r_mstatus()` or `w_mepc()`) are wrappers to ASM code.
+Actually, we cannot even call it a piece of "rust" code, because if you clone the repo and go through the related code, you may find nearly all functions here (like `r_mstatus()` or `w_mepc()`) are wrappers to ASM code.
 
 Almost all of the above functions are operate risc-v CSRs (control and status registers), of course we could follow the risc-v specification to learn the details about those CSRs (the entire [Privileged Specification](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view) with 166 pages only talks about the CSRs), but I'm gonna post the following table to briefly introduce what they do in the `start()`.
 
-CSRs are a group of registers that can only be accessed in privileged mode, such as machine mode or supervisor mode, those registers are capable of store status, or change the system configurations, and can be read or written by CSR instructions.
+CSRs are a group of registers that can only be accessed in privileged mode, such as machine mode or supervisor mode, those registers are capable of store status, or changing the system configurations, and can be read or written by CSR instructions.
 
 | Register               | Name                                          | Description                                                  |
 | ---------------------- | --------------------------------------------- | ------------------------------------------------------------ |
@@ -200,9 +202,9 @@ So I suppose you have understood the code logic here: at first set the `kmain` t
 
 ## 3. We need UART
 
-With the `mret` is executed, program is running into a new file: [`main.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/main.rs#L97), which is hard to tell if it's new, because we already have one, one not exactly since we will introduce a new function `kmain` to replace our previous `main`.
+With the `mret` is executed, the program is running into a new file: [`main.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/main.rs#L97), which is hard to tell if it's new, because we already have one, one not exactly since we will introduce a new function `kmain` to replace our previous `main`.
 
-Don't be frighten by a lot of new functions are called within `kmain`, we are not gonna need them currently, the only functions we should pay our attention on are the `Uart::init()` and `Console::init()`:
+Don't be frightened by a lot of new functions that are called within `kmain`, we are not gonna need them currently, the only functions we should pay our attention to are the `Uart::init()` and `Console::init()`:
 
 ```rust
 // main.rs
@@ -214,12 +216,11 @@ pub extern "C" fn kmain() {
     // if cpuid() == 0 {
         Uart::init();
         Console::init();
-        printf!("\nxv6 kernel is booting...\n\n");
       ... ...
 }
 ```
 
-QEMU generic [virtual platform](https://www.qemu.org/docs/master/system/riscv/virt.html) for risc-v supports a "NS16550 compatible UART". According to the memory address mapping we talked in the last chapter:
+QEMU generic [virtual platform](https://www.qemu.org/docs/master/system/riscv/virt.html) for risc-v supports a "NS16550 compatible UART". According to the memory address mapping we talked about in the last chapter:
 
 ```shell
 $ qemu-system-riscv64 -monitor stdio
@@ -240,14 +241,15 @@ address-space: I/O
 
 UART address starts from `0x1000000`. And there are about 10 registers to config and control the UART (for more details refer to the [16550 specification](http://byterunner.com/16550.html)).
 
-Let's go back to code. We can find all UART related code in the file [`uart.rs`](https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/uart.rs). And basically `Uart::init()` initialize the UART in the mode of 8 bits + 38.4k baud rate + FIFO with interrupt.
+Let's go back to code. We can find all UART related code in the file [`uart.rs`](https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/uart.rs). And basically `Uart::init()` initializes the UART in the mode of 8 bits + 38.4k baud rate + FIFO with interrupt.
 
 In fact, after initialize, we could directly put or get chars by the following code:
 
 ```rust
 // uart.rs
-// Please note that there are much more functions and line of code in the original uart.rs, 
+// Please note that there are many more functions and lines of code in the original uart.rs, 
 // but we won't need those right now, only the code here is necessary.
+pub(crate) static mut UART_INSTANCE: Uart = Uart::create();
 
 pub fn putc_sync(self: &mut Self, c: u8) {  
   // wait for Transmit Holding Empty to be set in LSR.
@@ -268,6 +270,8 @@ fn getc(self: &Self) -> i8 {
 Let's have a quick test to print a "A" to the console:
 
 ```rust
+// main.rs
+
 #[no_mangle]
 extern "C" fn kmain() {
   Uart::init();
@@ -282,5 +286,97 @@ extern "C" fn kmain() {
 A
 ```
 
-Awesome, we have printed the first letter! Since we can print a letter, then the `printf!()` is around the corner.
+Awesome, we have printed the first letter! Since we can print a letter, the `printf!()` is around the corner.
 
+
+
+## 3. printf!()
+
+At last, we got here. So far we already output a letter "A" through UART, the next we simply need to create a printer and call UART inside to print.
+
+Generally speaking, the only difference between UART with a printer is that the printer takes a format string rather than a character, which means the printer is on a higher abstraction level, and needs to conduct the preprocess of format string, to parse the format string to a standard string, and then crack down the string to characters. 
+
+Refer to the [`print.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/printf.rs#L12), the macro `printf!()` receives the input arguments as the "format_args":
+
+```rust
+// print.rs
+
+#[macro_export]
+macro_rules! printf
+{
+	($($arg:tt)*) => {
+        unsafe {
+            crate::printf::PRINTER.printf(core::format_args!($($arg)*))
+        }
+    };
+}
+
+pub fn printf(self: &mut Self, args: Arguments<'_>) {
+  // Like before, we won't need any locks here, the logic with locks could be commentted safely
+  let _ = unsafe { CONSOLE_INSTANCE.write_fmt(args).unwrap() };
+}
+```
+
+"format_args" allow us to print a string with params, such as `printf!("This is a {}", "param")`.
+
+The best part here is we don't need to do anything by ourselves to parse the relatively complex arguments: `"This is a {}"` and `"param"`.  There is a rust trait `core::fmt::Write` takes care of all that stuff!
+
+Let's go to the [`console.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/console.rs#L107):
+
+```rust
+// console.rs
+pub(crate) static mut CONSOLE_INSTANCE: Console = Console::create();
+
+impl Write for Console {
+    // The trait Write expects us to write the function write_str
+    // which looks like:
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        for c in s.bytes() {
+            self.putc(c as u16);
+        }
+        // Return that we succeeded.
+        Ok(())
+    }
+}
+
+pub fn putc(self: &mut Self, c: u16) {
+    unsafe {
+      if c == BACKSPACE {
+        // if the user typed backspace, overwrite with a space.
+        UART_INSTANCE.putc_sync(0x08); // ascii \b char
+        UART_INSTANCE.putc_sync(0x20); // ascii space char
+        UART_INSTANCE.putc_sync(0x08); // ascii \b char
+      } else {
+        UART_INSTANCE.putc_sync(c as u8);
+      }
+    }
+}
+```
+
+The `Write` trait implemented the function `write_fmt` by default, we only need to implement the `write_str` here and output the string that has already been parsed correctly. The string can be outputted by calling the UART function `putc_sync`.
+
+Finally, we could print something with `printf!()`!
+
+```rust
+// main.rs
+
+#[no_mangle]
+extern "C" fn kmain() {
+  Uart::init();
+  Console::init();
+  printf!("\nHello xv6-rust!\n");
+}
+```
+
+And the output:
+
+```shell
+... ...
+     Finished dev [unoptimized + debuginfo] target(s) in 1.60s
+     Running `qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`
+
+Hello xv6-rust!
+
+```
+
+It works!
