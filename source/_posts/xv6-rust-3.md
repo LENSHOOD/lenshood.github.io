@@ -116,7 +116,31 @@ Hence, we could get the simple RAM map as follows:
 
 {% asset_img 1.png %}
 
+And the interesting thing is, if you take one more step to check the section addresses by `readelf`, you'll find the `stack0` was actually located in the `rodata` section, because we define it as a `static` flied in the [`start.rs`](https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/start.rs#L13), but we use the `stack0` as the kernel stack, which is writable. 
+
+The reason why we can write a read-only flied without an exception, is at the beginning of `start()` we access it in the machine mode, and afterward we set the Physical Memory Protection to RWX across the range of `0~0x3ffffffffffff`, according to the last chapter, so that in the supervisor mode, the `stack0` can also be written.
+
 
 
 ## 2. Memory allocator
 
+So far we have known the physical RAM space, next let's see how to manage the RAM space so that it can easily be allocated and returned back.
+
+In xv6, the smallest unit of memory management is "page", which is 4096B by default, and we can adjust the page size by setting the [`PGSIZE`](https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/riscv.rs#L269). Basically RAM management is divide the RAM into numerous and consistent pages, like this:
+
+{% asset_img 2.png %}
+
+So now we have divided the RAM into 32689 pages, how to track them? How to allocate one or many pages to some code that would need such amount of pages? And how to recycle them in the end?
+
+Xv6 using the implicit list to track them, and each list item called a `Run`:
+
+```rust
+// kalloc.rs
+struct Run {
+    next: *mut Run,
+}
+```
+
+It's very very simple to be understood, the list actually only track the free pages, so the `next` pointer can directly put into the page space itself, avoid to introduce any extra memory space to save the pointer. Once a page been allocated, the whole 4096B can be used to store data, when it return back, we can find the correct position of that page by calculating its address.
+
+{% asset_img 3.png %}
