@@ -141,6 +141,66 @@ struct Run {
 }
 ```
 
-It's very very simple to be understood, the list actually only track the free pages, so the `next` pointer can directly put into the page space itself, avoid to introduce any extra memory space to save the pointer. Once a page been allocated, the whole 4096B can be used to store data, when it return back, we can find the correct position of that page by calculating its address.
+It's very simple to be understood, the list actually only track the free pages, so the `next` pointer can directly put into the page space itself, avoid to introduce any extra memory space to save the pointer. Once a page been allocated, the whole 4096B can be used to store data, when it return back, we can find the correct position of that page by calculating its address.
 
 {% asset_img 3.png %}
+
+Based on the above image, we can better realize how xv6 manage its RAM. During the kernel starting, the available RAM space will be initialized by divided in to pages, and fill with junk data:
+
+```rust
+// kalloc.rs
+pub fn kinit() {
+  ... ...
+  // Range: From "end" to "PHYSTOP"
+  KMEM.freerange((&mut end) as *mut u8, PHYSTOP as *mut u8);
+  ... ...
+}
+
+fn freerange<T: Sized>(self: &mut Self, pa_start: *mut T, pa_end: *mut T) {
+  let mut p = PGROUNDUP!(pa_start);
+  while p + PGSIZE <= pa_end as usize {
+    self.kfree(p as *mut T);
+    p += PGSIZE;
+  }
+}
+
+pub fn kfree<T: Sized>(self: &mut Self, pa: *mut T) {
+  ... ...
+  // Fill with junk to catch dangling refs.
+  memset(pa as *mut u8, 1, PGSIZE);
+  // Build "Run" in each pages
+  let r = pa as *mut Run;
+  (*r).next = self.freelist;
+  // "freelist" is the head of the implicit list
+  self.freelist = r;
+  ... ...
+}
+```
+
+When the initialize completed, then any kernel code could call `kalloc()` to get one page of available memory:
+
+```rust
+// kalloc.rs
+pub fn kalloc<T: Sized>(self: &mut Self) -> *mut T {
+  ... ...
+  // Get the latest free page "r" to be allocated
+  let r = self.freelist;
+  if !r.is_null() {
+    unsafe {
+      // Delete the "r" from free list
+      self.freelist = (*r).next;
+    }
+  }
+  ... ...
+  r as *mut T
+}
+```
+
+Please note that, til then all of the addresses and pages we have talked about are physical memory, actually before a page been used, its address must be converted to the virtual address. Next we'll go to the virtual memory part.
+
+
+
+## 3. Virtual Memory
+
+
+
