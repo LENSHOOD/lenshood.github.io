@@ -202,5 +202,39 @@ Please note that, til then all of the addresses and pages we have talked about a
 
 ## 3. Virtual Memory
 
+Virtual memory mechanism is the key to achieve the memory virtualization, modern processes usually support virtual memory in hardware level, which includes address translation, permission control and related interrupts.
+
+In risc-v architecture, virtual memory management is based on page, variety of page table structure modes are supported in risc-v, like Sv32, Sv39 and Sv48, even Sv52, the number behind the "Sv" indicates the address width, for example, "Sv39" is the short for "Supervisor Virtual addressing with 39-bit virtual addresses", which means under the Sv39 mode, the virtual address space that a process can accessing is $2^{39}$ bytes that around 512GiB.
+
+Let's recap the `satp` CSR mentioned in the last chapter, and go one step deeper(more details please see *[The RISC-V Instruction Set Manual: Volume II: 10.1.11.](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view)*):
+
+{% asset_img 4.png %}
+
+Above image is the definition of `satp`, it contains three parts, the first part defines the mode, like the following image:
+
+{% asset_img 5.png %}
+
+Xv6 uses risc-v64 and Sv39, so the highest 4bit would be `0x8`.
+
+The second part "ASID" basically provide better performance by allow OS to hint TLB through it, however, xv6 doesn't using such feature.
+
+The third part "PPN" is called physical page number, the `stap.PPN` should be set to the PPN of the root page table, so that the processor can find page table through it.
+
+Talking about page table, what exactly the page table structure being defined in Sv39? Let's have a look, in the meantime, there are much more details in *[The RISC-V Instruction Set Manual: Volume II: 10.3 ~ 10.6.](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view)*, please check it if you are interested.
+
+In fact, not only risc-v, almost all page tables share the concept of multi-level page table entries. We can have an example to make it clearer for understanding:
+
+Say we have a variable `a` located in a process's stack, which virtual address is `0xff_ffff_ffff_c000`(you'll know why we choose such a bug number afterward in the following sections). And we assume it's physical address is `0x80050000`, so if we need a page table right now to hold such mapping relationship, the simplest way is having an array to acts as a table, like this:
+
+ {% asset_img 6.png %}
+
+If we don't yet care how we got such a huge array, which size is exactly as same as the 39-bit space, the index of the array represents virtual address, while the value represents physical address. This at least makes our "theoretically" page table available.
+
+But it's no doubt that this won't work. Considering 99.99% of the above page table are not been used, but the space still need to be occupied since array is consistent. Can we use more space efficient way like linked list? Not really, because address translation is a very high frequency operation which requires very low latency.
+
+Then multi-level page table will be our final solution:
+
+
+
 
 
