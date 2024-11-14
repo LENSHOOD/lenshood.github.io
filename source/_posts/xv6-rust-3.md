@@ -224,7 +224,7 @@ Talking about page table, what exactly the page table structure being defined in
 
 In fact, not only risc-v, almost all page tables share the concept of multi-level page table entries. We can have an example to make it clearer for understanding:
 
-Say we have a variable `a` located in a process's stack, which virtual address is `0xff_ffff_ffff_c000`(you'll know why we choose such a bug number afterward in the following sections). And we assume it's physical address is `0x80050000`, so if we need a page table right now to hold such mapping relationship, the simplest way is having an array to acts as a table, like this:
+Say we have a variable `a` located in a process's stack, which virtual address is `0x3f_fff7_e000`(you'll know why we choose such a bug number afterward in the following sections). And we assume it's physical address is `0x80050000`, so if we need a page table right now to hold such mapping relationship, the simplest way is having an array to acts as a table, like this:
 
  {% asset_img 6.png %}
 
@@ -232,7 +232,21 @@ If we don't yet care how we got such a huge array, which size is exactly as same
 
 But it's no doubt that this won't work. Considering 99.99% of the above page table are not been used, but the space still need to be occupied since array is consistent. Can we use more space efficient way like linked list? Not really, because address translation is a very high frequency operation which requires very low latency.
 
-Then multi-level page table will be our final solution:
+Then multi-level page table turns out to be the final solution:
+
+ {% asset_img 7.png %}
+
+With the multi-level approach, only a few of page table will be created, like the above image, if we want to store the mapping `0x3f_fff7_e000 -> 0x80050000`, we only need for 512-entries page table, assume an entry store a 64-bit number(the first three store the next page table address, the last one store the physical address), then they only take $512 * 8 * 4 = 16\ KiB$ space in total.
+
+More importantly, the virtual memory structure manages memory by page, one page in Sv39 is 4096-bit, which is $2^{12}$, therefore, actually we don't need the low 12 bits at all, since the last 12 bits in each page is 12 bits 0. risc-v make use of this 12-bit to record permissions.  The following image shows format of virtual address, physical address and PTE(page table entry) in Sv39:
+
+ {% asset_img 8.png %}
+
+The PTE flags `R`, `W`, `X` indicate the read, write and execute permission of the PTE, U indicates user mode, V use to identify if the PTE is valid.
+
+
+
+## 4. Initialize kernel virtual memory
 
 
 
