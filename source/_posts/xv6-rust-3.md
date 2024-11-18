@@ -1,5 +1,5 @@
 ---
-title: Easy piece 1: Virtualization - virtual memory
+title: /Xv6 Rust 0x03/ - Easy Piece of Virtualization (virtual memory)
 date: 2024-11-08 23:29:43
 tags:
 - xv6
@@ -238,7 +238,7 @@ Then multi-level page table turns out to be the final solution:
 
  {% asset_img 7.png %}
 
-With the multi-level approach, only a few of page tables will be created, like the above image, if we want to store the mapping `0x3f_fff7_e000 -> 0x80050000`, we only need for 512-entries page table, assume an entry store a 64-bit number(the first three store the next page table address, the last one store the physical address), then they only take $512 * 8 * 4 = 16\ KiB$ space in total.
+With the multi-level approach, only a few of page tables will be created, like the above image, if we want to store the mapping `0x3f_fff7_e000 -> 0x80050000`, we only need for 512-entries page table, assume an entry store a 64-bit number(the first three store the next page table address, the last one store the physical address), then they only take $512 * 8 * 4 = 16\ KiB$ space in total. Calculate each level's table index is simply left shift the virtual address for a few bits, please check the detail in the function [`walk()`](https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/vm.rs#L183).
 
 More importantly, the virtual memory structure manages memory by page, one page in Sv39 is 4096-bit, which is $2^{12}$, therefore, actually we don't need the low 12 bits at all, since the last 12 bits in each page is 12 bits 0. risc-v make use of this 12-bit to record permissions.  The following image shows format of virtual address, physical address and PTE(page table entry) in Sv39:
 
