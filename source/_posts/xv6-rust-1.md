@@ -33,7 +33,7 @@ As we are going to port the xv6 to rust, at the very first, we better take a loo
 >
 > - MBP 2019, Intel
 > - cargo 1.75.0-nightly (b4d18d4bd 2023-10-31), some features rely on nightly build
-> - ustup 1.26.0 (5af9b9484 2023-04-05)
+> - rustup 1.26.0 (5af9b9484 2023-04-05)
 > - CLion 2024.1, (I didn't choose RustRover, because after giving it a try I found it still not stable)
 
 Here we go! Let's create a new rust project, and name it "xv6-rust-sampe".
@@ -71,22 +71,21 @@ error[E0463]: can't find crate for `std`
   = note: the `riscv64gc-unknown-none-elf` target may not support the standard library
   = note: `std` is required by `xv6_rust_sample` because it does not declare `#![no_std]`
   = help: consider building the standard library from source with `cargo build -Zbuild-std`
+```
 
+Surprise! You have met the first issue in our journey, risc-v toolchain doesn't support the `std` lib!
+
+Follow the error hints, we better add the `#![no_std]` to our code. And our second challenge is just right behind: 
+
+```shell
 error: cannot find macro `println` in this scope
  --> src/main.rs:2:5
   |
 2 |     println!("Hello, world!");
   |     ^^^^^^^
-
-error: `#[panic_handler]` function required, but not found
-
-For more information about this error, try `rustc --explain E0463`.
-error: could not compile `xv6-rust-sample` (bin "xv6-rust-sample") due to 3 previous errors
 ```
 
-Surprise! You have met the first issue in our journey, risc-v toolchain doesn't support the `std` lib!
-
-Follow the error hints, we better add the `#![no_std]` to our code. And our second challenge is just right behind: no `std` no `println!()`, WTF?
+No `std`, no `println!()`. WTF?
 
 Unfortunately, yes. Actually we will take one whole chapter to implement `printf!()` macro in the next article, which also means, we are not gonna have it today.
 
@@ -102,7 +101,7 @@ fn main() {
 
 Hopefully, at least we can check the value of `i` in debugger, and if the value is equal to 1000, then it can prove we successfully run rust code on risc-v as well.
 
-The third monster shows up:
+Here, the third monster shows up:
 
 ```shell
 error: `#[panic_handler]` function required, but not found
@@ -121,11 +120,11 @@ pub fn panic(info: &core::panic::PanicInfo) -> ! {
 }
 ```
 
-In the above code, some weird stuff shows up. What is "wfi"? (at least I can assure you it's not wifi) 
+In the above code, there is some weird stuff. What is "wfi"? (at least I can assure you it's not wifi) 
 
 According to the [risc-v ISA](https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf) section 3.2.3: "The Wait for Interrupt instruction (WFI) provides a hint to the implementation that the current hart can be stalled until an interrupt might need servicing', FYI, the word "hart" means hardware thread.
 
-Essentially, we put a "wfi" into a loop, which means if any panic happens, instead of reporting some error, we just let the cpu stall. Besides, the macro "core::arch::asm!()" is a wrapper that will let us easily run assembly in rust code, since there is no `std` lib here, we replace it as `core`(not surprisingly, it doesn't contain a `println!()`), for more details about `core`, check [here](https://doc.rust-lang.org/core/#).
+Essentially, we put a "wfi" into a loop, which means if any panic happens, instead of reporting some error, we just let the cpu stall. Besides, the macro `core::arch::asm!()` is a wrapper that will let us easily run assembly in rust code, since there is no `std` lib here, we can only import standard libraries from the `core` lib (not surprisingly, it doesn't contain a `println!()`), for more details about `core`, check [here](https://doc.rust-lang.org/core/#).
 
 All right, after adding the panic handler, and re-run `cargo run`, we will get our final issue: 
 
@@ -367,7 +366,7 @@ If we move one step forward, decompile the program with obj-dump, and see the as
     8000001c:   8082                    ret
 ```
 
-Yes, the stack pointer! `sp` is initially zero, so that after line 80000000, the `sp` will be set to `0x0 - 0xf = `(we are on the 64-bit platform). 
+Yes, the stack pointer! `sp` is initially zero, so that after line 80000000, the `sp` will be set to `0x0 - 0x10 = 0xfffffffffffffff0`(we are on the 64-bit platform). 
 
 Unfortunately, at line 80000006, the value of a0 will be saved to `sp + 12`, which is `0xfffffffffffffffc`, but obviously this address is illegal. If you remember, we only create a VM with 128MiB memory, which means the available physical address range is `0x80000000 ~ 0x88000000`.
 
