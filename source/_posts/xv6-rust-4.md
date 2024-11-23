@@ -37,7 +37,7 @@ We can simply recap the machine code we introduced in the first two chapters as 
 - How to manage the process lifecycle, including create, destroy, and error handling?
 - How to allocate and restore memory to and from processes
 
-Actually, if a kernel implements all above points, then it has all elements to run multiple processes. So let's take a first look at the design of xv6 process:
+Actually, if a kernel implements all above points, then it has all elements to run multiple processes. So let's take a first look at the design of xv6 process (you can also check the real code at [here](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L168)):
 
 {% asset_img 1.png %}
 
@@ -51,9 +51,9 @@ The "Open Files" tracks any files that opened by the process, we haven't talked 
 
 The "Parent" to track the process parent, like linux, the xv6 also create a new process by `fork()`, therefore, every process should have a parent process.
 
-The "Kernel Stack" allows running kernel code on the address space of a process. After all, for safety purpose, user process cannot share a same stack with kernel.
+The "Kernel Stack" allows running kernel code on the address space of a process. After all, every process needs to interact with kernel through different types of syscalls, for safety purpose, user process cannot share a same stack with kernel.
 
-The "Trap Frame" stores user space process data, this kind of data will be saved and restored when switching between user space and kernel space.
+The "Trap Frame" stores user space process data, this kind of data will be saved and restored when switching between user space and kernel space. We'll cover this part in the following chapter about interrupt and syscall.
 
 The "Page Table" records the mapping between virtual memory and physical memory. We have described virtual memory in the previous chapter, actually every process should have its own page table.
 
@@ -62,6 +62,92 @@ The "Context" records the basic registers a process is using. When a process nee
 
 
 ## 2. Process Memory
+
+The previous code `xv6-rust-sample` set it address space starts from `0x80000000`, and put its text section at the beginning of the address, then set the code entry at there. So where should a process starts from?
+
+We could refer the process creation syscall [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/exec.rs#L61) to find out (again, we'll cover this in a later chapter):
+
+```rust
+// exec.rs
+pub fn exec(path: [u8; MAXPATH], argv: &[Option<*mut u8>; MAXARG]) -> i32 {
+  ... ...
+	for _i in 0..elf.phnum {
+        // load program from file system
+      	let tot = ip.readi(false, &mut ph, off, ph_sz);
+        ... ...
+        // allocate enough space and map into process page table
+        let sz1 = uvmalloc(
+            page_table,
+            sz,
+            (ph.vaddr + ph.memsz) as usize,
+            flags2perm(ph.flags),
+        );
+        ... ...
+    		// the program will be loaded into virtual address ph.vaddr
+        if loadseg(page_table, ph.vaddr, ip, ph.off, ph.filesz) < 0 {
+            ... ...
+        }
+    }
+    ... ...
+    // the entry point will be set into "sepc" csr later
+    tf.epc = elf.entry; // initial program counter = main
+}
+```
+
+From above code, we realized the program will be loaded into `ph.vaddr`, actually `ph` means "ProgramHeader", which is also ELF format, therefore, to find the real entry point, we have to check the [linker script](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/user/src/ld/user.ld#L7) of user program:
+
+```ld
+// user/src/ld/user.ld
+OUTPUT_ARCH( "riscv" )
+ENTRY( main )
+
+SECTIONS
+{
+ . = 0x0;
+ 
+ ... ...
+
+ PROVIDE(end = .);
+}
+```
+
+Obviously, a user program starts from `main`, and the entry address is `0x0`. Of cause we can change that to any address, because the entry address will be set into the CSR "sepc", and once the CPU switch to user mode, the user program will start from there.
+
+Besides, like we mentioned before, every processes need a dedicated stack that allows kernel [code](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L272) running on it. The following code shows the initialization of every kernel stacks:
+
+```rust
+// proc.rs
+pub fn proc_mapstacks(kpgtbl: &mut PageTable) {
+    for idx in 0..NPROC {
+        unsafe {
+            let pa_0: *mut u8 = KMEM.kalloc();
+            let pa_1: *mut u8 = KMEM.kalloc();
+            let va = KSTACK!(idx);
+            kvmmap(kpgtbl, va, pa_0 as usize, PGSIZE, PTE_R | PTE_W);
+            kvmmap(kpgtbl, va + PGSIZE, pa_1 as usize, PGSIZE, PTE_R | PTE_W);
+        }
+    }
+}
+
+// memlayout.rs
+#[macro_export]
+macro_rules! KSTACK {
+    ( $p:expr ) => {
+        $crate::memlayout::TRAMPOLINE - (($p) + 1) * 3 * $crate::riscv::PGSIZE
+    };
+}
+```
+
+We have already introduced `proc_mapstacks()` in the previous chapter, but no details about it. Here, apparently this function allocates two pages for each process as their kernel stack.
+
+Vm structure?
+
+But there are some interest things here:
+
+1. In the original xv6 implementation with C language, one process only have one page of stack, however, in my rust version, many core lib functions were introduced, cause one page (4096 bytes) of stack is not enough, lead to risc-v throw an invalid access exception. Hence, the kernel stack is extended to two pages, and that's enough at least now. You may wondering, we have set nearly all address space available for RWX permission (refer to chapter 2, pmpaddr0 / pmpcfg0) how can it possible to throw an exception of no access permission? Let's move to the second interesting thing.
+2.  The access exception relates to the macro `KSTACK!()`. If you see it carefully, you may find this macro actually makes each process has 3 pages of stack space, but we only allocate 2 pages for it, and leave the last page of stack space with no physical memory mapping to it. If any code allocate stack exceeded the 2 pages stack, the `sp` will point to the third stack page, which is invalid because of no mapped physical memory, then the exception is thrown. This kind of page called "guard page", it can prevent other process's stack from accidentally overwritten by an overflowed stack operation. (There's a defect here that if the applied stack space exceeded more than one page, then it can break the guard in some cases)
+
+Stack structure?
 
 
 
