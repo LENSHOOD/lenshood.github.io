@@ -140,14 +140,14 @@ macro_rules! KSTACK {
 
 We have already introduced `proc_mapstacks()` in the previous chapter, but no details about it. Here, apparently this function allocates two pages for each process as their kernel stack.
 
-Vm structure?
-
 But there are some interest things here:
 
 1. In the original xv6 implementation with C language, one process only have one page of stack, however, in my rust version, many core lib functions were introduced, cause one page (4096 bytes) of stack is not enough, lead to risc-v throw an invalid access exception. Hence, the kernel stack is extended to two pages, and that's enough at least now. You may wondering, we have set nearly all address space available for RWX permission (refer to chapter 2, pmpaddr0 / pmpcfg0) how can it possible to throw an exception of no access permission? Let's move to the second interesting thing.
 2.  The access exception relates to the macro `KSTACK!()`. If you see it carefully, you may find this macro actually makes each process has 3 pages of stack space, but we only allocate 2 pages for it, and leave the last page of stack space with no physical memory mapping to it. If any code allocate stack exceeded the 2 pages stack, the `sp` will point to the third stack page, which is invalid because of no mapped physical memory, then the exception is thrown. This kind of page called "guard page", it can prevent other process's stack from accidentally overwritten by an overflowed stack operation. (There's a defect here that if the applied stack space exceeded more than one page, then it can break the guard in some cases)
 
-Stack structure?
+{% asset_img 2.png %}
+
+Above image shows the location of the process stacks, it's worth noting that all of these stacks are allocated while kernel is starting, so they occupy physical memory all the time, on the contrary, if a user process needs some memory to store data, they can do that by calling syscall `mmap()`, which can dynamically allocate memory space.
 
 
 
