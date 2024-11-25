@@ -153,6 +153,67 @@ Above image shows the location of the process stacks, it's worth noting that all
 
 ## 3. Concurrency
 
+Once the concept of multiple tasks is introduced,  the data contention issue will be definitely along with too. Additionally, although we only assign one cpu core in the QEMU runner, multiple cpu cores is also allowed for xv6 to run. Therefore, there should be some form of mechanisms to take care of the concurrency and parallelization.
+
+The most fundamental thing of concurrency is lock. I suppose you have noticed that there were many code examples in the previous chapters contain locks, but we just ignored them and said we would cover them later. Here we are going to cover this part.
+
+`SpinLock` is the simplest lock implementation, the definition is as follow:
+
+```rust
+pub struct Spinlock {
+    locked: u64, // Is the lock held?
+    name: &'static str,             // For debugging: Name of lock.
+    cpu: Option<*mut Cpu<'static>>, // The cpu holding the lock.
+}
+```
+
+From the definition, we can learn that it's basically a value holder, `locked == 1` indicates the lock is held, otherwise if `locked == 0` means the lock is released. Besides, there is a reference `cpu` points to current cpu, which also means the `SpinLock` is related to specific cpu.
+
+So how does it work? Let's look closer:
+
+```rust
+impl Spinlock {
+    pub fn acquire(self: &mut Self) {
+        push_off(); // disable interrupts to afn deadlock.
+
+        // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
+        //   a5 = 1
+        //   s1 = &lk->locked
+        //   amoswap.w.aq a5, a5, (s1)
+        while __sync_lock_test_and_set(&mut self.locked, 1) != 0 {}
+        __sync_synchronize();
+
+        self.cpu = Some(mycpu());
+    }
+
+    pub fn release(self: &mut Self) {
+        self.cpu = None;
+
+        __sync_synchronize();
+        // On RISC-V, sync_lock_release turns into an atomic swap:
+        //   s1 = &lk->locked
+        //   amoswap.w zero, zero, (s1)
+        __sync_lock_release(&self.locked);
+
+        pop_off();
+    }
+
+    /// Check whether this cpu is holding the lock.
+    /// Interrupts must be off.
+    pub fn holding(self: &Self) -> bool {
+        self.locked == 1 && self.cpu == Some(mycpu())
+    }
+}
+```
+
+The `SpinLock` essentially using the atomic "test and swap" instruction `amoswap` provided by risc-v, and in the phase of acquire, since the lock might be held by another cpu, so it simply retry forever inside a loop to keep applying the lock (there is no logic such as wait in a queue to let it wait effectively, because `SpinLock` is the simplest implementation here). But when it comes to release the lock, since the lock has already held by current cpu, so try loop is no longer need. 
+
+However, any unexpected interruption is able to break the lock, so we can noticed that once the lock is held, the cpu interrupt will  be disabled. Of cause this will significantly impact the performance, but after all, for a teaching OS, simplicity is more important than performance :) .
+
+At last, the `__sync_synchronize()` internally call `fence` instruction, to keep the memory ordering before and after the "test and swap". And since the “AMO” instructions in risc-v by default not support any memory barrier(need to add extra "aq, rl" after the instruction), and to make sure the compiler can also realize the memory ordering, the `fence` is added before and after the "AMO" instructions to ensure the correct memory ordering in both cpu and compiler. The memory model of risc-v is complicated, here is a [good video](https://youtu.be/QkbWgCSAEoo?si=0cMjiypXe8iTUntZ) to talk about that.
+
+
+
 
 
 ## 4. Scheduling
