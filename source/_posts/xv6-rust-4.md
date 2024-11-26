@@ -157,7 +157,7 @@ Once the concept of multiple tasks is introduced,  the data contention issue wil
 
 The most fundamental thing of concurrency is lock. I suppose you have noticed that there were many code examples in the previous chapters contain locks, but we just ignored them and said we would cover them later. Here we are going to cover this part.
 
-`SpinLock` is the simplest lock implementation, the definition is as follow:
+[`Spinlock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/spinlock.rs#L7) is the simplest lock implementation, the definition is as follow:
 
 ```rust
 pub struct Spinlock {
@@ -167,7 +167,7 @@ pub struct Spinlock {
 }
 ```
 
-From the definition, we can learn that it's basically a value holder, `locked == 1` indicates the lock is held, otherwise if `locked == 0` means the lock is released. Besides, there is a reference `cpu` points to current cpu, which also means the `SpinLock` is related to specific cpu.
+From the definition, we can learn that it's basically a value holder, `locked == 1` indicates the lock is held, otherwise if `locked == 0` means the lock is released. Besides, there is a reference `cpu` points to current cpu, which also means the `Spinlock` is related to specific cpu.
 
 So how does it work? Let's look closer:
 
@@ -206,13 +206,53 @@ impl Spinlock {
 }
 ```
 
-The `SpinLock` essentially using the atomic "test and swap" instruction `amoswap` provided by risc-v, and in the phase of acquire, since the lock might be held by another cpu, so it simply retry forever inside a loop to keep applying the lock (there is no logic such as wait in a queue to let it wait effectively, because `SpinLock` is the simplest implementation here). But when it comes to release the lock, since the lock has already held by current cpu, so try loop is no longer need. 
+The `Spinlock` essentially using the atomic "test and swap" instruction `amoswap` provided by risc-v, and in the phase of acquire, since the lock might be held by another cpu, so it simply retry forever inside a loop to keep applying the lock (there is no logic such as wait in a queue to let it wait effectively, because `Spinlock` is the simplest implementation here). But when it comes to release the lock, since the lock has already held by current cpu, so try loop is no longer need. 
 
 However, any unexpected interruption is able to break the lock, so we can noticed that once the lock is held, the cpu interrupt will  be disabled. Of cause this will significantly impact the performance, but after all, for a teaching OS, simplicity is more important than performance :) .
 
 At last, the `__sync_synchronize()` internally call `fence` instruction, to keep the memory ordering before and after the "test and swap". And since the “AMO” instructions in risc-v by default not support any memory barrier(need to add extra "aq, rl" after the instruction), and to make sure the compiler can also realize the memory ordering, the `fence` is added before and after the "AMO" instructions to ensure the correct memory ordering in both cpu and compiler. The memory model of risc-v is complicated, here is a [good video](https://youtu.be/QkbWgCSAEoo?si=0cMjiypXe8iTUntZ) to talk about that.
 
+Now we got familiar with the basic lock, in the next let's take a look at [`Sleeplock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/sleeplock.rs#L6):
 
+ ```rust
+ pub struct Sleeplock {
+     locked: u64,  // Is the lock held?
+     lk: Spinlock, // spinlock protecting this sleep lock
+ 
+     // For debugging:
+     name: &'static str, // Name of lock.
+     pid: u32,           // Process holding lock
+ }
+ ```
+
+`Sleeplock` holds a `Spinlook`, which utilizing `Spinlook` as an internal lock to protect its inner fields. However, `Sleeplock` was designed to be a lock that is held in a relatively long period of time. It doesn't rely on `Spinlock`, instead, introduced a "sleep / wakeup" mechanism to allow the lock waiter sleeping until it woke up by the lock holder who is releasing the lock:
+
+```rust
+pub fn acquire_sleep(self: &mut Self) {
+    self.lk.acquire();
+
+    while self.locked != 0 {
+      // once a process falls sleep, it will no longer spend
+      // any CPU cycles to check if the lock is released
+      sleep(self as *const Sleeplock, &mut self.lk);
+    }
+    self.locked = 1;
+    let p = myproc();
+    self.pid = p.pid;
+    self.lk.release();
+}
+
+pub fn release_sleep(self: &mut Self) {
+    self.lk.acquire();
+    self.locked = 0;
+    self.pid = 0;
+  	// wake up all processes that are waiting for this lock
+    wakeup(&self);
+    self.lk.release();
+}
+```
+
+In xv6, device interaction logic such as file system reading or writing would need `Sleeplock`, as the interaction between cpu with device often takes a long time.  But, how does the "sleep / wakeup" work? Let's go to the next section to see how xv6 deal with process switching.
 
 
 
