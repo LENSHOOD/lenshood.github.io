@@ -258,6 +258,38 @@ In xv6, device interaction logic such as file system reading or writing would ne
 
 ## 4. Scheduling
 
+With the introduction of virtual memory, our process can have its own memory to store the text and data, especially, its stack. Now, there is only one question left, how to put the process on a cpu and run? This question is asked from the process perspective, if we think as we are the kernel, this is a even more important question, how can the kernel run multiple processes simultaneously?
+
+Before deep dive into the kernel implementation to answering the above questions, we should have a preliminary understanding, that is process doesn't decide when to run, kernel does, process doesn't control the switch, kernel does (but process do can influence the kernel‘s decision).
+
+The following image shows the process management and scheduling of the xv6:
+
+{% asset_img 3.png %}
+
+Firstly, there are two arrays that store 64 proc structs and 8 cpu structs respectively, all of the proc structs are empty at the beginning and each of them can hold real process data, as well as cpu structs, which can hold cpu data.
+
+We have talked what data fields are in the process at first section, let's see what data filed that a cpu struct can hold:
+
+```rust
+pub struct Cpu<'a> {
+    proc: Option<*mut Proc<'a>>,
+    // The process running on this cpu, or null.
+    context: Context,
+    // swtch() here to enter scheduler().
+    pub noff: u8,
+    // Depth of push_off() nesting.
+    pub intena: bool, // Were interrupts enabled before push_off()?
+}
+```
+
+It's very straightforward that a cpu can hold a `proc` reference, to indicate the current process that running on the cpu, and this filed can also be empty if there is not much process to be run.
+
+The `context` hold the registers state that before the current process has been switched. Therefore, no matter what happens that let the kernel decide to switch the current process off the cpu, the `context` can always be restored so that the kernel scheduler code can be run to choose the next process.
+
+Other two fields `noff` and `intena` are work together to record the lock depth that is using for control the interrupt, we'll check them in the later chapter.
+
+
+
 
 
 ## 5. Process Lifecycle
