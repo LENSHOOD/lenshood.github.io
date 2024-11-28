@@ -160,6 +160,7 @@ The most fundamental thing of concurrency is lock. I suppose you have noticed th
 [`Spinlock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/spinlock.rs#L7) is the simplest lock implementation, the definition is as follow:
 
 ```rust
+// spinlock.rs
 pub struct Spinlock {
     locked: u64, // Is the lock held?
     name: &'static str,             // For debugging: Name of lock.
@@ -172,6 +173,7 @@ From the definition, we can learn that it's basically a value holder, `locked ==
 So how does it work? Let's look closer:
 
 ```rust
+// spinlock.rs
 impl Spinlock {
     pub fn acquire(self: &mut Self) {
         push_off(); // disable interrupts to afn deadlock.
@@ -215,6 +217,7 @@ At last, the `__sync_synchronize()` internally call `fence` instruction, to keep
 Now we got familiar with the basic lock, in the next let's take a look at [`Sleeplock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/sleeplock.rs#L6):
 
  ```rust
+ // sleeplock.rs
  pub struct Sleeplock {
      locked: u64,  // Is the lock held?
      lk: Spinlock, // spinlock protecting this sleep lock
@@ -228,6 +231,7 @@ Now we got familiar with the basic lock, in the next let's take a look at [`Slee
 `Sleeplock` holds a `Spinlook`, which utilizing `Spinlook` as an internal lock to protect its inner fields. However, `Sleeplock` was designed to be a lock that is held in a relatively long period of time. It doesn't rely on `Spinlock`, instead, introduced a "sleep / wakeup" mechanism to allow the lock waiter sleeping until it woke up by the lock holder who is releasing the lock:
 
 ```rust
+// sleeplock.rs
 pub fn acquire_sleep(self: &mut Self) {
     self.lk.acquire();
 
@@ -271,6 +275,7 @@ Firstly, there are two arrays that store 64 proc structs and 8 cpu structs respe
 We have talked what data fields are in the process at first section, let's see what data filed that a cpu struct can hold:
 
 ```rust
+// proc.rs
 pub struct Cpu<'a> {
     proc: Option<*mut Proc<'a>>,
     // The process running on this cpu, or null.
@@ -288,9 +293,174 @@ The `context` hold the registers state that before the current process has been 
 
 Other two fields `noff` and `intena` are work together to record the lock depth that is using for control the interrupt, we'll check them in the later chapter.
 
+Now let's take a close look at the scheduling. Not like modern multi-tasks OS such as Linux, which has very complicated scheduling component that can make sure the cpu is fully utilized for many different scenarios, instead, the scheduling algorithm is very very simple in the xv6:
 
+```rust
+// proc.rs
+
+// Per-CPU process scheduler.
+// Each CPU calls scheduler() after setting itself up.
+// Scheduler never returns.  It loops, doing:
+//  - choose a process to run.
+//  - swtch to start running that process.
+//  - eventually that process transfers control
+//    via swtch back to the scheduler.
+pub fn scheduler() {
+    let c = mycpu();
+
+    c.proc = None;
+    loop {
+        // Avoid deadlock by ensuring that devices can interrupt.
+        intr_on();
+
+        for p in unsafe { &mut PROCS } {
+            p.lock.acquire();
+            if p.state == RUNNABLE {
+                // Switch to chosen process.  It is the process's job
+                // to release its lock and then reacquire it
+                // before jumping back to us.
+                p.state = RUNNING;
+                c.proc = Some(p);
+                unsafe { swtch(&c.context, &p.context) }
+
+                // Process is done running for now.
+                // It should have changed its p->state before coming back.
+                c.proc = None;
+            }
+            p.lock.release();
+        }
+    }
+}
+```
+
+The code comments have already make it quite clear. Just like the previous image shows, each cpu has its own scheduler, and the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function running in a loop, which only do one thing: pick up a `RUNNABLE` process (ready to run but not run yet) and then put it on current cpu. Of cause due to potential concurrency modification in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641), a lock should be held whenever access the `PROCS` array.
+
+But how exactly is the process put on the cpu? That relies on a key assembly function [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9):
+
+```assembly
+### switch.S
+.globl swtch
+swtch:
+        sd ra, 0(a0)
+        sd sp, 8(a0)
+        sd s0, 16(a0)
+        sd s1, 24(a0)
+        sd s2, 32(a0)
+        sd s3, 40(a0)
+        sd s4, 48(a0)
+        sd s5, 56(a0)
+        sd s6, 64(a0)
+        sd s7, 72(a0)
+        sd s8, 80(a0)
+        sd s9, 88(a0)
+        sd s10, 96(a0)
+        sd s11, 104(a0)
+
+        ld ra, 0(a1)
+        ld sp, 8(a1)
+        ld s0, 16(a1)
+        ld s1, 24(a1)
+        ld s2, 32(a1)
+        ld s3, 40(a1)
+        ld s4, 48(a1)
+        ld s5, 56(a1)
+        ld s6, 64(a1)
+        ld s7, 72(a1)
+        ld s8, 80(a1)
+        ld s9, 88(a1)
+        ld s10, 96(a1)
+        ld s11, 104(a1)
+
+        ret
+```
+
+Basically the [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9) exchanges values of several registers, here is the [calling convention](https://drive.google.com/file/d/1Ja_Tpp_5Me583CGVD-BIZMlgGBnlKU4R/view) of risc-v:
+
+{% asset_img 4.png %}
+
+According to this, the `ra` refers to "return address", which means after `ret` the cpu will running code from the address stored in the `ra`. The fun thing is a function usually return to its calling address, however, [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9) no longer returns to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641), , instead it will return to the `ra` from the `p.context`, which is the second argument of the [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9).
+
+But what's in the `p.context.ra`? We need to check the process creation function [`inner_alloc()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L460):
+
+```rust
+fn inner_alloc<'a>(p: &'a mut Proc<'a>) -> Option<&'a mut Proc<'a>> {
+    p.pid = allocpid();
+    p.state = USED;
+
+    ... ...
+
+    // Set up new context to start executing at forkret,
+    // which returns to user space.
+    p.context.ra = forkret as u64;
+    p.context.sp = (p.kstack + 2 * PGSIZE) as u64;
+    Some(p)
+}
+```
+
+See, the `ra` set to `forkret`, and the `sp` set to the `kstack` that initialized in the `proc_mapstacks()`(we've talked this function in the second section). We won't discuss the detail of the `forkret` in this chapter, but all you need to know right now is that through [`forkret`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L426) the program can eventually jump to the first line of code in the user process.
+
+Go back to the `swtch`, at the same time as the values from `p.context` are set to cpu registers, the original registers are also stored into the first argument `c.context`, which hold by the `CPU` structure. So next time when the current on-cpu process needs to be switch off the cpu, the program can be restored to the `scheduler()`. 
+
+In the following section, we'll see some cases that will make a process switch off its cpu.
 
 
 
 ## 5. Process Lifecycle
+
+As mentioned in the first section, a process has a "State" field to record its status, there are several status defined:
+
+```rust
+// proc.rs
+pub(crate) enum Procstate {
+    UNUSED,
+    USED,
+    SLEEPING,
+    RUNNABLE,
+    RUNNING,
+    ZOMBIE,
+}
+```
+
+I suppose we have seen some of them, for example, when the `PROCS` array has been initialized, all of the proc struct it holds, are set their status to "UNUSED", and once a process has been created, its state will be set to "USED", refer to the function  [`inner_alloc()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L460) we have just talked.
+
+And if we recap the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, we'll find only a process that state is "RUNNABLE" can be chosen to put on cpu, and in the meantime, its state will be updated to "RUNNING". 
+
+There are two states left, a process will "SLEEPING" when [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) called, the typical case is the `Sleeplock`, when the lock is held by another process, the current process that try to acquire the lock will go to sleep. While once a process exited by calling [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704) its state will become "ZOMBIE", a zombie process can only been recycled by [`freeproc()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L491).
+
+There are many new concepts and functions were brought, don't worry, let's see the full picture of process lifecycle at first:
+
+{% asset_img 5.png %}
+
+Interesting! There are many different functions get involved to drive the state change. We'll briefly explain them, for more details please read the code directly. 
+
+Generally, from "USED" to "RUNNABLE" happens when a process is creating. [`userinit`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L307) create the very first process(the init process, pid = 1) in the entire system, so the state will be changed in that function. Except for the special init process, a normal process will often be created through the [`fork()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L365) syscall, it also changes state to "RUNNABLE".
+
+We have discussed the scheduling procedure back in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, but there is also a path that can put a process directly from "RUNNING" to "RUNNABLE". Please note that, this kind of state change is not very easy to be implemented. 
+
+For example, there is a user process with content is only an infinite loop: `loop {}`, and this loop is running forever. You may imagine how to stop the infinite loop and switch off the process from the cpu. Even in the running kernel code in a privileged mode, it's also impossible to stop it because the loop fully occupied the cpu, expect for one case, interrupt.
+
+If you still remember, back to the chapter 2, there was a function [`timerinit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L55) in the [`start()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L16), we didn't talk about it at that time, but now we can bring it up. This function initialize the timer interrupt, which will send an interrupt every 1/10 sec to every cpu. We'll see more details about trap and interrupt in the next chapter, now we only need to know that the [`proc_yiled()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L226) will be called while the timer interrupt is handled:
+
+```rust
+// proc.rs
+pub(crate) fn proc_yield(self: &mut Self) {
+    self.lock.acquire();
+    self.state = RUNNABLE;
+    sched();
+    self.lock.release();
+}
+
+fn sched() {
+    let p = myproc();
+
+    ... ...
+
+    unsafe {
+        swtch(&p.context, &mycpu().context);
+    }
+    ... ...
+}
+```
+
+And with the stat is changed to "RUNNABLE", it also calls [`sched()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675), which call the `swtch()` again, to save the current process context, and restore the previous context saved in the cpu struct, the previous saved context can go back to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) and let it choose next process to be run.
 
