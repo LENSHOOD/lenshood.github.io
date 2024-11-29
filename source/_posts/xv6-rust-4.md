@@ -1,5 +1,5 @@
 ---
-title: title: /Xv6 Rust 0x04/ - Easy Piece of Virtualization (virtual cpu)
+title: /Xv6 Rust 0x04/ - CPU Virtualization
 date: 2024-11-20 22:50:32
 tags:
 - xv6

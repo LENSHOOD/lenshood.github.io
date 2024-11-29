@@ -1,5 +1,5 @@
 ---
-title: /Xv6 Rust 0x03/ - Easy Piece of Virtualization (virtual memory)
+title: /Xv6 Rust 0x03/ - Memory Virtualization
 date: 2024-11-08 23:29:43
 tags:
 - xv6
