@@ -399,7 +399,7 @@ fn inner_alloc<'a>(p: &'a mut Proc<'a>) -> Option<&'a mut Proc<'a>> {
 
 See, the `ra` set to `forkret`, and the `sp` set to the `kstack` that initialized in the `proc_mapstacks()`(we've talked this function in the second section). We won't discuss the detail of the `forkret` in this chapter, but all you need to know right now is that through [`forkret`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L426) the program can eventually jump to the first line of code in the user process.
 
-Go back to the `swtch`, at the same time as the values from `p.context` are set to cpu registers, the original registers are also stored into the first argument `c.context`, which hold by the `CPU` structure. So next time when the current on-cpu process needs to be switch off the cpu, the program can be restored to the `scheduler()`. 
+Go back to the `swtch`, at the same time as the values from `p.context` are set to cpu registers, the original registers are also stored into the first argument `c.context`, which hold by the `CPU` structure. So next time when the current on-cpu process needs to be switch off the cpu, the program can be restored to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641). 
 
 In the following section, we'll see some cases that will make a process switch off its cpu.
 
@@ -437,7 +437,7 @@ Generally, from "USED" to "RUNNABLE" happens when a process is creating. [`useri
 
 We have discussed the scheduling procedure back in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, but there is also a path that can put a process directly from "RUNNING" to "RUNNABLE". Please note that, this kind of state change is not very easy to be implemented. 
 
-For example, there is a user process with content is only an infinite loop: `loop {}`, and this loop is running forever. You may imagine how to stop the infinite loop and switch off the process from the cpu. Even in the running kernel code in a privileged mode, it's also impossible to stop it because the loop fully occupied the cpu, expect for one case, interrupt.
+For example, there is a user process with content is only an infinite loop: `loop {}`, and this loop is running forever. You may imagine how to stop the infinite loop and switch off the process from the cpu. Even in the running kernel code in a privileged mode, it's also impossible to stop it because the loop fully occupied the cpu, expect for one case, interrupt. BTW, to directly interrupt a program from running, this type of scheduling way is called ["Preemptive multitasking"](https://en.wikipedia.org/wiki/Preemption_(computing)), conversely, the type that requires the program itself to assisting the scheduling is called ["Cooperative multitasking"](https://en.wikipedia.org/wiki/Cooperative_multitasking).
 
 If you still remember, back to the chapter 2, there was a function [`timerinit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L55) in the [`start()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L16), we didn't talk about it at that time, but now we can bring it up. This function initialize the timer interrupt, which will send an interrupt every 1/10 sec to every cpu. We'll see more details about trap and interrupt in the next chapter, now we only need to know that the [`proc_yiled()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L226) will be called while the timer interrupt is handled:
 
@@ -462,5 +462,142 @@ fn sched() {
 }
 ```
 
-And with the stat is changed to "RUNNABLE", it also calls [`sched()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675), which call the `swtch()` again, to save the current process context, and restore the previous context saved in the cpu struct, the previous saved context can go back to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) and let it choose next process to be run.
+And with the stat is changed to "RUNNABLE", it also calls [`sched()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675), which call the [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9) again, to save the current process context, and restore the previous context saved in the `Cpu` struct, the previous saved context can go back to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) and let it choose next process to be run.
+
+Just like that, the [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) / [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) acts as a similar behavior:
+
+```rust
+// proc.rs
+pub fn sleep<T>(chan: *const T, lk: &mut Spinlock) {
+    let p = myproc();
+    ... ...
+	  p.chan = Some(chan as *const u8);
+    p.state = SLEEPING;
+
+    sched();
+    ... ...
+}
+
+pub(crate) fn wakeup<T>(chan: &T) {
+    for p in unsafe { &mut PROCS } {
+        if p as *const Proc != myproc() as *const Proc {
+            p.lock.acquire();
+            if p.state == SLEEPING && p.chan == Some(chan as *const T as *const u8) {
+                p.state = RUNNABLE;
+            }
+            p.lock.release()
+        }
+    }
+}
+```
+
+When a process calls [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607), its state will be set to "SLEEPING", and then switch off the cpu. At that time, the process stops running, and its context is saved into `Proc` struct.
+
+Once the [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) is called in somewhere, the sleeping process will be found by the `chan` filed (with a generic type and acts like a key), then just simply set the state to `RUNNABLE` then do nothing, because after some round of scheduling, it can eventually been chosen to run. That's also implies that a woke up process cannot immediately go back to running, it must wait a period of time to be re-scheduled. If you search in the xv6 code base about the [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) / [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) , you'll find that these pair of functions usually using at the places that corresponding to file system, uart device and inter process communication. Because all of these cases are share one thing in common, which is long response time comparing to cpu cycles.
+
+At last, you can have a look at the "ZOMBIE" state. There is a syscall [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704), when a process finish its job and wants to exit itself, it can call it.
+
+```rust
+// proc.rs
+pub(crate) fn exit(status: i32) {
+    let p = myproc();
+    ... ...
+    // Give any children to init.
+    reparent(p);
+  
+    // Parent might be sleeping in wait().
+    wakeup(p.parent.unwrap());
+  
+    // record exit status
+    p.xstate = status as u8;
+    p.state = ZOMBIE;
+    ... ...
+    // Jump into the scheduler, never to return.
+    sched();
+    panic!("zombie exit");
+}
+```
+
+In addition to set the exit status and process state, the [`sched()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675) is called with a `panic` follows after it, which means there is no another way to go back here, if that happens, something's definitely wrong.
+
+After exit, there is one more step to do, then the state can be changed to "UNUSED" eventually:
+
+```rust
+pub(crate) fn wait(addr: usize) -> i32 {
+    let p = myproc();
+    ... ...
+    loop {
+        for i in 0..NPROC {
+            let pp = unsafe { &mut PROCS[i] };
+            if pp.parent.is_some() && pp.parent.unwrap() as *const Proc == p as *const Proc {
+                ... ...
+                if pp.state == ZOMBIE {
+                    // Found one.
+                    let pid = pp.pid;
+                    ... ...
+                    freeproc(pp);
+                    ... ...
+                    return pid as i32;
+                }
+
+                pp.lock.release();
+            }
+        }
+        ... ...
+    }
+    ... ...
+    // Wait for a child to exit.
+    sleep(p, unsafe { &mut WAIT_LOCK }); //DOC: wait-sleep
+}
+
+pub(crate) fn freeproc(p: &mut Proc) {
+    ... ...
+    p.state = UNUSED;
+}
+
+```
+
+Actually the [`wait()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L752) is also a syscall, it allows any process can wait its children to be exited, according to the [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704), the process will wake up its parent while exit, if the parent calls the [`wait()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L752) after create the child process, then the parent will be waken up to recycle the process, and set its state to "UNUSED".
+
+Generally, when a process create a child process, it has the responsibility to take care of the exit of the child process as well. But what if there is a careless parent that only creating but never recycling? Or the parent process accidentally exit itself due to unexpected errors?
+
+For the first case, if a parent never recycles its children, then once a child process exited, it will remain "ZOMBIE" state, until the parent exits. And after parent exits (it's also the second case), then all of its children will `reparent()` to the `init` process, and the `init` will eventually become their parent and take care of their exit (this behavior is just like other systems such as Linux does):
+
+```rust
+// proc.rs
+fn reparent(p: &mut Proc) {
+    unsafe {
+        for i in 0..NPROC {
+            let pp = &mut PROCS[i];
+            if pp.parent.is_some() {
+                if ptr::eq(pp.parent.unwrap(), p) {
+                    // reparent to init
+                    pp.parent = Some(&INIT_PROC.as_ref().unwrap());
+                    wakeup(&INIT_PROC);
+                };
+            }
+        }
+    }
+}
+```
+
+Let's see the first user process `init`:
+
+```rust
+// user/src/init.rs
+fn main(_argc: isize, _argv: *const *const u8) -> isize {
+    ... ...
+
+    loop {
+        // this call to wait() returns if the shell exits,
+        // or if a parentless process exits.
+        wpid = wait(0 as *const u8);
+        ... ...
+    }
+}
+```
+
+
+
+
 
