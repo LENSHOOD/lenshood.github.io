@@ -9,28 +9,29 @@ categories:
 - Rust
 ---
 
-In this chapter, we are going to explore the cpu virtualization, also know as process, in the xv6.
+In this chapter, we are going to explore the cpu virtualization, also known as process, in the xv6.
 
-I'm really excited for writing this chapter, because process is one of the fundamental concepts of the operating system. Process is very useful for multiple tasks, and in the design wise, its abstraction is also very elegant.
+I'm really excited about writing this chapter, because process is one of the fundamental concepts of the operating system. Process is very useful for multiple tasks, and in the design wise, its abstraction is also very elegant.
 
 <!-- more -->
 
 ## 1. Overview of Virtual CPU
 
-We all known that with the concept if process, we could run multiple programs on one or a few cpu cores, that makes the process es and the cpu cores present as a many-to-many mappings.
+We all know that with the concept if process, we could run multiple programs on one or a few cpu cores, that makes the processes and the cpu cores present as a many-to-many mappings.
 
-But the key point here is, a process will not need to know how many cpu cores and how many memory it can have. Through some sort of abstraction, a process can freely using all cpu and memory resources to running its program, any resource management should have done by the kernel.
+But the key point here is, a process will not need to know how many cpu cores and how many memory it can have. Through some sort of abstraction, a process can freely use all cpu and memory resources to run its program, any resource management should have done by the kernel.
 
 So before we take a look at the design of xv6 process, let's think about what elements a process should have, to ensure the cpu virtualization works.
 
 We can simply recap the machine code we introduced in the first two chapters as an analogy, when we built the "xv6-rust-sample", there are few things that need to be taken care of:
 
-- We should understand the address space then link the program to right places
-- There should be a way to load the program and running from the entry point
+- We should understand the address space then link the program to the right places
+- There should be a way to load the program and run from the entry point
 - Some necessary registers should be initialized, such as stack pointer
-- The error handling is also required, like panic
+- Error handling is also required, like panic
 
-  Additionally, stand in the kernel's shoes, more points turn out:
+
+Additionally, standing in the kernel's shoes, more points turn out:
 
 - There are more processes than cpu cores, how to switch different processes on one cpu?
 - Where to save process status when it's switched?
@@ -49,9 +50,9 @@ The "State" field records the current state of the process, the common state are
 
 The "Open Files" tracks any files that opened by the process, we haven't talked about file system before, but at least we can realize the basic three files that every process will open are STDIN, STDOUT and STDERR.
 
-The "Parent" to track the process parent, like linux, the xv6 also create a new process by `fork()`, therefore, every process should have a parent process.
+The "Parent" to track the process parent, like linux, the xv6 also creates a new process by `fork()`, therefore, every process should have a parent process.
 
-The "Kernel Stack" allows running kernel code on the address space of a process. After all, every process needs to interact with kernel through different types of syscalls, for safety purpose, user process cannot share a same stack with kernel.
+The "Kernel Stack" allows running kernel code on the address space of a process. After all, every process needs to interact with kernel through different types of syscalls, for safety purpose, user process cannot share the same stack with kernel.
 
 The "Trap Frame" stores user space process data, this kind of data will be saved and restored when switching between user space and kernel space. We'll cover this part in the following chapter about interrupt and syscall.
 
@@ -63,7 +64,7 @@ The "Context" records the basic registers a process is using. When a process nee
 
 ## 2. Process Memory
 
-The previous code `xv6-rust-sample` set it address space starts from `0x80000000`, and put its text section at the beginning of the address, then set the code entry at there. So where should a process starts from?
+The previous code `xv6-rust-sample` set it address space starts from `0x80000000`, and put its text section at the beginning of the address, then set the code entry there. So where should a process starts from?
 
 We could refer the process creation syscall [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/exec.rs#L61) to find out (again, we'll cover this in a later chapter):
 
@@ -94,7 +95,7 @@ pub fn exec(path: [u8; MAXPATH], argv: &[Option<*mut u8>; MAXARG]) -> i32 {
 }
 ```
 
-From above code, we realized the program will be loaded into `ph.vaddr`, actually `ph` means "ProgramHeader", which is also ELF format, therefore, to find the real entry point, we have to check the [linker script](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/user/src/ld/user.ld#L7) of user program:
+From the above code, we realized the program will be loaded into `ph.vaddr`, actually `ph` means "ProgramHeader", which is also ELF format, therefore, to find the real entry point, we have to check the [linker script](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/user/src/ld/user.ld#L7) of user program:
 
 ```ld
 // user/src/ld/user.ld
@@ -111,9 +112,9 @@ SECTIONS
 }
 ```
 
-Obviously, a user program starts from `main`, and the entry address is `0x0`. Of cause we can change that to any address, because the entry address will be set into the CSR "sepc", and once the CPU switch to user mode, the user program will start from there.
+Obviously, a user program starts from `main`, and the entry address is `0x0`. Of cause, we can change that to any address, because the entry address will be set into the CSR "sepc", and once the CPU switches to user mode, the user program will start from there.
 
-Besides, like we mentioned before, every processes need a dedicated stack that allows kernel [code](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L272) running on it. The following code shows the initialization of every kernel stacks:
+Besides, like we mentioned before, every process needs a dedicated stack that allows kernel [code](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L272) running on it. The following code shows the initialization of every kernel stacks:
 
 ```rust
 // proc.rs
@@ -140,14 +141,14 @@ macro_rules! KSTACK {
 
 We have already introduced `proc_mapstacks()` in the previous chapter, but no details about it. Here, apparently this function allocates two pages for each process as their kernel stack.
 
-But there are some interest things here:
+But there are some interesting things here:
 
-1. In the original xv6 implementation with C language, one process only have one page of stack, however, in my rust version, many core lib functions were introduced, cause one page (4096 bytes) of stack is not enough, lead to risc-v throw an invalid access exception. Hence, the kernel stack is extended to two pages, and that's enough at least now. You may wondering, we have set nearly all address space available for RWX permission (refer to chapter 2, pmpaddr0 / pmpcfg0) how can it possible to throw an exception of no access permission? Let's move to the second interesting thing.
-2.  The access exception relates to the macro `KSTACK!()`. If you see it carefully, you may find this macro actually makes each process has 3 pages of stack space, but we only allocate 2 pages for it, and leave the last page of stack space with no physical memory mapping to it. If any code allocate stack exceeded the 2 pages stack, the `sp` will point to the third stack page, which is invalid because of no mapped physical memory, then the exception is thrown. This kind of page called "guard page", it can prevent other process's stack from accidentally overwritten by an overflowed stack operation. (There's a defect here that if the applied stack space exceeded more than one page, then it can break the guard in some cases)
+1. In the original xv6 implementation with C language, one process only has one page of stack, however, in my rust version, many core lib functions were introduced, because one page (4096 bytes) of stack is not enough, lead to risc-v throw an invalid access exception. Hence, the kernel stack is extended to two pages, and that's enough at least now. You may wonder, we have set nearly all address space available for RWX permission (refer to chapter 2, pmpaddr0 / pmpcfg0) how can it be possible to throw an exception of no access permission? Let's move to the second interesting thing.
+2.  The access exception relates to the macro `KSTACK!()`. If you see it carefully, you may find this macro actually makes each process has 3 pages of stack space, but we only allocate 2 pages for it, and leave the last page of stack space with no physical memory mapping to it. If any code allocate stack exceeded the 2 pages stack, the `sp` will point to the third stack page, which is invalid because of no mapped physical memory, then the exception is thrown. This kind of page is called "guard page", it can prevent other process's stack from accidentally overwritten by an overflowed stack operation. (There's a defect here that if the applied stack space exceeded more than one page, then it can break the guard in some cases)
 
 {% asset_img 2.png %}
 
-Above image shows the location of the process stacks, it's worth noting that all of these stacks are allocated while kernel is starting, so they occupy physical memory all the time, on the contrary, if a user process needs some memory to store data, they can do that by calling syscall `mmap()`, which can dynamically allocate memory space.
+The above image shows the location of the process stacks, it's worth noting that all of these stacks are allocated while kernel is starting, so they occupy physical memory all the time, on the contrary, if a user process needs some memory to store data, they can do that by calling syscall `mmap()`, which can dynamically allocate memory space.
 
 
 
@@ -155,9 +156,9 @@ Above image shows the location of the process stacks, it's worth noting that all
 
 Once the concept of multiple tasks is introduced,  the data contention issue will be definitely along with too. Additionally, although we only assign one cpu core in the QEMU runner, multiple cpu cores is also allowed for xv6 to run. Therefore, there should be some form of mechanisms to take care of the concurrency and parallelization.
 
-The most fundamental thing of concurrency is lock. I suppose you have noticed that there were many code examples in the previous chapters contain locks, but we just ignored them and said we would cover them later. Here we are going to cover this part.
+The most fundamental thing about concurrency is lock. I suppose you have noticed that there were many code examples in the previous chapters containing locks, but we just ignored them and said we would cover them later. Here we are going to cover this part.
 
-[`Spinlock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/spinlock.rs#L7) is the simplest lock implementation, the definition is as follow:
+[`Spinlock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/spinlock.rs#L7) is the simplest lock implementation, the definition is as follows:
 
 ```rust
 // spinlock.rs
@@ -208,13 +209,13 @@ impl Spinlock {
 }
 ```
 
-The `Spinlock` essentially using the atomic "test and swap" instruction `amoswap` provided by risc-v, and in the phase of acquire, since the lock might be held by another cpu, so it simply retry forever inside a loop to keep applying the lock (there is no logic such as wait in a queue to let it wait effectively, because `Spinlock` is the simplest implementation here). But when it comes to release the lock, since the lock has already held by current cpu, so try loop is no longer need. 
+The `Spinlock` essentially using the atomic "test and swap" instruction `amoswap` provided by risc-v, and in the phase of acquire, since the lock might be held by another cpu, so it simply retry forever inside a loop to keep applying the lock (there is no logic such as wait in a queue to let it wait effectively, because `Spinlock` is the simplest implementation here). But when it comes to releasing the lock, since the lock has already been held by current cpu, try loop is no longer needed. 
 
-However, any unexpected interruption is able to break the lock, so we can noticed that once the lock is held, the cpu interrupt will  be disabled. Of cause this will significantly impact the performance, but after all, for a teaching OS, simplicity is more important than performance :) .
+However, any unexpected interruption is able to break the lock, so we can notice that once the lock is held, the cpu interrupt will be disabled. Of cause, this will significantly impact the performance, but after all, for a teaching OS, simplicity is more important than performance :) .
 
 At last, the `__sync_synchronize()` internally call `fence` instruction, to keep the memory ordering before and after the "test and swap". And since the “AMO” instructions in risc-v by default not support any memory barrier(need to add extra "aq, rl" after the instruction), and to make sure the compiler can also realize the memory ordering, the `fence` is added before and after the "AMO" instructions to ensure the correct memory ordering in both cpu and compiler. The memory model of risc-v is complicated, here is a [good video](https://youtu.be/QkbWgCSAEoo?si=0cMjiypXe8iTUntZ) to talk about that.
 
-Now we got familiar with the basic lock, in the next let's take a look at [`Sleeplock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/sleeplock.rs#L6):
+Now we are familiar with the basic lock, in the next let's take a look at [`Sleeplock`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/sleeplock.rs#L6):
 
  ```rust
  // sleeplock.rs
@@ -228,7 +229,7 @@ Now we got familiar with the basic lock, in the next let's take a look at [`Slee
  }
  ```
 
-`Sleeplock` holds a `Spinlook`, which utilizing `Spinlook` as an internal lock to protect its inner fields. However, `Sleeplock` was designed to be a lock that is held in a relatively long period of time. It doesn't rely on `Spinlock`, instead, introduced a "sleep / wakeup" mechanism to allow the lock waiter sleeping until it woke up by the lock holder who is releasing the lock:
+`Sleeplock` holds a `Spinlook`, which utilize `Spinlook` as an internal lock to protect its inner fields. However, `Sleeplock` was designed to be a lock that is held in a relatively long period of time. It doesn't rely on `Spinlock`, instead, introduced a "sleep / wakeup" mechanism to allow the lock sleeping wait until it woken up by the lock holder who is releasing the lock:
 
 ```rust
 // sleeplock.rs
@@ -256,13 +257,13 @@ pub fn release_sleep(self: &mut Self) {
 }
 ```
 
-In xv6, device interaction logic such as file system reading or writing would need `Sleeplock`, as the interaction between cpu with device often takes a long time.  But, how does the "sleep / wakeup" work? Let's go to the next section to see how xv6 deal with process switching.
+In xv6, device interaction logic such as file system reading or writing would need `Sleeplock`, as the interaction between cpu with device often takes a long time.  But, how does "sleep / wakeup" work? Let's go to the next section to see how xv6 deals with process switching.
 
 
 
 ## 4. Scheduling
 
-With the introduction of virtual memory, our process can have its own memory to store the text and data, especially, its stack. Now, there is only one question left, how to put the process on a cpu and run? This question is asked from the process perspective, if we think as we are the kernel, this is a even more important question, how can the kernel run multiple processes simultaneously?
+With the introduction of virtual memory, our process can have its own memory to store the text and data, especially, its stack. Now, there is only one question left, how to put the process on a cpu and run? This question is asked from the process perspective, if we think as we are the kernel, this is an even more important question, how can the kernel run multiple processes simultaneously?
 
 Before deep dive into the kernel implementation to answering the above questions, we should have a preliminary understanding, that is process doesn't decide when to run, kernel does, process doesn't control the switch, kernel does (but process do can influence the kernel‘s decision).
 
@@ -272,7 +273,7 @@ The following image shows the process management and scheduling of the xv6:
 
 Firstly, there are two arrays that store 64 proc structs and 8 cpu structs respectively, all of the proc structs are empty at the beginning and each of them can hold real process data, as well as cpu structs, which can hold cpu data.
 
-We have talked what data fields are in the process at first section, let's see what data filed that a cpu struct can hold:
+We have talked about what data fields are in the process at the first section, let's see what data filed that a cpu struct can hold:
 
 ```rust
 // proc.rs
@@ -287,11 +288,11 @@ pub struct Cpu<'a> {
 }
 ```
 
-It's very straightforward that a cpu can hold a `proc` reference, to indicate the current process that running on the cpu, and this filed can also be empty if there is not much process to be run.
+It's very straightforward that a cpu can hold a `proc` reference, to indicate the current process that running on the cpu, and this field can also be empty if there is not much process to be run.
 
 The `context` hold the registers state that before the current process has been switched. Therefore, no matter what happens that let the kernel decide to switch the current process off the cpu, the `context` can always be restored so that the kernel scheduler code can be run to choose the next process.
 
-Other two fields `noff` and `intena` are work together to record the lock depth that is using for control the interrupt, we'll check them in the later chapter.
+Other two fields `noff` and `intena` are work together to record the lock depth that is used for controling the interrupt, we'll check them in the later chapter.
 
 Now let's take a close look at the scheduling. Not like modern multi-tasks OS such as Linux, which has very complicated scheduling component that can make sure the cpu is fully utilized for many different scenarios, instead, the scheduling algorithm is very very simple in the xv6:
 
@@ -333,7 +334,7 @@ pub fn scheduler() {
 }
 ```
 
-The code comments have already make it quite clear. Just like the previous image shows, each cpu has its own scheduler, and the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function running in a loop, which only do one thing: pick up a `RUNNABLE` process (ready to run but not run yet) and then put it on current cpu. Of cause due to potential concurrency modification in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641), a lock should be held whenever access the `PROCS` array.
+The code comments have already made it quite clear. Just like the previous image shows, each cpu has its own scheduler, and the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function running in a loop, which only does one thing: pick up a `RUNNABLE` process (ready to run but not run yet) and then put it on current cpu. Of cause due to potential concurrency modification in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641), a lock should be held whenever access the `PROCS` array.
 
 But how exactly is the process put on the cpu? That relies on a key assembly function [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9):
 
@@ -378,7 +379,7 @@ Basically the [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135e
 
 {% asset_img 4.png %}
 
-According to this, the `ra` refers to "return address", which means after `ret` the cpu will running code from the address stored in the `ra`. The fun thing is a function usually return to its calling address, however, [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9) no longer returns to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641), , instead it will return to the `ra` from the `p.context`, which is the second argument of the [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9).
+According to this, the `ra` refers to "return address", which means after `ret` the cpu will run code from the address stored in the `ra`. The fun thing is a function usually returns to its calling address, however, [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9) no longer returns to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641), instead it will return to the `ra` from the `p.context`, which is the second argument of the [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9).
 
 But what's in the `p.context.ra`? We need to check the process creation function [`inner_alloc()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L460):
 
@@ -397,9 +398,9 @@ fn inner_alloc<'a>(p: &'a mut Proc<'a>) -> Option<&'a mut Proc<'a>> {
 }
 ```
 
-See, the `ra` set to `forkret`, and the `sp` set to the `kstack` that initialized in the `proc_mapstacks()`(we've talked this function in the second section). We won't discuss the detail of the `forkret` in this chapter, but all you need to know right now is that through [`forkret`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L426) the program can eventually jump to the first line of code in the user process.
+See, the `ra` set to `forkret`, and the `sp` set to the `kstack` that initialized in the `proc_mapstacks()`(we've talked about this function in the second section). We won't discuss the details of the `forkret` in this chapter, but all you need to know right now is that through [`forkret`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L426) the program can eventually jump to the first line of code in the user process.
 
-Go back to the `swtch`, at the same time as the values from `p.context` are set to cpu registers, the original registers are also stored into the first argument `c.context`, which hold by the `CPU` structure. So next time when the current on-cpu process needs to be switch off the cpu, the program can be restored to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641). 
+Go back to the `swtch`, at the same time as the values from `p.context` are set to cpu registers, the original registers are also stored into the first argument `c.context`, which is held by the `CPU` structure. So next time when the current on-cpu process needs to be switched off the cpu, the program can be restored to the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641). 
 
 In the following section, we'll see some cases that will make a process switch off its cpu.
 
@@ -425,21 +426,21 @@ I suppose we have seen some of them, for example, when the `PROCS` array has bee
 
 And if we recap the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, we'll find only a process that state is "RUNNABLE" can be chosen to put on cpu, and in the meantime, its state will be updated to "RUNNING". 
 
-There are two states left, a process will "SLEEPING" when [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) called, the typical case is the `Sleeplock`, when the lock is held by another process, the current process that try to acquire the lock will go to sleep. While once a process exited by calling [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704) its state will become "ZOMBIE", a zombie process can only been recycled by [`freeproc()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L491).
+There are two states left, a process will "SLEEPING" when [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) called, the typical case is the `Sleeplock`, when the lock is held by another process, the current process that tries to acquire the lock will go to sleep. While once a process exited by calling [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704) its state will become "ZOMBIE", a zombie process can only been recycled by [`freeproc()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L491).
 
-There are many new concepts and functions were brought, don't worry, let's see the full picture of process lifecycle at first:
+There are many new concepts and functions that were brought, don't worry, let's see the full picture of process lifecycle first:
 
 {% asset_img 5.png %}
 
-Interesting! There are many different functions get involved to drive the state change. We'll briefly explain them, for more details please read the code directly. 
+Interesting! There are many different functions that get involved in driving the state change. We'll briefly explain them, for more details please read the code directly. 
 
-Generally, from "USED" to "RUNNABLE" happens when a process is creating. [`userinit`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L307) create the very first process(the init process, pid = 1) in the entire system, so the state will be changed in that function. Except for the special init process, a normal process will often be created through the [`fork()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L365) syscall, it also changes state to "RUNNABLE".
+Generally, from "USED" to "RUNNABLE" happens when a process is being created. [`userinit`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L307) create the very first process(the init process, pid = 1) in the entire system, so the state will be changed in that function. Except for the special init process, a normal process will often be created through the [`fork()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L365) syscall, it also changes state to "RUNNABLE".
 
-We have discussed the scheduling procedure back in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, but there is also a path that can put a process directly from "RUNNING" to "RUNNABLE". Please note that, this kind of state change is not very easy to be implemented. 
+We have discussed the scheduling procedure back in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, but there is also a path that can put a process directly from "RUNNING" to "RUNNABLE". Please note that, this kind of state change is not very easy to implement. 
 
-For example, there is a user process with content is only an infinite loop: `loop {}`, and this loop is running forever. You may imagine how to stop the infinite loop and switch off the process from the cpu. Even in the running kernel code in a privileged mode, it's also impossible to stop it because the loop fully occupied the cpu, expect for one case, interrupt. BTW, to directly interrupt a program from running, this type of scheduling way is called ["Preemptive multitasking"](https://en.wikipedia.org/wiki/Preemption_(computing)), conversely, the type that requires the program itself to assisting the scheduling is called ["Cooperative multitasking"](https://en.wikipedia.org/wiki/Cooperative_multitasking).
+For example, there is a user process with content is only an infinite loop: `loop {}`, and this loop is running forever. You may imagine how to stop the infinite loop and switch off the process from the cpu. Even in the running kernel code in a privileged mode, it's also impossible to stop it because the loop fully occupied the cpu, expect for one case, interrupt. BTW, to directly interrupt a program from running, this type of scheduling way is called ["Preemptive multitasking"](https://en.wikipedia.org/wiki/Preemption_(computing)), conversely, the type that requires the program itself to assist the scheduling is called ["Cooperative multitasking"](https://en.wikipedia.org/wiki/Cooperative_multitasking).
 
-If you still remember, back to the chapter 2, there was a function [`timerinit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L55) in the [`start()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L16), we didn't talk about it at that time, but now we can bring it up. This function initialize the timer interrupt, which will send an interrupt every 1/10 sec to every cpu. We'll see more details about trap and interrupt in the next chapter, now we only need to know that the [`proc_yiled()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L226) will be called while the timer interrupt is handled:
+If you still remember, back to chapter 2, there was a function [`timerinit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L55) in the [`start()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L16), we didn't talk about it at that time, but now we can bring it up. This function initializes the timer interrupt, which will send an interrupt every 1/10 sec to every cpu. We'll see more details about trap and interrupt in the next chapter, now we only need to know that the [`proc_yiled()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L226) will be called while the timer interrupt is handled:
 
 ```rust
 // proc.rs
@@ -493,9 +494,9 @@ pub(crate) fn wakeup<T>(chan: &T) {
 
 When a process calls [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607), its state will be set to "SLEEPING", and then switch off the cpu. At that time, the process stops running, and its context is saved into `Proc` struct.
 
-Once the [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) is called in somewhere, the sleeping process will be found by the `chan` filed (with a generic type and acts like a key), then just simply set the state to `RUNNABLE` then do nothing, because after some round of scheduling, it can eventually been chosen to run. That's also implies that a woke up process cannot immediately go back to running, it must wait a period of time to be re-scheduled. If you search in the xv6 code base about the [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) / [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) , you'll find that these pair of functions usually using at the places that corresponding to file system, uart device and inter process communication. Because all of these cases are share one thing in common, which is long response time comparing to cpu cycles.
+Once the [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) is called somewhere, the sleeping process will be found by the `chan` filed (with a generic type and acts like a key), then just simply set the state to `RUNNABLE` then do nothing, because after some round of scheduling, it can eventually been chosen to run. That also implies that a woke up process cannot immediately go back to running, it must wait a period of time to be re-scheduled. If you search in the xv6 code base about the [`sleep()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607) / [`wakeup()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593) , you'll find that these pair of functions are usually used at the places that corresponding to file system, uart device and inter process communication. Because all of these cases share one thing in common, which is long response time compared to cpu cycles.
 
-At last, you can have a look at the "ZOMBIE" state. There is a syscall [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704), when a process finish its job and wants to exit itself, it can call it.
+At last, you can have a look at the "ZOMBIE" state. There is a syscall [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704), when a process finishes its job and wants to exit itself, it can call it.
 
 ```rust
 // proc.rs
@@ -518,7 +519,7 @@ pub(crate) fn exit(status: i32) {
 }
 ```
 
-In addition to set the exit status and process state, the [`sched()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675) is called with a `panic` follows after it, which means there is no another way to go back here, if that happens, something's definitely wrong.
+In addition to setting the exit status and process state, the [`sched()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675) is called with a `panic` follows after it, which means there is no another way to go back here, if that happens, something's definitely wrong.
 
 After exit, there is one more step to do, then the state can be changed to "UNUSED" eventually:
 
@@ -559,9 +560,9 @@ pub(crate) fn freeproc(p: &mut Proc) {
 
 Actually the [`wait()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L752) is also a syscall, it allows any process can wait its children to be exited, according to the [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704), the process will wake up its parent while exit, if the parent calls the [`wait()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L752) after create the child process, then the parent will be waken up to recycle the process, and set its state to "UNUSED".
 
-Generally, when a process create a child process, it has the responsibility to take care of the exit of the child process as well. But what if there is a careless parent that only creating but never recycling? Or the parent process accidentally exit itself due to unexpected errors?
+Generally, when a process creates a child process, it has the responsibility to take care of the exit of the child process as well. But what if there is a careless parent that only creates but never recycles? Or what if the parent process accidentally exits itself due to unexpected errors?
 
-For the first case, if a parent never recycles its children, then once a child process exited, it will remain "ZOMBIE" state, until the parent exits. And after parent exits (it's also the second case), then all of its children will `reparent()` to the `init` process, and the `init` will eventually become their parent and take care of their exit (this behavior is just like other systems such as Linux does):
+For the first case, if a parent never recycles its children, then once a child process exited, it will remain in "ZOMBIE" state, until the parent exits. And after parent exits (it's also the second case), then all of its children will `reparent()` to the `init` process, and the `init` will eventually become their parent and take care of their exit (this behavior is just like other systems such as Linux does):
 
 ```rust
 // proc.rs
@@ -596,8 +597,3 @@ fn main(_argc: isize, _argv: *const *const u8) -> isize {
     }
 }
 ```
-
-
-
-
-
