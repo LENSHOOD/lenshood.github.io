@@ -9,6 +9,8 @@ categories:
 - Rust
 ---
 
+{% asset_img header.jpg 500 %}
+
 [Xv6](https://github.com/mit-pdos/xv6-public) is one of the best operating systems for teaching. It’s a great way to learn about how an OS works with basic functions and few line of code. 
 
 Originally, xv6 was written in C, which is awesome for students to get hands-on experience with such a classic programming language. But now that Rust is gaining traction—especially since rust-for-linux is becoming a part of the main line Linux—wouldn’t it be fun to run xv6 using Rust? 

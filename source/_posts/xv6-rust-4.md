@@ -9,6 +9,8 @@ categories:
 - Rust
 ---
 
+{% asset_img header.jpg 500 %}
+
 In this chapter, we are going to explore the cpu virtualization, also known as process, in the xv6.
 
 I'm really excited about writing this chapter, because process is one of the fundamental concepts of the operating system. Process is very useful for multiple tasks, and in the design wise, its abstraction is also very elegant.
@@ -434,7 +436,7 @@ There are many new concepts and functions that were brought, don't worry, let's 
 
 Interesting! There are many different functions that get involved in driving the state change. We'll briefly explain them, for more details please read the code directly. 
 
-Generally, from "USED" to "RUNNABLE" happens when a process is being created. [`userinit`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L307) create the very first process(the init process, pid = 1) in the entire system, so the state will be changed in that function. Except for the special init process, a normal process will often be created through the [`fork()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L365) syscall, it also changes state to "RUNNABLE".
+Generally, from "USED" to "RUNNABLE" happens when a process is being created. [`userinit`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L307) creates the very first process(the init process, pid = 1) in the entire system, so the state will be changed in that function. Except for the special init process, a normal process will often be created through the [`fork()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L365) syscall, it also changes state to "RUNNABLE".
 
 We have discussed the scheduling procedure back in the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641) function, but there is also a path that can put a process directly from "RUNNING" to "RUNNABLE". Please note that, this kind of state change is not very easy to implement. 
 

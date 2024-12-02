@@ -9,6 +9,8 @@ categories:
 - Rust
 ---
 
+{% asset_img header.jpg 500 %}
+
 With the help of the previous article, right now we have a good foundation for running rust on risc-v platform.
 
 In the second episode, we are going to jump into some real code of xv6, and take care of the initialize from machine level to supervisor level, and finally, make the `printf!()` macro available in our code!
