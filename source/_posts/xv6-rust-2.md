@@ -292,7 +292,7 @@ Awesome, we have printed the first letter! Since we can print a letter, the `pri
 
 
 
-## 3. printf!()
+## 4. printf!()
 
 At last, we got here. So far we already output a letter "A" through UART, the next we simply need to create a printer and call UART inside to print.
 
