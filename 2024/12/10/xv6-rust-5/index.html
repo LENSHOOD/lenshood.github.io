@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 7.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Serif+SC:300,300italic,400,400italic,700,700italic%7CRoboto+Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css" integrity="sha256-mUZM63G8m73Mcidfrv5E+Y61y7a12O5mW4ezU3bxqW4=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.9.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":true,"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js"></script>
+<meta name="description" content="With all of the content in the previous chapters, we have known how a process to be initialized and run, but before the kernel runs the first line of a process&#39;s code, a question still remained, how d">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence">
+<meta property="og:url" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="With all of the content in the previous chapters, we have known how a process to be initialized and run, but before the kernel runs the first line of a process&#39;s code, a question still remained, how d">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/7.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/8.png">
+<meta property="article:published_time" content="2024-12-10T14:25:29.000Z">
+<meta property="article:modified_time" content="2024-12-31T12:29:37.153Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta property="article:tag" content="os">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/1.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2024/12/10/xv6-rust-5/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2024/12/10/xv6-rust-5/","path":"2024/12/10/xv6-rust-5/","title":"/Xv6 Rust 0x05/ - Persistence"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x05/ - Persistence | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false}</script>
+  <script src="/js/third-party/analytics/google-analytics.js"></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js"></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#overview-of-persistence"><span class="nav-number">1.</span> <span class="nav-text">1. Overview of Persistence</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#file-organization"><span class="nav-number">2.</span> <span class="nav-text">2. File Organization</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#inode"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 INode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#pathname-directory"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Pathname &amp; Directory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#log"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 Log</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#block-operation"><span class="nav-number">3.</span> <span class="nav-text">3. Block Operation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#virtio-device"><span class="nav-number">4.</span> <span class="nav-text">4. VirtIO Device</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">89</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">102</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license site-overview-item animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdn.jsdelivr.net/npm/@creativecommons/vocabulary@2020.11.3/assets/license_badges/big/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2024/12/10/xv6-rust-5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x05/ - Persistence
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2024-12-10 22:25:29" itemprop="dateCreated datePublished" datetime="2024-12-10T22:25:29+08:00">2024-12-10</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2024-12-31 20:29:37" itemprop="dateModified" datetime="2024-12-31T20:29:37+08:00">2024-12-31</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>With all of the content in the previous chapters, we have known how a
+process to be initialized and run, but before the kernel runs the first
+line of a process's code, a question still remained, how does my user
+program stored in the disk and to be loaded?</p>
+<p>In this chapter, we are going to discover the disk management and
+file system in the xv6, we'll see the persistence stack from the top to
+the bottom, let's get started!</p>
+<span id="more"></span>
+<h2 id="overview-of-persistence">1. Overview of Persistence</h2>
+<p>The xv6 designs a very clear persistence system, which is designed by
+layers. The <a
+href="https://pdos.csail.mit.edu/6.828/2024/xv6/book-riscv-rev4.pdf">xv6-book</a>
+demonstrates a diagram(in chapter 8) to show such layers as follows:</p>
+<img src="/2024/12/10/xv6-rust-5/1.png" class="">
+<p>Actually, the first three layers are all related to the concept of
+"File". The xv6 inherits the unix philosophy of <a
+href="https://en.wikipedia.org/wiki/Everything_is_a_file">"everything is
+a file"</a>, that is a high level abstraction that regard all devices,
+pipes, directories, and disk files as "Files", to simplify access and
+management. Every file has a unique file descriptor to identify it
+conveniently, file descriptor is also the name of first layer.</p>
+<p>Let's have a first look at the structure <code>File</code>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// file.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">File</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) file_type: FDType,</span><br><span class="line">    ref_cnt: <span class="type">i32</span>, <span class="comment">// reference count</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) readable: <span class="type">bool</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) writable: <span class="type">bool</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) pipe: <span class="type">Option</span>&lt;*<span class="keyword">mut</span> Pipe&gt;, <span class="comment">// FD_PIPE</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) ip: <span class="type">Option</span>&lt;*<span class="keyword">mut</span> INode&gt;,  <span class="comment">// FD_INODE and FD_DEVICE</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) off: <span class="type">u32</span>,                <span class="comment">// FD_INODE</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) major: <span class="type">i16</span>,              <span class="comment">// FD_DEVICE</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">enum</span> <span class="title class_">FDType</span> &#123;</span><br><span class="line">    FD_NONE,</span><br><span class="line">    FD_PIPE,</span><br><span class="line">    FD_INODE,</span><br><span class="line">    FD_DEVICE,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The FDType stands for "file descriptor type", apparently there are
+three different types of file descriptors except for the "NONE". The
+"PIPE" indicates a communication channel between two processes, and a
+pipe is completely lives in memory; the "DEVICE" indicates some kind of
+devices like the UART console, which can be operated by read and write
+data; the "INODE" indicates a kind of object that holds some data blocks
+in the disk.</p>
+<p>Looking into the <code>File</code> structure, it holds some fields
+that represent different type of files. For example, both the fields
+<code>pipe</code> and <code>ip</code> are "Option" type, which means
+they may exist on a file or not. Say a pipe file, it would only need the
+<code>pipe</code> field, all other fields corresponding to inode or
+device can be empty.</p>
+<p>The other two layers, "pathname" and "directory" represent the way to
+access and manage file. Path name provides a hierarchical way to locate
+a specific file, like <code>/home/lenshood/video.mkv</code>, while the
+directory is dedicated for a special type of file that holds all
+sub-directory files as its data, a directory is like
+<code>/home/lenshood/</code>.</p>
+<p>While <code>File</code> act as a high level abstraction object that
+exists in most of syscalls related to file systems. Here are some
+typical syscalls:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/ulib/stubs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Create a pipe, put read/write file descriptors in p[0] and p[1].</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">pipe</span>(fdarray: *<span class="keyword">const</span> <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Write n bytes from buf to file descriptor fd; returns n.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">write</span>(fd: <span class="type">i32</span>, addr: *<span class="keyword">const</span> <span class="type">u8</span>, n: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Read n bytes into buf; returns number read; or 0 if end of file.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">read</span>(fd: <span class="type">i32</span>, addr: *<span class="keyword">mut</span> <span class="type">u8</span>, n: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Release open file fd.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">close</span>(fd: <span class="type">i32</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Load a file and execute it with arguments; only returns if error.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">exec</span>(path: *<span class="keyword">const</span> <span class="type">u8</span>, argv: *<span class="keyword">const</span> *<span class="keyword">const</span> <span class="type">u8</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Open a file; flags indicate read/write; returns an fd (file descriptor).</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">open</span>(path: *<span class="keyword">const</span> <span class="type">u8</span>, omode: <span class="type">u64</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Create a device file.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">mknod</span>(path: *<span class="keyword">const</span> <span class="type">u8</span>, major: <span class="type">u16</span>, minior: <span class="type">u16</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Return a new file descriptor referring to the same file as fd.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">dup</span>(fd: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br></pre></td></tr></table></figure>
+<p>Apparently, some of the syscalls using <code>fd</code> as their
+argument to locate a <code>File</code>, but <code>open</code>,
+<code>exec</code> and <code>mknod</code> using <code>path</code> instead
+of <code>fd</code>, since these syscalls are only applicable to files
+that backed by inodes, and each inode has a <code>path</code>.</p>
+<p>As an example, the following code piece is taken from the
+implementation of the syscall <code>read</code>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">fileread</span>(f: &amp;<span class="keyword">mut</span> File, addr: <span class="type">usize</span>, n: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">match</span> f.file_type &#123;</span><br><span class="line">        FD_PIPE =&gt; &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">pipe</span> = <span class="keyword">unsafe</span> &#123; f.pipe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">            <span class="keyword">return</span> pipe.<span class="title function_ invoke__">read</span>(addr, n);</span><br><span class="line">        &#125;</span><br><span class="line">        FD_INODE =&gt; &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">ip</span> = <span class="keyword">unsafe</span> &#123; f.ip.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">r</span> = ip.<span class="title function_ invoke__">readi</span>(<span class="literal">true</span>, addr <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="type">u8</span>, f.off, n <span class="keyword">as</span> <span class="type">usize</span>) <span class="keyword">as</span> <span class="type">u32</span>;</span><br><span class="line">            ... ...</span><br><span class="line">        &#125;</span><br><span class="line">        FD_DEVICE =&gt; &#123;</span><br><span class="line">            <span class="keyword">if</span> f.major &lt; <span class="number">0</span> || f.major &gt;= NDEV || <span class="keyword">unsafe</span> &#123; DEVSW[f.major <span class="keyword">as</span> <span class="type">usize</span>].<span class="title function_ invoke__">is_none</span>() &#125; &#123;</span><br><span class="line">                <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">unsafe</span> &#123;</span><br><span class="line">                DEVSW[f.major <span class="keyword">as</span> <span class="type">usize</span>]</span><br><span class="line">                    .<span class="title function_ invoke__">unwrap</span>()</span><br><span class="line">                    .<span class="title function_ invoke__">as_mut</span>()</span><br><span class="line">                    .<span class="title function_ invoke__">unwrap</span>()</span><br><span class="line">                    .<span class="title function_ invoke__">read</span>(<span class="literal">true</span>, addr, n <span class="keyword">as</span> <span class="type">usize</span>)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The structure is quite clear. Based on the three different types of
+file, it reads data from a pipe, an inode or a device respectively.</p>
+<h2 id="file-organization">2. File Organization</h2>
+<p>Because the file system on the disk is quite important and
+complicated, now we are focusing on the file and dir that organized by
+the inode system. And we'll leave the device and pipe part at the
+end.</p>
+<p>As mentioned before, inode is an object that holds the data of file
+or directory, and is placed on the disk. So basically all of the files
+and directories are stored as form of inode on the disk.</p>
+<p>The problem is, we see the disk as a very big array (like memory but
+commonly slower and bigger), so how to effectively put the file and
+directory on this array, organized as the path name hierarchy, at the
+same time, easy to create, update and delete?</p>
+<p>Generally, most of the file systems are implemented by splitting the
+entire disk as multiple sections, some section records the metadata,
+some sections store file, and some sections just stays empty for future
+use. The file system in the xv6 also designed like that, but much
+simpler.</p>
+<p>The following figure describes the disk section structure for the
+xv6:</p>
+<img src="/2024/12/10/xv6-rust-5/2.png" class="">
+<p>We can see from the above figure that the entire disk has been
+divided as numerous same sized blocks, which size is 4096 bytes per
+block. That gives the file system the minimum control unit, that is one
+block. And each block has its own number, starts from 0.</p>
+<p>Based on block, a disk image can be divided into these six
+sections:</p>
+<ul>
+<li>Boot Section(block 0): size of 1 block, no particular purpose, it
+stays empty since the xv6 defines meaningful block starts from No.1</li>
+<li>Super Section(block 1): size of 1 block, it contains the metadata of
+the file system, including magic number, the size of the entire image
+and the size of other sections, we'll check it soon after.</li>
+<li>Log Section(block 2~31): size of 30 blocks, it mainly records the
+disk operation logs for recovery purpose, we'll check it soon after</li>
+<li>INode Section(block 32~35): size of 4 blocks, the inode was designed
+to store its metadata and real data separately, these 4 blocks only
+store the metadata parts of all inodes.</li>
+<li>Bitmap Section(block 36): size of 1 block, as we know the bitmap is
+a very efficiency data structure to indicate huge statuses by a few
+space, here is the same, bitmap section using 1 block to indicate the
+occupied blocks and empty blocks in the entire disk</li>
+<li>Data Section(block 37~2000): size of 1963 blocks, the real files
+data store in this section, which you can notice it takes the most
+blocks of the disk. The end block 2000 was defined by a constant, and
+can be changed, but more data blocks also means more inodes, so extend
+the size of data section may need to extend inode section as well.</li>
+</ul>
+<p>Firstly, let's take a look at the super block:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// fs.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">SuperBlock</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) magic: <span class="type">u32</span>,      <span class="comment">// Must be FSMAGIC</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) size: <span class="type">u32</span>,       <span class="comment">// Size of file system image (blocks)</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) nblocks: <span class="type">u32</span>,    <span class="comment">// Number of data blocks</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) ninodes: <span class="type">u32</span>,    <span class="comment">// Number of inodes.</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) nlog: <span class="type">u32</span>,       <span class="comment">// Number of log blocks</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) logstart: <span class="type">u32</span>,   <span class="comment">// Block number of first log block</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) inodestart: <span class="type">u32</span>, <span class="comment">// Block number of first inode block</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) bmapstart: <span class="type">u32</span>,  <span class="comment">// Block number of first free map block</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// mkfs/main.rs</span></span><br><span class="line"><span class="keyword">const</span> SB: SuperBlock = SuperBlock &#123;</span><br><span class="line">    magic: FSMAGIC,</span><br><span class="line">    size: (FSSIZE <span class="keyword">as</span> <span class="type">u32</span>).<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    nblocks: NBLOCKS.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    ninodes: NINODES.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    nlog: NLOG.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    logstart: <span class="number">2u32</span>.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    inodestart: (<span class="number">2</span> + NLOG).<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    bmapstart: (<span class="number">2</span> + NLOG + NINODEBLOCKS).<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>As a place to hold the metadata of the file system,
+<code>SuperBlock</code> holds very essential data, if we see the
+initialize of <code>SuperBlock</code> in the mkfs, there are
+<code>FSMAGIC</code>, <code>FSSIZE</code>, <code>NBLOCKS</code>,
+<code>NINODES</code>, <code>NLOG</code> and other constants are
+assigned, these constants define the block size of several sections.</p>
+<h3 id="inode">2.1 INode</h3>
+<p>We have been talking about the inode even we don't know what exactly
+the inode is, that because the inode is a really important concept in
+the file system and we can barely avoid it. Now let's deep dive into the
+"inode layer" to find out why it's so important.</p>
+<p>First, we should have a look at the <code>INode</code> structure:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// file.rs</span></span><br><span class="line"><span class="comment">// in-memory copy of an inode</span></span><br><span class="line"><span class="meta">#[derive(Copy, Clone)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">INode</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) dev: <span class="type">u32</span>,        <span class="comment">// Device number</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) inum: <span class="type">u32</span>,       <span class="comment">// Inode number</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) ref_cnt: <span class="type">i32</span>,    <span class="comment">// Reference count</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) lock: Sleeplock, <span class="comment">// protects everything below here</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) valid: <span class="type">bool</span>,     <span class="comment">// inode has been read from disk?</span></span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) file_type: FileType, <span class="comment">// copy of disk inode</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) major: <span class="type">i16</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) minor: <span class="type">i16</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) nlink: <span class="type">i16</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) size: <span class="type">u32</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) addrs: [<span class="type">u32</span>; NDIRECT + <span class="number">1</span>],</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// fs.rs</span></span><br><span class="line"><span class="comment">// On-disk inode structure</span></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="meta">#[derive(Copy, Clone)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">DINode</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> file_type: FileType,       <span class="comment">// File type</span></span><br><span class="line">    <span class="keyword">pub</span> major: <span class="type">i16</span>,                <span class="comment">// Major device number (T_DEVICE only)</span></span><br><span class="line">    <span class="keyword">pub</span> minor: <span class="type">i16</span>,                <span class="comment">// Minor device number (T_DEVICE only)</span></span><br><span class="line">    <span class="keyword">pub</span> nlink: <span class="type">i16</span>,                <span class="comment">// Number of links to inode in file system</span></span><br><span class="line">    <span class="keyword">pub</span> size: <span class="type">u32</span>,                 <span class="comment">// Size of file (bytes)</span></span><br><span class="line">    <span class="keyword">pub</span> addrs: [<span class="type">u32</span>; NDIRECT + <span class="number">1</span>], <span class="comment">// Data block addresses</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// stat.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">enum</span> <span class="title class_">FileType</span> &#123;</span><br><span class="line">    NO_TYPE,</span><br><span class="line">    T_DIR,    <span class="comment">// Directory</span></span><br><span class="line">    T_FILE,   <span class="comment">// File</span></span><br><span class="line">    T_DEVICE, <span class="comment">// Device</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Surprise! There are two inode structures actually, and that makes
+total sense. Because the inode would not only exist in memory, but also
+persistent on disk.</p>
+<p>Comparing the two forms of inodes, the memory version of
+<code>INode</code> has a few more fields than the disk version, such as
+<code>lock</code> and <code>ref_cnt</code> for concurrently accessing,
+and <code>inum</code> for identification.</p>
+<p>Besides, the disk version of <code>DINode</code> is very compact in
+its size, that's good for store in block and easy to calculate the
+location in the disk. Let's calculate the real size of one
+<code>DINode</code> by its fields:</p>
+<ul>
+<li>file_type: 1 byte. Rust allocate enumeration's size dynamically <a
+href="https://rust-lang.github.io/unsafe-code-guidelines/layout/enums.html">based
+on the number of elements</a> defined in the <code>enum</code>, since
+the <code>FileType</code> has only 4 elements, 1 byte of space is enough
+for them.</li>
+<li>major: <code>i16</code> == 2 bytes</li>
+<li>minor: <code>i16</code> == 2 bytes</li>
+<li>nlink: <code>i16</code> == 2 bytes</li>
+<li>size: <code>u32</code> == 4 bytes</li>
+<li>addrs: <code>NDIRECT</code> == 12, so the size of addrs is 4 * (12 +
+1) = 52 bytes</li>
+</ul>
+<p>Therefore, if we simply add them together, then one
+<code>DINode</code> would take 63 bytes of space on disk. However, like
+other programs languages, values in rust also have alignment beside
+size. In <a
+href="https://doc.rust-lang.org/reference/type-layout.html#representations">the
+rust representation</a>, the fields in a struct can be reordered, and
+aligned, so we cannot confidently say the size of <code>DINode</code> is
+63 bytes.</p>
+<p>Additionally, you may noticed that the <a
+href="https://doc.rust-lang.org/reference/type-layout.html#reprc-structs"><code>#[repr(C)]</code></a>
+has been put on the <code>DINode</code>, which makes sure the compiler
+keeps the memory layout of the type exactly the same as the type defined
+in C language. According to the size and alignment principle of
+<code>#[repr(C)]</code>, we can have the following image to help us
+calculate the real size:</p>
+<img src="/2024/12/10/xv6-rust-5/3.png" class="">
+<p>And based on the above image, the real size of <code>DINode</code> is
+64 bytes.</p>
+<p>So why is it so important to calculate the real size of
+<code>DINode</code>? Because next we'll talk about how the inodes stay
+in the disk.</p>
+<p>We have known that there is a section in the disk which takes 4
+blocks to hold the inode, but only inode metadata, the data of inode
+stores in another location. Refer to the <code>DINode</code>, expect for
+the last field <code>addrs</code>, all other fields can be seen as
+metadata of a inode, the last field <code>addrs</code> stores the
+reference of the data blocks, which is block number.</p>
+<p>Hence, I guess you already figured out how the metadata and real data
+of inode store in the disk: the inode section stores
+<code>DINode</code>, while the data section stores the data blocks,
+which numbers are stored in the <code>DINode</code> as references.</p>
+<p>So far, I suppose we can do a simple math to prove why we should 4
+blocks for the inode section:</p>
+<p>First, <code>NINODES</code> in the super block defines the max number
+of inodes the file system can have, the value by default is 200. Then we
+already know one <code>DINode</code> takes 64 bytes of space, so 200
+inodes will need 12800 bytes to be saved. A block can store 4096 bytes
+data, since <code>12800 / 4096 = 3.125</code>, which means the inode
+section will need at least 4 blocks.</p>
+<p>The following images shows an inode and the placement of its metadata
+and real data:</p>
+<img src="/2024/12/10/xv6-rust-5/4.png" class="">
+<p>In the above example, the <code>DINode</code> has 10354 bytes of
+data, and that will need 3 blocks to store. But what if the size of data
+is too large to be stored within 13 blocks? Actually, in the
+<code>addrs[]</code>, only first 12 blocks are using for store data, the
+number 13th block is specifically designed for more data. If the first
+12 blocks are full, but there is still some data needs to be stored, at
+that time, block 13 will become a big array dedicated to store block
+references.</p>
+<p>In the <code>addrs[]</code>, the first 12 blocks are called direct
+data blocks, which can be referenced from <code>addrs[]</code> directly,
+and the data blocks that exceeds 12, are called indirect data blocks,
+all of the block number of indirect blocks are stored in the 13th
+block.</p>
+<p>Let's see if the data size exceeds 12 blocks:</p>
+<img src="/2024/12/10/xv6-rust-5/5.png" class="">
+<p>So this time we assume the size is 1639184 bytes, which will need 401
+blocks, with the indirect blocks, they can be easily stored. Since the
+size of a block is 4096 bytes, and a <code>u32</code> block number takes
+4 bytes to store, in theory, the maximum size of a single file in xv6
+would be 4MiB.</p>
+<h3 id="pathname-directory">2.2 Pathname &amp; Directory</h3>
+<p>With the knowledge of inode, now we can have a look at the
+"directory". In the file system, a directory is also considered an inode
+file, no matter the path of itself, or the paths of its sub directories
+or sub files, are all treated as plain data.</p>
+<p>This is the definition of directory entry:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// fs/mod.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> DIRSIZ: <span class="type">usize</span> = <span class="number">14</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">Dirent</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> inum: <span class="type">u16</span>,    <span class="comment">// inode number</span></span><br><span class="line">    <span class="keyword">pub</span> name: [<span class="type">u8</span>; DIRSIZ],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Directory is a file containing a sequence of <code>Dirent</code>
+structures. And the interesting thing is that a directory file only
+contains the paths of its subdirectories and subfiles, its own path, on
+the other hand, is contained in its parent's file.</p>
+<p>The following image shows an example of
+`<code>/home/lenshood</code>:</p>
+<p>So far we've seen the INode related structures and designs, which
+help us understand how INode level works. Thus, we are going to omit the
+INode operations, please check them at the <code>fs.rs</code> to see
+more details.</p>
+<h3 id="log">2.3 Log</h3>
+<p>Under the INode level, there is another important abstraction level
+called "log". Generally speaking, log level doesn't responsible for any
+complex logic, it only care about how to reduce the risk of disk write
+interruption if a crash occurs. Basically, the log level is building on
+the concept of <a
+href="https://dev.mysql.com/doc/refman/8.2/en/innodb-redo-log.html#:~:text=The%20redo%20log%20is%20a,or%20low%2Dlevel%20API%20calls.">"redo
+log"</a>. For the system that running in the real world, we must assume
+crash will definitely happen in someday.</p>
+<p>So if there is no mechanism to take care of the crash, then it has
+possibility that some disk write operations are on going while a power
+off crash occurs, lead to some blocks were written but some other blocks
+were not. Since we don't have any idea about what kind of data was in
+the block, the crash may cause a block has been assigned to an INode
+(meta data saved), but the assigned flag failed to save in the block.
+That's a quite serious problem because the kernel may reassign the block
+that it believes is a free block, to another INode.</p>
+<p>But don't give me wrong, the key thing that the log level should
+keep, is not "recovery", is "consistency", because data inconsistent is
+way more serious than data loss. The problem we just described above can
+turn the system become a totally disaster because no one can simply tell
+which INode the block should belong to, comparing that, a data loss is
+more controllable as we should only revise the data in a few minutes
+before crash. There's another reason that we just care about consistency
+not recovery, that is, keep no data loss is too costly, the performance
+should also be considered otherwise nobody would use it.</p>
+<p>To learn how log level works, let's look deeper into the log
+blocks:</p>
+<img src="/2024/12/10/xv6-rust-5/7.png" class="">
+<p>We've known there are 30 blocks reserved for log, but only last 29
+blocks are using for save data, the first log block is for log
+header:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">LogHeader</span> &#123;</span><br><span class="line">    n: <span class="type">u32</span>,</span><br><span class="line">    block: [<span class="type">u32</span>; LOGSIZE],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>LogHeader is very simple, <code>n</code> represents how many blocks
+are saved in log currently, and <code>block</code> records the block
+number where the log blocks map to the real blocks.</p>
+<p>When a fs syscall is executing to write data into disk, it first call
+<code>begin_op()</code> indicating a disk write transaction has began.
+Next, rather than directly call block write method, it just call
+<code>log_write()</code> then return, actually the writing operation is
+not executed at that time, the log related code will make sure the data
+is eventually written. After all things done, the syscall will call
+<code>end_op()</code> to finish the transaction.</p>
+<p>The following diagram may describe the data write process
+clearer:</p>
+<img src="/2024/12/10/xv6-rust-5/8.png" class="">
+<p>The <code>log_write()</code> will only record the block number of the
+block that has updates. BTW, if a block was updated, before it goes to
+disk, there is a block cache to hold the block data temporary in the
+memory, we'll talk about the block cache later.</p>
+<p>When the <code>end_op()</code> is called, and if there is no other
+log write operation on going, the data will be written. First the data
+will be written into log blocks, then writes the log header. After that,
+commit has been successfully executed, and if crash occurs at this
+point, all of the data saved in log can be recovered, but before that,
+all data will lost, even if the log blocks are already written. This is
+how the log mechanism keeps the data writing atomically and
+consistency.</p>
+<p>After log header is saved, the log blocks will be moved to real
+blocks, this process is exactly the same as the recovery process. When
+system started, it will check the log header first, if any log blocks
+are found, the recovery process will be executed to recover data into
+real blocks.</p>
+<h2 id="block-operation">3. Block Operation</h2>
+<h2 id="virtio-device">4. VirtIO Device</h2>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2024/12/10/xv6-rust-5/" title="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence">http://lenshood.github.io/2024/12/10/xv6-rust-5/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+        <a target="_blank" class="social-link" href="/atom.xml">
+          <span class="icon">
+            <i class="fa fa-rss"></i>
+          </span>
+
+          <span class="label">RSS</span>
+        </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+              <a href="/tags/os/" rel="tag"># os</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/11/20/xv6-rust-4/" rel="prev" title="/Xv6 Rust 0x04/ - CPU Virtualization">
+                  <i class="fa fa-chevron-left"></i> /Xv6 Rust 0x04/ - CPU Virtualization
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Lenshood</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdn.jsdelivr.net/npm/mathjax@3.2.0/es5/tex-mml-chtml.js","integrity":"sha256-r+3itOMtGGjap0x+10hu6jW/gZCzxHsoKrOd7gyRSGY="}}</script>
+<script src="/js/third-party/math/mathjax.js"></script>
+
+
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js"></script>
+
+</body>
+</html>
