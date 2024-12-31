@@ -267,6 +267,8 @@ Let's see if the data size exceeds 12 blocks:
 
 So this time we assume the size is 1639184 bytes, which will need 401 blocks, with the indirect blocks, they can be easily stored. Since the size of a block is 4096 bytes, and a `u32` block number takes 4 bytes to store, in theory, the maximum size of a single file in xv6 would be 4MiB.
 
+### 2.2 Pathname & Directory
+
 With the knowledge of inode, now we can have a look at the "directory". In the file system, a directory is also considered an inode file, no matter the path of itself, or the paths of its sub directories or sub files, are all treated as plain data.
 
 This is the definition of directory entry:
@@ -285,13 +287,44 @@ Directory is a file containing a sequence of `Dirent` structures. And the intere
 
 The following image shows an example of ``/home/lenshood`:
 
-{% asset_img 6.png %}
-
-### 2.2 Log
 
 
+So far we've seen the INode related structures and designs, which help us understand how INode level works. Thus, we are going to omit the INode operations, please check them at the `fs.rs` to see more details.
 
+### 2.3 Log
 
+Under the INode level, there is another important abstraction level called "log". Generally speaking, log level doesn't responsible for any complex logic, it only care about how to reduce the risk of disk write interruption if a crash occurs. Basically, the log level is building on the concept of ["redo log"](https://dev.mysql.com/doc/refman/8.2/en/innodb-redo-log.html#:~:text=The%20redo%20log%20is%20a,or%20low%2Dlevel%20API%20calls.). For the system that running in the real world, we must assume crash will definitely happen in someday. 
+
+So if there is no mechanism to take care of the crash, then it has possibility that some disk write operations are on going while a power off crash occurs, lead to some blocks were written but some other blocks were not. Since we don't have any idea about what kind of data was in the block, the crash may cause a block has been assigned to an INode (meta data saved), but the assigned flag failed to save in the block. That's a quite serious problem because the kernel may reassign the block that it believes is a free block, to another INode.
+
+But don't give me wrong, the key thing that the log level should keep, is not "recovery", is "consistency", because data inconsistent is way more serious than data loss. The problem we just described above can turn the system become a totally disaster because no one can simply tell which INode the block should belong to, comparing that, a data loss is more controllable as we should only revise the data in a few minutes before crash. There's another reason that we just care about consistency not recovery, that is, keep no data loss is too costly, the performance should also be considered otherwise nobody would use it.
+
+To learn how log level works, let's look deeper into the log blocks:
+
+{% asset_img 7.png %}
+
+We've known there are 30 blocks reserved for log, but only last 29 blocks are using for save data, the first log block is for log header:
+
+```rust
+struct LogHeader {
+    n: u32,
+    block: [u32; LOGSIZE],
+}
+```
+
+LogHeader is very simple, `n` represents how many blocks are saved in log currently, and `block` records the block number where the log blocks map to the real blocks.
+
+When a fs syscall is executing to write data into disk, it first call `begin_op()` indicating a disk write transaction has began. Next, rather than directly call block write method, it just call `log_write()` then return, actually the writing operation is not executed at that time, the log related code will make sure the data is eventually written. After all things done, the syscall will call `end_op()` to finish the transaction.
+
+The following diagram may describe the data write process clearer:
+
+{% asset_img 8.png %}
+
+The `log_write()` will only record the block number of the block that has updates. BTW, if a block was updated, before it goes to disk, there is a block cache to hold the block data temporary in the memory, we'll talk about the block cache later.
+
+When the `end_op()` is called, and if there is no other log write operation on going, the data will be written. First the data will be  written into log blocks, then writes the log header. After that, commit has been successfully executed, and if crash occurs at this point, all of the data saved in log can be recovered, but before that, all data will lost, even if the log blocks are already written. This is how the log mechanism keeps the data writing atomically and consistency. 
+
+After log header is saved, the log blocks will be moved to real blocks, this process is exactly the same as the recovery process. When system started, it will check the log header first, if any log blocks are found, the recovery process will be executed to recover data into real blocks.
 
 
 
