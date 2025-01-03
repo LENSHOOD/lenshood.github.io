@@ -375,7 +375,7 @@ struct BCache {
 
 It's very simple because it only hold `Buf` as an array list, the `Buf` itself records `prev` and `next` to become a list with each other, that list make use of LRU replacement algorithm to decide which one should be replaced if the cache full.
 
-The following diagram shows the `BCache` structure:
+The following diagram shows the initial structure of `BCache`:
 
 {% asset_img 9.png %}
 
@@ -436,13 +436,48 @@ fn bget(dev: u32, blockno: u32) -> &'static mut Buf {
     ... ...
 }
 
+// recycle
+pub fn brelse(b: &mut Buf) {
+    ... ...
+    BCACHE.lock.acquire();
+    b.refcnt -= 1;
+    if b.refcnt == 0 {
+        b.next.unwrap().as_mut().prev = b.prev;
+        b.prev.unwrap().as_mut().next = b.next;
+
+        let head = BCACHE.head.as_mut();
+        b.next = head.next;
+        b.prev = Some(BCACHE.head);
+
+        let b = NonNull::new_unchecked(b as *mut Buf);
+        head.next.unwrap().as_mut().prev = Some(b);
+        head.next = Some(b);
+    }
+    ... ...
+}
 ```
 
-There are two main `BCache` operations: "query" and "assign", let's look at the "assign" part at first, because the cache should be empty at the beginning so that nothing can be found through "query".
+There are three main `BCache` operations: "query", "assign" and "recycle", let's look at the "assign" first, because the cache should be empty at the beginning so that nothing will be found through "query".
 
 Assign an available block frame requires finding a frame that hasn't been referred, which means `refcnt == 0`. The finding process will start from `head.prev`, which is the `buf[29]`. Since there is no block frame is referred when system is just started, so the first block frame will be the `buf[29]`, and if there is another disk request that need another block to be loaded into memory, the `buf[28]` would be assigned, and so on.
 
-Base on the [principle of locality](https://en.wikipedia.org/wiki/Principle_of_locality#:~:text=In%20physics%2C%20the%20principle%20of,only%20by%20its%20immediate%20surroundings.), LRU assumes the data that is just accessed would have high possibility to be accessed again. Therefore, the "query" part traverse the cache from the `head.next`, 
+Base on the [principle of locality](https://en.wikipedia.org/wiki/Principle_of_locality#:~:text=In%20physics%2C%20the%20principle%20of,only%20by%20its%20immediate%20surroundings.), LRU assumes the data that is most recently used would have high possibility to be used again. On the contrary, the Least Recently Used block, would have less possibility to be used again. 
+
+But how does a block frame be considered as "used"?  So once a block frame is using by some syscall, the `Buf.refcnt` will never be zero, a non-zero `refcnt` indicates the `Buf` is "being" used. Only if there is no syscall is accessing the `Buf`, the state of this very block frame could be considered as "used".
+
+Hence, we can check the "recycle" logic in the `brelse()`, if `b.refcnt == 0`, the block frame will be moved to the head of the linked list, because this `Buf` is most recently used. Now we can understand why the "query" code traverse the cache from the `head.next`, because from this direction, the most recently used block will be queried first, that's the most efficient way.
+
+With time goes on, the least recently used block frame will sink to the tail, when a new empty block frame is needed, the "assign" logic traverse the list from the tail, which is also the "head.prev".
+
+The following diagram depict such kind of process:
+
+ {% asset_img 10.png %}
+
+Assume `buf[0]` and `buf[1]` are assigned and being used. Firstly `buf[0]` is released and is put to the head, then `buf[1]` is released, and is also put to the head, at the time, `buf[1]` is closer to the head than `buf[0]`.
+
+But next the `buf[0]` is queried, and released again, that makes it returned to the head position, because the most recently used block is `buf[1]`.
+
+Finally, `buf[2]` is assigned since it's never used before, we can also imagine once `buf[2]` is released, it will be put to the head as well.
 
 
 
