@@ -330,6 +330,120 @@ After log header is saved, the log blocks will be moved to real blocks, this pro
 
 ## 3. Block Operation
 
+Beneath the log, we finally arrive the practical block operations level. Like we mentioned in the log section, the log level is only for recovery, so that it only cares about write rather than read. Actually if we check the INode operation code, we will notice many low-level block operations such as `bread()`, `brelse`, the INode operations read or write its data through these low-level block operations. 
+
+An INode represents an individual file (here we only talk disk file specifically), but a disk file needs more than one blocks to store its data, because in block level, block is the smallest control unit and a block can only hold 4096 bytes of data. Here we should always make our mind clear that, we cannot simply operate the data structure placed in the disk, like INode, or block, as long as we want to retrieve from or make changes to those data structures, load them into memory is the very first thing we should do.
+
+Just like the `DINode`, block also has its memory form, which is called `Buf`:
+
+```rust
+// fs/mode.rs
+pub const BSIZE: usize = 4096; // block size
+
+// buf.rs
+pub struct Buf {
+    pub(crate) valid: bool, // has data been read from disk?
+    pub(crate) disk: bool,  // does disk "own" buf?
+    pub(crate) dev: u32,
+    pub(crate) blockno: u32,
+    pub(crate) lock: Sleeplock,
+    pub(crate) refcnt: u32,
+    pub(crate) prev: Option<NonNull<Buf>>, // LRU cache list
+    pub(crate) next: Option<NonNull<Buf>>,
+    pub(crate) data: [u8; BSIZE],
+}
+```
+
+It holds many field to record its latest states as a memory block, such as `blockno` and `refcnt`. But we cannot actually load all of the blocks into memory, which makes no sense too, because essentially memory is like a cache to the disk, just like the CPU cache caches data from memory(see [Memory Hierarchy](https://en.wikipedia.org/wiki/Memory_hierarchy)).
+
+So there should be some kind of structure to hold the limit numbers of memory blocks, and deal with the situation like a disk block wants to be loaded into memory, while there is no empty memory block (`Buf`) has left.
+
+The xv6 introduced a structure called `BCache`, which is a combined structure of array list and linked list, to be the block cache in memory:
+
+```rust
+// bio.rs
+struct BCache {
+    lock: Spinlock,
+    buf: [Buf; NBUF],
+
+    // Linked list of all buffers, through prev/next.
+    // Sorted by how recently the buffer was used.
+    // head.next is most recent, head.prev is least.
+    head: NonNull<Buf>,
+}
+```
+
+It's very simple because it only hold `Buf` as an array list, the `Buf` itself records `prev` and `next` to become a list with each other, that list make use of LRU replacement algorithm to decide which one should be replaced if the cache full.
+
+The following diagram shows the `BCache` structure:
+
+{% asset_img 9.png %}
+
+The `buf` array contains 30 `Buf` as the memory cache, each element is a memory block frame that can hold actual data. They are also linked together, with a unique `head`.
+
+Refer to the code of `bget()`, we may find out how the `BCache` works:
+
+```rust
+// bio.rs
+fn bget(dev: u32, blockno: u32) -> &'static mut Buf {
+    ... ...
+    
+    // query
+    let head_ptr = BCACHE.head.as_ptr();
+    let head = head_ptr.as_ref().unwrap();
+    let mut b_ptr = head.next.unwrap().as_ptr();
+    loop {
+        if b_ptr == head_ptr {
+            break;
+        }
+
+        let b = b_ptr.as_mut().unwrap();
+        if b.dev == dev && b.blockno == blockno {
+            b.refcnt += 1;
+            BCACHE.lock.release();
+            b.lock.acquire_sleep();
+            return b;
+        }
+
+        b_ptr = b.next.unwrap().as_ptr();
+    }
+  
+    ... ...
+  
+    // assign
+    let head_ptr = BCACHE.head.as_ptr();
+    let head = head_ptr.as_ref().unwrap();
+    let mut b_ptr = head.prev.unwrap().as_ptr();
+    loop {
+        if b_ptr == head_ptr {
+            break;
+        }
+
+        let mut b = b_ptr.as_mut().unwrap();
+        if b.refcnt == 0 {
+            b.dev = dev;
+            b.blockno = blockno;
+            b.valid = false;
+            b.refcnt = 1;
+            BCACHE.lock.release();
+            b.lock.acquire_sleep();
+            return b;
+        }
+
+        b_ptr = b.prev.unwrap().as_ptr();
+    }
+  
+    ... ...
+}
+
+```
+
+There are two main `BCache` operations: "query" and "assign", let's look at the "assign" part at first, because the cache should be empty at the beginning so that nothing can be found through "query".
+
+Assign an available block frame requires finding a frame that hasn't been referred, which means `refcnt == 0`. The finding process will start from `head.prev`, which is the `buf[29]`. Since there is no block frame is referred when system is just started, so the first block frame will be the `buf[29]`, and if there is another disk request that need another block to be loaded into memory, the `buf[28]` would be assigned, and so on.
+
+Base on the [principle of locality](https://en.wikipedia.org/wiki/Principle_of_locality#:~:text=In%20physics%2C%20the%20principle%20of,only%20by%20its%20immediate%20surroundings.), LRU assumes the data that is just accessed would have high possibility to be accessed again. Therefore, the "query" part traverse the cache from the `head.next`, 
+
 
 
 ## 4. VirtIO Device
