@@ -483,3 +483,78 @@ Finally, `buf[2]` is assigned since it's never used before, we can also imagine 
 
 ## 4. VirtIO Device
 
+With many different layers above, now we are arrive the bottom layer: disk layer. At this layer, the data will be read from or write to a "real disk".
+
+The phrase real disk was quoted by quotation marks, because we have known in the first chapter that our OS is running on the qemu virtual machine, and the according to the runner command, we can see the disk is actually an image file placed in the host machine:
+
+```toml
+runner = "qemu-system-riscv64 -S -s -machine virt -bios none -m 128M -smp 3 -nographic -global virtio-mmio.force-legacy=false -drive file=../mkfs/fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -kernel "
+```
+
+Since our OS is running on a virtual machine, the IO devices are usually virtual devices. For example, the virtual disk will have two parts, the first part acts as a disk device and can only be seen in the guest machine, this part we call frontend; while the second part is a program that located in the host machine,  responsible for data transformation, we call it backend. 
+
+Looking at the "runner" command, the "-drive" argument set the file "fs.img" as the disk image, and the "-device virtio-blk-device ..." uses the "virtio-blk-device" to emulate block device. The "virtio-blk-device" adds a virtio block device in the guest machine that mount on the "virtio-mmio-bus.0", and sets the image file as real data store in the host machine. So that with the above configuration, we should see the virtio device in the guest machine:
+
+```shell
+$ qemu-system-riscv64 ... -monitor stdio
+(qemu) info qtree
+... ...
+dev: virtio-mmio, id ""
+    gpio-out "sysbus-irq" 1
+    format_transport_address = true
+    force-legacy = false
+    ioeventfd = true
+    mmio 0000000010001000/0000000000000200
+    bus: virtio-mmio-bus.0
+      type virtio-mmio-bus
+      dev: virtio-blk-device, id ""
+        drive = "x0"
+        backend_defaults = "auto"
+        logical_block_size = 512 (512 B)
+        physical_block_size = 512 (512 B)
+        min_io_size = 0 (0 B)
+        opt_io_size = 0 (0 B)
+        discard_granularity = 4294967295 (4 GiB)
+        write-cache = "auto"
+        share-rw = false
+        account-invalid = "auto"
+        account-failed = "auto"
+        rerror = "auto"
+        werror = "auto"
+        cyls = 15 (0xf)
+        heads = 16 (0x10)
+        secs = 63 (0x3f)
+        lcyls = 0 (0x0)
+        lheads = 0 (0x0)
+        lsecs = 0 (0x0)
+        serial = ""
+        config-wce = true
+        request-merging = true
+        num-queues = 1 (0x1)
+        queue-size = 256 (0x100)
+        seg-max-adjust = true
+        iothread-vq-mapping = <null>
+        discard = true
+        report-discard-granularity = true
+        write-zeroes = true
+        max-discard-sectors = 4194303 (0x3fffff)
+        max-write-zeroes-sectors = 4194303 (0x3fffff)
+        x-enable-wce-if-config-wce = true
+        indirect_desc = true
+        event_idx = true
+        notify_on_empty = true
+        any_layout = true
+        iommu_platform = false
+        packed = false
+        queue_reset = true
+        in_order = false
+        use-started = true
+        use-disabled-flag = true
+        x-disable-legacy-check = false
+... ...
+```
+
+The `info qtree` command in qemu monitor prints the device tree of the guest machine, we can see the device "virtio-blk-device" is mounted on the "bus: virtio-mmio-bus.0", which address starts from `0x0000000010001000`, and has the range of `0x0000000000000200`, which is 512 bytes.
+
+So far we have encountered some concepts that we are not familiar, such as "virtio-blk-device" and "virtio-mmio-bus". What exactly is “virtio”?
+
