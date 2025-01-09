@@ -558,3 +558,23 @@ The `info qtree` command in qemu monitor prints the device tree of the guest mac
 
 So far we have encountered some concepts that we are not familiar, such as "virtio-blk-device" and "virtio-mmio-bus". What exactly is “virtio”?
 
+Basically, virtio is a type of standard that aim to provide a general abstraction of devices. 
+
+With the virtio standard, common hardwares can be virtualized in guest machine, as virtual devices. Virtio standard defines many types of devices, such as block device, net device, console, scsi and gpu.
+
+We have slightly mentioned before, about the concepts of frontend and backend. In the same way, virtio actually works based on frontend and backend, and they exchange data through shared memory and a kind of ring queue called "virtqueue".
+
+> In virtio standard, each virtqueue can consist of up to 3 parts:
+>
+> Descriptor Area - used for describing buffers
+>
+> Driver Area - extra data supplied by driver to the device 
+>
+> Device Area - extra data supplied by device to driver
+
+In previous version of virtio, the above parts were called "Descriptor", "Available" and "Used", which are also adopted in the xv6 code. Essentially, the data change between frontend and backend is achieved by those buffers, we'll see how they work together to do so afterward.
+
+Besides, virtio also provides several ways to communicate with virtio backend, such as virtio-mmio, which maps its address into memory space, so that the virtio backend can be accessed by ordinary memory opearation; and virtio-pci, which takes pci bus to communicate with virtio backend.
+
+For more details, please refer to the latest virtio [document](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf).
+
