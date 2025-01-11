@@ -578,3 +578,14 @@ Besides, virtio also provides several ways to communicate with virtio backend, s
 
 For more details, please refer to the latest virtio [document](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf).
 
+The following diagram shows how xv6 interact with qemu by virtio:
+
+{% asset_img 11.png %}
+
+It clearly illustrates the frontend, backend and transport bus. When QEMU setup virtio block device for the guest OS (xv6), it implements the backend program as a virtual device, and maps the device control registers into address space of guest OS, this way is called virtio over MMIO. Besides, an external interrupt source specific for this virtio device is also connected.
+
+The program(`virtio_disk.rs`) within the xv6, act as the frontend to operate virtio, can also be called as virtio driver. The driver initialize virtio device at the boot stage, then once a block operation wants to read data from or write data to the disk, the function `virtio_disk_rw` will be called. This function prepare the two parts of virtqueue: descriptor and available, to build a virtio request that contains fields such as request id, read/write flag, `buf` address. After the request is prepared, it would notify the device that data is ready. Since IO operation is relatively slow, there is no need to hold the CPU waiting for response, at this time, the function will start sleeping to wait.
+
+Once receive the notification, the virtio device starts to read or write data in to the image file, after operation is complete, the device will trigger an interrupt so that a interrupt service routine located in the guest OS could handle that interrupt. The operation response will be fetched from the third part of virtqueue: used, then the `virtio_disk_rw` will be waken up too, so that it can finally return to the upper level block operation.
+
+Because the real code seems straightforward, I'll leave them for the readers to discover. FYI, xv6 chose split virtqueues format for device operation, see chapter [*2.7 Split Virtqueues*](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf) to get to know the virtqueue structures define. And for the specification of MMIO control registers, please check the chapter [*4.2 Virtio Over MMIO*](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf). 
