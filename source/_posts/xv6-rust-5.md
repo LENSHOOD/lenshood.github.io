@@ -9,6 +9,8 @@ categories:
 - Rust
 ---
 
+{% asset_img header.jpg 500 %}
+
 With all of the content in the previous chapters, we have known how to initialize and run a process, but before the kernel runs the first line of a process's code, a question still remained, how does my user program store in the disk and how is it loaded?
 
 In this chapter, we are going to discover the disk management and file system in the xv6, we'll see the persistence stack from the top to the bottom, let's get started!
@@ -19,7 +21,7 @@ In this chapter, we are going to discover the disk management and file system in
 
 The xv6 designs a very clear persistence system, which is designed by layers. The [xv6-book](https://pdos.csail.mit.edu/6.828/2024/xv6/book-riscv-rev4.pdf) demonstrates a diagram(in chapter 8) to show such layers as follows:
 
-{% asset_img 1.png %}
+{% asset_img 1.png 300 %}
 
 Actually, the first three layers are all related to the concept of "File". The xv6 inherits the unix philosophy of ["everything is a file"](https://en.wikipedia.org/wiki/Everything_is_a_file), which is a high level abstraction that regards all devices, pipes, directories, and disk files as "Files", to simplify access and management. Each file has a unique file descriptor that let it to be identified conveniently, file descriptor is also the name of the first layer.
 
@@ -302,7 +304,7 @@ But don't give me wrong, the key thing that the log level should keep, is not "r
 
 To learn how log level works, let's look deeper into the log blocks:
 
-{% asset_img 7.png %}
+{% asset_img 7.png 300 %}
 
 We know there are 30 blocks reserved for log, but only the last 29 blocks are used for save data, the first log block is for the [`LogHeader`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L36):
 
