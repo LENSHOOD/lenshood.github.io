@@ -84,7 +84,7 @@ pub fn mknod(path: *const u8, major: u16, minior: u16) -> i32;
 pub fn dup(fd: i32) -> i32;
 ```
 
-Apparently, some of the syscalls using `fd` as their argument to locate a `File`, but `open`, `exec` and `mknod` using `path` instead of `fd`, since these syscalls are only applicable to files that backed by inodes, and each inode has a `path`.
+Apparently, some of the syscalls using `fd` as their argument to locate a [`File`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L18), but `open`, `exec` and `mknod` using `path` instead of `fd`, since these syscalls are only applicable to files that backed by inodes, and each inode has a `path`.
 
 As an example, the following code piece is taken from the implementation of the syscall [`read`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/file.rs#L88):
 
@@ -176,7 +176,7 @@ const SB: SuperBlock = SuperBlock {
 };
 ```
 
-As a place to hold the metadata of the file system, `SuperBlock` holds the data that is very essential, if we see the initialize of [`SuperBlock`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/fs.rs#L103) in the [mkfs](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L30), there are [`FSMAGIC`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L30), [`FSSIZE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/param.rs#L12), [`NBLOCKS`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L28), [`NINODES`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/param.rs#L5), [`NLOG`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L24) and other constants are assigned, these constants define the block size of several sections.
+As a place to hold the metadata of the file system, [`SuperBlock`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/fs.rs#L103) holds the data that is very essential, if we see the initialize of [`SuperBlock`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/fs.rs#L103) in the [mkfs](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L30), there are [`FSMAGIC`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L30), [`FSSIZE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/param.rs#L12), [`NBLOCKS`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L28), [`NINODES`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/param.rs#L5), [`NLOG`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L24) and other constants are assigned, these constants define the block size of several sections.
 
 ### 2.1 INode
 
@@ -229,9 +229,9 @@ Surprise! There are two inode structures actually, and that makes total sense. B
 
 Comparing the two forms of inodes, the memory version of [`INode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L67) has a few more fields than the disk version, such as `lock` and `ref_cnt` for concurrently accessing, and `inum` for identification.
 
-Besides, the disk version of [`DINode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38) is very compact in its structure, that's good for store in block and easy to calculate the location in the disk. Let's calculate the real size of one `DINode` by its fields:
+Besides, the disk version of [`DINode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38) is very compact in its structure, that's good for store in block and easy to calculate the location in the disk. Let's calculate the real size of one [`DINode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38) by its fields:
 
-- file_type: 1 byte. (Rust allocate enumeration's size dynamically [based on the number of elements](https://rust-lang.github.io/unsafe-code-guidelines/layout/enums.html) defined in the `enum`, since the `FileType` has only 4 elements, 1 byte of space is enough for them.)
+- file_type: 1 byte. (Rust allocate enumeration's size dynamically [based on the number of elements](https://rust-lang.github.io/unsafe-code-guidelines/layout/enums.html) defined in the `enum`, since the [`FileType`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/stat.rs#L2) has only 4 elements, 1 byte of space is enough for them.)
 - major: `i16` == 2 bytes
 - minor: `i16` == 2 bytes
 - nlink: `i16` == 2 bytes
@@ -246,7 +246,7 @@ Additionally, you may notice that the [`#[repr(C)]`](https://doc.rust-lang.org/r
 
 And based on the above diagram, the real size of [`DINode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38) is 64 bytes.
 
-So why is it so important to calculate the real size of [`DINode`](? Because next we'll talk about how the inodes stay in the disk.
+So why is it so important to calculate the real size of [`DINode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38)? Because next we'll talk about how the inodes stay in the disk.
 
 We have known that there is a section in the disk which takes 4 blocks to hold the inode, but only inode metadata, the data of inode stores in another location. Refer to the [`DINode`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38), except for the last field `addrs`, all other fields can be seen as metadata of inode, the last field `addrs` stores the reference of the data blocks, which is block number.
 
@@ -288,7 +288,7 @@ pub struct Dirent {
 
 Directory is a file containing a sequence of [`Dirent`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L72) structures. And the interesting thing is that a directory file only contains the paths of its subdirectories and subfiles, its own path, on the other hand, is contained in its parent's file.
 
-The following image shows an example of ``/home/lenshood`:
+The following image shows an example of `/home/lenshood`:
 
 {% asset_img 6.png %}
 
