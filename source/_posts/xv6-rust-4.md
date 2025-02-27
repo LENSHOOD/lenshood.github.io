@@ -150,7 +150,7 @@ But there are some interesting things here:
 
 {% asset_img 2.png %}
 
-The above image shows the location of the process stacks, it's worth noting that all of these stacks are allocated while kernel is starting, so they occupy physical memory all the time, on the contrary, if a user process needs some memory to store data, they can do that by calling syscall `mmap()`, which can dynamically allocate memory space.
+The above image shows the location of the process stacks in kernel memory layout, it's worth noting that all of these stacks are allocated while kernel is starting, so they occupy physical memory all the time, on the contrary, if a user process needs some memory to store data, they can do that by calling syscall `mmap()`, which can dynamically allocate memory space.
 
 
 
