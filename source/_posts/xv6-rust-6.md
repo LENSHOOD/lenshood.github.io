@@ -147,6 +147,7 @@ The most obvious similarity is the address of trampoline in process address spac
 First, let's take a close look at it:
 
 ```assembly
+### trampoline.S
 uservec:    
 	    #
       # trap.c sets stvec to point here, so
@@ -206,7 +207,214 @@ Apparently, once the program goes to it, value of many registers are saved into 
 
 But the most important line is `csrw satp, t1`, which installs the kernel page table, you may ask a question at this stage: does that mean, before this line, although the risc-v has been switched to supervisor mode, the xv6 still running on user address space? 
 
-Exactly! That's the essential reason of trampoline section should share the same address between the kernel space and user space. Otherwise the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20) cannot be correctly located if trap happens. Because there is no place that allows pagetable switching before trap.
+Exactly! That's the essential reason of trampoline section should share the same address between the kernel space and user space. Otherwise the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20) cannot be correctly located if trap happens. Because there is no place that allows page table switching before trap.
+
+Additionally, after install the kernel page table, what if an external interrupt happens? At this moment, the trap vector is still set to [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20), if the kernel space and user space don't share the same trampoline address, there would be some chance to jump into an undefined address that is translated by kernel page table.
+
+### 2.1 trap handler
+
+After done the context and memory space switching, at the end of the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20), it jumps to the real trap handler function, which is called [`usertrap()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41):
+
+```rust
+// trap.rs
+
+//
+// handle an interrupt, exception, or system call from user space.
+// called from trampoline.S
+//
+fn usertrap() {
+    if (r_sstatus() & SSTATUS_SPP) != 0 {
+        panic!("usertrap: not from user mode");
+    }
+
+    // send interrupts and exceptions to kerneltrap(),
+    // since we're now in the kernel.
+    w_stvec((unsafe { &kernelvec } as *const u8).addr());
+
+    let p = myproc();
+
+    // save user program counter.
+    let tf = unsafe { p.trapframe.unwrap().as_mut().unwrap() };
+    tf.epc = r_sepc() as u64;
+
+    let mut which_dev = 0;
+    if r_scause() == 8 {
+        // system call
+
+        if p.killed() != 0 {
+            exit(-1);
+        }
+
+        // sepc points to the ecall instruction,
+        // but we want to return to the next instruction.
+        tf.epc += 4;
+
+        // an interrupt will change sepc, scause, and sstatus,
+        // so enable only now that we're done with those registers.
+        intr_on();
+
+        syscall();
+    } else {
+        which_dev = devintr();
+        if which_dev != 0 {
+            // ok
+        } else {
+            printf!(
+                "usertrap(): unexpected scause {:x} pid={}\n",
+                r_scause(),
+                p.pid
+            );
+            printf!("            sepc={:x} stval={:x}\n", r_sepc(), r_stval());
+            p.setkilled();
+        }
+    }
+
+    if p.killed() != 0 {
+        exit(-1);
+    }
+
+    // give up the CPU if this is a timer interrupt.
+    if which_dev == 2 {
+        yield_curr_proc();
+    }
+
+    usertrapret();
+}
+
+```
+
+Basically, the [`usertrap()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41) handles interrupts, exceptions and syscalls. But before recognizing any of them, it first set the `stvec` to the [`kernelvec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L12) which is the trap handler specific for kernel space. 
+
+```assembly
+### kernelvec.S
+kernelvec:
+    # make room to save registers.
+    addi sp, sp, -256
+
+    # save the registers.
+    sd ra, 0(sp)
+    ... ...
+    sd t6, 240(sp)
+
+    # call the C trap handler in trap.c
+    call kerneltrap
+
+    # restore registers.
+    ld ra, 0(sp)
+    ... ...
+    ld t6, 240(sp)
+
+    addi sp, sp, 256
+
+    # return to whatever we were doing in the kernel.
+    sret
+```
+
+In the same way, there are also context save and restore in it, the only difference is the kernel has its own trap handler: 
+
+```rust
+// trap.rs
+
+// interrupts and exceptions from kernel code go here via kernelvec,
+// on whatever the current kernel stack is.
+#[no_mangle]
+extern "C" fn kerneltrap() {
+    let mut which_dev = 0;
+    let sepc = r_sepc();
+    let sstatus = r_sstatus();
+    let scause = r_scause();
+
+    if (sstatus & SSTATUS_SPP) == 0 {
+        panic!("kerneltrap: not from supervisor mode");
+    }
+    if intr_get() {
+        panic!("kerneltrap: interrupts enabled");
+    }
+
+    which_dev = devintr();
+    if which_dev == 0 {
+        printf!("scause {:x}\n", scause);
+        printf!("sepc={:x} stval={:x}\n", r_sepc(), r_stval());
+        panic!("kerneltrap");
+    }
+
+    let p = myproc();
+    // give up the CPU if this is a timer interrupt.
+    if which_dev == 2 && p.state == RUNNING {
+        p.proc_yield();
+    }
+
+    // the yield() may have caused some traps to occur,
+    // so restore trap registers for use by kernelvec.S's sepc instruction.
+    w_sepc(sepc);
+    w_sstatus(sstatus);
+}
+```
+
+Since there is no syscalls in kernel space, the kernel trap handler only handles interrupts(external, software and timer) and exceptions, which makes it simpler than user trap handler.
+
+Let's go back to the user trap handler, after all we just explained the first line of it.
+
+After save the user program counter into trap frame, in the next it mainly dealing with the three trap reasons: syscalls, interrupts and exceptions. We'll cover these parts in next section, now we are going to the final line directly: [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103):
+
+```rust
+// trap.rs
+
+//
+// return to user space
+//
+pub fn usertrapret() {
+    let p = myproc();
+
+    // we're about to switch the destination of traps from
+    // kerneltrap() to usertrap(), so turn off interrupts until
+    // we're back in user space, where usertrap() is correct.
+    intr_off();
+
+    // send syscalls, interrupts, and exceptions to uservec in trampoline.S
+    let uservec_addr = (unsafe { &uservec } as *const u8).addr();
+    let trampoline_addr = (unsafe { &trampoline } as *const u8).addr();
+    let trampoline_uservec = TRAMPOLINE + uservec_addr - trampoline_addr;
+    w_stvec(trampoline_uservec);
+
+    // set up trapframe values that uservec will need when
+    // the process next traps into the kernel.
+
+    let trapframe = unsafe { p.trapframe.unwrap().as_mut().unwrap() };
+    trapframe.kernel_satp = r_satp() as u64; // kernel page table
+    trapframe.kernel_sp = (p.kstack + 2 * PGSIZE) as u64; // process's kernel stack
+    trapframe.kernel_trap = usertrap as u64;
+    trapframe.kernel_hartid = r_tp(); // hartid for cpuid()
+
+    // set up the registers that trampoline.S's sret will use
+    // to get to user space.
+
+    // set S Previous Privilege mode to User.
+    let mut x = r_sstatus();
+    x &= !SSTATUS_SPP; // clear SPP to 0 for user mode
+    x |= SSTATUS_SPIE; // enable interrupts in user mode
+    w_sstatus(x);
+
+    // set S Exception Program Counter to the saved user pc.
+    w_sepc(trapframe.epc as usize);
+
+    // tell trampoline.S the user page table to switch to.
+    let satp = MAKE_SATP!((p.pagetable.unwrap() as *const PageTable).addr());
+
+    // jump to userret in trampoline.S at the top of memory, which
+    // switches to the user page table, restores user registers,
+    // and switches to user mode with sret.
+    let userret_addr = (unsafe { &userret } as *const u8).addr();
+    let trampoline_userret = TRAMPOLINE + userret_addr - trampoline_addr;
+
+    type UserRetFn = unsafe extern "C" fn(stap: usize);
+    unsafe {
+        let userret_fn: UserRetFn = core::mem::transmute(trampoline_userret);
+        userret_fn(satp);
+    };
+}
+
+```
 
 
 
