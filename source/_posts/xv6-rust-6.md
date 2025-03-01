@@ -539,7 +539,151 @@ Refer to above quote, the `epc` will be set to the address of `ECALL` itself, th
 
 ### 3.2 Interrupts
 
+To handle interrupt, the [`devintr`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L204) needs to be called:
 
+```rust
+// trap.rs
+... ...
+} else {
+    which_dev = devintr();
+    if which_dev != 0 {
+        // ok
+    } else {
+        printf!(
+            "usertrap(): unexpected scause {:x} pid={}\n",
+            r_scause(),
+            p.pid
+        );
+        printf!("            sepc={:x} stval={:x}\n", r_sepc(), r_stval());
+        p.setkilled();
+    }
+}
+... ...
+```
+
+Inside the [`devintr`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L204), there are still a few branches to differentiate more cases:
+
+```rust
+// trap.rs
+
+// check if it's an external interrupt or software interrupt,
+// and handle it.
+// returns 2 if timer interrupt,
+// 1 if other device,
+// 0 if not recognized.
+fn devintr() -> u8 {
+    let scause = r_scause();
+
+    if (scause & 0x8000000000000000) != 0 && (scause & 0xff) == 9 {
+        // this is a supervisor external interrupt, via PLIC.
+
+        // irq indicates which device interrupted.
+        let irq = plic_claim();
+
+        if irq == UART0_IRQ as u32 {
+            unsafe {
+                UART_INSTANCE.intr();
+            }
+        } else if irq == VIRTIO0_IRQ as u32 {
+            unsafe {
+                virtio_disk_intr();
+            }
+        } else if irq != 0 {
+            printf!("unexpected interrupt irq={}\n", irq);
+        }
+
+        // the PLIC allows each device to raise at most one
+        // interrupt at a time; tell the PLIC the device is
+        // now allowed to interrupt again.
+        if irq != 0 {
+            plic_complete(irq);
+        }
+
+        return 1;
+    }
+
+    if scause == 0x8000000000000001 {
+        // software interrupt from a machine-mode timer interrupt,
+        // forwarded by timervec in kernelvec.S.
+
+        if cpuid() == 0 {
+            clockintr();
+        }
+
+        // acknowledge the software interrupt by clearing
+        // the SSIP bit in sip.
+        w_sip(r_sip() & !2);
+
+        return 2;
+    }
+
+    0
+}
+```
+
+To understand the branches, we may need to investigate how many reasons the `scause` stands for:
+
+| Interrupt | Exception Code | Description                    |
+| :-------: | :------------: | ------------------------------ |
+|     1     |       0        | Reserved                       |
+|     1     |       1        | Supervisor software interrupt  |
+|     1     |      2-4       | Reserved                       |
+|     1     |       5        | Supervisor timer interrupt     |
+|     1     |      6-8       | Reserved                       |
+|     1     |       9        | Supervisor external interrupt  |
+|     1     |     10-12      | Reserved                       |
+|     1     |       13       | Counter-overflow interrupt     |
+|     1     |     14-15      | Reserved                       |
+|     0     |     >= 16      | Designated for platform use    |
+|     0     |       0        | Instruction address misaligned |
+|     0     |       1        | Instruction access fault       |
+|     0     |       2        | Illegal instruction            |
+|     0     |       3        | Breakpoint                     |
+|     0     |       4        | Load address misaligned        |
+|     0     |       5        | Load access fault              |
+|     0     |       6        | Store/AMO address misaligned   |
+|     0     |       7        | Store/AMO access fault         |
+|     0     |       8        | Environment call from U-mode   |
+|     0     |       9        | Environment call from S-mode   |
+|     0     |     10-11      | Reserved                       |
+|     0     |       12       | Instruction page fault         |
+|     0     |       13       | Load page fault                |
+|     0     |       14       | Reserved                       |
+|     0     |       15       | Store/AMO page fault           |
+|     0     |     16-17      | Reserved                       |
+|     0     |       18       | Software check                 |
+|     0     |       19       | Hardware error                 |
+|     0     |     20-23      | Designated for custom use      |
+|     0     |     24-31      | Designated for custom use      |
+|           |     32-47      | Reserved                       |
+|           |     48-63      | Designated for custom use      |
+|           |     >= 64      | Reserved                       |
+
+It looks quite complicated, but in this stage we only need to care two scenarios:
+
+1. `(scause & 0x8000000000000000) != 0 && (scause & 0xff) == 9`
+
+   Above condition filters out the external interrupt so that once the program goes into this branch, it means there was an external interrupt triggered by some device.
+
+   In current xv6 source code there are only UART and VIRTIO supported, but it won't be too hard to add other devices to the system. In real operating system the interrupt handlers for specific devices are often put in some software package called driver. 
+
+   After handles the external interrupt, `plic_complete(irq)` should be called to reset the PLIC so that new interrupts can be triggered again, otherwise the PLIC will keep waiting for handler to do its work.
+
+2. `scause == 0x8000000000000001`
+
+   This condition only filters software interrupt. But why does it handle the timer interrupt? 
+
+   In the [`timerinit()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/start.rs#L57), the timer interrupt handler is set to [`timervec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L95), hence, once timer ticked, only [`timervec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L95) can handle the interrupt. And if you see it closely, the [`timervec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L95) triggers a software interrupt in the end. The user trap handler wouldn't handle the timer interrupt until now.
+
+   Why bother with all this? Because in previous versions of risc-v, the time compare registers can only be accessed in machine mode, so that there's no way for kernel to reset the timer registers in supervisor mode.
+
+   Refer to the xv6 book version 3 (page 56):
+
+   > A timer interrupt can occur at any point when user or kernel code is executing; there’s no way for the kernel to disable timer interrupts during critical operations. Thus the timer interrupt handler must do its job in a way guaranteed not to disturb interrupted kernel code. The basic strategy is for the handler to ask the RISC-V to raise a “software interrupt” and immediately return. The RISC-V delivers software interrupts to the kernel with the ordinary trap mechanism, and allows the kernel to disable them.
+
+   Fortunately, risc-v now supports the "SSTC" extension. [Here](https://drive.google.com/file/d/1O0ogDHijAc7gM58Byb0BRqIRGYsdOt2D/view) is the documentation about the "SSTC", which is ratified in 2021. The SSTC extension *"provide supervisor mode with its own CSR-based timer interrupt facility that it can directly manage to provide its own timer service."* 
+
+   [QEMU has supported this extension](https://lists.gnu.org/archive/html/qemu-riscv/2022-05/msg00063.html) back to 2022. And the newer version of xv6 has changed to SSTC, see [here](https://github.com/mit-pdos/xv6-riscv/blob/de247db5e6384b138f270e0a7c745989b5a9c23b/kernel/trap.c#L210).
 
 ### 3.3 Exceptions
 
