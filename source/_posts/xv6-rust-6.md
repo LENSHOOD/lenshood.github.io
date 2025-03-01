@@ -355,7 +355,7 @@ Since there is no syscalls in kernel space, the kernel trap handler only handles
 
 Let's go back to the user trap handler, after all we just explained the first line of it.
 
-After save the user program counter into trap frame, in the next it mainly dealing with the three trap reasons: syscalls, interrupts and exceptions. We'll cover these parts in next section, now we are going to the final line directly: [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103):
+After save the user program counter into trap frame, in the next it mainly deals with the three trap reasons: syscalls, interrupts and exceptions. We'll cover these parts in next section, now we are going to the final call: [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103):
 
 ```rust
 // trap.rs
@@ -416,10 +416,133 @@ pub fn usertrapret() {
 
 ```
 
+In this function, the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20) is set to the `stvec`, and here is the only place the user trap vector is set. Next, saving the kernel space context to the trap frame so that they can be resumed in the following trap. After that, set some registers for preparation to make sure the user mode can be correctly switched afterward. At last, the address of [`userret`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L103) is called along with the page table address, the [`userret`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L103) does the reverse operation compare to the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20).
 
 
-## 3. Syscalls
+
+## 3. Syscalls, Interrupts and Exceptions
+
+We have taken a glance to the trap handler previously, now we are going to look deeper into the handlers.
+
+There are three types of trap, and will happen in the following circumstance respectively:
+
+-  Syscalls: they are the bridges between user program and kernel, since there are a plenty of operations that a user program will be needed for implementing some logic, however the operating system cannot trust the user program to do so because those operations are dangerous running in user mode. So kernel provides a interface layer so that user program can just call it to get what it needs, and delegates the job to kernel.
+- Interrupts: we have learnt that the effective interactive method between the peripherals and the OS is through the external interrupt, like UART and VIRTIO, and also a hardware timer we haven't talked about. The CPU needs to handle these interrupts immediately because interrupts usually don't wait in a line, that requires a trap to suspend whatever is running currently, and turn to handle the interrupt.
+- Exceptions: please imagine if a user program accesses an address that is out of the range that allows it to access? No matter accidentally or maliciously, this action needs to be stopped. Therefore, if a program(both kernel code and user code) does some disallowed operation, the CPU trapped, and let the trap handler to deal with what to do next.
+
+### 3.1 Syscalls
+
+According to previous code in the [`usertrap()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41):
+
+```rust
+//trap.rs
+
+... ...
+if r_scause() == 8 {
+    // system call
+
+    if p.killed() != 0 {
+        exit(-1);
+    }
+
+    // sepc points to the ecall instruction,
+    // but we want to return to the next instruction.
+    tf.epc += 4;
+
+    // an interrupt will change sepc, scause, and sstatus,
+    // so enable only now that we're done with those registers.
+    intr_on();
+
+    syscall();
+}
+... ...
+```
+
+When the value of `scause` is 8, indicates a syscall happened.
+
+{% asset_img 5.png %}
+
+As we can see, the `scause` has two parts, interrupt and exception code. Since there is only 1 highest bit to indicate the interrupt status, as long as the bit equals to 1, a interrupt happened.
+
+Look into the [`syscall()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112), we will found how xv6 handles syscalls:
+
+```rust
+// syscall.rs
+const SYSCALL: [Option<fn() -> u64>; 22] = {
+    let mut arr: [Option<fn() -> u64>; 22] = [None; 22];
+    arr[0] = None;
+    arr[SYS_fork] = Some(sys_fork);
+    ... ...
+    arr[SYS_close] = Some(sys_close);
+    arr
+};
+
+pub fn syscall() {
+    let p = myproc();
+
+    let tf = unsafe { p.trapframe.unwrap().as_mut().unwrap() };
+    let num = tf.a7 as usize;
+
+    if num > 0 && num < SYSCALL.len() && SYSCALL[num].is_some() {
+        // Use num to lookup the system call function for num, call it,
+        // and store its return value in p->trapframe->a0
+        tf.a0 = SYSCALL[num].unwrap()();
+    } else {
+        printf!(
+            "{} {}: unknown sys call {}\n",
+            p.pid,
+            core::str::from_utf8(&p.name).unwrap(),
+            num
+        );
+        tf.a0 = u64::MAX;
+    }
+}
+```
+
+Basically, it retrieve the syscall number from trap frame, and then using the number maps the real syscall function from a constant array. And look at the array you may find many familiar functions such as `sys_open`, `sys_fork` and `sys_read`.
+
+The above is how kernel handles syscalls. But you may curious how the user code trigger the syscall in user space? Let's move on to user code:
+
+```rust
+// user/src/ulib/stubs.rs
+extern "C" {
+    // system calls
+
+    // Create a process, return child’s PID.
+    pub fn fork() -> i32;
+
+    ... ...
+}
+```
+
+```assembly
+// user/src/ulib/usys.S
+.global fork
+fork:
+ li a7, 1 # SYS_fork
+ ecall
+ ret
+... ...
+```
+
+Actually, there are several stub functions located in user code, and each stub relates to a few lines of assembly code, which do only one thing: call `ECALL` by syscall number as a parameter.
+
+{% asset_img 6.png %}
+
+In above diagram, the instruction `ECALL` and `EBREAK` share the same structure. And they behave similar as well. Beneath the `ECALL`, it actually generates an "environment-call-from-U-mode" exception if it is called in user mode and performs no other operation. So we can regard the `ECALL` as a special exception. Similarly, `EBREAK` generates a breakpoint exception and performs no other operation. It's usually used by a debugger. 
+
+Essentially these two instructions only switch user mode to supervisor mode then do nothing further, this simple behavior leaves the operating system enough space to do whatever it wants, such as syscall or debug.
+
+> ECALL and EBREAK cause the receiving privilege mode’s `epc` register to be set to the address of the ECALL or EBREAK instruction itself, not the address of the following instruction. 
+
+Refer to above quote, the `epc` will be set to the address of `ECALL` itself, that's why in the [`usertrap()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41), it runs [`tf.epc += 4;`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L66) before call the [`syscall()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112).
+
+### 3.2 Interrupts
 
 
+
+### 3.3 Exceptions
+
+ 
 
 ## 4. Init Process
