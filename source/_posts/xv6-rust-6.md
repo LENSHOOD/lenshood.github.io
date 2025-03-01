@@ -687,6 +687,32 @@ It looks quite complicated, but in this stage we only need to care two scenarios
 
 ### 3.3 Exceptions
 
- 
+The exceptions are mainly related to the `scause`. And as long as the returns 0, means an exception happened:
+
+```rust
+// trap.rs
+... ...
+if which_dev == 0 {
+    printf!("scause {:x}\n", scause);
+    printf!("sepc={:x} stval={:x}\n", r_sepc(), r_stval());
+    panic!("kerneltrap");
+}
+... ...
+```
+
+The handling of exceptions is quite simple and straightforward: it panics. The value of `scause`, `sepc` and `stval` will be printed along with panic. Those values are really useful to help investigate the root cause of exceptions. The `scause` records the exception reason, the `sepc` holds the virtual address of instruction that cause trap, while the `stval` is written to different useful information based on different value of `scause`.
+
+We have reviewed the detail of exception types before, and the followings are what kinds of value will be written into the `stval`:
+
+| Exceptions                                                   | Value of `stval`                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Breakpoint, address-misaligned, access-fault, page-fault     | Faulting virtual address                                     |
+| Access-fault or page-fault caused by misaligned load or store | The virtual address of the portion of the access that caused the fault. |
+| Instruction access-fault or page-fault                       | The virtual address of the portion of the instruction that caused the fault |
+| Illegal instruction exception                                | Faulting instruction bits                                    |
+| Other traps                                                  | Zero                                                         |
+
+These three registers are very helpful when kernel crashes. Especially in the debugging process of xv6, it would be common to encounter the stack overflow problem, since there is always a "guard" area between two stacks, as long as stack overflows, there would be a access fault exception thrown, in this moment, checking the value of `sepc` and `stval` will help to find the code position.
 
 ## 4. Init Process
+
