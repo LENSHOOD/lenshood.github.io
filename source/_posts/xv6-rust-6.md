@@ -716,3 +716,295 @@ These three registers are very helpful when kernel crashes. Especially in the de
 
 ## 4. Init Process
 
+With all previous content as the foundation, now we can finally discover how the xv6 starts its first process: init process.
+
+The following diagram shows the main sequence of kernel builds up init process and then executes it as the first user process:
+
+{% asset_img 6.png %}
+
+Some parts like switching between user mode and supervisor mode has been covered before, next we are going to focus on the other parts.
+
+### 4.1 User Init
+
+First, let's see how the init process is created:
+
+```rust
+// proc.rs
+
+const INIT_CODE: [u8; 52] = [
+    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02, 0x97, 0x05, 0x00, 0x00, 0x93, 0x85, 0x35, 0x02,
+    0x93, 0x08, 0x70, 0x00, 0x73, 0x00, 0x00, 0x00, 0x93, 0x08, 0x20, 0x00, 0x73, 0x00, 0x00, 0x00,
+    0xef, 0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69, 0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+];
+
+// Set up first user process.
+pub fn userinit() {
+    let p = allocproc().unwrap();
+    // allocate one user page and copy initcode's instructions
+    // and data into it.
+    uvmfirst(
+        unsafe { p.pagetable.unwrap().as_mut().unwrap() },
+        &INIT_CODE as *const u8,
+        mem::size_of_val(&INIT_CODE),
+    );
+    p.sz = PGSIZE;
+
+    // prepare for the very first "return" from kernel to user.
+    unsafe {
+        p.trapframe.unwrap().as_mut().unwrap().epc = 0; // user program counter
+        p.trapframe.unwrap().as_mut().unwrap().sp = PGSIZE as u64; // user stack pointer
+    }
+
+    let mut name = [0; 16];
+    name.copy_from_slice("initcode\0\0\0\0\0\0\0\0".as_bytes());
+    p.name = name;
+    p.cwd = namei(&[b'/']).map(|inner| inner as *mut INode);
+
+    p.state = RUNNABLE;
+
+    p.lock.release();
+
+    unsafe {
+        INIT_PROC = Some(p);
+    }
+}
+```
+
+The [`userinit()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L307) function does three important things:
+
+1. Allocate a process structure that holds stack, page table and trap frame. The allocation mainly covered by the [`allocproc()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L446), which picks an unused `Proc` structure to hold init.
+2. Load code into memory at user space, which is performed by the [`uvmfirst()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/vm.rs#L273) that maps the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) into page table as the text section.
+3. Set entry point as 0 in virtual address, and then set status to `RUNNABLE`.
+
+Looking at the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) you'll find there are only binaries. In fact, these binaries come from the compile result of [`initcode.S`](https://github.com/LENSHOOD/xv6-rust/blob/master/user/initcode/initcode.S):
+
+```assembly
+### user/initcode/initcode.S
+
+# Initial process that execs /init.
+# This code runs in user space.
+
+# exec(init, argv)
+.globl start
+start:
+        la a0, init
+        la a1, argv
+        li a7, 7 # SYS_exec
+        ecall
+
+# for(;;) exit();
+exit:
+        li a7, 2 # SYS_exit
+        ecall
+        jal exit
+
+# char init[] = "/init\0";
+init:
+  .string "/init\0"
+
+# char *argv[] = { init, 0 };
+.p2align 2
+argv:
+  .long init
+  .long 0
+```
+
+The above code is quite simple, it only calls `SYS_exec` syscall with `/init\0` string as the argument. Since the compiled binaries are very simple the xv6 can even hardcoded it as a constant, this will omit the step to load it from file system.
+
+Apparently, the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) is like a step-stone for initialization, the only thing it performs is to call `SYS_exec` syscall to replace its code text as the program `/init`. I'm sure you already knew the responsibility of the `exec` syscall in POSIX, the `SYS_exec` is just like that. Will talk the `/init` soon later.
+
+Besides, if you look into the implementation of the [`uvmfirst()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/vm.rs#L273), it loads the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) at virtual address 0x0, and since the `trapframe.epc` is also set to 0, once the init process is put on cpu, the first line of code it would run is `start` in the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299).
+
+### 4.2 Running On CPU
+
+Once the init process is well prepared, then the kernel continues its init procedure, and runs the last step: [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/main.rs#L164).
+
+We have learnt in the fourth chapter what the scheduler will do: traverse the proc list to find if there is any process is on `RUNNABLE` state. Here we only have one process that is runnable: init process. So the scheduler will call [`swtch`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/switch.S#L9) to switch the context and return. But where will it be returned?
+
+If you remember, we have mentioned this back in chapter-4, the return address is set in the [`inner_alloc()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L460):
+
+```rust
+//proc.rs
+
+fn inner_alloc<'a>(p: &'a mut Proc<'a>) -> Option<&'a mut Proc<'a>> {
+    ... ...
+    p.context.ra = forkret as u64;
+    ... ...
+}
+```
+
+Since the [`scheduler()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/main.rs#L164) is running on kernel space, we can't return to user space directly after switch, that what the [`forkret`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L426) is responsible:
+
+```rust
+const FIRST: AtomicBool = AtomicBool::new(true);
+fn forkret() {
+    // Still holding p->lock from scheduler.
+    let my_proc = myproc();
+    my_proc.lock.release();
+
+    if FIRST.load(Ordering::Relaxed) {
+        // File system initialization must be run in the context of a
+        // regular process (e.g., because it calls sleep), and thus cannot
+        // be run from main().
+        FIRST.store(false, Ordering::Relaxed);
+        fs::fsinit(ROOTDEV);
+    }
+
+    usertrapret();
+}
+```
+
+It's simple and clear, at the first time the [`forkret`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L426) is called, the file system needs to be initialized, this step mainly reads the `SuperBlock` from disk, please refer to chapter-5 for more details. 
+
+After that, [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103) will be called, we have seen that in previous sections, at this very step, the `epc` will be set to `trapframe.epc`, which is 0, and once `SRET` is called, the init process will finally start to run.
+
+### 4.3 Syscall Exec
+
+Following the previous sequence diagram, the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) only execute `ecall` to get in trap again, and trigger the `SYS_exec`.
+
+As we already knew how syscall is handled, let's go checking the implementation of [`sys_exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/sysfile.rs#L18):
+
+```rust
+pub(crate) fn sys_exec() -> u64 {
+    ... ...
+    let mut ret = -1;
+    if !bad {
+        ret = exec(path, &argv);
+    }
+
+    ... ...
+
+    return ret as u64;
+}
+```
+
+Most of its jobs are fetch the argument along with `ecall`, it will need some effort to do so is because the argument is at user space and needs to be copy into kernel space. But these parts are not very important, now we deep dive into the [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25):
+
+```rust
+pub fn exec(path: [u8; MAXPATH], argv: &[Option<*mut u8>; MAXARG]) -> i32 {
+    // find the inode of /init
+    let ip_op = namei(&path);
+    ... ...
+
+    ip.ilock();
+
+    // Check ELF header and copy the text section into memory
+    let mut elf = ElfHeader::create();
+    let tot = ip.readi(false, &mut elf, 0, mem::size_of::<ElfHeader>());
+    ... ...
+
+    for _i in 0..elf.phnum {
+        let tot = ip.readi(false, &mut ph, off, ph_sz);
+        ... ...
+        if loadseg(page_table, ph.vaddr, ip, ph.off, ph.filesz) < 0 {
+            return goto_bad(Some(page_table), sz, Some(ip));
+        }
+    }
+    ... ...
+    let p = myproc();
+    let oldsz = p.sz;
+    ... ...
+    // Push argument strings, prepare rest of stack in ustack.
+    loop {
+        ... ...
+        if copyout(page_table, sp, curr_argv, strlen(curr_argv) + 1) < 0 {
+            return goto_bad(Some(page_table), sz, Some(ip));
+        }
+        ... ...
+    }
+
+    ... ...
+
+    // Commit to the user image.
+    let oldpagetable = unsafe { p.pagetable.unwrap().as_mut().unwrap() };
+    p.pagetable = Some(page_table as *mut PageTable);
+    p.sz = sz;
+    tf.epc = elf.entry; // initial program counter = main
+    tf.sp = sp as u64; // initial stack pointer
+    proc_freepagetable(oldpagetable, oldsz);
+
+    return argc as i32; // this ends up in a0, the first argument to main(argc, argv)
+}
+```
+
+Since this function is very long, about code pieces only contain a few main steps. For more information please directly see the raw code.
+
+In short, the final target of the [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25) is replacing the current process into a new one, but keeps the current process structure and pid. Through this procedure, many things will get replaced, such as program code, constants, variables.
+
+In order to achieve that, first we need to load the `/init` into the memory, that's what the `namei(&path)` does. Once we have the inode points to `/init` in our hand, we can read the content of `/init`.
+
+In the above code, it first reads the ELF header as the xv6 file follows the ELF format. The ELF header records the section information, including program segments that are described in the program header. These segments are text, data and others, which are necessary for the program to be executed. 
+
+Through the `loadseg()` function, all program segments are loaded into memory and mapped into a newly create page table, this page table will be the new page table that replaces the old one. Expect for the program segment loading, the arguments passed along with the `SYS_exec` are also copied into stack.
+
+At last, the page table is replaced, and the old one is released, the `epc` is set to `elf.entry` which points to the first line of code of `/init`. At this moment, a new process is finally born.
+
+### 4.4 Init
+
+We haven't seen how the init looks like, at the end of this article, let's have a look:
+
+```rust
+#[start]
+fn main(_argc: isize, _argv: *const *const u8) -> isize {
+    unsafe {
+        // let mut console_slice: [u8; MAXPATH] = [b'\0'; MAXPATH];
+        // console_slice.copy_from_slice("console".as_bytes());
+        let console_slice = "console\0".as_bytes();
+        if open(console_slice.as_ptr(), O_RDWR) < 0 {
+            mknod(console_slice.as_ptr(), CONSOLE as u16, 0);
+            open(console_slice.as_ptr(), O_RDWR);
+        }
+        dup(0); // stdout fd=1
+        dup(0); // stderr fd=2
+
+        let mut pid;
+        let mut wpid;
+        loop {
+            printf!("init: starting sh\n");
+            pid = fork();
+            if pid < 0 {
+                printf!("init: fork failed\n");
+                exit(1);
+            }
+            if pid == 0 {
+                let argv: *const *const u8 =
+                    (&["sh\0".as_bytes().as_ptr(), "".as_bytes().as_ptr()]).as_ptr();
+                exec("sh\0".as_bytes().as_ptr(), argv);
+                printf!("init: exec sh failed\n");
+                exit(1);
+            }
+
+            loop {
+                // this call to wait() returns if the shell exits,
+                // or if a parentless process exits.
+                wpid = wait(0 as *const u8);
+                if wpid == pid {
+                    // the shell exited; restart it.
+                    break;
+                } else if wpid < 0 {
+                    printf!("init: wait returned an error\n");
+                    exit(1);
+                } else {
+                    // it was a parentless process; do nothing.
+                }
+            }
+        }
+    }
+}
+
+```
+
+There isn't too much code in it, the whole logic can be split into two simple parts:
+
+- Open Console as stdin, stdout and stderr
+- Fork itself
+  - For the child process, call `SYS_exec` again to replace itself as the shell program
+  - For the parent process, which is also the init process it self, wait for it child to be exited, and if it happens that the child process also has its children, then the grandchildren processes will be regarded as orphans. Therefore, along with the exit of the child process, all orphan processes will be reparented to init. (See [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L704) for details)
+
+ 
+
+
+
+
+
