@@ -9,9 +9,11 @@ categories:
 - Rust
 ---
 
-Based on disk and file management, now we are able to store the user space program on the disk, and let them running after kernel started. But before that, there is still a topic we haven't covered: how does xv6 jump from kernel space to user space? 
+{% asset_img header.jpg 500 %}
 
-After all, the content we talked in previous chapters is only limited in the supervisor level, even machine level, where the code has full control of hardware. However, the user space program cannot be granted such huge scope of control, then we should know how to jump from kernel space to user space, so that we could provide a safer environment for the user program.
+Based on disk and file management, now we are able to store the user space program on the disk, and let them run after kernel started. But before that, there is still a topic we haven't covered: how does xv6 jump from kernel space to user space? 
+
+After all, the content we talked about in previous chapters is only limited in the supervisor level, even machine level, where the code has full control of hardware. However, the user space program cannot be granted such huge scope of control, then we should know how to jump from kernel space to user space, so that we could provide a safer environment for the user program.
 
 In this chapter, we are going to find it out.
 
@@ -19,15 +21,15 @@ In this chapter, we are going to find it out.
 
 ## 1. Jumping in the CPU Perspective
 
-If you remember, there was a table in our second chapter, describes several CSRs that risc-v provides to user, some of them are responsible for mode switching.
+If you remember, there was a table in our second chapter that describes several CSRs that risc-v provides to user, some of them are responsible for mode switching.
 
-Speaking of how to jumping from supervisor mode to user mode, there would be the following questions come up with in your mind:
+Speaking of how to jump from supervisor mode to user mode, there would be the following questions that come up with in your mind:
 
 - What kind of instruction is able to trigger the switching?
-- After jumping to user mode, where exactly the program will go to?
+- After jumping to user mode, where exactly will the program go to?
 - How to deal with the context and different memory space between two modes?
 
-At first, let's recap the privilege mode switch that we've mentioned in second chapter:
+At first, let's recap the privilege mode switch that we've mentioned in the second chapter:
 
 > **How does risc-v deal with the privileged mode switch?**
 >
@@ -48,9 +50,9 @@ Let's take a close look at the `sret` instruction:
 
 {% asset_img 1.png %}
 
-Apparently, `SRET` doesn't rely any source or destination register, so when using the `SRET`, we only need to call the bare instruction.
+Apparently, `SRET` doesn't rely on any source or destination register, so when using the `SRET`, we only need to call the bare instruction.
 
-According to the specification, *`xRET` sets the `pc` to the value stored in the `xepc` register.* Hence, before `SRET` is called, we could set the address into the `sepc`, then once it called, the program will be jump into the address.
+According to the specification, *`xRET` sets the `pc` to the value stored in the `xepc` register.* Hence, before `SRET` is called, we could set the address into the `sepc`, then once it is called, the program will jump into the address.
 
 So far, it looks `SRET` does a lot of things for us, so that we'll no longer need to concern about the first two questions. However, in risc-v architecture, no more support will be provided. Now, for the question of context and memory space switch, we are on our own.
 
@@ -75,9 +77,9 @@ Finally, put the user space address (virtual address) into the `sepc`, and call 
 
 ## 2. Trap and Trampoline
 
-As there are some extra work needs to be done before switching into user space, where does that need to happen?
+As there is some extra work that needs to be done before switching into user space, where does that need to happen?
 
-We haven't mentioned the full address layput of xv6 in previous chapters, now it's time to show both kernel address layout and process address layout, these are very helpful to understanding the concept of "trampoline". Let's have a look! (The following diagrams are taken from [the xv6 book](https://pdos.csail.mit.edu/6.828/2024/xv6/book-riscv-rev4.pdf), figure 3.3 and figure 3.4)
+We haven't mentioned the full address layout of xv6 in previous chapters, now it's time to show both kernel address layout and process address layout, these are very helpful to understanding the concept of "trampoline". Let's have a look! (The following diagrams are taken from [the xv6 book](https://pdos.csail.mit.edu/6.828/2024/xv6/book-riscv-rev4.pdf), figure 3.3 and figure 3.4)
 
 {% asset_img 3.png %}
 
@@ -92,7 +94,7 @@ Above is the kernel address layout that includes virtual address space on left a
   - Free memory holds all other data, including kernel objects and process data (refer to [`kalloc`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/kalloc.rs#L80))
 
 - (Virtual) Process stacks: each process has it own stack, which is allocated here, actually they are allocated from the "Free memory" section
-- (Virtual) Trampoline: interesting section, according to above diagram, it maps to the address near the [KERNBASE](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/memlayout.rs#L84), which is also the same address of text section. Is this a coincidence?
+- (Virtual) Trampoline: interesting section, according to the above diagram, it maps to the address near the [KERNBASE](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/memlayout.rs#L84), which is also the same address as the text section. Is this a coincidence?
 
 As the kernel vm init code shows:
 
@@ -140,9 +142,9 @@ The location of the trampoline is intentional. Let's see the process address lay
 
 {% asset_img 4.png %}
 
-I guess most of the sections in above diagram are very familiar to you, because they are no difference from other modern operating systems, except for the trampoline.
+I guess most of the sections in the above diagram are very familiar to you, because they are no difference from other modern operating systems, except for the trampoline.
 
-The most obvious similarity is the address of trampoline in process address space is exactly the same as it in kernel address space. Why? Because each time a trap happens in user mode, risc-v switching to supervisor mode, and then redirect the program to [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20), which is the trap handler address, we'll see the registration of the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20) afterward.
+The most obvious similarity is that the address of trampoline in process address space is exactly the same as it in kernel address space. Why? Because each time a trap happens in user mode, risc-v switching to supervisor mode, and then redirect the program to [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20), which is the trap handler address, we'll see the registration of the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20) afterward.
 
 First, let's take a close look at it:
 
@@ -203,13 +205,13 @@ uservec:
       jr t0
 ```
 
-Apparently, once the program goes to it, value of many registers are saved into [`Trapframe`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L112), which is allocated in the [`inner_alloc()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L465). Basically this process is the context switching that we discussed before. All user registers are saved.
+Apparently, once the program goes to it, the value of many registers are saved into [`Trapframe`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L112), which is allocated in the [`inner_alloc()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L465). Basically this process is the context switching that we discussed before. All user registers are saved.
 
 But the most important line is `csrw satp, t1`, which installs the kernel page table, you may ask a question at this stage: does that mean, before this line, although the risc-v has been switched to supervisor mode, the xv6 still running on user address space? 
 
 Exactly! That's the essential reason of trampoline section should share the same address between the kernel space and user space. Otherwise the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20) cannot be correctly located if trap happens. Because there is no place that allows page table switching before trap.
 
-Additionally, after install the kernel page table, what if an external interrupt happens? At this moment, the trap vector is still set to [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20), if the kernel space and user space don't share the same trampoline address, there would be some chance to jump into an undefined address that is translated by kernel page table.
+Additionally, after installing the kernel page table, what if an external interrupt happens? At this moment, the trap vector is still set to [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20), if the kernel space and user space don't share the same trampoline address, there would be some chance to jump into an undefined address that is translated by kernel page table.
 
 ### 2.1 trap handler
 
@@ -351,11 +353,11 @@ extern "C" fn kerneltrap() {
 }
 ```
 
-Since there is no syscalls in kernel space, the kernel trap handler only handles interrupts(external, software and timer) and exceptions, which makes it simpler than user trap handler.
+Since there is no syscall in kernel space, the kernel trap handler only handles interrupts(external, software and timer) and exceptions, which makes it simpler than user trap handler.
 
 Let's go back to the user trap handler, after all we just explained the first line of it.
 
-After save the user program counter into trap frame, in the next it mainly deals with the three trap reasons: syscalls, interrupts and exceptions. We'll cover these parts in next section, now we are going to the final call: [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103):
+After saving the user program counter into trap frame, in the next it mainly deals with the three trap reasons: syscalls, interrupts and exceptions. We'll cover these parts in the next section, now we are going to the final call: [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103):
 
 ```rust
 // trap.rs
@@ -422,13 +424,13 @@ In this function, the [`uservec`](https://github.com/LENSHOOD/xv6-rust/blob/5654
 
 ## 3. Syscalls, Interrupts and Exceptions
 
-We have taken a glance to the trap handler previously, now we are going to look deeper into the handlers.
+We have taken a glance at the trap handler previously, now we are going to look deeper into the handlers.
 
-There are three types of trap, and will happen in the following circumstance respectively:
+There are three types of trap, and will happen in the following circumstances respectively:
 
--  Syscalls: they are the bridges between user program and kernel, since there are a plenty of operations that a user program will be needed for implementing some logic, however the operating system cannot trust the user program to do so because those operations are dangerous running in user mode. So kernel provides a interface layer so that user program can just call it to get what it needs, and delegates the job to kernel.
+-  Syscalls: they are the bridges between user program and kernel, since there are plenty of operations that a user program will be needed for implementing some logic, however the operating system cannot trust the user program to do so because those operations are dangerous running in user mode. So kernel provides an interface layer so that user program can just call it to get what it needs, and delegates the job to kernel.
 - Interrupts: we have learnt that the effective interactive method between the peripherals and the OS is through the external interrupt, like UART and VIRTIO, and also a hardware timer we haven't talked about. The CPU needs to handle these interrupts immediately because interrupts usually don't wait in a line, that requires a trap to suspend whatever is running currently, and turn to handle the interrupt.
-- Exceptions: please imagine if a user program accesses an address that is out of the range that allows it to access? No matter accidentally or maliciously, this action needs to be stopped. Therefore, if a program(both kernel code and user code) does some disallowed operation, the CPU trapped, and let the trap handler to deal with what to do next.
+- Exceptions: please imagine if a user program accesses an address that is out of the range that allows it to access? No matter accidentally or maliciously, this action needs to be stopped. Therefore, if a program (both kernel code and user code) does some disallowed operation, the CPU trapped, and let the trap handler to deal with what to do next.
 
 ### 3.1 Syscalls
 
@@ -462,9 +464,9 @@ When the value of `scause` is 8, indicates a syscall happened.
 
 {% asset_img 5.png %}
 
-As we can see, the `scause` has two parts, interrupt and exception code. Since there is only 1 highest bit to indicate the interrupt status, as long as the bit equals to 1, a interrupt happened.
+As we can see, the `scause` has two parts, interrupt and exception code. Since there is only 1 highest bit to indicate the interrupt status, as long as the bit equals 1, an interrupt happened.
 
-Look into the [`syscall()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112), we will found how xv6 handles syscalls:
+Look into the [`syscall()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112), we will find how xv6 handles syscalls:
 
 ```rust
 // syscall.rs
@@ -499,9 +501,9 @@ pub fn syscall() {
 }
 ```
 
-Basically, it retrieve the syscall number from trap frame, and then using the number maps the real syscall function from a constant array. And look at the array you may find many familiar functions such as `sys_open`, `sys_fork` and `sys_read`.
+Basically, it retrieves the syscall number from trap frame, and then using the number maps the real syscall function from a constant array. And look at the array you may find many familiar functions such as `sys_open`, `sys_fork` and `sys_read`.
 
-The above is how kernel handles syscalls. But you may curious how the user code trigger the syscall in user space? Let's move on to user code:
+The above is how kernel handles syscalls. But you may curious how the user code triggers the syscall in user space? Let's move on to user code:
 
 ```rust
 // user/src/ulib/stubs.rs
@@ -529,13 +531,13 @@ Actually, there are several stub functions located in user code, and each stub r
 
 {% asset_img 6.png %}
 
-In above diagram, the instruction `ECALL` and `EBREAK` share the same structure. And they behave similar as well. Beneath the `ECALL`, it actually generates an "environment-call-from-U-mode" exception if it is called in user mode and performs no other operation. So we can regard the `ECALL` as a special exception. Similarly, `EBREAK` generates a breakpoint exception and performs no other operation. It's usually used by a debugger. 
+In the above diagram, the instruction `ECALL` and `EBREAK` share the same structure. And they behave similarly as well. Beneath the `ECALL`, it actually generates an "environment-call-from-U-mode" exception if it is called in user mode and performs no other operation. So we can regard the `ECALL` as a special exception. Similarly, `EBREAK` generates a breakpoint exception and performs no other operation. It's usually used by a debugger. 
 
 Essentially these two instructions only switch user mode to supervisor mode then do nothing further, this simple behavior leaves the operating system enough space to do whatever it wants, such as syscall or debug.
 
 > ECALL and EBREAK cause the receiving privilege mode’s `epc` register to be set to the address of the ECALL or EBREAK instruction itself, not the address of the following instruction. 
 
-Refer to above quote, the `epc` will be set to the address of `ECALL` itself, that's why in the [`usertrap()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41), it runs [`tf.epc += 4;`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L66) before call the [`syscall()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112).
+Refer to the above quote, the `epc` will be set to the address of `ECALL` itself, that's why in the [`usertrap()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41), it runs [`tf.epc += 4;`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L66) before calling the [`syscall()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112).
 
 ### 3.2 Interrupts
 
@@ -659,7 +661,7 @@ To understand the branches, we may need to investigate how many reasons the `sca
 |           |     48-63      | Designated for custom use      |
 |           |     >= 64      | Reserved                       |
 
-It looks quite complicated, but in this stage we only need to care two scenarios:
+It looks quite complicated, but in this stage we only need to care about two scenarios:
 
 1. `(scause & 0x8000000000000000) != 0 && (scause & 0xff) == 9`
 
@@ -681,7 +683,7 @@ It looks quite complicated, but in this stage we only need to care two scenarios
 
    > A timer interrupt can occur at any point when user or kernel code is executing; there’s no way for the kernel to disable timer interrupts during critical operations. Thus the timer interrupt handler must do its job in a way guaranteed not to disturb interrupted kernel code. The basic strategy is for the handler to ask the RISC-V to raise a “software interrupt” and immediately return. The RISC-V delivers software interrupts to the kernel with the ordinary trap mechanism, and allows the kernel to disable them.
 
-   Fortunately, risc-v now supports the "SSTC" extension. [Here](https://drive.google.com/file/d/1O0ogDHijAc7gM58Byb0BRqIRGYsdOt2D/view) is the documentation about the "SSTC", which is ratified in 2021. The SSTC extension *"provide supervisor mode with its own CSR-based timer interrupt facility that it can directly manage to provide its own timer service."* 
+   Fortunately, risc-v now supports the "SSTC" extension. [Here](https://drive.google.com/file/d/1O0ogDHijAc7gM58Byb0BRqIRGYsdOt2D/view) is the documentation about the "SSTC", which was ratified in 2021. The SSTC extension *"provides supervisor mode with its own CSR-based timer interrupt facility that it can directly manage to provide its own timer service."* 
 
    [QEMU has supported this extension](https://lists.gnu.org/archive/html/qemu-riscv/2022-05/msg00063.html) back to 2022. And the newer version of xv6 has changed to SSTC, see [here](https://github.com/mit-pdos/xv6-riscv/blob/de247db5e6384b138f270e0a7c745989b5a9c23b/kernel/trap.c#L210).
 
@@ -700,9 +702,9 @@ if which_dev == 0 {
 ... ...
 ```
 
-The handling of exceptions is quite simple and straightforward: it panics. The value of `scause`, `sepc` and `stval` will be printed along with panic. Those values are really useful to help investigate the root cause of exceptions. The `scause` records the exception reason, the `sepc` holds the virtual address of instruction that cause trap, while the `stval` is written to different useful information based on different value of `scause`.
+The handling of exceptions is quite simple and straightforward: it panics. The value of `scause`, `sepc` and `stval` will be printed along with panic. Those values are really useful to help investigate the root cause of exceptions. The `scause` records the exception reason, the `sepc` holds the virtual address of instruction that causes trap, while the `stval` is written to different useful information based on different value of `scause`.
 
-We have reviewed the detail of exception types before, and the followings are what kinds of value will be written into the `stval`:
+We have reviewed the details of exception types before, and the following are what kinds of value will be written into the `stval`:
 
 | Exceptions                                                   | Value of `stval`                                             |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -712,7 +714,7 @@ We have reviewed the detail of exception types before, and the followings are wh
 | Illegal instruction exception                                | Faulting instruction bits                                    |
 | Other traps                                                  | Zero                                                         |
 
-These three registers are very helpful when kernel crashes. Especially in the debugging process of xv6, it would be common to encounter the stack overflow problem, since there is always a "guard" area between two stacks, as long as stack overflows, there would be a access fault exception thrown, in this moment, checking the value of `sepc` and `stval` will help to find the code position.
+These three registers are very helpful when kernel crashes. Especially in the debugging process of xv6, it would be common to encounter the stack overflow problem, since there is always a "guard" area between two stacks, as long as stack overflows, there would be an access fault exception thrown, in this moment, checking the value of `sepc` and `stval` will help to find the code position.
 
 ## 4. Init Process
 
@@ -722,7 +724,7 @@ The following diagram shows the main sequence of kernel builds up init process a
 
 {% asset_img 6.png %}
 
-Some parts like switching between user mode and supervisor mode has been covered before, next we are going to focus on the other parts.
+Some parts like switching between user mode and supervisor mode have been covered before, next we are going to focus on the other parts.
 
 ### 4.1 User Init
 
@@ -812,7 +814,7 @@ argv:
 
 The above code is quite simple, it only calls `SYS_exec` syscall with `/init\0` string as the argument. Since the compiled binaries are very simple the xv6 can even hardcoded it as a constant, this will omit the step to load it from file system.
 
-Apparently, the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) is like a step-stone for initialization, the only thing it performs is to call `SYS_exec` syscall to replace its code text as the program `/init`. I'm sure you already knew the responsibility of the `exec` syscall in POSIX, the `SYS_exec` is just like that. Will talk the `/init` soon later.
+Apparently, the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) is like a step-stone for initialization, the only thing it performs is to call `SYS_exec` syscall to replace its code text as the program `/init`. I'm sure you already knew the responsibility of the `exec` syscall in POSIX, the `SYS_exec` is just like that. We'll talk the `/init` soon later.
 
 Besides, if you look into the implementation of the [`uvmfirst()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/vm.rs#L273), it loads the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) at virtual address 0x0, and since the `trapframe.epc` is also set to 0, once the init process is put on cpu, the first line of code it would run is `start` in the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299).
 
@@ -863,7 +865,7 @@ After that, [`usertrapret()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a1
 
 Following the previous sequence diagram, the [`INIT_CODE`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299) only execute `ecall` to get in trap again, and trigger the `SYS_exec`.
 
-As we already knew how syscall is handled, let's go checking the implementation of [`sys_exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/sysfile.rs#L18):
+As we already knew how syscall is handled, let's go check the implementation of [`sys_exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/sysfile.rs#L18):
 
 ```rust
 pub(crate) fn sys_exec() -> u64 {
@@ -879,7 +881,7 @@ pub(crate) fn sys_exec() -> u64 {
 }
 ```
 
-Most of its jobs are fetch the argument along with `ecall`, it will need some effort to do so is because the argument is at user space and needs to be copy into kernel space. But these parts are not very important, now we deep dive into the [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25):
+Most of its jobs fetch the argument along with `ecall`, it will need some effort to do so because the argument is at user space and needs to be copied into kernel space. But these parts are not very important, now we deep dive into the [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25):
 
 ```rust
 pub fn exec(path: [u8; MAXPATH], argv: &[Option<*mut u8>; MAXARG]) -> i32 {
@@ -928,7 +930,7 @@ pub fn exec(path: [u8; MAXPATH], argv: &[Option<*mut u8>; MAXARG]) -> i32 {
 }
 ```
 
-Since this function is very long, about code pieces only contain a few main steps. For more information please directly see the raw code.
+Since this function is very long, the code pieces only contain a few main steps. For more information please directly see the raw code.
 
 In short, the final target of the [`exec()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25) is replacing the current process into a new one, but keeps the current process structure and pid. Through this procedure, many things will get replaced, such as program code, constants, variables.
 
@@ -936,13 +938,13 @@ In order to achieve that, first we need to load the `/init` into the memory, tha
 
 In the above code, it first reads the ELF header as the xv6 file follows the ELF format. The ELF header records the section information, including program segments that are described in the program header. These segments are text, data and others, which are necessary for the program to be executed. 
 
-Through the `loadseg()` function, all program segments are loaded into memory and mapped into a newly create page table, this page table will be the new page table that replaces the old one. Expect for the program segment loading, the arguments passed along with the `SYS_exec` are also copied into stack.
+Through the `loadseg()` function, all program segments are loaded into memory and mapped into a newly created page table, this page table will be the new page table that replaces the old one. Expect for the program segment loading, the arguments passed along with the `SYS_exec` are also copied into stack.
 
 At last, the page table is replaced, and the old one is released, the `epc` is set to `elf.entry` which points to the first line of code of `/init`. At this moment, a new process is finally born.
 
 ### 4.4 Init
 
-We haven't seen how the init looks like, at the end of this article, let's have a look:
+We haven't seen what the init looks like, at the end of this article, let's have a look:
 
 ```rust
 #[start]
@@ -1000,7 +1002,7 @@ There isn't too much code in it, the whole logic can be split into two simple pa
 - Open Console as stdin, stdout and stderr
 - Fork itself
   - For the child process, call `SYS_exec` again to replace itself as the shell program
-  - For the parent process, which is also the init process it self, wait for it child to be exited, and if it happens that the child process also has its children, then the grandchildren processes will be regarded as orphans. Therefore, along with the exit of the child process, all orphan processes will be reparented to init. (See [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L704) for details)
+  - For the parent process, which is also the init process itself, wait for it child to be exited, and if it happens that the child process also has its children, then the grandchildren processes will be regarded as orphans. Therefore, along with the exit of the child process, all orphan processes will be reparented to init. (See [`exit()`](https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L704) for details)
 
  
 
