@@ -722,7 +722,7 @@ With all previous content as the foundation, now we can finally discover how the
 
 The following diagram shows the main sequence of kernel builds up init process and then executes it as the first user process:
 
-{% asset_img 6.png %}
+{% asset_img 7.png %}
 
 Some parts like switching between user mode and supervisor mode have been covered before, next we are going to focus on the other parts.
 
