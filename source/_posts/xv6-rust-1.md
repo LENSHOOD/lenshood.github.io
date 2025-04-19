@@ -1,5 +1,5 @@
 ---
-title: /Xv6 Rust 0x01/ - Starting is the hardest part
+title: /Xv6 Rust 0x01/ - Getting Started is the Hardest Part
 date: 2024-10-23 22:27:59
 tags:
 - xv6
@@ -11,9 +11,9 @@ categories:
 
 {% asset_img header.jpg 500 %}
 
-[Xv6](https://github.com/mit-pdos/xv6-public) is one of the best operating systems for teaching. It’s a great way to learn about how an OS works with basic functions and few line of code. 
+[Xv6](https://github.com/mit-pdos/xv6-public) is one of the best operating systems for teaching. It’s a great way to learn about how an OS works with basic functions and few lines of code. 
 
-Originally, xv6 was written in C, which is awesome for students to get hands-on experience with such a classic programming language. But now that Rust is gaining traction—especially since rust-for-linux is becoming a part of the main line Linux—wouldn’t it be fun to run xv6 using Rust? 
+Originally, xv6 was written in C, which is awesome for students to get hands-on experience with such a classic programming language. But now that Rust is gaining traction—especially since rust-for-linux is becoming a part of the main line Linux—wouldn’t it be fun to run xv6 using Rust?
 
 As a perfect way to kill time, I have migrated most of xv6 from C to Rust. You can check it out [here](https://github.com/LENSHOOD/xv6-rust). During this migration process, I encountered many sorts of issues and tricky stuff, nothing brings me more satisfaction than successfully resolving a problem!
 
@@ -38,7 +38,7 @@ As we are going to port the xv6 to rust, at the very first, we better take a loo
 > - rustup 1.26.0 (5af9b9484 2023-04-05)
 > - CLion 2024.1, (I didn't choose RustRover, because after giving it a try I found it still not stable)
 
-Here we go! Let's create a new rust project, and name it "xv6-rust-sampe".
+Here we go! Let's create a new rust project, and name it "xv6-rust-sample".
 
 Now, there is one and only one `main.rs` file lies in the `src/` directory, leave it for a sec, we don't need that file right now.
 
@@ -46,7 +46,7 @@ Remember, we are going to run rust code on risc-v arch, before any coding, we sh
 
 To choose the correct toolchain, let's create a `.cargo/config.toml`  in the project root, which is the cargo configuration file of our project, we could set our building target here.
 
-Add just two lines in the toml file, like this:
+Add these two lines to the configuration file:
 
 ``` toml
 [build]
@@ -122,23 +122,23 @@ pub fn panic(info: &core::panic::PanicInfo) -> ! {
 }
 ```
 
-In the above code, there is some weird stuff. What is "wfi"? (at least I can assure you it's not wifi) 
+In the above code, there is some weird stuff. What is "wfi"? (at least I can assure you it's not wifi)
 
-According to the [risc-v ISA](https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf) section 3.2.3: "The Wait for Interrupt instruction (WFI) provides a hint to the implementation that the current hart can be stalled until an interrupt might need servicing', FYI, the word "hart" means hardware thread.
+As defined in the [RISC-V ISA specification](https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf) section 3.2.3: "The Wait for Interrupt instruction (WFI) provides a hint to the implementation that the current hart can be stalled until an interrupt might need servicing', FYI, the word "hart" means hardware thread.
 
 Essentially, we put a "wfi" into a loop, which means if any panic happens, instead of reporting some error, we just let the cpu stall. Besides, the macro `core::arch::asm!()` is a wrapper that will let us easily run assembly in rust code, since there is no `std` lib here, we can only import standard libraries from the `core` lib (not surprisingly, it doesn't contain a `println!()`), for more details about `core`, check [here](https://doc.rust-lang.org/core/#).
 
-All right, after adding the panic handler, and re-run `cargo run`, we will get our final issue: 
+All right, after adding the panic handler, and re-run `cargo run`, we will get our final issue:
 
 ```shell
 error: requires `start` lang_item
 ```
 
-[`lang_item`](https://doc.rust-lang.org/beta/unstable-book/language-features/lang-items.html) is a set of items, defined by compiler, to implement special features for the language, for example memory management, exception management, etc., the above error is like a "side effect" of `no_std`. 
+[`lang_item`](https://doc.rust-lang.org/beta/unstable-book/language-features/lang-items.html) is a set of items, defined by compiler, to implement special features for the language, for example memory management, exception management, etc., the above error is like a "side effect" of `no_std`.
 
 Generally the `std` lib by default takes care of all of the special cases related to `lang_item`, once we set `no_std`, many language items need to be provided by ourselves.
 
-The `start` language item is to define the entry point of the program. Since `std` did a great job to link the program entry to `main()`, so just like the above case, no std, no main.
+The `start` language item defines the entry point of the program. Since `std` did a great job to link the program entry to `main()`, so just like the above case, no std, no main.
 
 To solve the issue, we should add the `#![no_main]` to our code, that will let the compiler realize we will define our own program entry, hence the compiler will no longer report above error then.
 
@@ -197,7 +197,7 @@ In short, in the above lines, we set the "runner" of target "riscv64gc-unknown-n
 
 Once we set the [runner](https://doc.rust-lang.org/cargo/reference/config.html#targettriplerunner) for some target, then every time we execute cargo `cargo run`, the target file of our program will be passed as an argument to the command we put into "runner" field. That also why we put the `-kernel` param of QEMU in the end.
 
-All set, let's give it a try! 
+All set, let's give it a try!
 
 ```shell
 Finished dev [unoptimized + debuginfo] target(s) in 0.99s
@@ -368,7 +368,7 @@ If we move one step forward, decompile the program with obj-dump, and see the as
     8000001c:   8082                    ret
 ```
 
-Yes, the stack pointer! `sp` is initially zero, so that after line 80000000, the `sp` will be set to `0x0 - 0x10 = 0xfffffffffffffff0`(we are on the 64-bit platform). 
+Yes, the stack pointer! `sp` is initially zero, so that after line 80000000, the `sp` will be set to `0x0 - 0x10 = 0xfffffffffffffff0`(we are on the 64-bit platform).
 
 Unfortunately, at line 80000006, the value of a0 will be saved to `sp + 12`, which is `0xfffffffffffffffc`, but obviously this address is illegal. If you remember, we only create a VM with 128MiB memory, which means the available physical address range is `0x80000000 ~ 0x88000000`.
 
@@ -386,7 +386,7 @@ extern "C" fn main() {
 }
 ```
 
-We add one line of asm to set the `sp` equals to `0x80001000`, since our program is quite simple and will not grow to even `0x800000ff`, so our code section is safe and has no chance to be overridden. 
+We add one line of asm to set the `sp` equals to `0x80001000`, since our program is quite simple and will not grow to even `0x800000ff`, so our code section is safe and has no chance to be overridden.
 
 Finally, the program can be run correctly, and if you like, add a `panic!()` at the end of the program, otherwise when `main()` is return, the program will fail again because we didn't tell it what to do next after `main()` returned.
 
@@ -403,4 +403,3 @@ As we mentioned at the beginning of this article, the xv6 was running on x86 at 
 Basically, although it does not contain many lines of code, xv6 is still a full functional operating system, it has virtualized CPU and memory as process and virtual memory, it supports concurrency, and contains an Unix-like file system to implement persistent. It has user space and kernel space, with a group of system calls (but not compliant with POSIX for clarity and simplicity). Like Unix, xv6 remains macro kernel concept, so it has only one kernel binary.
 
 In the next articles, we will take a close look at the detailed components design of xv6, and then try to port each one of the components to rust...
-
