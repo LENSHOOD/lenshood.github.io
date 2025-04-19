@@ -13,13 +13,13 @@ categories:
 
 [Xv6](https://github.com/mit-pdos/xv6-public) is one of the best operating systems for teaching. It’s a great way to learn about how an OS works with basic functions and few lines of code. 
 
-Originally, xv6 was written in C, which is excellent for students to get hands-on experience with such a classic programming language. But now that Rust is gaining traction—especially since rust-for-linux is becoming a part of the main line Linux—wouldn’t it be fun to run xv6 using Rust? 
+Originally, xv6 was written in C, which is awesome for students to get hands-on experience with such a classic programming language. But now that Rust is gaining traction—especially since rust-for-linux is becoming a part of the main line Linux—wouldn’t it be fun to run xv6 using Rust?
 
-As an engaging side project, I have migrated most of xv6 from C to Rust. You can check it out [here](https://github.com/LENSHOOD/xv6-rust). During this migration process, I encountered numerous challenges and complex issues, but nothing was more rewarding than successfully resolving them!
+As a perfect way to kill time, I have migrated most of xv6 from C to Rust. You can check it out [here](https://github.com/LENSHOOD/xv6-rust). During this migration process, I encountered many sorts of issues and tricky stuff, nothing brings me more satisfaction than successfully resolving a problem!
 
-Therefore, I'm sharing my experiences through this series of articles that detail the migration process, with a structured approach and clear explanations.
+Therefore, I believe it would be cool for me to share my experiences through a series of articles detailing how I did this, complete with a more structured approach and clear procedures.
 
-Let's begin our exploration of the migration process.
+All right, let's get started...
 
 <!-- more -->
 
@@ -40,11 +40,11 @@ As we are going to port the xv6 to rust, at the very first, we better take a loo
 
 Here we go! Let's create a new rust project, and name it "xv6-rust-sample".
 
-Now, there is one and only one `main.rs` file residing in the `src/` directory. We'll leave it for now as we don't need that file immediately.
+Now, there is one and only one `main.rs` file lies in the `src/` directory, leave it for a sec, we don't need that file right now.
 
-Since we're targeting RISC-V architecture, we must first configure the appropriate toolchain - our code won't run correctly if compiled for x86 architecture.
+Remember, we are going to run rust code on risc-v arch, before any coding, we should deal with the toolchain in the first place, after all I bet our code cannot run correctly when it has been compiled as x86 right?
 
-We'll configure the toolchain by creating a `.cargo/config.toml` file in the project root, where we can specify our build target.
+To choose the correct toolchain, let's create a `.cargo/config.toml`  in the project root, which is the cargo configuration file of our project, we could set our building target here.
 
 Add these two lines to the configuration file:
 
@@ -53,11 +53,11 @@ Add these two lines to the configuration file:
 target = "riscv64gc-unknown-none-elf"
 ```
 
-This configuration specifies that we want to compile our project for RISC-V architecture.
+This will tell our rust toolchain that in this project, we would like to have a risc-v program as the output.
 
-With this configuration in place, we can proceed to the next step.
+So far so good.
 
-Returning to `main.rs`, we find a simple initial function:
+In the next step, we go back to the `main.rs`, and there is only one very simple function:
 
 ```rust
 fn main() {
@@ -87,11 +87,11 @@ error: cannot find macro `println` in this scope
   |     ^^^^^^^
 ```
 
-Without the standard library, we lose access to `println!()` functionality.
+No `std`, no `println!()`. WTF?
 
-This is indeed the case. Implementing a `printf!()` macro will require significant work that we'll cover in a future article, meaning we won't have this functionality available today.
+Unfortunately, yes. Actually we will take one whole chapter to implement `printf!()` macro in the next article, which also means, we are not gonna have it today.
 
-Since we can't print output yet, we'll need to modify our approach and use this simpler test case instead:
+It's a bit awkward for us to not be able to print a simple "hello world", then we can only take one step back, change to this:
 
 ```rust
 #![no_std]
@@ -101,17 +101,17 @@ fn main() {
 }
 ```
 
-We can verify successful execution by checking the value of `i` in the debugger - if it equals 1000, this confirms our Rust code is running correctly on RISC-V.
+Hopefully, at least we can check the value of `i` in debugger, and if the value is equal to 1000, then it can prove we successfully run rust code on risc-v as well.
 
-Next, we encounter our third challenge:
+Here, the third monster shows up:
 
 ```shell
 error: `#[panic_handler]` function required, but not found
 ```
 
-The RISC-V toolchain doesn't include a built-in panic handler implementation.
+In the toolchain of risc-v, it doesn't even have its builtin panic handler!
 
-Let's implement a basic panic handler:
+Fine, let's build one to it:
 
 ```rust
 #[panic_handler]
@@ -122,29 +122,29 @@ pub fn panic(info: &core::panic::PanicInfo) -> ! {
 }
 ```
 
-The code includes an unfamiliar instruction - "wfi". This stands for "Wait for Interrupt" (not to be confused with WiFi). 
+In the above code, there is some weird stuff. What is "wfi"? (at least I can assure you it's not wifi)
 
-As defined in the [RISC-V ISA specification](https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf) section 3.2.3: "The Wait for Interrupt instruction (WFI) provides a hint to the implementation that the current hart (hardware thread) can be stalled until an interrupt might need servicing."
+As defined in the [RISC-V ISA specification](https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf) section 3.2.3: "The Wait for Interrupt instruction (WFI) provides a hint to the implementation that the current hart can be stalled until an interrupt might need servicing', FYI, the word "hart" means hardware thread.
 
-This implementation creates an infinite loop with WFI instructions, effectively stalling the CPU on panic. The `core::arch::asm!()` macro enables inline assembly in our no_std environment. Note that the `core` library (unlike `std`) doesn't include printing functionality - see the [core documentation](https://doc.rust-lang.org/core/#) for details.
+Essentially, we put a "wfi" into a loop, which means if any panic happens, instead of reporting some error, we just let the cpu stall. Besides, the macro `core::arch::asm!()` is a wrapper that will let us easily run assembly in rust code, since there is no `std` lib here, we can only import standard libraries from the `core` lib (not surprisingly, it doesn't contain a `println!()`), for more details about `core`, check [here](https://doc.rust-lang.org/core/#).
 
-After implementing the panic handler and running `cargo run` again, we encounter our final challenge: 
+All right, after adding the panic handler, and re-run `cargo run`, we will get our final issue:
 
 ```shell
 error: requires `start` lang_item
 ```
 
-The [`lang_item`](https://doc.rust-lang.org/beta/unstable-book/language-features/lang-items.html) attribute marks functions that implement special compiler functionality like memory management or exception handling. This error occurs because `no_std` requires us to explicitly define these compiler hooks. 
+[`lang_item`](https://doc.rust-lang.org/beta/unstable-book/language-features/lang-items.html) is a set of items, defined by compiler, to implement special features for the language, for example memory management, exception management, etc., the above error is like a "side effect" of `no_std`.
 
-The standard library normally handles all `lang_item` requirements automatically, but with `no_std` we must implement them ourselves.
+Generally the `std` lib by default takes care of all of the special cases related to `lang_item`, once we set `no_std`, many language items need to be provided by ourselves.
 
-The `start` language item defines the program entry point. The standard library normally links this to `main()`, but without `std` this connection is broken.
+The `start` language item defines the entry point of the program. Since `std` did a great job to link the program entry to `main()`, so just like the above case, no std, no main.
 
-We resolve this by adding `#![no_main]`, informing the compiler that we'll define our own program entry point, which eliminates this error.
+To solve the issue, we should add the `#![no_main]` to our code, that will let the compiler realize we will define our own program entry, hence the compiler will no longer report above error then.
 
-With these changes in place, let's test if the code executes correctly. While Rust's compilation checks catch many issues, runtime verification remains important.
+Up to now, maybe we could try running the code to see if everything goes well? After all, in many cases of rust, pass compile means pass everything.
 
-Here's our current implementation:
+Let's recap the current code:
 
 ```rust
 #![no_std]
@@ -168,19 +168,19 @@ We run it, then we'll get:
 target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample: target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample: cannot execute binary file
 ```
 
-This occurs because we're attempting to run a RISC-V binary on an x86 platform. Our compiled output targets RISC-V architecture and requires the appropriate execution environment.
+Basically, that means we run the binary in a wrong arch. As we are aware, the target binary we would like to have is a program that can be run on risc-v platform, not our x86 platform.
 
-To execute this binary, we need a RISC-V environment. A virtual machine provides an efficient solution for cross-architecture execution during development.
+In simple terms, we need a risc-v env to run the binary. And in such circumstances, virtual machine is a great choice for us.
 
 
 
-## 2. Configuring a RISC-V Environment Using QEMU
+## 2. Setup risc-v platform based on QEMU
 
-Having successfully compiled our Rust code for RISC-V, we now require an execution environment. While real hardware like Raspberry PI could be used, a virtual machine offers rapid setup and significant time savings during development.
+We have successfully compiled the example rust code with risc-v target. Now we need to have a virtual machine to simulate the risc-v environment, of course you can do it on real hardware like Raspberry PI, but virtual machine can help us setup the target platform in a second, that would incredibly save time in the initial stages of development.
 
-We selected QEMU for its ease of use, open-source nature, and seamless Rust integration.
+Here, we choose QEMU because it's very easy to use, open soured and could integrate to rust seamlessly.
 
-Configuring QEMU integration requires just two additions to our existing `.cargo/config.toml`:
+It's quite simple to setup the QEMU with rust integration, we only need to add two lines in the previous `.cargo/config.toml`:
 
 ``` toml
 [build]
@@ -193,51 +193,51 @@ runner = "qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic
 
 I'm not gonna describe much detail of QEMU in this article, please check [here](https://www.qemu.org/docs/master/system/invocation.html#hxtool-0) to see the usage of QEMU if you needed.
 
-In short, in the above lines, we set the "runner" of target "riscv64gc-unknown-none-elf" as a command line that can bring up QEMU. Note that we're using "qemu-system-riscv64" - QEMU provides separate binaries for different target architectures.
+In short, in the above lines, we set the "runner" of target "riscv64gc-unknown-none-elf" as a command line that can bring up QEMU. You may already noticed, the QEMU binary we execute is "qemu-system-riscv64", which means there are many different binaries that are for other platforms.
 
-The [runner configuration](https://doc.rust-lang.org/cargo/reference/config.html#targettriplerunner) automatically passes our compiled binary to the QEMU command, which explains why we placed the `-kernel` parameter at the end.
+Once we set the [runner](https://doc.rust-lang.org/cargo/reference/config.html#targettriplerunner) for some target, then every time we execute cargo `cargo run`, the target file of our program will be passed as an argument to the command we put into "runner" field. That also why we put the `-kernel` param of QEMU in the end.
 
-With everything configured, we're ready to test the implementation. 
+All set, let's give it a try!
 
 ```shell
 Finished dev [unoptimized + debuginfo] target(s) in 0.99s
      Running `qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`
 ```
 
-The execution succeeded without the previous architecture error, and QEMU is now running our RISC-V binary.
+It went very well, no "cannot execute binary file" error ever again, and the QEMU seems running.
 
-Without output capabilities, we must verify program execution through debug mode by inspecting the value of `i` in memory.
+Because we can't output anything, the only way to verify the correctness of our program is run as debug mode, and check the value of "i" in memory.
 
 
 
-## 3. Debugging as a Primary Development Tool
+## 3. Debugger is our closest friend
 
-Debugging tools remain essential throughout development. Without them, we'd be limited to basic logging and unable to thoroughly inspect program state.
+No matter now or later, the debugger is always a super important helper to us. Without a debugger, we cannot learn the current program status easily, and can only use the logger to print context with many restrictions.
 
-This guide uses GDB for debugging, though alternatives like LLDB or Rust-GDB offer similar functionality.
+I'm using the GDB as the debugger in the next series of articles, but you can also choose other debuggers like lldb or rust-gdb, they are quite the same.
 
-To integrate GDB debugging into our workflow:
+So, how to introduce gdb into our project?
 
-First, we configure QEMU to accept GDB connections by adding two parameters to our runner command: `-s -S`. These options make QEMU listen for a debugger connection and pause execution until connected.
+Step 1, we need to let QEMU be able to accept a GDB connection, additionally, pause QEMU to wait for a gdb connection. That requires us to add two params: `-s -S`in to the runner command:
 
 ```toml
 [target.riscv64gc-unknown-none-elf]
 runner = "qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel "
 ```
 
-The `-s` parameter is equivalent to `-gdb tcp::1234`, configuring QEMU to listen for GDB connections on TCP port 1234.
+The `-s` is a shorthand for `-gdb tcp::1234`, which means to listen the GDB connection on tcp port 1234.
 
-The `-S` parameter instructs QEMU to pause execution until a GDB connection is established.
+The `-S` ask QEMU not start to run until a GDB connection comes in.
 
-Next, we configure remote debugging in GDB. Using CLion as our IDE, we create a remote debug configuration specifying `localhost:1234` as the target and `target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample` as the symbol file.
+Step 2, run GDB in remote debug mode. I use Clion as my local IDE, so I can simply create a remote debug in the "Run/Debug Configuration", with the remote args as `localhost:1234`, and choose the symbol file to `target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`.
 
-With this setup, running `cargo run` and initiating debugging in CLion (with a breakpoint at `main()`) should show a successful GDB connection. Terminating the debugger will also stop QEMU, indicated by the message: `qemu-system-riscv64: QEMU: Terminated via GDBstub`.
+After completing the above two steps, when we run `cargo run` again, set a breakpoint in the first line of `main()`, and click debug on Clion, we should see the `Debugger connected to localhost:1234` in the debug tab. And if we stop the debugger, QEMU will stop too, and shows: `qemu-system-riscv64: QEMU: Terminated via GDBstub`.
 
-However, despite the debugger connection, the program doesn't execute as expected. The reason becomes clear when we examine our implementation:
+But nothing happens except the debugger connected. Why?
 
-The issue stems from our `#![no_main]` declaration. While this tells the Rust compiler we'll handle the program entry point ourselves, we haven't actually implemented one yet.
+Actually, we haven't completed our program when we added `#![no_main]` in the previous content. `#![no_main]` only tells rust compiler "you don't need to worry about the program entry anymore, we the developer will take care of that". But in fact we didn't do anything related to the program entry at all!
 
-To resolve this, we must explicitly define the program entry point using a [linker script](https://sourceware.org/binutils/docs/ld/Scripts.html) (`.ld` file) that specifies the memory layout:
+Hence, right now we need to let QEMU understand where to start running our code. And that requires a [linker script](https://sourceware.org/binutils/docs/ld/Scripts.html) `.ld`, just like this:
 
 ```ld
 /* entry.ld */
@@ -266,13 +266,13 @@ SECTIONS
 }
 ```
 
-The linker script defines the memory layout of our ELF-format binary, following standard RISC-V conventions.
+So linker script is basically define the memory layout of the output binary, and since the rust risc-v cross toolchain will generate the target file as ELF format, we defined the layout as ELF style.
 
-This linker script follows standard ELF section conventions, with the key configuration elements at the beginning:
+The above `ld` file is quite simple, the four sections are basic ELF sections and nothing special here. The only fields we need to put our eyes on are the fields on top.
 
 `OUTPUT_ARCH( "riscv" )` indicates the target file is for the risc-v platform. And `ENTRY( main )` points out our program entry is a symbol called `main`, which is our main function indeed.
 
-The `. = 0x80000000` directive sets the entry point address to match RISC-V's memory layout, where RAM begins at 0x80000000. We can verify this memory mapping in QEMU:
+The `. = 0x80000000` stands for putting the entry onto the address 0x80000000, so that our binary will start from that. QEMU supports many different hardware architectures, particularly in risc-v, the RAM address starts from 0x80000000. We can execute a very simple command to prove that:
 
 ```shell
 $ qemu-system-riscv64 -monitor stdio
@@ -291,9 +291,9 @@ address-space: I/O
   0000000000000000-000000000000ffff (prio 0, i/o): io
 ```
 
-Launching QEMU with `-monitor stdio` provides an interactive interface where we can inspect memory regions using `info mtree`, confirming RAM begins at `0x80000000`.
+We start a risc-v virtual machine with `-monitor stdio`, that would not just run a VM instance, but also bring us into an interactive interface, we can check the current memory regions by `info mtree`, apparently the RAM begins at `0000000080000000`.
 
-With the linker script created, we must configure Cargo to use it by modifying `.cargo/config.toml`:
+Now we have our `ld` file, but we still need to activate the script in our program, which need to modify the `.cargo/config.toml`:
 
 ```toml
 [build]
@@ -314,43 +314,43 @@ extern "C" fn main() {
 ... ...
 ```
 
-The `#[no_mangle]` attribute prevents name mangling, while `extern "C"` ensures the function uses the C calling convention for interoperability.
+`#[no_mangle]` force the compiler not mangle this function, and `extern "C" ` is a declaration of FFI, to export the function with C ABI.
 
-With these modifications complete, the debugger should now successfully pause execution at the first line of `main()` when a breakpoint is set.
+After all of the above modifications, I'm sure the program can stop at the first line of main if there is a breakpoint.
 
 
 
-## 4. Debugging Challenges Emerge
+## 4. Things are getting complicated
 
-While we've successfully set breakpoints at `main()`, debugging reveals unexpected behavior - the program counter shows 0x0 when paused, and stepping through instructions fails. This indicates a deeper issue with our execution environment.
+In the previous chapter, I ensured the program could be stopped at the first line, but I bet you have tried, the debugger can no longer step over to the second line. And if you pause the program through gdb, the current memory address turns out to be 0x0. Something's wrong here.
 
-RISC-V's `mcause` CSR (Control and Status Register) records trap causes, which we can inspect to diagnose the execution failure.
+There is a CSR called `mstatus` in risc-v to indicate any event that caused the trap, we could check the value of `mcause` to investigate why our program is in a failure.
 
-Executing `info all-registers` in GDB displays all register values:
+Execut `info all-registers` in gdb, will show value of all registers:
 
 ```gdb
 (gdb) info all-registers
-zero           0x0      0
-ra             0x0      0x0
-sp             0xfffffffffffffff0       0xfffffffffffffff0
-gp             0x0      0x0
-tp             0x0      0x0
+zero           0x0	0
+ra             0x0	0x0
+sp             0xfffffffffffffff0	0xfffffffffffffff0
+gp             0x0	0x0
+tp             0x0	0x0
 
 ... ...
 
-mscratch       0x0      0
-mepc           0x0      0
-mcause         0x1      1
-mtval          0x0      0
+mscratch       0x0	0
+mepc           0x0	0
+mcause         0x1	1
+mtval          0x0	0
 
 ... ...
 ```
 
-The `mcause` value of `0x1` indicates an "Instruction access fault" according to the [RISC-V privileged specification](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view), meaning our program failed to execute its first instruction.
+The `mcause` shows value of `0x1`, refer to the risc-v document([Table 14. Machine cause register (mcause) values after trap.](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view)), `0x1` means "Instruction access fault".
 
-This fault is unexpected since we're running in machine mode (the highest privilege level) without any memory protection mechanisms enabled. The program should have complete system access.
+But how can it be? It won't be insufficient access permission, after all we haven't set any privileged level, so our program is running on the machine mode, which is the highest privileged mode, we can literally do everything.
 
-To investigate further, we'll examine the disassembled program using objdump:
+If we move one step forward, decompile the program with obj-dump, and see the assembly code here:
 
 ```assembly
 0000000080000000 <main>:
@@ -368,11 +368,11 @@ To investigate further, we'll examine the disassembled program using objdump:
     8000001c:   8082                    ret
 ```
 
-The issue stems from the stack pointer initialization - starting at 0x0, the first instruction sets `sp` to `0xfffffffffffffff0` (64-bit wraparound from 0x0 - 0x10), which is outside our allocated 128MB memory range (0x80000000 ~ 0x88000000). 
+Yes, the stack pointer! `sp` is initially zero, so that after line 80000000, the `sp` will be set to `0x0 - 0x10 = 0xfffffffffffffff0`(we are on the 64-bit platform).
 
-This causes the subsequent store instruction (80000006) to attempt accessing `0xfffffffffffffffc`, far outside our valid memory range of 0x80000000-0x88000000.
+Unfortunately, at line 80000006, the value of a0 will be saved to `sp + 12`, which is `0xfffffffffffffffc`, but obviously this address is illegal. If you remember, we only create a VM with 128MiB memory, which means the available physical address range is `0x80000000 ~ 0x88000000`.
 
-To resolve this, we need to properly initialize the stack pointer before execution:
+To make it correct, let's set the `sp` in the first place:
 
 ```rust
 #![no_std]
@@ -386,7 +386,7 @@ extern "C" fn main() {
 }
 ```
 
-We add one line of asm to set the `sp` equals to `0x80001000`, since our program is quite simple and will not grow to even `0x800000ff`, so our code section is safe and has no chance to be overridden. 
+We add one line of asm to set the `sp` equals to `0x80001000`, since our program is quite simple and will not grow to even `0x800000ff`, so our code section is safe and has no chance to be overridden.
 
 Finally, the program can be run correctly, and if you like, add a `panic!()` at the end of the program, otherwise when `main()` is return, the program will fail again because we didn't tell it what to do next after `main()` returned.
 
@@ -403,4 +403,3 @@ As we mentioned at the beginning of this article, the xv6 was running on x86 at 
 Basically, although it does not contain many lines of code, xv6 is still a full functional operating system, it has virtualized CPU and memory as process and virtual memory, it supports concurrency, and contains an Unix-like file system to implement persistent. It has user space and kernel space, with a group of system calls (but not compliant with POSIX for clarity and simplicity). Like Unix, xv6 remains macro kernel concept, so it has only one kernel binary.
 
 In the next articles, we will take a close look at the detailed components design of xv6, and then try to port each one of the components to rust...
-
