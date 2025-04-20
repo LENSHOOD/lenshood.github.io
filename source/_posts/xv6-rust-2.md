@@ -11,17 +11,17 @@ categories:
 
 {% asset_img header.jpg 500 %}
 
-With the help of the previous article, right now we have a good foundation for running rust on risc-v platform.
+With the foundation established in the previous article, we now have a working Rust environment on RISC-V.
 
-In the second episode, we are going to jump into some real code of xv6, and take care of the initialize from machine level to supervisor level, and finally, make the `printf!()` macro available in our code!
+In this second installment, we'll examine the actual xv6 code, handling the initialization from machine level to supervisor level, and ultimately implementing the `printf!()` macro.
 
 <!-- more -->
 
 ## 1. Short but important assembly code
 
-In our latest code, we set the entry of our code as `main()`, and after that, we only did one thing before running the test code, which is set the stack pointer.
+In our current implementation, we designated `main()` as the entry point, performing just one crucial operation before executing test code: initializing the stack pointer.
 
-However, xv6 will do more in the stage of initialization, it chooses to have an individual ASM file to put the very initial code in it, and the ASM file named "[entry.S](https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/asm/entry.S)"(some part of code or comment will be truncated, please click the link attached to the file to see the full code):
+However, xv6 performs additional initialization steps by placing the earliest boot code in a dedicated assembly file named "[entry.S](https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/asm/entry.S)" (some code/comment truncation may occur; see the linked file for complete content):
 
 ```assembly
 ### entry.S
@@ -53,9 +53,9 @@ static stack0: Stack0Aligned = Stack0Aligned([0; 4096 * NCPU]);
 ... ...
 ```
 
-Define the `stack0` as a `u8` array with length of `4096*NCPU` can safely reserve enough space for kernel stack in each hart, after compiled, the `stack0` will be settled in the `.rodata` section, with its address available in the memory range.
+The `stack0` is defined as a `u8` array sized `4096*NCPU`, ensuring sufficient kernel stack space for each hardware thread. During compilation, this array is placed in the `.rodata` section with its address mapped within the accessible memory range.
 
-Let's take a look about it (the binary `kernel` is the kernel output of [xv6-rust](https://github.com/LENSHOOD/xv6-rust)):
+We can verify this memory layout by examining the `kernel` binary (compiled output of [xv6-rust](https://github.com/LENSHOOD/xv6-rust)):
 
 ```shell
 $ readelf -s kernel | grep stack0
@@ -161,11 +161,11 @@ extern "C" fn start() {
 }
 ```
 
-Actually, we cannot even call it a piece of "rust" code, because if you clone the repo and go through the related code, you may find nearly all functions here (like `r_mstatus()` or `w_mepc()`) are wrappers to ASM code.
+Technically, this barely qualifies as Rust code since most functions (like `r_mstatus()` or `w_mepc()`) are thin wrappers around inline assembly instructions, as seen in the repository's implementation.
 
-Almost all of the above functions are operate risc-v CSRs (control and status registers), of course we could follow the risc-v specification to learn the details about those CSRs (the entire [Privileged Specification](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view) with 166 pages only talks about the CSRs), but I'm gonna post the following table to briefly introduce what they do in the `start()`.
+These functions primarily interact with RISC-V CSRs (control and status registers). While the complete [Privileged Specification](https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view) (166 pages) covers CSRs in detail, the following table summarizes their roles in the `start()` function:
 
-CSRs are a group of registers that can only be accessed in privileged mode, such as machine mode or supervisor mode, those registers are capable of store status, or changing the system configurations, and can be read or written by CSR instructions.
+CSRs (Control and Status Registers) are privileged-mode registers (machine/supervisor) that:<br>- Store system state information<br>- Control hardware configurations<br>- Are accessed via specialized CSR instructions
 
 | Register               | Name                                          | Description                                                  |
 | ---------------------- | --------------------------------------------- | ------------------------------------------------------------ |
@@ -306,7 +306,7 @@ Refer to the [`print.rs`](https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8
 #[macro_export]
 macro_rules! printf
 {
-	($($arg:tt)*) => {
+        ($($arg:tt)*) => {
         unsafe {
             crate::printf::PRINTER.printf(core::format_args!($($arg)*))
         }
