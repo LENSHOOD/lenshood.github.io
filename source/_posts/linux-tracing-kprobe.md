@@ -44,6 +44,65 @@ categories:
 
 ## 2. Kprobes 案例
 
+在了解了上述设计要求和要点后，我们也许能更容易理解 kprobes。首先，kprobes 能够动态的切入几乎任意内核程序（除了包含在[blacklist](https://docs.kernel.org/trace/kprobes.html#kprobes-blacklist)中的那些）并收集信息（甚至修改寄存器值）。
+
+当切入点被调用前后，kprobes 会执行自定义的 handler 程序。通常，kprobes 的注册、注销以及 handler 程序的定义都被包含在内核模块中，这样对定义了 kprobes 的内核模块进行加载时，kprobes 就能被插入内核中了。
+
+如下是一个十分简单的 kprobes 内核模块代码案例，通过该案例我们就能基本了解 kprobes 的使用：
+
+```c
+#include ...
+
+// 定义 kprobe 结构以备后用（想想为什么要定义为全局静态变量？）
+static struct kprobe kp;
+
+// 实际的自定义 handler，在切入点被命中后被 kprobes 框架调用
+static int handler_pre(struct kprobe *p, struct pt_regs *regs)
+{
+    const char __user *filename = (const char __user *)regs->si;
+    char fname[256];
+
+    if (filename && strncpy_from_user(fname, filename, sizeof(fname)) > 0) {
+        fname[sizeof(fname) - 1] = '\0';
+        printk(KERN_INFO "[kprobe] openat() called with filename: %s\n", fname);
+    }
+    return 0;
+}
+
+// 注册 kprobes
+static int __init kprobe_init(void)
+{
+    kp.symbol_name = "sys_openat";
+    kp.pre_handler = handler_pre;
+
+    if (register_kprobe(&kp) < 0) {
+        pr_err("Failed to register kprobe\n");
+        return -1;
+    }
+    return 0;
+}
+
+// 注销 kprobes
+static void __exit kprobe_exit(void)
+{
+    unregister_kprobe(&kp);
+}
+
+// 内核模块加载/卸载
+module_init(kprobe_init);
+module_exit(kprobe_exit);
+```
+
+如上所示是一个简单的 kprobes 内核模块，它能够在 sys_openat 符号（即 open 系统调用）被调用时尝试打印 filename。其核心在如下三部分：
+
+1. 定义 kprobe 结构，并写入 `kp.symbol_name = "sys_openat";` 以及 `kp.pre_handler = handler_pre;`：这定义了 kprobes 的挂载点符号和 handler 程序，pre_handler 代表将在挂载点被调用前执行
+2. 注册 kprobes：`register_kprobe(&kp)` 将 kprobe 结构注册进 kprobes 框架中，触发生效
+3. 注销 kprobes：`unregister_kprobe(&kp);` 将 kprobe 结构移除 kprobes 框架
+
+此外，handler 函数传入的参数 `pt_regs *regs` 包含了当前的寄存器信息，这是一个平台相关参数，使用者需要根据体系架构和 ABI 的差异来选择从正确的寄存器中获取需要的值。
+
+通过上述代码可以看到 kprobes 框架的抽象程度很高，使用简单。接下来我们从实际设计的角度进一步探寻其原理。
+
 
 
 ## 3. 设计原理
