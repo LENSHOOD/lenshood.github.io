@@ -11,7 +11,7 @@ categories:
 
 自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux 经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了 Linux 的追踪（Tracing）系统，它的魔力令人着迷。
 
-本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 Linux Tracing 系统的设计。
+本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 Linux Tracing 系统的设计（本文基于 linux kernel v6.15.4）。
 
 <!-- more -->
 
@@ -118,6 +118,58 @@ module_exit(kprobe_exit);
 随着对这些问题的思考，接下来我们进入原理分析。
 
 ### 3.1 管理 Kprobes
+
+从最简单的开始，对于注册的多个 `kprobe` 结构，kprobes 框架需要有一套机制来维护和管理这些 `kprobe`，以便于在切入点被命中时能快速检索到并执行实际的自定义操作。
+
+事实上，在 Linux Kprobes 的设计中，是通过一个 Hash Table 来管理所有 `kprobe` 的：
+
+```c
+// kernel/kprobes.c
+#define KPROBE_HASH_BITS 6
+#define KPROBE_TABLE_SIZE (1 << KPROBE_HASH_BITS)
+static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
+```
+
+显然，`kprobe_table` 是一个拥有 64 个 slot 的线性数组，其每一个数组元素是一个 `hlist_head` 类型的值，hlist 是一个常见的内核数据结构，用于构建通用 Hash Table。`hlist_head` 指向一个链表，其链表元素的类型为 `hlist_node`。事实上 `struct hlist_head name[1 << (bits)]` 这类定义就是一个标准 Hash Table 的模版定义（更多内容可参考[这里](https://kernelnewbies.org/FAQ/Hashtables)）。
+
+因此我们可以将 `kprobe_table` 视为 64 个 hash buckets，为了应对 hash collision，每一个 bucket 中实际存放了一个长度不一的链表。那么为了让 `struct kprobe` 顺利成为 hlist 中的一个元素，其结构内部势必需要包含一个 `hlist_node` 来作为连接节点，参考源码定义，的确如此：
+
+```c
+// include/linux/kprobes.h
+struct kprobe {
+	struct hlist_node hlist;
+	... ...
+};
+```
+
+此外，既然 `kprobe_table` 是一个 Hash Table，那么对于一个新的 `kprobe`，基于什么作为 Hash Key 来判断将其插入的位置呢？答案是通过切入点的 `addr`。
+
+```c
+// include/linux/kprobes.h
+typedef int kprobe_opcode_t;
+struct kprobe {
+	struct hlist_node hlist;
+	... ...
+  /* location of the probe point */
+	kprobe_opcode_t *addr;
+  ... ...
+};
+
+// kernel/kprobes.c
+static int __register_kprobe(struct kprobe *p)
+{
+  ... ...
+	INIT_HLIST_NODE(&p->hlist);
+	hlist_add_head_rcu(&p->hlist, &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
+  ... ...
+}
+```
+
+回忆第二节的示例代码，我们仅为 `kprobe` 设置了 `kp.symbol_name = "sys_openat";`。实际上在注册的过程中会将符号名替换为相对地址并存入 `kprobe`，这样就可以将 `addr` 作为 key 来计算 slot index 了。
+
+综上，我们可以绘制如下示意图来描述 kprobes 框架对 `kprobe` 的管理结构：
+
+{% asset_img 1.png %}
 
 
 
