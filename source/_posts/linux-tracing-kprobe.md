@@ -175,6 +175,55 @@ static int __register_kprobe(struct kprobe *p)
 
 ### 3.2 Kprobe 结构
 
+上一节我们已经部分了解了 `struct kprobe` 中包含了 `hlist` 和 `addr` 两个关键字段，接下来我们一起通过讨论完整的`kprobe` 结构，来进一步认识 kprobes 框架的工作方式。
+
+```c
+struct kprobe {
+	struct hlist_node hlist;
+
+	/* list of kprobes for multi-handler support */
+	struct list_head list;
+
+	/*count the number of times this probe was temporarily disarmed */
+	unsigned long nmissed;
+
+	/* location of the probe point */
+	kprobe_opcode_t *addr;
+
+	/* Allow user to indicate symbol name of the probe point */
+	const char *symbol_name;
+
+	/* Offset into the symbol */
+	unsigned int offset;
+
+	/* Called before addr is executed. */
+	kprobe_pre_handler_t pre_handler;
+
+	/* Called after addr is executed, unless... */
+	kprobe_post_handler_t post_handler;
+
+	/* Saved opcode (which has been replaced with breakpoint) */
+	kprobe_opcode_t opcode;
+
+	/* copy of the original instruction */
+	struct arch_specific_insn ainsn;
+
+	/*
+	 * Indicates various status flags.
+	 * Protected by kprobe_mutex after this kprobe is registered.
+	 */
+	u32 flags;
+};
+```
+
+通过每个 field 的注释我们已经能够大致的了解到它们的用途。
+
+首先在前面的内容中已经提到过，在 `kprobe` 中可以指定切入点的 `addr`，也可以指定 `symbol_name + offset` 作为切入点，但 `addr` 和 `symbol_name` 是互斥关系，不能同时存在，否则注册时会报错。实际上在 kprobe 最终运作时，都是以 `addr` 作为实际的切入点位置，而假如指定了 `symbol_name` 则会经过一个转换的过程将之转换为 `addr`。
+
+对符号到地址的转换过程依赖子系统提供的能力：根据配置不同，默认情况下内核中已导出的符号和其地址会由 `kallsyms` 记录并提供运行时查询。因此如果 `kprobe` 中通过 `symbol_name + offset` 的形式描述切入点位置，kprobes 框架会通过 `kallsyms` 接口来对其进行验证并转换为实际的 `addr`。简化流程可见：
+
+{% asset_img 2.png %}
+
 
 
 ### 3.3 命中
