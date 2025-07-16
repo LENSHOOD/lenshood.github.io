@@ -178,6 +178,8 @@ static int __register_kprobe(struct kprobe *p)
 上一节我们已经部分了解了 `struct kprobe` 中包含了 `hlist` 和 `addr` 两个关键字段，接下来我们一起通过讨论完整的`kprobe` 结构，来进一步认识 kprobes 框架的工作方式。
 
 ```c
+// include/linux/kprobes.h
+
 struct kprobe {
 	struct hlist_node hlist;
 
@@ -218,11 +220,77 @@ struct kprobe {
 
 通过每个 field 的注释我们已经能够大致的了解到它们的用途。
 
+#### 3.2.1 切入点相关的 Fields
+
 首先在前面的内容中已经提到过，在 `kprobe` 中可以指定切入点的 `addr`，也可以指定 `symbol_name + offset` 作为切入点，但 `addr` 和 `symbol_name` 是互斥关系，不能同时存在，否则注册时会报错。实际上在 kprobe 最终运作时，都是以 `addr` 作为实际的切入点位置，而假如指定了 `symbol_name` 则会经过一个转换的过程将之转换为 `addr`。
 
 对符号到地址的转换过程依赖子系统提供的能力：根据配置不同，默认情况下内核中已导出的符号和其地址会由 `kallsyms` 记录并提供运行时查询。因此如果 `kprobe` 中通过 `symbol_name + offset` 的形式描述切入点位置，kprobes 框架会通过 `kallsyms` 接口来对其进行验证并转换为实际的 `addr`。简化流程可见：
 
 {% asset_img 2.png %}
+
+其次，`pre_handler` 和 `post_handler` 会在切入点被命中的前后被执行，简单看看它们的函数签名：
+
+```c
+// include/linux/kprobes.h
+
+typedef int (*kprobe_pre_handler_t) (struct kprobe *, struct pt_regs *);
+typedef void (*kprobe_post_handler_t) (struct kprobe *, struct pt_regs *, unsigned long flags);
+```
+
+第一个相同的参数 `struct kprobe *` 不多做赘述，而第二个相同的参数 `struct pt_regs *` 中保存了当前执行 CPU 的寄存器值。此外，根据 [kprobe 文档](https://docs.kernel.org/trace/kprobes.html#register-kprobe)，`post_handler` 的最后一个参数 `flags` 目前总是为零值。
+
+需要注意的是`pre_handler` 还需要一个`int`返回值。由于 kprobe 运行在内核态，handler 程序实际上可以修改任何寄存器的值从而改变程序执行路径（例如修改 program counter），但这非常危险，在 kprobe 文档的[相关章节](https://docs.kernel.org/trace/kprobes.html#changing-execution-path)中建议：“对于要修改程序执行流程的内核老司机，在修改寄存器值之后记得让 `pre_handler` 返回非零值，进而 kprobe 框架会直接跳转到新的地址，而不再执行原切入点的指令，也不再执行 `post_handler`”。
+
+对于 `kprobe_opcode_t opcode;` 则涉及到了 kprobe 的核心原理，即为了正确命中切入点，kprobe 框架会把切入点的原始指令暂存，并替换为 Breakpoint 指令，例如 x86 架构下的 INT3，这里的 `opcode` 就保存了切入点指令。更多细节我们在下一小节讨论。
+
+相对应的，`struct arch_specific_insn ainsn;` 保存了与体系结构相关的额外信息，`opcode` 是与体系结构无关的字段，它直接保存了指令的内容。而 `ainsn` 进一步保存了与体系结构相关的一些信息，不同的体系结构下其实现可能存在差异，例如 [x86 的实现](https://elixir.bootlin.com/linux/v6.15.4/source/arch/x86/include/asm/kprobes.h#L54)以及 [riscv 的实现](https://elixir.bootlin.com/linux/v6.15.4/source/arch/riscv/include/asm/probes.h#L19)。
+
+此外，`unsigned long nmissed;` 存储了当前 kprobe 被触发，但未能成功执行 handler 的次数，通常情况下，这是由于该 kprobe 发生了重入（reenter），即该 kprobe 触发了另一个 kprobe。在这种情况下，handler 不会再被运行，而是记录一次 `nmissed`。
+
+最后，`u32 flags;` 作为一个状态指示器指示了当前的各种状态，其中包括启用、禁用、已注册等等。
+
+#### 3.2.2 相同切入点上的多个 kprobes
+
+回到前面提到过的一个问题：作为一个通用的框架，假如有多个调用方期望在同一个切入点上挂载多个 kprobe，该怎么办呢？
+
+事实上 kprobes 框架依然采用了线性表的方式来确保这种情况能够被满足。`struct list_head list;` 充当了该职责，`list_head` 是内核中提供的双向链表结构，它非常简单的只包含了前后指针两个字段。与 `hlist_head` 类似，实际使用时嵌入到具体的结构中，通过计算偏移量就能取回实际的结构。
+
+因此，`kprobe` 可以通过 `list` 字段将其他与其具有相同切入点的`kropbe` 通过该双向链表串联在了一起，从而当切入点被命中时，每一个 `kprobe` 都会被依次触发而不会被漏掉。
+
+有趣的是，为了实现依次触发的要求，在每一个`kprobe` 链表的头部，会放置一个特殊的 `kprobe` 结构，名为 “aggregator”。它与普通`kprobe` 的唯一区别在于其 `pre_handler` 和 `post_handler` 会被替换为如下的 handler：
+
+```c
+// kernel/kprobes.c
+
+static int aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
+{
+  ...
+	list_for_each_entry_rcu(kp, &p->list, list) {
+    ... ...
+    if (kp->pre_handler(kp, regs))
+      return 1;
+    ... ...
+	}
+  ...
+}
+
+static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs, unsigned long flags)
+{
+  ...
+	list_for_each_entry_rcu(kp, &p->list, list) {
+		... ...
+    kp->post_handler(kp, regs, flags);
+    ... ...
+	}
+  ...
+}
+```
+
+很简单的，这些 aggrator handler 实际上遍历了所有链表内的 `kprobe` 并实际调用它们的 handler。
+
+同时，我们现在可以更新一下 kprobes 框架的结构图：
+
+{% asset_img 3.png %}
 
 
 
