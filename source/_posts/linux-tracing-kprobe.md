@@ -296,6 +296,74 @@ static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs, unsigned l
 
 ### 3.3 命中
 
+在前面的章节中我们已经或多或少的设计了一些切入点命中的原理。现在我们将通过更多的细节来具体了解切入点的命中，以及 handler 执行相关的原理。
+
+我们已经知道，kprobe 框架激活某个 `kprobe` 后，会将其设定的切入点指令暂存，并替换为 Breakpoint 指令。首先不同体系结构下的 Breakpoint 指令是完全不同的，为了支持不同的体系结构，实际的激活动作（也就是`register_kprobe()`的最后一步）的实现是与 CPU 类型相关的（这里函数签名中的 “arm” 指的不是 arm CPU 而是 “装备”、“配备” 的意思）：
+
+```c
+// arch/x86/kernel/kprobes/core.c
+void arch_arm_kprobe(struct kprobe *p)
+{
+	u8 int3 = INT3_INSN_OPCODE;
+
+	text_poke(p->addr, &int3, 1);
+	text_poke_sync();
+	perf_event_text_poke(p->addr, &p->opcode, 1, &int3, 1);
+}
+
+// arch/arm64/kernel/probes/kprobes.c
+void __kprobes arch_arm_kprobe(struct kprobe *p)
+{
+	void *addr = p->addr;
+	u32 insn = BRK64_OPCODE_KPROBES;
+
+	aarch64_insn_patch_text(&addr, &insn, 1);
+}
+
+// arch/riscv/kernel/probes/kprobes.c
+void __kprobes arch_arm_kprobe(struct kprobe *p)
+{
+	size_t len = GET_INSN_LENGTH(p->opcode);
+	u32 insn = len == 4 ? __BUG_INSN_32 : __BUG_INSN_16;
+
+	patch_text(p->addr, &insn, len);
+}
+```
+
+以x86下的实现为例，`text_poke` 将 INT3 指令写入切入点地址中，而在此之前，原切入点指令已经通过 [`arch_prepare_kprobe()`](https://elixir.bootlin.com/linux/v6.15.4/source/include/linux/kprobes.h#L272) 被保存在了 `opcode` 和 `ainsn` 中了（保存原始指令的实现也是体系结构特有的）。
+
+同样的，不同的体系结构下的 Breakpoint 的响应逻辑也是不同的，而实际执行 kprobes handler 的工作就在这些具体的响应逻辑实现中。以 x86 为例：
+
+```c
+// arch/x86/kernel/traps.c
+static bool do_int3(struct pt_regs *regs)
+{
+	... ...
+	if (kprobe_int3_handler(regs))
+		return true;
+	... ...
+}
+
+int kprobe_int3_handler(struct pt_regs *regs)
+{
+	... ...
+	p = get_kprobe(addr);
+
+	if (p) {
+		... ...
+    if (!p->pre_handler || !p->pre_handler(p, regs))
+      setup_singlestep(p, regs, kcb, 0);
+		... ...
+		}
+	} else if (kprobe_is_ss(kcb)) {
+		... ...
+    resume_singlestep(p, regs, kcb);
+    kprobe_post_process(p, regs, kcb);
+		... ...
+	}
+}
+```
+
 
 
 
