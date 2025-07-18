@@ -332,37 +332,33 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 
 以x86下的实现为例，`text_poke` 将 INT3 指令写入切入点地址中，而在此之前，原切入点指令已经通过 [`arch_prepare_kprobe()`](https://elixir.bootlin.com/linux/v6.15.4/source/include/linux/kprobes.h#L272) 被保存在了 `opcode` 和 `ainsn` 中了（保存原始指令的实现也是体系结构特有的）。
 
-同样的，不同的体系结构下的 Breakpoint 的响应逻辑也是不同的，而实际执行 kprobes handler 的工作就在这些具体的响应逻辑实现中。以 x86 为例：
+引用 Kprobes 文档的 ["How Does a Kprobe Work"](https://docs.kernel.org/trace/kprobes.html#how-does-a-kprobe-work) 章节，我们可以从描述上进一步了解完整的执行过程：
 
-```c
-// arch/x86/kernel/traps.c
-static bool do_int3(struct pt_regs *regs)
-{
-	... ...
-	if (kprobe_int3_handler(regs))
-		return true;
-	... ...
-}
+>*当一个 kprobe 注册后，Kprobes 框架将切入点指令复制一份，并将原始切入点的第一个字节替换为一个 Breakpoint 指令（如在 i386 和 x86_64 上的 int3）。*
+>
+>*当某个 CPU 命中该 Breakpoint 指令时，将发生 trap，该 CPU 的寄存器被暂存，控制流通过 notifier_call_chain 被传递给 Kprobes 框架。Kprobes 框架执行与 kprobe 关联的  “pre_handler”，将 `struct kprobe` 的地址以及暂存的寄存器传递给 handler。*
+>
+>*之后，Kprobes 对其复制的切入点指令进行单步执行（single-steps）。（直接在指令原始位置上 single-step 会更简单，但 Kprobes 框架将必须临时性移除 Breakpoint 指令。这可能会打开一个小时间窗口使其他 CPU 有可能在运行时直接掠过切入点。）*
+>
+>*在指令被单步执行后，Kprobes 框架执行 “post_handler”（如果有的话）。之后，程序会接着切入点的位置继续执行。*
 
-int kprobe_int3_handler(struct pt_regs *regs)
-{
-	... ...
-	p = get_kprobe(addr);
+这里所谓的 “命中后单步执行”，在不同体系结构下虽略有差异，但都遵循类似的流程。下图展示了 x86、arm64、riscv 三种体系结构下 kprobes 命中的流程：
 
-	if (p) {
-		... ...
-    if (!p->pre_handler || !p->pre_handler(p, regs))
-      setup_singlestep(p, regs, kcb, 0);
-		... ...
-		}
-	} else if (kprobe_is_ss(kcb)) {
-		... ...
-    resume_singlestep(p, regs, kcb);
-    kprobe_post_process(p, regs, kcb);
-		... ...
-	}
-}
-```
+
+
+显然，对于上述三种类型的 CPU，其本质都是将原始指令取出并替换为 Breakpoint，之后将原始指令与同样的另一个 Breakpoint 合并，之后放置在一个 “trampoline” 的区域。这样两个 Breakpoint 的存在就能允许 Kprobes 框架即能执行 `pre_handler` 又能执行 `post_handler`了。
+
+> 有趣的是，在 v5.13 以前，x86 的实现并不是在原始指令之后直接跟随 INT3，而是在 INT3 后续的 handler 中将当前模式设置为 Debug 模式，从而实现原始指令执行完后就会立即终止执行并进入名为 `do_debug()` 的 Debug 模式 handler。
+>
+> 那这又是为什么呢？可以设想，在原始指令之后添加 INT3 的确看起来和 Debug 模式下单步执行等效，但假如原始指令是一条跳转指令，或者任意会修改 `ip register` 的指令呢？由于下一条执行指令的位置被修改，INT3 会被跳过，因此看起来只能进入 Debug 模式来避免这种场景。
+>
+> 参考提交历史，Masami Hiramatsu 在 2021 年提交了修改 x86 single-stepping 的 patch：[[RFC PATCH 1/1] x86/kprobes: Use int3 instead of debug trap for single-step](https://lore.kernel.org/lkml/161460769556.430263.12936080446789384938.stgit@devnote2/) 在 email thread 中上述问题被讨论并且给出了结论：在 x86 下 single-stepping 很慢，可以改为原始指令后追加 INT3 的方案。同时，对于会修改 `ip` 的指令，他们参照 arm64 的实现方式，通过 emulation 模拟了部分指令的执行。
+>
+> 简单举个例子，假如对于普通指令，第一次进入 `do_int3()` 将执行 `pre_handler()`，之后跳转至 trampoline 执行原始指令，然后再次进入 `do_int3()` 后执行 `post_handler()`。
+>
+> 而假如原始指令是 `jmp`，此时在 `prepare_emulation()` 中会识别到该指令，并将执行 `jmp` 的动作替换为执行一个函数 `int3_emulate_jmp()`，其内容类似 `regs->ip = new_ip;`，这正是 `jmp` 指令所做的。在这个情况下，当第一次进入 `do_int3()` 并执行 `pre_handler()`之后，不再跳转 trampoline，而是直接执行 `int3_emulate_jmp()` 模拟跳转，紧接着执行  `post_handler()` 。如此，当从 INT3 返回后，程序会跳转至 `new_ip` 处继续运行。
+
+
 
 
 
