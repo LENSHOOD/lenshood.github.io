@@ -344,7 +344,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 
 这里所谓的 “命中后单步执行”，在不同体系结构下虽略有差异，但都遵循类似的流程。下图展示了 x86、arm64、riscv 三种体系结构下 kprobes 命中的流程：
 
-
+{% asset_img 4.png %}
 
 显然，对于上述三种类型的 CPU，其本质都是将原始指令取出并替换为 Breakpoint，之后将原始指令与同样的另一个 Breakpoint 合并，之后放置在一个 “trampoline” 的区域。这样两个 Breakpoint 的存在就能允许 Kprobes 框架即能执行 `pre_handler` 又能执行 `post_handler`了。
 
