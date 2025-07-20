@@ -222,7 +222,7 @@ struct kprobe {
 
 #### 3.2.1 切入点相关的 Fields
 
-首先在前面的内容中已经提到过，在 `kprobe` 中可以指定切入点的 `addr`，也可以指定 `symbol_name + offset` 作为切入点，但 `addr` 和 `symbol_name` 是互斥关系，不能同时存在，否则注册时会报错。实际上在 kprobe 最终运作时，都是以 `addr` 作为实际的切入点位置，而假如指定了 `symbol_name` 则会经过一个转换的过程将之转换为 `addr`。
+首先在前面的内容中已经提到过，在 `kprobe` 中可以指定切入点的 `addr`，也可以指定 `symbol_name + offset` 作为切入点，但 `addr` 和 `symbol_name` 是互斥关系，不能同时存在，否则注册时会报错。实际上在 kprobe 最终运作时，都是以 `addr` 作为实际的切入点位置，而假如指定了 `symbol_name` 则会经过一个转换的过程将之转换为 `addr`。这也证明，Kprobes 框架支持几乎在程序任意位置进行切入（在 Kprobes 框架中存在一些黑名单地址，禁止切入）。
 
 对符号到地址的转换过程依赖子系统提供的能力：根据配置不同，默认情况下内核中已导出的符号和其地址会由 `kallsyms` 记录并提供运行时查询。因此如果 `kprobe` 中通过 `symbol_name + offset` 的形式描述切入点位置，kprobes 框架会通过 `kallsyms` 接口来对其进行验证并转换为实际的 `addr`。简化流程可见：
 
@@ -346,13 +346,13 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 
 {% asset_img 4.png %}
 
-显然，对于上述三种类型的 CPU，其本质都是将原始指令取出并替换为 Breakpoint，之后将原始指令与同样的另一个 Breakpoint 合并，之后放置在一个 “trampoline” 的区域。这样两个 Breakpoint 的存在就能允许 Kprobes 框架即能执行 `pre_handler` 又能执行 `post_handler`了。
+显然，对于上述三种类型的 CPU，其本质都是将原始指令取出并替换为 Breakpoint，之后将原始指令与同样的另一个 Breakpoint 合并，之后放置在一个 “trampoline” 的区域（也称为 "out-of-line buffer"，在 trampoline 区域执行期间必须关闭中断以简化流程）。这样两个 Breakpoint 的存在就能允许 Kprobes 框架即能执行 `pre_handler` 又能执行 `post_handler`了。
 
 > 有趣的是，在 v5.13 以前，x86 的实现并不是在原始指令之后直接跟随 INT3，而是在 INT3 后续的 handler 中将当前模式设置为 Debug 模式，从而实现原始指令执行完后就会立即终止执行并进入名为 `do_debug()` 的 Debug 模式 handler。
 >
 > 那这又是为什么呢？可以设想，在原始指令之后添加 INT3 的确看起来和 Debug 模式下单步执行等效，但假如原始指令是一条跳转指令，或者任意会修改 `ip register` 的指令呢？由于下一条执行指令的位置被修改，INT3 会被跳过，因此看起来只能进入 Debug 模式来避免这种场景。
 >
-> 参考提交历史，Masami Hiramatsu 在 2021 年提交了修改 x86 single-stepping 的 patch：[[RFC PATCH 1/1] x86/kprobes: Use int3 instead of debug trap for single-step](https://lore.kernel.org/lkml/161460769556.430263.12936080446789384938.stgit@devnote2/) 在 email thread 中上述问题被讨论并且给出了结论：在 x86 下 single-stepping 很慢，可以改为原始指令后追加 INT3 的方案。同时，对于会修改 `ip` 的指令，他们参照 arm64 的实现方式，通过 emulation 模拟了部分指令的执行。
+> 参考提交历史，Masami Hiramatsu 在 2021 年提交了修改 x86 single-stepping 的 patch：[[RFC PATCH 1/1] x86/kprobes: Use int3 instead of debug trap for single-step](https://lore.kernel.org/lkml/161460769556.430263.12936080446789384938.stgit@devnote2/) 在 email thread 中上述问题被讨论并且给出了结论：在 x86 下 single-stepping 很慢，可以改为原始指令后追加 INT3 的方案。同时，对于会修改 `ip` 的指令，他们参照 [arm64 的实现方式](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=7ee31a3aa8f490c6507bc4294df6b70bed1c593e)，通过 emulation 模拟了部分指令的执行。
 >
 > 简单举个例子，假如对于普通指令，第一次进入 `do_int3()` 将执行 `pre_handler()`，之后跳转至 trampoline 执行原始指令，然后再次进入 `do_int3()` 后执行 `post_handler()`。
 >
@@ -360,8 +360,59 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 
 
 
+### 3.4 优化
+
+前面曾提到过，是不是有可能不使用 Breakpoint 这类软件中断，而是直接将切入点位置的指令替换为 jump 指令，从而降低开销呢？事实上 Kprobes 框架的确这么做了，并将这种操作称之为优化（optimization）。
+
+首先我们引用 Kprobes 官方文档中的数据来看看优化前后的[开销变化](https://docs.kernel.org/trace/kprobes.html#optimized-probe-overhead)：
+
+```shell
+k = unoptimized kprobe, b = boosted (single-step skipped), o = optimized kprobe,
+r = unoptimized kretprobe, rb = boosted kretprobe, ro = optimized kretprobe.
+
+i386: Intel(R) Xeon(R) E5410, 2.33GHz, 4656.90 bogomips
+k = 0.80 usec; b = 0.33; o = 0.05; r = 1.10; rb = 0.61; ro = 0.33
+
+x86-64: Intel(R) Xeon(R) E5410, 2.33GHz, 4656.90 bogomips
+k = 0.99 usec; b = 0.43; o = 0.06; r = 1.24; rb = 0.68; ro = 0.30
+```
+
+优化能产生数十倍的开销降低，效果令人满意。那么 Kprobes 是如何进行优化的呢？（目前主要是 x86 实现了优化功能，其他体系结构实现了优化逻辑的较少。）
+
+{% asset_img 5.png %}
+
+如上图，优化后的效果，是跳转到 trampoline 和跳转回切入点位置的操作全部从 Breakpoint 指令替换为简单的跳转指令。
+
+正因为 Breakpoint 全部替换为了跳转，不再需要处理中断，CPU 的执行流也更简单，这样就减少了包括锁、保存/恢复上下文、iCache 失效、分支预测失败等等的各种开销，因此能极大提升Kprobes 的执行速度。
+
+但并不是任何 Kprobes 都支持优化，优化的限制并不少：
+
+- 被切入函数中不能包含任何间接跳转（indirect jump），因为 x86 jump 指令长度很长（相比 INT3 只占 1 字节），原先的间接跳转有可能跳到 jump 指令中间
+- 被切入函数不能包含任何可能导致 exception 的指令，因为 exception handler 在跳回原函数时有可能跳到 jump 指令中间
+- 在替换为 jump 指令的区域（称为 optimized region）内不能有 near jump（目标位置在-128~127 bytes 之间），因为直接跳转到 trampoline 的操作没有像 Breakpoint handler 那样处理和调整寄存器的值以适配这种情况
+
+因此在进行 Kprobes 优化前，会先检查各种 pre-condition 是否满足要求，如果都符合要求才会进行优化。并且，为了确保 kprobe 总是可用的，Kprobes 框架在 `kprobe` 注册时默认会先采用 Breakpoint + single-step 的形式对切入点进行改造，而在注册的最后一步尝试优化，并且即使可优化，也会将优化工作扔到一个工作队列中异步进行。
+
+更详细的流程可见下图：
+
+{% asset_img 6.png %}
+
+和前面简化的图相比，上图中被优化的 Kprobe 多了一些细节：实际上在 trampoline（out-of-buffer）的起始位置并不直接是原始指令，而是先放置了一个`CALL` 指令，跳转到 [`optimized_callback()`](https://elixir.bootlin.com/linux/v6.15.4/source/arch/x86/kernel/kprobes/opt.c#L177)，在该函数中执行了 `pre_handler()`，之后才跳回到原始指令继续执行。如果看源码会发现，在执行`pre_handler()` 的过程中禁止了抢占，这是为了避免可能由抢占而引发的复杂情况如递归调用、随机跳转等。
+
+另外，优化的 Kprobes 也不支持 `post_handler`，在 Optimized Kprobes 的前身 [djprobe](https://landley.net/kdocs/ols/2007/ols2007v1-pages-189-200.pdf) 的设计中，Masami Hiramatsu 提到不支持 `post_handler` 是基于性能和功能考量下的一种 tradeoff，他最终在二者之间选择了性能。
+
+> 向前追溯 Kprobe 优化的历史，我们会发现绕不开一位日本的内核开发者：Masami Hiramatsu。Masami 近二十年来一直持续的在为 Kprobes 贡献，并尝试改进其在 x86 的性能。
+>
+> 在 2006 年时，Masami 提交了 [“kprobes-booster”](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=311ac88fd2d4194a95e9e38d2fe08917be98723c) 方案，先尝试将 single-step 优化为 jump，该优化将 Kprobes 的执行开销缩短了一半。
+>
+> 之后，他又开发了 [djprobe](https://landley.net/kdocs/ols/2007/ols2007v1-pages-189-200.pdf)，即 direct jump probe，djprobe 将 Breakpoint 和 single-step 全部替换为了 jump 的方式，这也使其称为 Optimized Kprobe 的前身。
+>
+> 在 djprobe 经过了持续的演进后，2010 年它以 “Optprobe” 的形式合入了内核（见 [*The Enhancement of Kernel Probing - Kprobes Jump Optimization*](https://tracingsummit.org/ts/2010/files/HiramatsuLinuxCon2010.pdf)）。
 
 
 
+### 3.5 黑名单
 
-## 4. Kretprobes
+
+
+### 3.6 Kretprobes
