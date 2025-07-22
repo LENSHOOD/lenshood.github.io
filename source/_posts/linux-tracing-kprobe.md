@@ -413,6 +413,85 @@ k = 0.99 usec; b = 0.43; o = 0.06; r = 1.24; rb = 0.68; ro = 0.30
 
 ### 3.5 黑名单
 
+前面提到过通过直接设置 `kprobe.addr` 属性可以选择任意的位置作为切入点。然而为了防止不可控，Kprobes 框架限制了一些位置不能被作为切入点。
+
+根据 [Kprobes 文档](https://docs.kernel.org/trace/kprobes.html#blacklist)：
+
+> Kprobes 能探测大部分 kernel 区域，但除了它自己。这意味着有一些函数是 Kprobes 不能探测的。探测那些函数会导致递归陷阱或者嵌套的 handler 永远无法被调用到。Kprobes 将这些函数以黑名单的形式管理。假如你想将某个函数添加到黑名单中，你只需要（1）将 `linux/kprobes.h` include 进来，然后（2）使用`NOKPROBE_SYMBOL() ` 宏来指定一个函数为黑名单函数。Kprobes 会在注册时检查黑名单并在切入点出现在黑名单时拒绝注册。
+
+Kprobes 框架在初始化时会对黑名单进行初始化，而黑名单本质上是一个链表。首先 Kprobes 框架会确保Kprobes 自身的代码段加入黑名单，以防止 Kprobes 自身被探测；其次，对于定义的 “Non-instrumentable” 的代码区域也需要加入黑名单；最后，如同前面引用段落中描述的，用户可以通过 `NOKPROBE_SYMBOL()` 来自定义黑名单函数，所有的自定义黑名单函数也会被加载到黑名单。
+
+Kprobes 黑名单加载过程中的有趣之处在于自定义黑名单函数：
+
+```c
+// include/asm-generic/kprobes.h
+
+# define __NOKPROBE_SYMBOL(fname)
+static unsigned long __used        \
+  __section("_kprobe_blacklist")   \
+  _kbl_addr_##fname = (unsigned long)fname;
+```
+
+`NOKPROBE_SYMBOL() `仅仅是定义了一个静态变量持有函数地址，除此之外没有更多操作，特别之处在于 `__section("_kprobe_blacklist") ` 提示编译器将该变量放在 `_kprobe_blacklist` 段。
+
+然后转到 `vmlinus.lds.h`：
+
+```c
+// include/asm-generic/vmlinus.lds.h
+
+#define KPROBE_BLACKLIST()
+	. = ALIGN(8);                     \
+	BOUNDED_SECTION(_kprobe_blacklist)
+    
+... ...
+
+#define BOUNDED_SECTION(_sec)	 
+  BOUNDED_SECTION_BY(_sec, _sec)
+#define BOUNDED_SECTION_BY(_sec_, _label_)
+  BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)
+#define BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_)
+	_BEGIN_##_label_ = .;						  \
+	KEEP(*(_sec_))							      \
+	_END_##_label_ = .;
+```
+
+根据上述链接器头文件中的宏定义，展开后实际上是如下内容：
+
+```c
+__start_kprobe_blacklist = .;        \
+KEEP(*(_kprobe_blacklist))					 \
+__stop_kprobe_blacklist = .;
+```
+
+这意味着所有被放置在 `_kprobe_blacklist` 段的内容都会处于 `__start_kprobe_blacklist` 和 `__stop_kprobe_blacklist` 之间，因此当我们查看 Kprobes 框架初始化过程中加载黑名单的代码时，就能理解其原理了：
+
+```c
+// kernel/kprobes.c
+
+static int __init init_kprobes(void)
+{
+  ... ...
+	err = populate_kprobe_blacklist(__start_kprobe_blacklist, __stop_kprobe_blacklist);
+  ... ...
+}
+
+static int __init populate_kprobe_blacklist(unsigned long *start, unsigned long *end)
+{
+  ... ...
+	for (iter = start; iter < end; iter++) {
+		entry = (unsigned long)dereference_symbol_descriptor((void *)*iter);
+		ret = kprobe_add_ksym_blacklist(entry);
+		if (ret == -EINVAL)
+			continue;
+		if (ret < 0)
+			return ret;
+	}
+	... ...
+}
+```
+
+如上述代码所示，`populate_kprobe_blacklist()` 会将 `__start_kprobe_blacklist` 和 `__stop_kprobe_blacklist` 之间的所有变量都解引用后加入到黑名单中。
+
 
 
 ### 3.6 Kretprobes
