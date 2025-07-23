@@ -9,6 +9,8 @@ categories:
 - Linux
 ---
 
+{% asset_img header.jpg 500 %}
+
 自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux 经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了 Linux 的追踪（Tracing）系统，它的魔力令人着迷。
 
 本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 Linux Tracing 系统的设计（本文基于 linux kernel v6.15.4）。
@@ -495,3 +497,50 @@ static int __init populate_kprobe_blacklist(unsigned long *start, unsigned long 
 
 
 ### 3.6 Kretprobes
+
+除了 Kprobes，还有一种 Kretprobes，主要用于在函数返回时添加切入点和 handler。显而易见，假如仅有 Kprobes，我们将很难监控函数的返回动作，因为很多时候函数不止有一个分支路径会 return，将所有 return 位置都注册为切入点对于长函数而言是个灾难。
+
+Kretprobe 专为上述场景设计。其本质原理仍旧是 Kprobes，但相比之下它会在函数入口处注册切入点，当切入点被命中后，Kretprobe 获取到函数的返回地址并保存起来，同时将返回地址替换为 trampoline 地址，从而就实现了函数的所有返回路径都会先经过 trampoline。
+
+```c
+// include/linux/kprobes.h
+
+typedef int (*kretprobe_handler_t) (struct kretprobe_instance *, struct pt_regs *);
+struct kretprobe {
+	struct kprobe kp;
+	kretprobe_handler_t handler;
+	kretprobe_handler_t entry_handler;
+	int maxactive;
+	int nmissed;
+	size_t data_size;
+#ifdef CONFIG_KRETPROBE_ON_RETHOOK
+	struct rethook *rh;
+#else
+	struct kretprobe_holder *rph;
+#endif
+};
+```
+
+显然，`kretprobe` 嵌套了一个 `kprobe`，并添加了一些额外的 fields 来完成操作。
+
+`handler` 会在函数返回后执行，这也是 Kretprobes 功能中用户最需要关心的部分。此外 `entry_handler` 允许用户自定义函数入口被命中后的操作。
+
+`maxactive` 限定了允许同时触发 `Kretprobe ` 的数量，假如同时触发数超限，那么被忽略的操作数将被累加至 `nmissed`。
+
+最后，对于返回地址的暂存，当定义 `CONFIG_KRETPROBE_ON_RETHOOK` 时会采用 `rethook` 的方式，这也是目前较新的内核版本所推荐的通用方案，而如果不支持就回退到原来的 `kretprobe_holder` 方案。
+
+
+
+## 4. Reference
+
+[1] [Kprobes Document](https://docs.kernel.org/trace/kprobes.html#kernel-probes-kprobes)
+
+[2] [Kernel Hashtables](https://kernelnewbies.org/FAQ/Hashtables)
+
+[3] [[RFC PATCH 1/1] x86/kprobes: Use int3 instead of debug trap for single-step](https://lore.kernel.org/lkml/161460769556.430263.12936080446789384938.stgit@devnote2/) 
+
+[4] [djprobe](https://landley.net/kdocs/ols/2007/ols2007v1-pages-189-200.pdf)
+
+[5]  [kprobes-booster](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=311ac88fd2d4194a95e9e38d2fe08917be98723c)
+
+[6] [The Enhancement of Kernel Probing - Kprobes Jump Optimization](https://tracingsummit.org/ts/2010/files/HiramatsuLinuxCon2010.pdf)
