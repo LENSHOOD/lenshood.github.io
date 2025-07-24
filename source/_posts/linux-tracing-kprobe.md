@@ -9,7 +9,7 @@ categories:
 - Linux
 ---
 
-{% asset_img header.jpg 500 %}
+{% asset_img header.jpg 300 %}
 
 自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux 经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了 Linux 的追踪（Tracing）系统，它的魔力令人着迷。
 
@@ -19,7 +19,7 @@ categories:
 
 ## 1. 设计尝试
 
-在了解 kprobes 之前，我们也许可以先设想一下，对于一段程序，如果我们想要了解其执行过程中的每一步，其运行前后程序状态的变化，需要怎么做？这个问题值得思考，事实上在明确更具体的限定条件以前，我们无法作答，因为该程序的类型并不明确。
+在了解 Kprobes 之前，我们也许可以先设想一下，对于一段程序，如果我们想要了解其执行过程中的每一步，其运行前后程序状态的变化，需要怎么做？这个问题值得思考，事实上在明确更具体的限定条件以前，我们无法作答，因为该程序的类型并不明确。
 
 我们可以分析如下几种情况：
 
@@ -32,7 +32,7 @@ categories:
 1. 该工具必须拥有随时暂停以及恢复程序运行的能力
 2. 该工具可以作为外部观察者观察当前系统的状态
 
-现在，我们对前面的问题加以限定：我们期望能在观测在 Linux 下运行的任意用户态或内核态程序。映射到设计要求：
+现在，我们对前面的问题加以限定：我们期望能观测在 Linux 下运行的任意用户态或内核态程序。映射到设计要求：
 
 1. 暂停/恢复程序运行：需要能动态的在程序的代码段特定位置中插入软件中断指令，使 CPU 陷入中断
 2. 观察系统状态：在中断处理程序中读取并保存当前的寄存器上下文
@@ -46,11 +46,11 @@ categories:
 
 ## 2. Kprobes 案例
 
-在了解了上述设计要求和要点后，我们也许能更容易理解 kprobes。首先，kprobes 能够动态的切入几乎任意内核程序（除了包含在[blacklist](https://docs.kernel.org/trace/kprobes.html#kprobes-blacklist)中的那些）并收集信息（甚至修改寄存器值）。
+在了解了上述设计要求和要点后，我们也许能更容易理解 Kprobes。首先，Kprobes 能够动态的切入几乎任意内核程序（除了包含在[blacklist](https://docs.kernel.org/trace/kprobes.html#kprobes-blacklist)中的那些）并收集信息（甚至修改寄存器值）。对应的 Uprobes 则可以对用户态程序进行动态切入，本文暂不涉及 Uprobes。
 
-当切入点被调用前后，kprobes 会执行自定义的 handler 程序。通常，kprobes 的注册、注销以及 handler 程序的定义都被包含在内核模块中，这样对定义了 kprobes 的内核模块进行加载时，kprobes 就能被插入内核中了。
+当切入点被调用前后，Kprobes 会执行自定义的 handler 程序。通常，Kprobes 的注册、注销以及 handler 程序的定义都被包含在内核模块中，这样对定义了 Kprobes 的内核模块进行加载时，Kprobes 就能被插入内核中了。
 
-如下是一个十分简单的 kprobes 内核模块代码案例，通过该案例我们就能基本了解 kprobes 的使用：
+如下是一个十分简单的 Kprobes 内核模块代码案例，通过该案例我们就能基本了解 Kprobes 的使用：
 
 ```c
 #include ...
@@ -58,7 +58,7 @@ categories:
 // 定义 kprobe 结构以备后用（想想为什么要定义为全局静态变量？）
 static struct kprobe kp;
 
-// 实际的自定义 handler，在切入点被命中后被 kprobes 框架调用
+// 实际的自定义 handler，在切入点被命中后被 Kprobes 框架调用
 static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 {
     const char __user *filename = (const char __user *)regs->si;
@@ -71,7 +71,7 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
     return 0;
 }
 
-// 注册 kprobes
+// 注册 Kprobes
 static int __init kprobe_init(void)
 {
     kp.symbol_name = "sys_openat";
@@ -84,7 +84,7 @@ static int __init kprobe_init(void)
     return 0;
 }
 
-// 注销 kprobes
+// 注销 Kprobes
 static void __exit kprobe_exit(void)
 {
     unregister_kprobe(&kp);
@@ -95,33 +95,33 @@ module_init(kprobe_init);
 module_exit(kprobe_exit);
 ```
 
-如上所示是一个简单的 kprobes 内核模块，它能够在 sys_openat 符号（即 open 系统调用）被调用时尝试打印 filename。其核心在如下三部分：
+如上所示是一个简单的 Kprobes 内核模块，它能够在 `sys_openat` 符号（即 `open` 系统调用）被调用时尝试打印 `filename`。其核心在如下三部分：
 
-1. 定义 kprobe 结构，并写入 `kp.symbol_name = "sys_openat";` 以及 `kp.pre_handler = handler_pre;`：这定义了 kprobes 的挂载点符号和 handler 程序，pre_handler 代表将在挂载点被调用前执行
-2. 注册 kprobes：`register_kprobe(&kp)` 将 kprobe 结构注册进 kprobes 框架中，触发生效
-3. 注销 kprobes：`unregister_kprobe(&kp);` 将 kprobe 结构移除 kprobes 框架
+1. 定义 kprobe 结构，并写入 `kp.symbol_name = "sys_openat";` 以及 `kp.pre_handler = handler_pre;`：这定义了 Kprobes 的挂载点符号和 handler 程序，pre_handler 代表将在挂载点被调用前执行
+2. 注册 Kprobes：`register_kprobe(&kp)` 将 kprobe 结构注册进 Kprobes 框架中，触发生效
+3. 注销 Kprobes：`unregister_kprobe(&kp);` 将 kprobe 结构移除 Kprobes 框架
 
-此外，handler 函数传入的参数 `pt_regs *regs` 包含了当前的寄存器信息，这是一个平台相关参数，使用者需要根据体系架构和 ABI 的差异来选择从正确的寄存器中获取需要的值。
+此外，handler 函数传入的参数 `pt_regs *regs` 包含了当前的寄存器信息，这是一个平台相关参数，使用者需要根据体系结构和 ABI 的差异来选择从正确的寄存器中获取需要的值。
 
-通过上述代码可以看到 kprobes 框架的抽象程度很高，使用简单。接下来我们从实际设计的角度进一步探寻其原理。
+通过上述代码可以看到 Kprobes 框架的抽象程度很高，使用简单。接下来我们从实际设计的角度进一步探寻其原理。
 
 
 
 ## 3. 设计原理
 
-在深入 kprobes 的设计原理之前，我们不妨再次以主观的视角来进行思考：假如要设计实现上一节所描述的 kprobes 能力，作为kprobes 框架需要解决哪些问题？
+在深入 Kprobes 的设计原理之前，我们不妨再次以主观的视角来进行思考：假如要设计实现上一节所描述的 Kprobes 能力，作为 Kprobes 框架需要解决哪些问题？
 
 首先，最核心的点是，需要将 handler 的调用插入所监控的切入点，在第一节我们已经分析过，可以通过在切入点前后插入软件中断指令使 CPU 陷入中断并在中断处理程序中调用 handler，这样在执行完成后能够随中断机制再次回到切入点位置。此外，可以想一想，除了软件中断我们能不能直接插入一条跳转指令使程序流直接跳转到 handler 呢？这也许省去了中断处理的开销，但也需要考虑如何跳回。
 
-其次，我们发现在前一节的代码中，有一个 `struct kprobe` 结构来组合包括切入点符号、处理程序等等的关键元素，这些关键元素聚合在一起才能完整的描述一个 kprobe。那么，作为一个面向众多使用者的框架，kprobes 必须考虑如何管理这些`kprobe`结构，从而使每一个注册的 kprobe 都能顺利执行，也能在不在需要的时候被注销。这涉及到对`kprobe`结构的访问、存储、和增删。
+其次，我们发现在前一节的代码中，有一个 `struct kprobe` 结构来组合包括切入点符号、处理程序等等的关键元素，这些关键元素聚合在一起才能完整的描述一个 kprobe。那么，作为一个面向众多使用者的框架，Kprobes 必须考虑如何管理这些`kprobe`结构，从而使每一个注册的 kprobe 都能顺利执行，也能在不在需要的时候被注销。这涉及到对`kprobe`结构的访问、存储、和增删。
 
-最后，还需考虑一些看似边缘实则很容易产生的情况，例如多个程序并发的注册、注销 kprobes 时如何确保并发安全？以及如果尝试为同一个符号注册多个不同的 kprobe 会怎么样？还有，作为对系统运行拥有绝对控制权的内核，考虑是否可以不止将符号作为切入点，是否能将程序的任意一行作为切入点？
+最后，还需考虑一些看似边缘实则很容易产生的情况，例如多个程序并发的注册、注销 Kprobes 时如何确保并发安全？以及如果尝试为同一个符号注册多个不同的 kprobe 会怎么样？还有，作为对系统运行拥有绝对控制权的内核，考虑是否可以不止将符号作为切入点，是否能将程序的任意一行作为切入点？
 
 随着对这些问题的思考，接下来我们进入原理分析。
 
 ### 3.1 管理 Kprobes
 
-从最简单的开始，对于注册的多个 `kprobe` 结构，kprobes 框架需要有一套机制来维护和管理这些 `kprobe`，以便于在切入点被命中时能快速检索到并执行实际的自定义操作。
+从最简单的开始，对于注册的多个 `kprobe` 结构，Kprobes 框架需要有一套机制来维护和管理这些 `kprobe`，以便于在切入点被命中时能快速检索到并执行实际的自定义操作。
 
 事实上，在 Linux Kprobes 的设计中，是通过一个 Hash Table 来管理所有 `kprobe` 的：
 
@@ -139,8 +139,8 @@ static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 ```c
 // include/linux/kprobes.h
 struct kprobe {
-	struct hlist_node hlist;
-	... ...
+    struct hlist_node hlist;
+    ... ...
 };
 ```
 
@@ -150,26 +150,26 @@ struct kprobe {
 // include/linux/kprobes.h
 typedef int kprobe_opcode_t;
 struct kprobe {
-	struct hlist_node hlist;
-	... ...
-  /* location of the probe point */
-	kprobe_opcode_t *addr;
-  ... ...
+    struct hlist_node hlist;
+    ... ...
+    /* location of the probe point */
+    kprobe_opcode_t *addr;
+    ... ...
 };
 
 // kernel/kprobes.c
 static int __register_kprobe(struct kprobe *p)
 {
-  ... ...
-	INIT_HLIST_NODE(&p->hlist);
-	hlist_add_head_rcu(&p->hlist, &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
-  ... ...
+    ... ...
+    INIT_HLIST_NODE(&p->hlist);
+    hlist_add_head_rcu(&p->hlist, &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
+    ... ...
 }
 ```
 
 回忆第二节的示例代码，我们仅为 `kprobe` 设置了 `kp.symbol_name = "sys_openat";`。实际上在注册的过程中会将符号名替换为相对地址并存入 `kprobe`，这样就可以将 `addr` 作为 key 来计算 slot index 了。
 
-综上，我们可以绘制如下示意图来描述 kprobes 框架对 `kprobe` 的管理结构：
+综上，我们可以绘制如下示意图来描述 Kprobes 框架对 `kprobe` 的管理结构：
 
 {% asset_img 1.png %}
 
@@ -177,46 +177,46 @@ static int __register_kprobe(struct kprobe *p)
 
 ### 3.2 Kprobe 结构
 
-上一节我们已经部分了解了 `struct kprobe` 中包含了 `hlist` 和 `addr` 两个关键字段，接下来我们一起通过讨论完整的`kprobe` 结构，来进一步认识 kprobes 框架的工作方式。
+上一节我们已经部分了解了 `struct kprobe` 中包含了 `hlist` 和 `addr` 两个关键字段，接下来我们一起通过讨论完整的`kprobe` 结构，来进一步认识 Kprobes 框架的工作方式。
 
 ```c
 // include/linux/kprobes.h
 
 struct kprobe {
-	struct hlist_node hlist;
+    struct hlist_node hlist;
 
-	/* list of kprobes for multi-handler support */
-	struct list_head list;
+    /* list of kprobes for multi-handler support */
+    struct list_head list;
 
-	/*count the number of times this probe was temporarily disarmed */
-	unsigned long nmissed;
+    /*count the number of times this probe was temporarily disarmed */
+    unsigned long nmissed;
 
-	/* location of the probe point */
-	kprobe_opcode_t *addr;
+    /* location of the probe point */
+    kprobe_opcode_t *addr;
 
-	/* Allow user to indicate symbol name of the probe point */
-	const char *symbol_name;
+    /* Allow user to indicate symbol name of the probe point */
+    const char *symbol_name;
 
-	/* Offset into the symbol */
-	unsigned int offset;
+    /* Offset into the symbol */
+    unsigned int offset;
 
-	/* Called before addr is executed. */
-	kprobe_pre_handler_t pre_handler;
+    /* Called before addr is executed. */
+    kprobe_pre_handler_t pre_handler;
 
-	/* Called after addr is executed, unless... */
-	kprobe_post_handler_t post_handler;
+    /* Called after addr is executed, unless... */
+    kprobe_post_handler_t post_handler;
 
-	/* Saved opcode (which has been replaced with breakpoint) */
-	kprobe_opcode_t opcode;
+    /* Saved opcode (which has been replaced with breakpoint) */
+    kprobe_opcode_t opcode;
 
-	/* copy of the original instruction */
-	struct arch_specific_insn ainsn;
+    /* copy of the original instruction */
+    struct arch_specific_insn ainsn;
 
-	/*
-	 * Indicates various status flags.
-	 * Protected by kprobe_mutex after this kprobe is registered.
-	 */
-	u32 flags;
+    /*
+     * Indicates various status flags.
+     * Protected by kprobe_mutex after this kprobe is registered.
+     */
+    u32 flags;
 };
 ```
 
@@ -226,7 +226,7 @@ struct kprobe {
 
 首先在前面的内容中已经提到过，在 `kprobe` 中可以指定切入点的 `addr`，也可以指定 `symbol_name + offset` 作为切入点，但 `addr` 和 `symbol_name` 是互斥关系，不能同时存在，否则注册时会报错。实际上在 kprobe 最终运作时，都是以 `addr` 作为实际的切入点位置，而假如指定了 `symbol_name` 则会经过一个转换的过程将之转换为 `addr`。这也证明，Kprobes 框架支持几乎在程序任意位置进行切入（在 Kprobes 框架中存在一些黑名单地址，禁止切入）。
 
-对符号到地址的转换过程依赖子系统提供的能力：根据配置不同，默认情况下内核中已导出的符号和其地址会由 `kallsyms` 记录并提供运行时查询。因此如果 `kprobe` 中通过 `symbol_name + offset` 的形式描述切入点位置，kprobes 框架会通过 `kallsyms` 接口来对其进行验证并转换为实际的 `addr`。简化流程可见：
+对符号到地址的转换过程依赖子系统提供的能力：根据配置不同，默认情况下内核中已导出的符号和其地址会由 `kallsyms` 记录并提供运行时查询。因此如果 `kprobe` 中通过 `symbol_name + offset` 的形式描述切入点位置，Kprobes 框架会通过 `kallsyms` 接口来对其进行验证并转换为实际的 `addr`。简化流程可见：
 
 {% asset_img 2.png %}
 
@@ -251,11 +251,11 @@ typedef void (*kprobe_post_handler_t) (struct kprobe *, struct pt_regs *, unsign
 
 最后，`u32 flags;` 作为一个状态指示器指示了当前的各种状态，其中包括启用、禁用、已注册等等。
 
-#### 3.2.2 相同切入点上的多个 kprobes
+#### 3.2.2 相同切入点上的多个 Kprobes
 
 回到前面提到过的一个问题：作为一个通用的框架，假如有多个调用方期望在同一个切入点上挂载多个 kprobe，该怎么办呢？
 
-事实上 kprobes 框架依然采用了线性表的方式来确保这种情况能够被满足。`struct list_head list;` 充当了该职责，`list_head` 是内核中提供的双向链表结构，它非常简单的只包含了前后指针两个字段。与 `hlist_head` 类似，实际使用时嵌入到具体的结构中，通过计算偏移量就能取回实际的结构。
+事实上 Kprobes 框架依然采用了线性表的方式来确保这种情况能够被满足。`struct list_head list;` 充当了该职责，`list_head` 是内核中提供的双向链表结构，它非常简单的只包含了前后指针两个字段。与 `hlist_head` 类似，实际使用时嵌入到具体的结构中，通过计算偏移量就能取回实际的结构。
 
 因此，`kprobe` 可以通过 `list` 字段将其他与其具有相同切入点的`kropbe` 通过该双向链表串联在了一起，从而当切入点被命中时，每一个 `kprobe` 都会被依次触发而不会被漏掉。
 
@@ -266,31 +266,31 @@ typedef void (*kprobe_post_handler_t) (struct kprobe *, struct pt_regs *, unsign
 
 static int aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
-  ...
-	list_for_each_entry_rcu(kp, &p->list, list) {
-    ... ...
-    if (kp->pre_handler(kp, regs))
-      return 1;
-    ... ...
-	}
-  ...
+    ...
+    list_for_each_entry_rcu(kp, &p->list, list) {
+        ... ...
+        if (kp->pre_handler(kp, regs))
+            return 1;
+        ... ...
+        }
+    ...
 }
 
 static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs, unsigned long flags)
 {
-  ...
-	list_for_each_entry_rcu(kp, &p->list, list) {
-		... ...
-    kp->post_handler(kp, regs, flags);
-    ... ...
-	}
-  ...
+    ...
+    list_for_each_entry_rcu(kp, &p->list, list) {
+        ... ...
+        kp->post_handler(kp, regs, flags);
+        ... ...
+    }
+    ...
 }
 ```
 
 很简单的，这些 aggrator handler 实际上遍历了所有链表内的 `kprobe` 并实际调用它们的 handler。
 
-同时，我们现在可以更新一下 kprobes 框架的结构图：
+同时，我们现在可以更新一下 Kprobes 框架的结构图：
 
 {% asset_img 3.png %}
 
@@ -306,29 +306,29 @@ static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs, unsigned l
 // arch/x86/kernel/kprobes/core.c
 void arch_arm_kprobe(struct kprobe *p)
 {
-	u8 int3 = INT3_INSN_OPCODE;
+    u8 int3 = INT3_INSN_OPCODE;
 
-	text_poke(p->addr, &int3, 1);
-	text_poke_sync();
-	perf_event_text_poke(p->addr, &p->opcode, 1, &int3, 1);
+    text_poke(p->addr, &int3, 1);
+    text_poke_sync();
+    perf_event_text_poke(p->addr, &p->opcode, 1, &int3, 1);
 }
 
 // arch/arm64/kernel/probes/kprobes.c
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	void *addr = p->addr;
-	u32 insn = BRK64_OPCODE_KPROBES;
+    void *addr = p->addr;
+    u32 insn = BRK64_OPCODE_KPROBES;
 
-	aarch64_insn_patch_text(&addr, &insn, 1);
+    aarch64_insn_patch_text(&addr, &insn, 1);
 }
 
 // arch/riscv/kernel/probes/kprobes.c
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	size_t len = GET_INSN_LENGTH(p->opcode);
-	u32 insn = len == 4 ? __BUG_INSN_32 : __BUG_INSN_16;
+    size_t len = GET_INSN_LENGTH(p->opcode);
+    u32 insn = len == 4 ? __BUG_INSN_32 : __BUG_INSN_16;
 
-	patch_text(p->addr, &insn, len);
+    patch_text(p->addr, &insn, len);
 }
 ```
 
@@ -344,7 +344,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 >
 >*在指令被单步执行后，Kprobes 框架执行 “post_handler”（如果有的话）。之后，程序会接着切入点的位置继续执行。*
 
-这里所谓的 “命中后单步执行”，在不同体系结构下虽略有差异，但都遵循类似的流程。下图展示了 x86、arm64、riscv 三种体系结构下 kprobes 命中的流程：
+这里所谓的 “命中后单步执行”，在不同体系结构下虽略有差异，但都遵循类似的流程。下图展示了 x86、arm64、riscv 三种体系结构下 Kprobes 命中的流程：
 
 {% asset_img 4.png %}
 
@@ -430,8 +430,8 @@ Kprobes 黑名单加载过程中的有趣之处在于自定义黑名单函数：
 
 # define __NOKPROBE_SYMBOL(fname)
 static unsigned long __used        \
-  __section("_kprobe_blacklist")   \
-  _kbl_addr_##fname = (unsigned long)fname;
+    __section("_kprobe_blacklist")   \
+    _kbl_addr_##fname = (unsigned long)fname;
 ```
 
 `NOKPROBE_SYMBOL() `仅仅是定义了一个静态变量持有函数地址，除此之外没有更多操作，特别之处在于 `__section("_kprobe_blacklist") ` 提示编译器将该变量放在 `_kprobe_blacklist` 段。
@@ -442,19 +442,19 @@ static unsigned long __used        \
 // include/asm-generic/vmlinus.lds.h
 
 #define KPROBE_BLACKLIST()
-	. = ALIGN(8);                     \
-	BOUNDED_SECTION(_kprobe_blacklist)
+    . = ALIGN(8);                     \
+    BOUNDED_SECTION(_kprobe_blacklist)
     
 ... ...
 
 #define BOUNDED_SECTION(_sec)	 
-  BOUNDED_SECTION_BY(_sec, _sec)
+    BOUNDED_SECTION_BY(_sec, _sec)
 #define BOUNDED_SECTION_BY(_sec_, _label_)
-  BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)
+    BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)
 #define BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_)
-	_BEGIN_##_label_ = .;						  \
-	KEEP(*(_sec_))							      \
-	_END_##_label_ = .;
+    _BEGIN_##_label_ = .;						  \
+    KEEP(*(_sec_))							      \
+    _END_##_label_ = .;
 ```
 
 根据上述链接器头文件中的宏定义，展开后实际上是如下内容：
@@ -472,23 +472,23 @@ __stop_kprobe_blacklist = .;
 
 static int __init init_kprobes(void)
 {
-  ... ...
-	err = populate_kprobe_blacklist(__start_kprobe_blacklist, __stop_kprobe_blacklist);
-  ... ...
+    ... ...
+    err = populate_kprobe_blacklist(__start_kprobe_blacklist, __stop_kprobe_blacklist);
+    ... ...
 }
 
 static int __init populate_kprobe_blacklist(unsigned long *start, unsigned long *end)
 {
-  ... ...
-	for (iter = start; iter < end; iter++) {
-		entry = (unsigned long)dereference_symbol_descriptor((void *)*iter);
-		ret = kprobe_add_ksym_blacklist(entry);
-		if (ret == -EINVAL)
-			continue;
-		if (ret < 0)
-			return ret;
-	}
-	... ...
+    ... ...
+    for (iter = start; iter < end; iter++) {
+        entry = (unsigned long)dereference_symbol_descriptor((void *)*iter);
+        ret = kprobe_add_ksym_blacklist(entry);
+        if (ret == -EINVAL)
+            continue;
+        if (ret < 0)
+            return ret;
+    }
+    ... ...
 }
 ```
 
@@ -507,16 +507,16 @@ Kretprobe 专为上述场景设计。其本质原理仍旧是 Kprobes，但相�
 
 typedef int (*kretprobe_handler_t) (struct kretprobe_instance *, struct pt_regs *);
 struct kretprobe {
-	struct kprobe kp;
-	kretprobe_handler_t handler;
-	kretprobe_handler_t entry_handler;
-	int maxactive;
-	int nmissed;
-	size_t data_size;
+    struct kprobe kp;
+    kretprobe_handler_t handler;
+    kretprobe_handler_t entry_handler;
+    int maxactive;
+    int nmissed;
+    size_t data_size;
 #ifdef CONFIG_KRETPROBE_ON_RETHOOK
-	struct rethook *rh;
+    struct rethook *rh;
 #else
-	struct kretprobe_holder *rph;
+    struct kretprobe_holder *rph;
 #endif
 };
 ```
