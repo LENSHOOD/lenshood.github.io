@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="使用和避免使用 null  &quot;null 烂透了“ - Doug Lea &quot;这是我犯得值 10 亿刀的错误&quot; - Sir C. A. R. Hoare 提到他发明的 null 时如是说  对null的粗心使用会导致各种各样令人难以置信的错误。对 Google 的基础代码进行研究后，我们发现大约 95% 的集合中都不应有任何 null 值，如果对 null 快速失败而不是默默地接受，便会对开发者有所帮">
+<meta property="og:type" content="article">
+<meta property="og:title" content="（Guava 译文系列）使用和避免使用 null">
+<meta property="og:url" content="http://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="使用和避免使用 null  &quot;null 烂透了“ - Doug Lea &quot;这是我犯得值 10 亿刀的错误&quot; - Sir C. A. R. Hoare 提到他发明的 null 时如是说  对null的粗心使用会导致各种各样令人难以置信的错误。对 Google 的基础代码进行研究后，我们发现大约 95% 的集合中都不应有任何 null 值，如果对 null 快速失败而不是默默地接受，便会对开发者有所帮">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-08-20T15:05:17.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.103Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="guava">
+<meta property="article:tag" content="translation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/","path":"2019/08/20/guava-using-and-avoiding-null-explained/","title":"（Guava 译文系列）使用和避免使用 null"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>（Guava 译文系列）使用和避免使用 null | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%92%8C%E9%81%BF%E5%85%8D%E4%BD%BF%E7%94%A8-null"><span class="nav-number">1.</span> <span class="nav-text">使用和避免使用 null</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B7%E4%BD%93%E6%A1%88%E4%BE%8B"><span class="nav-number">1.1.</span> <span class="nav-text">具体案例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#optional"><span class="nav-number">1.2.</span> <span class="nav-text">Optional</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%84%E5%BB%BA%E4%B8%80%E4%B8%AA-optional"><span class="nav-number">1.2.1.</span> <span class="nav-text">构建一个 Optional</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2%E6%96%B9%E6%B3%95"><span class="nav-number">1.2.2.</span> <span class="nav-text">查询方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%84%8F%E4%B9%89%E4%BD%95%E5%9C%A8"><span class="nav-number">1.2.3.</span> <span class="nav-text">意义何在？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E4%BE%BF%E6%96%B9%E6%B3%95"><span class="nav-number">1.2.4.</span> <span class="nav-text">简便方法</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="（Guava 译文系列）使用和避免使用 null | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          （Guava 译文系列）使用和避免使用 null
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-08-20 23:05:17" itemprop="dateCreated datePublished" datetime="2019-08-20T23:05:17+08:00">2019-08-20</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Guava/" itemprop="url" rel="index"><span itemprop="name">Guava</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="使用和避免使用-null">使用和避免使用 null</h1>
+<blockquote>
+<p>"null 烂透了“ - <a href="http://en.wikipedia.org/wiki/Doug_Lea">Doug
+Lea</a> "这是我犯得值 10 亿刀的错误" - <a
+href="http://en.wikipedia.org/wiki/C._A._R._Hoare">Sir C. A. R.
+Hoare</a> 提到他发明的 null 时如是说</p>
+</blockquote>
+<p>对<code>null</code>的粗心使用会导致各种各样令人难以置信的错误。对
+Google 的基础代码进行研究后，我们发现大约 95% 的集合中都不应有任何 null
+值，如果对 <code>null</code>
+快速失败而不是默默地接受，便会对开发者有所帮助。</p>
+<p>此外，<code>null</code>
+也会产生令人不悦的模糊情况。通常很少有能准确的揣摩到返回<code>null</code>值原本意义场景，例如，当
+<code>Map.get(key)</code>返回<code>null</code> 时，一种可能是 key
+对应的值本来就是<code>null</code>，而另一种情况则是该 key
+并不存在。<code>Null</code>
+能代表失败，能代表成功，能代表几乎任何事。如果能用其他的值来代替<code>null</code>，会使表意更加清晰。</p>
+<p>即便如此，有些时候使用 <code>null</code>
+仍旧是正确合理的。从内存占用和速度角度讲，<code>null</code>
+非常划算，而且不可避免的会在对象数组中使用。然而，相较于库代码，在应用代码中，
+null 是造成逻辑困扰、难以理解的 bug
+以及令人不悦的模糊的主要来源。例如，当 <code>Map.get</code> 返回 null
+时，null 可能代表值不存在，或者值存在且等于 null。最要命的，null
+不会对他所代表的的意义给出任何提示。</p>
+<p>由于上述原因，大多数 Guava 工具都设计为只要能找到 null
+的替代方案，就对 null 采取快速失败处理，不允许使用 null。此外，Guava
+提供了许多工具，让你在必须使用 <code>null</code>
+的时候能更简单，也能帮助你避免使用 <code>null</code>。</p>
+<span id="more"></span>
+<h2 id="具体案例">具体案例</h2>
+<p>如果你尝试在 <code>set</code> 中用 <code>null</code> 做值或在
+<code>map</code> 中用 <code>null</code> 做 key --
+别这么干；在查找操作中明确的将 <code>null</code>
+用作特殊值会使逻辑更清晰（也会少一些惊喜）。</p>
+<p>假如你想在 Map 中用 <code>null</code> 作为值 -- 把这个 entry
+取出来把；确保只存在独立的非 null <code>Set</code>（或 null
+<code>Set</code>）。<code>Map</code> 中存在一个 entry 的值为
+<code>null</code> 和 entry
+不存在这两种情况非常容易混淆，因此更好的办法是让这两种情况完全独立起来，并且仔细考虑在应用中遇到
+<code>null</code> 时应该代表什么样的意义。</p>
+<p>假如在 <code>List</code> 中使用 null -- 如果这个 list
+中的元素不多时，也许使用
+<code>Map&lt;Integer, E&gt;</code>是个更好的选择？这种方案实际上更高效，且可能实际上更准确的符合你的应用程序的真实需求。</p>
+<p>有时我们可以考虑使用一个原生的 null
+对象。例如，对枚举类增加一个常量来代表你期望的 null
+值，在<code>java.math.RoundingMode</code>中提供了一个
+<code>UNNECESSARY</code>值来代表“不做舍入，如果需要做舍入则抛出异常”的情况。</p>
+<p>如果你真的需要 null 值，同时你在对 null
+不友好的集合实现中遇到了问题，那么可以尝试使用其他类型的实现。例如，用<code>Collections.unmodifiableList(Lists.newArrayList())</code>替代<code>ImmutableList</code>。</p>
+<h2 id="optional">Optional</h2>
+<p>许多时候，程序员使用<code>null</code>都是为了表示某些类型的缺失：也许某处本应有值，但是没有，或某些东西找不到。就好比<code>Map.get</code>当找不到
+key 对应的 value 时返回 <code>null</code>。</p>
+<p><code>Optional&lt;T&gt;</code>是一种替换可为 null
+的<code>T</code>引用非 null
+值的方式。一个<code>Optional</code>可能会包含一个非空的<code>T</code>引用(我们称这种情况的引用为
+”present“)，也可能什么都不包含(我们称这种情况为”absent”)。<code>Optional</code>并不存在“包含
+null ”的情况。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Optional&lt;Integer&gt; possible = Optional.of(<span class="number">5</span>);</span><br><span class="line">possible.isPresent(); <span class="comment">// returns true</span></span><br><span class="line">possible.get(); <span class="comment">// returns 5</span></span><br></pre></td></tr></table></figure>
+<p><code>Optional</code>
+并不打算直接模拟其他编程环境下的"option"或者"maybe"结构，尽管他们可能会有一些相似之处。</p>
+<p>以下我们列举了一些最常用的<code>Optional</code>操作。</p>
+<h3 id="构建一个-optional">构建一个 Optional</h3>
+<p>以下每一个都是<code>Optional</code>的静态方法。</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#of-T-"><code>Optional.of(T)</code></a></td>
+<td>构建一个包含非 null 值的 Optional，或当遇到 null 时快速失败。</td>
+</tr>
+<tr class="even">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#absent--"><code>Optional.absent()</code></a></td>
+<td>返回一个缺失了某种类型的 Optional。</td>
+</tr>
+<tr class="odd">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#fromNullable-T-"><code>Optional.fromNullable(T)</code></a></td>
+<td>将一个可能为 null 的引用转换为 Optional，将非 null 值视为
+present，将 null 视为 absent。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="查询方法">查询方法</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#isPresent--"><code>boolean isPresent()</code></a></td>
+<td>假如该<code>Optional</code> 包含一个非 null 实例，则返回
+<code>true</code>。</td>
+</tr>
+<tr class="even">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#get--"><code>T get()</code></a></td>
+<td>返回包含的<code>T</code>类型实例，当该实例不存在时抛出<code>IllegalStateException</code>异常。</td>
+</tr>
+<tr class="odd">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#or-T-"><code>T or(T)</code></a></td>
+<td>返回包含的<code>T</code>类型实例，当该实例不存在时返回给定的默认值。</td>
+</tr>
+<tr class="even">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#orNull--"><code>T orNull()</code></a></td>
+<td>返回包含的<code>T</code>类型实例，当该实例不存在时返回<code>null</code>。本方法是<code>fromNullable</code>的反方法。</td>
+</tr>
+<tr class="odd">
+<td><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Optional.html#asSet--"><code>Set&lt;T&gt; asSet()</code></a></td>
+<td>返回一个包含该<code>Optional</code>实例的不可变单例
+<code>Set</code>，如果为空则返回一个空不可变<code>Set</code>。</td>
+</tr>
+</tbody>
+</table>
+<p><code>Optional</code>提供了除上述以外更多方便的工具，详情请见
+Javadoc。</p>
+<h3 id="意义何在">意义何在？</h3>
+<p>除了给 <code>null</code>设置了一个名字能增加可读性外，Optional
+最大的优点是防呆设计。他会强制你积极地思考可能的值缺失情况，并迫使你必须将
+Optional
+反解开来处理这种缺失情况，只有这样才能通过编译。让人感到不安的是，null
+非常容易让人忘记考虑值缺失的情况。尽管用 FindBugs
+能有所改善，但我们完全不认为他能解决 null 的问题。</p>
+<p>当面对<strong>返回值</strong>可能存在，也可能不存在的情况时，上述问题尤为严重。相比你可能会忘记<code>other.method(a, b)</code>的参数<strong>a</strong>可能存在
+null
+的情况，你(和其他人)更可能会忘记<code>other.method(a, b)</code>也许会返回一个
+null 值。而返回一个
+<code>Optional</code>的值，会使上述情况变得不可能发生，因为调用者为了使编译通过，必须将返回的<code>Optional</code>反解开才能进一步处理。</p>
+<h3 id="简便方法">简便方法</h3>
+<p>无论何时你想要用一个默认值来替换<code>null</code>时，请使用<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/MoreObjects.html#firstNonNull-T-T-"><code>MoreObjects.firstNonNull(T, T)</code></a>。就好像方法名所描述的一样，如果两个输入值都为<code>null</code>，则会抛出<code>NullPointerException</code>。当然如果你使用的是<code>Optional</code>，会有些更好的替代方法，例如：<code>first.or(second)</code>。</p>
+<p>在<code>Strings</code>中提供了一些处理可能为空的<code>String</code>的方法。
+具体来说，我们提供了下述名称： - <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Strings.html#emptyToNull-java.lang.String-"><code>emptyToNull(String)</code></a>
+- <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Strings.html#isNullOrEmpty-java.lang.String-"><code>isNullOrEmpty(String)</code></a>
+- <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Strings.html#nullToEmpty-java.lang.String-"><code>nullToEmpty(String)</code></a></p>
+<p>我们想要强调，这些方法主要用于对接一些令人不悦的 API(这些 API 认为
+null 字符串与 empty 字符串等同)。每当你将 null 字符串与 empty
+字符串混在一起使用的时候，你都会听到 Guava
+团队在你的耳边哭泣。(当然，如果 null 字符串与 empty
+字符串代表不同的意义时可能会好一些，但是将他们视为等同的做法完全是一个令人不安且常见的代码坏味道。)</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/" title="（Guava 译文系列）使用和避免使用 null">http://lenshood.github.io/2019/08/20/guava-using-and-avoiding-null-explained/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/guava/" rel="tag"># guava</a>
+              <a href="/tags/translation/" rel="tag"># translation</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/08/17/guava-home/" rel="prev" title="（Guava 译文系列）Guava 用户手册">
+                  <i class="fa fa-angle-left"></i> （Guava 译文系列）Guava 用户手册
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/09/02/guava-precondition/" rel="next" title="（Guava 译文系列）先决条件">
+                  （Guava 译文系列）先决条件 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Joiner 以某种分隔符连接连接字符串序列通常不应该那么麻烦，当序列中包含 null 值的时候尤甚。流式风格的 Joiner 简化了这种操作。 12Joiner joiner &#x3D; Joiner.on(&quot;; &quot;).skipNulls();return joiner.join(&quot;Harry&quot;, null, &quot;Ron&quot;, &quot;Herm">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Guava 译文系列）Strings">
+<meta property="og:url" content="http://lenshood.github.io/2020/06/07/guava-strings/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Joiner 以某种分隔符连接连接字符串序列通常不应该那么麻烦，当序列中包含 null 值的时候尤甚。流式风格的 Joiner 简化了这种操作。 12Joiner joiner &#x3D; Joiner.on(&quot;; &quot;).skipNulls();return joiner.join(&quot;Harry&quot;, null, &quot;Ron&quot;, &quot;Herm">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-06-07T15:11:22.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.103Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="guava">
+<meta property="article:tag" content="translation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/06/07/guava-strings/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/06/07/guava-strings/","path":"2020/06/07/guava-strings/","title":"Guava 译文系列）Strings"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Guava 译文系列）Strings | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#joiner"><span class="nav-number">1.</span> <span class="nav-text">Joiner</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#splitter"><span class="nav-number">2.</span> <span class="nav-text">Splitter</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E5%B7%A5%E5%8E%82%E6%96%B9%E6%B3%95"><span class="nav-number">2.0.1.</span> <span class="nav-text">基本工厂方法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BF%AE%E9%A5%B0%E6%96%B9%E6%B3%95"><span class="nav-number">2.0.2.</span> <span class="nav-text">修饰方法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#map-%E5%88%86%E5%89%B2%E5%99%A8"><span class="nav-number">2.0.3.</span> <span class="nav-text">Map 分割器</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#charmatcher"><span class="nav-number">3.</span> <span class="nav-text">CharMatcher</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96-charmatchers"><span class="nav-number">3.1.</span> <span class="nav-text">获取 CharMatchers</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-charmatchers"><span class="nav-number">3.2.</span> <span class="nav-text">使用 CharMatchers</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#charsets"><span class="nav-number">4.</span> <span class="nav-text">Charsets</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#caseformat"><span class="nav-number">5.</span> <span class="nav-text">CaseFormat</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#strings"><span class="nav-number">6.</span> <span class="nav-text">Strings</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/06/07/guava-strings/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Guava 译文系列）Strings | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Guava 译文系列）Strings
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-06-07 23:11:22" itemprop="dateCreated datePublished" datetime="2020-06-07T23:11:22+08:00">2020-06-07</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Guava/" itemprop="url" rel="index"><span itemprop="name">Guava</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="joiner">Joiner</h2>
+<p>以某种分隔符连接连接字符串序列通常不应该那么麻烦，当序列中包含 null
+值的时候尤甚。流式风格的 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Joiner.html"><code>Joiner</code></a>
+简化了这种操作。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Joiner</span> <span class="variable">joiner</span> <span class="operator">=</span> Joiner.on(<span class="string">&quot;; &quot;</span>).skipNulls();</span><br><span class="line"><span class="keyword">return</span> joiner.join(<span class="string">&quot;Harry&quot;</span>, <span class="literal">null</span>, <span class="string">&quot;Ron&quot;</span>, <span class="string">&quot;Hermione&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>上述代码将返回字符串：”Harry; Ron;
+Hermione“。除了<code>skipNulls</code>以外，还可以用<code>useForNull(String)</code>来指定将
+null 替换为给定的字符串。</p>
+<p>你也可以直接对对象使用 <code>Joiner</code>
+，这会自动调用对象的<code>toString()</code>方法后进行拼接。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Joiner.on(<span class="string">&quot;,&quot;</span>).join(Arrays.asList(<span class="number">1</span>, <span class="number">5</span>, <span class="number">7</span>)); <span class="comment">// returns &quot;1,5,7&quot;</span></span><br></pre></td></tr></table></figure>
+<p><strong>注意</strong>：joiner 实例是不可变的。因此 joiner
+的配置方法总会返回一个新的
+<code>Joiner</code>，并通过这种方式来获取所需语义的
+joiner。这种特性让<code>Joiner</code>能够线程安全，并可以将之定义为一个<code>static final</code>的常量。</p>
+<span id="more"></span>
+<h2 id="splitter">Splitter</h2>
+<p>Java
+内置的字符串分割器存在一些古怪的行为。例如：<code>String.split</code>
+会默默地丢弃最尾部的分隔符，而
+<code>StringTokenizer</code>只用五个空格来工作。（译者注：原文
+“StringTokenizer respects exactly five whitespace characters and nothing
+else”。这里应该是指<code>StringTokenizer</code>默认采用<code>\n</code>
+<code>\r</code>, 空格，Tab
+符，换页符这五种符号来分隔字符串，而这五种符号在字符串中都以类似“空格”的形式显示。）</p>
+<p>小测验: <code>",a,,b,".split(",")</code> 会返回什么结果？</p>
+<ol type="1">
+<li><code>"", "a", "", "b", ""</code></li>
+<li><code>null, "a", null, "b", null</code></li>
+<li><code>"a", null, "b"</code></li>
+<li><code>"a", "b"</code></li>
+<li>以上都不对</li>
+</ol>
+<p>正确答案是以上都不对，返回的实际是<code>"", "a", "", "b"</code>。只有尾部的分隔符被忽略掉了。我甚至都搞不懂为什么要这么做。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html"><code>Splitter</code></a>
+采用令人安心且直截了当的流式风格来允许用户完全的控制它并避免出现所有那些令人困惑的行为。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Splitter.on(<span class="string">&#x27;,&#x27;</span>)</span><br><span class="line">    .trimResults()</span><br><span class="line">    .omitEmptyStrings()</span><br><span class="line">    .split(<span class="string">&quot;foo,bar,,   qux&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>上述代码会返回一个包含了"foo", "bar", "qux"
+的<code>Iterable&lt;String&gt;</code>。<code>Splitter</code>可以被配置为使用<code>Pattern</code>,
+<code>char</code>, <code>String</code>或
+<code>CharMatcher</code>来进行分割。</p>
+<h4 id="基本工厂方法">基本工厂方法</h4>
+<table>
+<colgroup>
+<col style="width: 32%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#on-char-"><code>Splitter.on(char)</code></a></td>
+<td style="text-align: left;">在出现特定的单个字符时分割。</td>
+<td style="text-align: left;"><code>Splitter.on(';')</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#on-com.google.common.base.CharMatcher-"><code>Splitter.on(CharMatcher)</code></a></td>
+<td style="text-align: left;">在某个类别中出现任意字符时分割。</td>
+<td
+style="text-align: left;"><code>Splitter.on(CharMatcher.BREAKING_WHITESPACE)</code><br><code>Splitter.on(CharMatcher.anyOf(";,."))</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#on-java.lang.String-"><code>Splitter.on(String)</code></a></td>
+<td style="text-align: left;">以<code>String</code>字面量分割。</td>
+<td style="text-align: left;"><code>Splitter.on(", ")</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#on-java.util.regex.Pattern-"><code>Splitter.on(Pattern)</code></a><br><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#onPattern-java.lang.String-"><code>Splitter.onPattern(String)</code></a></td>
+<td style="text-align: left;">以正则表达式分割。</td>
+<td
+style="text-align: left;"><code>Splitter.onPattern("\r?\n")</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#fixedLength-int-"><code>Splitter.fixedLength(int)</code></a></td>
+<td
+style="text-align: left;">将字符串以固定长度字符数来分割。最后一个部分的长度有可能小于<code>length</code>，但一定不会为空。</td>
+<td style="text-align: left;"><code>Splitter.fixedLength(3)</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="修饰方法">修饰方法</h4>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 40%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#omitEmptyStrings--"><code>omitEmptyStrings()</code></a></td>
+<td style="text-align: left;">自动忽略结果中包含的空字符串。</td>
+<td
+style="text-align: left;"><code>Splitter.on(',').omitEmptyStrings().split("a,,c,d")</code>
+returns <code>"a", "c", "d"</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#trimResults--"><code>trimResults()</code></a></td>
+<td
+style="text-align: left;">删除结果中的空格符，与<code>trimResults(CharMatcher.WHITESPACE)</code>的语义相同。</td>
+<td
+style="text-align: left;"><code>Splitter.on(',').trimResults().split("a, b, c, d")</code>
+returns <code>"a", "b", "c", "d"</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#trimResults-com.google.common.base.CharMatcher-"><code>trimResults(CharMatcher)</code></a></td>
+<td
+style="text-align: left;">删除结果中匹配<code>CharMatcher</code>的字符。</td>
+<td
+style="text-align: left;"><code>Splitter.on(',').trimResults(CharMatcher.is('_')).split("_a ,_b_ ,c__")</code>
+returns <code>"a ", "b_ ", "c"</code>.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#limit-int-"><code>limit(int)</code></a></td>
+<td style="text-align: left;">在指定数量的字串被返回后停止分割。</td>
+<td
+style="text-align: left;"><code>Splitter.on(',').limit(3).split("a,b,c,d")</code>
+returns <code>"a", "b", "c,d"</code></td>
+</tr>
+</tbody>
+</table>
+<p>如果你想要返回<code>List</code>，使用<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#splitToList-java.lang.CharSequence-"><code>splitToList()</code></a>来代替<code>split()</code>。</p>
+<p><strong>注意</strong>：splitter 实例是不可变的。因此 joiner
+的配置方法总会返回一个新的
+<code>Splitter</code>，并通过这种方式来获取所需语义的
+joiner。这种特性让<code>Splitter</code>能够线程安全，并可以将之定义为一个<code>static final</code>的常量。</p>
+<h4 id="map-分割器">Map 分割器</h4>
+<p>You can also use a splitter to deserialize a map by specifying a
+second delimiter using <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#withKeyValueSeparator-java.lang.String-"><code>withKeyValueSeparator()</code></a>.</p>
+<p>The resulting <a
+href="https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.MapSplitter.html"><code>MapSplitter</code></a>
+will split the input into entries using the splitter's delimiter, and
+then split those entries into keys and values using the given key-value
+separator, returning a <code>Map&lt;String, String&gt;</code>.</p>
+<p>你也可以用splitter来将字符串反序列化为一个 map，通过<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.html#withKeyValueSeparator-java.lang.String-"><code>withKeyValueSeparator()</code></a>来指定第二个分隔符。</p>
+<p><a
+href="https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Splitter.MapSplitter.html"><code>MapSplitter</code></a>
+的结果会通过分隔符来将输入分割为entries，之后通过给定的 key-value
+分隔器将这些entrie分割成 key 和
+value，最后返回<code>Map&lt;String, String&gt;</code>。</p>
+<!-- Hidden Section (why?)
+
+## Escaper
+
+Escaping strings correctly -- converting them into a format safe for inclusion
+in e.g. an XML document or a Java source file -- can be a tricky business, and
+critical for security reasons. Guava provides a flexible API for escaping text,
+and a number of built-in escapers, in the com.google.common.escape package.
+
+All escapers in Guava extend the
+[http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/escape/Escaper.html
+Escaper] abstract class, and support the method String escape(String). Built-in
+Escaper instances can be found in several classes, depending on your needs:
+[http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/html/HtmlEscapers.html
+HtmlEscapers],
+[http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/xml/XmlEscapers.html
+XmlEscapers],
+[http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/escape/SourceCodeEscapers.html
+SourceCodeEscapers],
+[http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/net/UriEscapers.html
+UriEscapers], or you can build your own with
+[http://google.github.io/guava/releases/snapshot/api/docs/ an Escapers.Builder].
+To inspect an Escaper, you can use Escapers.computeReplacement to find the
+replacement string for a given character.
+-->
+<h2 id="charmatcher">CharMatcher</h2>
+<p>过去的时候，我们的<code>StringUtil</code>类逐渐变得不受控制，他拥有很多类似如下的方法：</p>
+<ul>
+<li><code>allAscii</code></li>
+<li><code>collapse</code></li>
+<li><code>collapseControlChars</code></li>
+<li><code>collapseWhitespace</code></li>
+<li><code>lastIndexNotOf</code></li>
+<li><code>numSharedChars</code></li>
+<li><code>removeChars</code></li>
+<li><code>removeCrLf</code></li>
+<li><code>retainAllChars</code></li>
+<li><code>strip</code></li>
+<li><code>stripAndCollapse</code></li>
+<li><code>stripNonDigits</code></li>
+</ul>
+<p>他们代表了两种概念的交叉产物：</p>
+<ol type="1">
+<li>“匹配”字符是由什么组成的？</li>
+<li>用“匹配”到的字符能干什么？</li>
+</ol>
+<p>为了简化这一团乱码，我们开发了 <code>CharMatcher</code>。</p>
+<p>直觉上，你可以把<code>CharMatcher</code>当作是一个特殊的字符类，比如数字或空格符。实际上，<code>CharMatcher</code>只是基于字符上的一种布尔断言
+--
+的确，<code>CharMatcher</code>实现了[<code>Predicate&lt;Character&gt;</code>]
+-- 但是由于指代 “所有空格符” 或 “所有小写字符” 的情况很常见，所以 Guava
+提供了这个字符专用的语法和 API。</p>
+<p>但<code>CharMatcher</code>的实用之处在于他能够在出现指定字符类型时才执行相关_操作_：截断，折叠，移除，保留等等。一个<code>CharMatcher</code>类型的对象能代表：概念
+1，“匹配”字符是由什么组成的？之后他提供了许多操作来实现概念
+2：用“匹配”到的字符能干什么？当然最终 API
+的复杂度会随着更加灵活和功能更强的方向而线性增长。Yay！</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">noControl</span> <span class="operator">=</span> CharMatcher.javaIsoControl().removeFrom(string); <span class="comment">// remove control characters</span></span><br><span class="line"><span class="type">String</span> <span class="variable">theDigits</span> <span class="operator">=</span> CharMatcher.digit().retainFrom(string); <span class="comment">// only the digits</span></span><br><span class="line"><span class="type">String</span> <span class="variable">spaced</span> <span class="operator">=</span> CharMatcher.whitespace().trimAndCollapseFrom(string, <span class="string">&#x27; &#x27;</span>);</span><br><span class="line">  <span class="comment">// trim whitespace at ends, and replace/collapse whitespace into single spaces</span></span><br><span class="line"><span class="type">String</span> <span class="variable">noDigits</span> <span class="operator">=</span> CharMatcher.javaDigit().replaceFrom(string, <span class="string">&quot;*&quot;</span>); <span class="comment">// star out all digits</span></span><br><span class="line"><span class="type">String</span> <span class="variable">lowerAndDigit</span> <span class="operator">=</span> CharMatcher.javaDigit().or(CharMatcher.javaLowerCase()).retainFrom(string);</span><br><span class="line">  <span class="comment">// eliminate all characters that aren&#x27;t digits or lowercase</span></span><br></pre></td></tr></table></figure>
+<p><strong>注意：</strong><code>CharMatcher</code>只处理<code>char</code>值；他无法理解从0x10000
+到 0x10FFFF的增补 Unicode 代码点。此类逻辑字符会通过替换对（surrogate
+pairs）
+编码为<code>String</code>，并且<code>CharMatcher</code>把这种替换对视为是两个分立的字符。</p>
+<h3 id="获取-charmatchers">获取 CharMatchers</h3>
+<p><code>CharMatcher</code>提供的工厂方法能够满足非常多的需求：</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#any--"><code>any()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#none--"><code>none()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#whitespace--"><code>whitespace()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#breakingWhitespace--"><code>breakingWhitespace()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#invisible--"><code>invisible()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#digit--"><code>digit()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#javaLetter--"><code>javaLetter()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#javaDigit--"><code>javaDigit()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#javaLetterOrDigit--"><code>javaLetterOrDigit()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#javaIsoControl--"><code>javaIsoControl()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#javaLowerCase--"><code>javaLowerCase()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#javaUpperCase--"><code>javaUpperCase()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#ascii--"><code>ascii()</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#singleWidth--"><code>singleWidth()</code></a></li>
+</ul>
+<p>其他获取一个<code>CharMatcher</code>的通用方法包括：</p>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 72%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#anyOf-java.lang.CharSequence-"><code>anyOf(CharSequence)</code></a></td>
+<td
+style="text-align: left;">指定你想要匹配的所有字符。例如，<code>CharMatcher.anyOf("aeiou")</code>能匹配所有英文小写元音字符。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#is-char-"><code>is(char)</code></a></td>
+<td style="text-align: left;">指定需要匹配的单个字符。</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#inRange-char-char-"><code>inRange(char, char)</code></a></td>
+<td
+style="text-align: left;">指定一个字符匹配范围，例如，<code>CharMatcher.inRange('a', 'z')</code>。</td>
+</tr>
+</tbody>
+</table>
+<p>此外，<code>CharMatcher</code> 拥有 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#negate--"><code>negate()</code></a>，
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#and-com.google.common.base.CharMatcher-"><code>and(CharMatcher)</code></a>，和
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#or-com.google.common.base.CharMatcher-"><code>or(CharMatcher)</code></a>。他们提供了基于<code>CharMatcher</code>的简单布尔操作。</p>
+<h3 id="使用-charmatchers">使用 CharMatchers</h3>
+<p><code>CharMatcher</code>提供了<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#method_summary">大量的</a>方法来操作任何<code>CharSequence</code>中出现的字符。我们列出了最常用的方法，但实际上还有很多方法我们未列出：</p>
+<table>
+<colgroup>
+<col style="width: 41%" />
+<col style="width: 58%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#collapseFrom-java.lang.CharSequence-char-"><code>collapseFrom(CharSequence, char)</code></a></td>
+<td
+style="text-align: left;">将一组连续匹配到的字符替换为指定的字符。例如，<code>WHITESPACE.collapseFrom(string, ' ')</code>把多个空格符折叠为单个空格符。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#matchesAllOf-java.lang.CharSequence-"><code>matchesAllOf(CharSequence)</code></a></td>
+<td
+style="text-align: left;">判断序列中的字符是否全部能被匹配到。例如，<code>ASCII.matchesAllOf(string)</code>可以检查是否所有的字符都在
+ASCII 字符集内。</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#removeFrom-java.lang.CharSequence-"><code>removeFrom(CharSequence)</code></a></td>
+<td style="text-align: left;">从序列中移除匹配到的字符。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#retainFrom-java.lang.CharSequence-"><code>retainFrom(CharSequence)</code></a></td>
+<td style="text-align: left;">从序列中移除所有未被匹配到的字符。</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#trimFrom-java.lang.CharSequence-"><code>trimFrom(CharSequence)</code></a></td>
+<td style="text-align: left;">移除首尾匹配到的字符。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CharMatcher.html#replaceFrom-java.lang.CharSequence-java.lang.CharSequence-"><code>replaceFrom(CharSequence, CharSequence)</code></a></td>
+<td style="text-align: left;">用给定的序列替换匹配到的字符。</td>
+</tr>
+</tbody>
+</table>
+<p>（注意：以上所有方法都返回一个<code>String</code>，除了<code>matchesAllOf</code>，他会返回一个<code>boolean</code>。）</p>
+<h2 id="charsets">Charsets</h2>
+<p>别这么干：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  bytes = string.getBytes(<span class="string">&quot;UTF-8&quot;</span>);</span><br><span class="line">&#125; <span class="keyword">catch</span> (UnsupportedEncodingException e) &#123;</span><br><span class="line">  <span class="comment">// how can this possibly happen?</span></span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">AssertionError</span>(e);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>应该这么干：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bytes = string.getBytes(Charsets.UTF_8);</span><br></pre></td></tr></table></figure>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Charsets.html"><code>Charsets</code></a>
+提供了对标准的六种<code>Charset</code>实现的常量引用，所有 java
+平台都保证支持这六种实现。使用这些常量引用而不是他们的名字。</p>
+<p>TODO: an explanation of charsets and when to use
+them（注：似乎是作者给自己留的一个坑）</p>
+<p>(注意：如果你已经使用了 JDK7，那么可以直接使用 <a
+href="http://docs.oracle.com/javase/7/docs/api/java/nio/charset/StandardCharsets.html"><code>StandardCharsets</code></a>
+中定义的常量）</p>
+<h2 id="caseformat">CaseFormat</h2>
+<p><code>CaseFormat</code> 是一个趁手的小工具类，他能方便的在不同的
+ASCII 大小写习惯（例如，编程语言的命名习惯） 之间进行转换
+。支持的格式包括：</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Format</th>
+<th style="text-align: left;">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CaseFormat.html#LOWER_CAMEL"><code>LOWER_CAMEL</code></a></td>
+<td style="text-align: left;"><code>lowerCamel</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CaseFormat.html#LOWER_HYPHEN"><code>LOWER_HYPHEN</code></a></td>
+<td style="text-align: left;"><code>lower-hyphen</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CaseFormat.html#LOWER_UNDERSCORE"><code>LOWER_UNDERSCORE</code></a></td>
+<td style="text-align: left;"><code>lower_underscore</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CaseFormat.html#UPPER_CAMEL"><code>UPPER_CAMEL</code></a></td>
+<td style="text-align: left;"><code>UpperCamel</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/CaseFormat.html#UPPER_UNDERSCORE"><code>UPPER_UNDERSCORE</code></a></td>
+<td style="text-align: left;"><code>UPPER_UNDERSCORE</code></td>
+</tr>
+</tbody>
+</table>
+<p>使用方法相当直接：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, <span class="string">&quot;CONSTANT_NAME&quot;</span>)); <span class="comment">// returns &quot;constantName&quot;</span></span><br></pre></td></tr></table></figure>
+<p>我们发现这非常好用，比如在编写某种能够生成其他程序的程序时。</p>
+<h2 id="strings">Strings</h2>
+<p>类中包含了一定数量的通用<code>String</code>工具。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/06/07/guava-strings/" title="Guava 译文系列）Strings">http://lenshood.github.io/2020/06/07/guava-strings/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/guava/" rel="tag"># guava</a>
+              <a href="/tags/translation/" rel="tag"># translation</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/05/03/java-stream/" rel="prev" title="虚拟工厂：Java stream">
+                  <i class="fa fa-angle-left"></i> 虚拟工厂：Java stream
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/06/20/guava-graphs/" rel="next" title="（Guava 译文系列）图">
+                  （Guava 译文系列）图 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

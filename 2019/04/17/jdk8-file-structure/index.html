@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="下文翻译自 oracle Java SE 8 官方文档， 原文链接：https:&#x2F;&#x2F;docs.oracle.com&#x2F;javase&#x2F;8&#x2F;docs&#x2F;technotes&#x2F;tools&#x2F;windows&#x2F;jdkfiles.html  JDK 8 文件目录结构 本文介绍 JDK 的目录及其所包含的文件。JRE 的文件结构与 JDK 的 jre 目录下文件完全一致。 以下包含三个主题 - Demos 和示例 -">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JDK 8 文件目录结构">
+<meta property="og:url" content="http://lenshood.github.io/2019/04/17/jdk8-file-structure/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="下文翻译自 oracle Java SE 8 官方文档， 原文链接：https:&#x2F;&#x2F;docs.oracle.com&#x2F;javase&#x2F;8&#x2F;docs&#x2F;technotes&#x2F;tools&#x2F;windows&#x2F;jdkfiles.html  JDK 8 文件目录结构 本文介绍 JDK 的目录及其所包含的文件。JRE 的文件结构与 JDK 的 jre 目录下文件完全一致。 以下包含三个主题 - Demos 和示例 -">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-04-17T17:32:27.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.223Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="jdk 8">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2019/04/17/jdk8-file-structure/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2019/04/17/jdk8-file-structure/","path":"2019/04/17/jdk8-file-structure/","title":"JDK 8 文件目录结构"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>JDK 8 文件目录结构 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#jdk-8-%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">JDK 8 文件目录结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#demos-%E5%92%8C%E7%A4%BA%E4%BE%8B"><span class="nav-number">1.1.</span> <span class="nav-text">Demos 和示例</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BC%80%E5%8F%91%E7%9B%B8%E5%85%B3%E7%9A%84%E6%96%87%E4%BB%B6%E5%8F%8A%E7%9B%AE%E5%BD%95"><span class="nav-number">1.2.</span> <span class="nav-text">开发相关的文件及目录</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E6%96%87%E4%BB%B6%E5%8F%8A%E7%9B%AE%E5%BD%95"><span class="nav-number">1.3.</span> <span class="nav-text">其他文件及目录</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2019/04/17/jdk8-file-structure/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="JDK 8 文件目录结构 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JDK 8 文件目录结构
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-04-18 01:32:27" itemprop="dateCreated datePublished" datetime="2019-04-18T01:32:27+08:00">2019-04-18</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><blockquote>
+<p>下文翻译自 oracle Java SE 8 官方文档，
+原文链接：https://docs.oracle.com/javase/8/docs/technotes/tools/windows/jdkfiles.html</p>
+</blockquote>
+<h3 id="jdk-8-文件目录结构">JDK 8 文件目录结构</h3>
+<p>本文介绍 JDK 的目录及其所包含的文件。JRE 的文件结构与 JDK 的 jre
+目录下文件完全一致。</p>
+<p>以下包含三个主题 - Demos 和示例 - 开发相关的文件及目录 -
+其他文件及目录</p>
+<span id="more"></span>
+<h4 id="demos-和示例">Demos 和示例</h4>
+<p>Demos 和示例展示如何在 Java 平台开发程序，相关文件可在 Java SE
+下载页面独立下载，详见链接：http://www.oracle.com/technetwork/java/javase/downloads/index.html</p>
+<p>对应二进制文件我们提供了 .tar.z 和 .tar.gz 格式的压缩包。与其他的
+Oracle Solaris 64位包类似，在 Oracle Solaris 下的 Demos
+和示例包需要依赖安装其对应的32位包。</p>
+<h4 id="开发相关的文件及目录">开发相关的文件及目录</h4>
+<p>这部分主要描述在 Java
+平台下开发应用程序所需要的最重要的文件和目录。部分目录下可能并没有包含
+Java 源码和 C 头文件，这些目录的相关信息参见：其他文件及目录部分。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">jdk1.8.0</span><br><span class="line">     bin</span><br><span class="line">          java*</span><br><span class="line">          javac*</span><br><span class="line">          javap*</span><br><span class="line">          javah*</span><br><span class="line">          javadoc*</span><br><span class="line">     lib</span><br><span class="line">          tools.jar</span><br><span class="line">          dt.jar</span><br><span class="line">     jre</span><br><span class="line">          bin</span><br><span class="line">               java*</span><br><span class="line">          lib</span><br><span class="line">               applet</span><br><span class="line">               ext</span><br><span class="line">                    jfxrt.jar</span><br><span class="line">                    localdata.jar</span><br><span class="line">               fonts</span><br><span class="line">               security</span><br><span class="line">               sparc</span><br><span class="line">                    server</span><br><span class="line">                    client</span><br><span class="line">               rt.jar</span><br><span class="line">               charsets.jar</span><br></pre></td></tr></table></figure>
+<p>假设 JDK 软件安装在 <code>/jdk1.8.0</code>
+目录下，以下即为最重要的目录简介：</p>
+<p><strong>/jdk1.8.0</strong> &gt; JDK
+软件安装的根目录。包括版权、许可证和 README 文件。同时也包含了 Java
+平台的源代码副本 - src.zip。</p>
+<p><strong>/jdk1.8.0/bin</strong> &gt; JDK
+中包含的所有开发工具的可执行文件。在 PATH
+环境变量中应包含本目录的入口。</p>
+<p><strong>/jdk1.8.0/lib</strong> &gt;
+由开发工具使用的相关文件。本目录中包括 tools.jar - 是用于支持 JDK
+中实用工具的非核心类包。以及 dt.jar - 是 BeanInfo
+文件的设计时（DesignTime）副本，可用于告知 IDE 如何显示 Java
+组件以及开发者如何在应用程序中个性化定制他们。（注：dt.jar
+主要用于帮助开发者更简便的开发 Swing 程序，因此就不难理解前文提到的
+DeignTime （设计时）和我们熟知的 Runtime（运行时）的区别。）</p>
+<p><strong>/jdk1.8.0/jre</strong> &gt; JDK 开发工具依赖的 JRE（Java
+运行时环境）的根目录。Java 运行时环境是 Java 平台的一种实现。系统属性
+java.home 引用的即为本目录。</p>
+<p><strong>/jdk1.8.0/jre/bin</strong> &gt; Java
+平台使用的工具及库的可执行文件。与前文 /jdk1.8.0/bin
+目录中的文件完全一致。其中的 Java
+启动器工具充当了应用程序启动器（用以替换先前随 JRE 1.1
+版本附带的命令行工具）。本目录无需包含在 PATH 环境变量中。</p>
+<p><strong>/jdk1.8.0/jre/lib</strong> &gt; JRE
+所需的代码库、属性配置和资源文件。例如 rt.jar 包含了启动类 - 压缩了 Java
+平台核心 API 的运行时类，charsets.jar 包含了字符转换类。除了 ext
+子目录外。还有一些额外的资源子目录未在这里描述。</p>
+<p><strong>/jdk1.8.0/jre/lib/ext</strong> &gt; Java
+平台扩展组件的默认安装目录。例如 JavaHelp JAR
+文件的安装位置等。该目录包含了 jfxrt.jar， 该 jar 中包含 JavaFX
+的运行时库，还有 localedata.jar，包含了 java.text 和 java.util
+的本地数据。 扩展机制的相关信息可见
+http://docs.oracle.com/javase/8/docs/technotes/guides/extensions/index.html</p>
+<p><strong>/jdk1.8.0/jre/lib/security</strong> &gt;
+安全管理相关文件的目录。包含安全策略文件 java.policy 和安全属性文件
+java.security。</p>
+<p><strong>/jdk1.8.0/jre/lib/sparc</strong> &gt; Oracle Solaris 版本的
+Java 平台所需的 .so 文件。</p>
+<p><strong>/jdk1.8.0/jre/lib/sparc/client</strong> &gt; 实现了 Java
+HotSpot VM 技术的客户端所需的 .so 文件。 Java HotSpot VM 是默认的 Java
+虚拟机（JVM）。</p>
+<p><strong>/jdk1.8.0/jre/lib/sparc/server</strong> &gt; Java HotSpot VM
+服务端所需的 .so 文件。</p>
+<p><strong>/jdk1.8.0/jre/lib/applet</strong> &gt; 包含 applet 支持类的
+Jar 文件可存放于此目录。这种允许 applet
+类在本地文件系统预加载的功能不仅能够缩短启动时间，也能像从互联网下载
+applet 的方式提供一样的保护机制。</p>
+<p><strong>/jdk1.8.0/jre/lib/fonts</strong> &gt; 平台的字体文件。</p>
+<h4 id="其他文件及目录">其他文件及目录</h4>
+<p>这部分描述 Java 源代码、C 头文件和其他目录及文件的目录结构。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">jdk1.8.0</span><br><span class="line">     db</span><br><span class="line">     include</span><br><span class="line">     man</span><br><span class="line">     src.zip</span><br></pre></td></tr></table></figure>
+<p><strong>/jdk1.8.0/src.zip</strong> &gt; Java 平台的源代码</p>
+<p><strong>/jdk1.8.0/db</strong> &gt; Java DB，
+与之相关的技术内容参见http://docs.oracle.com/javadb/</p>
+<p><strong>/jdk1.8.0/include</strong> &gt; 用于支持 Java Native 接口和
+JVM Debugger 接口的 C 头文件。Java Native
+详见http://docs.oracle.com/javase/8/docs/technotes/guides/jni/index.html</p>
+<blockquote>
+<p>Java 平台调试架构 (JPDA)
+的信息详见http://docs.oracle.com/javase/8/docs/technotes/guides/jpda/index.html</p>
+</blockquote>
+<p><strong>/jdk1.8.0/man</strong></p>
+<blockquote>
+<p>JDK 工具的说明页。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2019/04/17/jdk8-file-structure/" title="JDK 8 文件目录结构">http://lenshood.github.io/2019/04/17/jdk8-file-structure/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/jdk-8/" rel="tag"># jdk 8</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/04/08/keep-git-branch-clean/" rel="prev" title="如何保持公共开发分支的整洁">
+                  <i class="fa fa-angle-left"></i> 如何保持公共开发分支的整洁
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/04/21/good-git-commit/" rel="next" title="Good Git Commit">
+                  Good Git Commit <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

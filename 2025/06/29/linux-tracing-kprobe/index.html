@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux 经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了 Linux 的追踪（Tracing）系统，它的魔力令人着迷。 本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 L">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux Tracing - Kprobe">
+<meta property="og:url" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux 经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了 Linux 的追踪（Tracing）系统，它的魔力令人着迷。 本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 L">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/6.png">
+<meta property="article:published_time" content="2025-06-29T15:40:44.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.251Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="kprobe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/","path":"2025/06/29/linux-tracing-kprobe/","title":"Linux Tracing - Kprobe"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Linux Tracing - Kprobe | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E8%AE%A1%E5%B0%9D%E8%AF%95"><span class="nav-number">1.</span> <span class="nav-text">1. 设计尝试</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#kprobes-%E6%A1%88%E4%BE%8B"><span class="nav-number">2.</span> <span class="nav-text">2. Kprobes 案例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E8%AE%A1%E5%8E%9F%E7%90%86"><span class="nav-number">3.</span> <span class="nav-text">3. 设计原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%A1%E7%90%86-kprobes"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 管理 Kprobes</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#kprobe-%E7%BB%93%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 Kprobe 结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%87%E5%85%A5%E7%82%B9%E7%9B%B8%E5%85%B3%E7%9A%84-fields"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 切入点相关的 Fields</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%9B%B8%E5%90%8C%E5%88%87%E5%85%A5%E7%82%B9%E4%B8%8A%E7%9A%84%E5%A4%9A%E4%B8%AA-kprobes"><span class="nav-number">3.2.2.</span> <span class="nav-text">3.2.2 相同切入点上的多个
+Kprobes</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%91%BD%E4%B8%AD"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 命中</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%98%E5%8C%96"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%BB%91%E5%90%8D%E5%8D%95"><span class="nav-number">3.5.</span> <span class="nav-text">3.5 黑名单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#kretprobes"><span class="nav-number">3.6.</span> <span class="nav-text">3.6 Kretprobes</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">4.</span> <span class="nav-text">4. Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Linux Tracing - Kprobe | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux Tracing - Kprobe
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2025-06-29 23:40:44" itemprop="dateCreated datePublished" datetime="2025-06-29T23:40:44+08:00">2025-06-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Linux/" itemprop="url" rel="index"><span itemprop="name">Linux</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2025/06/29/linux-tracing-kprobe/header.jpg" class="" width="300">
+<p>自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux
+经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了
+Linux 的追踪（Tracing）系统，它的魔力令人着迷。</p>
+<p>本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 Linux
+Tracing 系统的设计（本文基于 linux kernel v6.15.4）。</p>
+<span id="more"></span>
+<h2 id="设计尝试">1. 设计尝试</h2>
+<p>在了解 Kprobes
+之前，我们也许可以先设想一下，对于一段程序，如果我们想要了解其执行过程中的每一步，其运行前后程序状态的变化，需要怎么做？这个问题值得思考，事实上在明确更具体的限定条件以前，我们无法作答，因为该程序的类型并不明确。</p>
+<p>我们可以分析如下几种情况：</p>
+<ul>
+<li>假如是裸机程序，由于常见的 CPU
+都提供了调试中断或调试异常机制，由此我们可以让程序单步执行，但同时也需要类似硬件调试器的工具来获取暂停后各寄存器的状态</li>
+<li>假如是运行在操作系统（如
+Linux）中的程序，不论是用户态或内核态程序，我们都可以在每一条或需要的任一条指令前后插入软件中断指令使
+CPU 陷入中断，进而我们可以在中断处理程序中获取当前程序状态</li>
+<li>假如是运行在虚拟机（例如
+JVM）中的程序，则需要借助特定虚拟机的能力，实现虚拟环境下的
+“软件中断”，从而暂停程序运行，这非常依赖具体的虚拟机实现</li>
+</ul>
+<p>不过，基于上述分析，我们发现不论是哪种场景下，为了设计一个能了解任意一段程序的执行过程和状态的工具，都需要实现以下两个核心设计要求：</p>
+<ol type="1">
+<li>该工具必须拥有随时暂停以及恢复程序运行的能力</li>
+<li>该工具可以作为外部观察者观察当前系统的状态</li>
+</ol>
+<p>现在，我们对前面的问题加以限定：我们期望能观测在 Linux
+下运行的任意用户态或内核态程序。映射到设计要求：</p>
+<ol type="1">
+<li>暂停/恢复程序运行：需要能动态的在程序的代码段特定位置中插入软件中断指令，使
+CPU 陷入中断</li>
+<li>观察系统状态：在中断处理程序中读取并保存当前的寄存器上下文</li>
+</ol>
+<p>显然，为了满足上述设计要求，我们的工具需要有极高的权限从而实现对正在运行的程序进行修改和探测，这要求工具必须运行在内核态。一旦满足了上述基础要求，对工具进行不同方向上的扩展，就能实现差异化能力：</p>
+<ul>
+<li>为程序创建用户态接口，可支持对程序的运行状态和寄存器值进行控制，这就实现了调试器的功能</li>
+<li>为程序预留编程扩展接口，可同时对多个程序进行大规模持续观测，这能实现对任意程序的追踪和剖析功能</li>
+</ul>
+<h2 id="kprobes-案例">2. Kprobes 案例</h2>
+<p>在了解了上述设计要求和要点后，我们也许能更容易理解
+Kprobes。首先，Kprobes 能够动态的切入几乎任意内核程序（除了包含在<a
+href="https://docs.kernel.org/trace/kprobes.html#kprobes-blacklist">blacklist</a>中的那些）并收集信息（甚至修改寄存器值）。对应的
+Uprobes 则可以对用户态程序进行动态切入，本文暂不涉及 Uprobes。</p>
+<p>当切入点被调用前后，Kprobes 会执行自定义的 handler
+程序。通常，Kprobes 的注册、注销以及 handler
+程序的定义都被包含在内核模块中，这样对定义了 Kprobes
+的内核模块进行加载时，Kprobes 就能被插入内核中了。</p>
+<p>如下是一个十分简单的 Kprobes
+内核模块代码案例，通过该案例我们就能基本了解 Kprobes 的使用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> ...</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义 kprobe 结构以备后用（想想为什么要定义为全局静态变量？）</span></span><br><span class="line"><span class="type">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">kprobe</span> <span class="title">kp</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 实际的自定义 handler，在切入点被命中后被 Kprobes 框架调用</span></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">handler_pre</span><span class="params">(<span class="keyword">struct</span> kprobe *p, <span class="keyword">struct</span> pt_regs *regs)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> __user *filename = (<span class="type">const</span> <span class="type">char</span> __user *)regs-&gt;si;</span><br><span class="line">    <span class="type">char</span> fname[<span class="number">256</span>];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (filename &amp;&amp; strncpy_from_user(fname, filename, <span class="keyword">sizeof</span>(fname)) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        fname[<span class="keyword">sizeof</span>(fname) - <span class="number">1</span>] = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line">        printk(KERN_INFO <span class="string">&quot;[kprobe] openat() called with filename: %s\n&quot;</span>, fname);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 注册 Kprobes</span></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> __init <span class="title function_">kprobe_init</span><span class="params">(<span class="type">void</span>)</span></span><br><span class="line">&#123;</span><br><span class="line">    kp.symbol_name = <span class="string">&quot;sys_openat&quot;</span>;</span><br><span class="line">    kp.pre_handler = handler_pre;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (register_kprobe(&amp;kp) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        pr_err(<span class="string">&quot;Failed to register kprobe\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 注销 Kprobes</span></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> __exit <span class="title function_">kprobe_exit</span><span class="params">(<span class="type">void</span>)</span></span><br><span class="line">&#123;</span><br><span class="line">    unregister_kprobe(&amp;kp);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 内核模块加载/卸载</span></span><br><span class="line">module_init(kprobe_init);</span><br><span class="line">module_exit(kprobe_exit);</span><br></pre></td></tr></table></figure>
+<p>如上所示是一个简单的 Kprobes 内核模块，它能够在
+<code>sys_openat</code> 符号（即 <code>open</code>
+系统调用）被调用时尝试打印
+<code>filename</code>。其核心在如下三部分：</p>
+<ol type="1">
+<li>定义 kprobe 结构，并写入 <code>kp.symbol_name = "sys_openat";</code>
+以及 <code>kp.pre_handler = handler_pre;</code>：这定义了 Kprobes
+的挂载点符号和 handler 程序，pre_handler 代表将在挂载点被调用前执行</li>
+<li>注册 Kprobes：<code>register_kprobe(&amp;kp)</code> 将 kprobe
+结构注册进 Kprobes 框架中，触发生效</li>
+<li>注销 Kprobes：<code>unregister_kprobe(&amp;kp);</code> 将 kprobe
+结构移除 Kprobes 框架</li>
+</ol>
+<p>此外，handler 函数传入的参数 <code>pt_regs *regs</code>
+包含了当前的寄存器信息，这是一个平台相关参数，使用者需要根据体系结构和
+ABI 的差异来选择从正确的寄存器中获取需要的值。</p>
+<p>通过上述代码可以看到 Kprobes
+框架的抽象程度很高，使用简单。接下来我们从实际设计的角度进一步探寻其原理。</p>
+<h2 id="设计原理">3. 设计原理</h2>
+<p>在深入 Kprobes
+的设计原理之前，我们不妨再次以主观的视角来进行思考：假如要设计实现上一节所描述的
+Kprobes 能力，作为 Kprobes 框架需要解决哪些问题？</p>
+<p>首先，最核心的点是，需要将 handler
+的调用插入所监控的切入点，在第一节我们已经分析过，可以通过在切入点前后插入软件中断指令使
+CPU 陷入中断并在中断处理程序中调用
+handler，这样在执行完成后能够随中断机制再次回到切入点位置。此外，可以想一想，除了软件中断我们能不能直接插入一条跳转指令使程序流直接跳转到
+handler 呢？这也许省去了中断处理的开销，但也需要考虑如何跳回。</p>
+<p>其次，我们发现在前一节的代码中，有一个 <code>struct kprobe</code>
+结构来组合包括切入点符号、处理程序等等的关键元素，这些关键元素聚合在一起才能完整的描述一个
+kprobe。那么，作为一个面向众多使用者的框架，Kprobes
+必须考虑如何管理这些<code>kprobe</code>结构，从而使每一个注册的 kprobe
+都能顺利执行，也能在不在需要的时候被注销。这涉及到对<code>kprobe</code>结构的访问、存储、和增删。</p>
+<p>最后，还需考虑一些看似边缘实则很容易产生的情况，例如多个程序并发的注册、注销
+Kprobes 时如何确保并发安全？以及如果尝试为同一个符号注册多个不同的
+kprobe
+会怎么样？还有，作为对系统运行拥有绝对控制权的内核，考虑是否可以不止将符号作为切入点，是否能将程序的任意一行作为切入点？</p>
+<p>随着对这些问题的思考，接下来我们进入原理分析。</p>
+<h3 id="管理-kprobes">3.1 管理 Kprobes</h3>
+<p>从最简单的开始，对于注册的多个 <code>kprobe</code> 结构，Kprobes
+框架需要有一套机制来维护和管理这些
+<code>kprobe</code>，以便于在切入点被命中时能快速检索到并执行实际的自定义操作。</p>
+<p>事实上，在 Linux Kprobes 的设计中，是通过一个 Hash Table 来管理所有
+<code>kprobe</code> 的：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/kprobes.c</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> KPROBE_HASH_BITS 6</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> KPROBE_TABLE_SIZE (1 &lt;&lt; KPROBE_HASH_BITS)</span></span><br><span class="line"><span class="type">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">hlist_head</span> <span class="title">kprobe_table</span>[<span class="title">KPROBE_TABLE_SIZE</span>];</span></span><br></pre></td></tr></table></figure>
+<p>显然，<code>kprobe_table</code> 是一个拥有 64 个 slot
+的线性数组，其每一个数组元素是一个 <code>hlist_head</code>
+类型的值，hlist 是一个常见的内核数据结构，用于构建通用 Hash
+Table。<code>hlist_head</code> 指向一个链表，其链表元素的类型为
+<code>hlist_node</code>。事实上
+<code>struct hlist_head name[1 &lt;&lt; (bits)]</code>
+这类定义就是一个标准 Hash Table 的模版定义（更多内容可参考<a
+href="https://kernelnewbies.org/FAQ/Hashtables">这里</a>）。</p>
+<p>因此我们可以将 <code>kprobe_table</code> 视为 64 个 hash
+buckets，为了应对 hash collision，每一个 bucket
+中实际存放了一个长度不一的链表。那么为了让 <code>struct kprobe</code>
+顺利成为 hlist 中的一个元素，其结构内部势必需要包含一个
+<code>hlist_node</code> 来作为连接节点，参考源码定义，的确如此：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/linux/kprobes.h</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">kprobe</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span> <span class="title">hlist</span>;</span></span><br><span class="line">    ... ...</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>此外，既然 <code>kprobe_table</code> 是一个 Hash
+Table，那么对于一个新的 <code>kprobe</code>，基于什么作为 Hash Key
+来判断将其插入的位置呢？答案是通过切入点的 <code>addr</code>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/linux/kprobes.h</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="type">int</span> <span class="type">kprobe_opcode_t</span>;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">kprobe</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span> <span class="title">hlist</span>;</span></span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">/* location of the probe point */</span></span><br><span class="line">    <span class="type">kprobe_opcode_t</span> *addr;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// kernel/kprobes.c</span></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> __register_kprobe(<span class="keyword">struct</span> kprobe *p)</span><br><span class="line">&#123;</span><br><span class="line">    ... ...</span><br><span class="line">    INIT_HLIST_NODE(&amp;p-&gt;hlist);</span><br><span class="line">    hlist_add_head_rcu(&amp;p-&gt;hlist, &amp;kprobe_table[hash_ptr(p-&gt;addr, KPROBE_HASH_BITS)]);</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>回忆第二节的示例代码，我们仅为 <code>kprobe</code> 设置了
+<code>kp.symbol_name = "sys_openat";</code>。实际上在注册的过程中会将符号名替换为相对地址并存入
+<code>kprobe</code>，这样就可以将 <code>addr</code> 作为 key 来计算 slot
+index 了。</p>
+<p>综上，我们可以绘制如下示意图来描述 Kprobes 框架对 <code>kprobe</code>
+的管理结构：</p>
+<img src="/2025/06/29/linux-tracing-kprobe/1.png" class="">
+<h3 id="kprobe-结构">3.2 Kprobe 结构</h3>
+<p>上一节我们已经部分了解了 <code>struct kprobe</code> 中包含了
+<code>hlist</code> 和 <code>addr</code>
+两个关键字段，接下来我们一起通过讨论完整的<code>kprobe</code>
+结构，来进一步认识 Kprobes 框架的工作方式。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/linux/kprobes.h</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">kprobe</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">hlist_node</span> <span class="title">hlist</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* list of kprobes for multi-handler support */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">list</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*count the number of times this probe was temporarily disarmed */</span></span><br><span class="line">    <span class="type">unsigned</span> <span class="type">long</span> nmissed;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* location of the probe point */</span></span><br><span class="line">    <span class="type">kprobe_opcode_t</span> *addr;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Allow user to indicate symbol name of the probe point */</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *symbol_name;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Offset into the symbol */</span></span><br><span class="line">    <span class="type">unsigned</span> <span class="type">int</span> offset;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Called before addr is executed. */</span></span><br><span class="line">    <span class="type">kprobe_pre_handler_t</span> pre_handler;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Called after addr is executed, unless... */</span></span><br><span class="line">    <span class="type">kprobe_post_handler_t</span> post_handler;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Saved opcode (which has been replaced with breakpoint) */</span></span><br><span class="line">    <span class="type">kprobe_opcode_t</span> opcode;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* copy of the original instruction */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">arch_specific_insn</span> <span class="title">ainsn</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Indicates various status flags.</span></span><br><span class="line"><span class="comment">     * Protected by kprobe_mutex after this kprobe is registered.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    u32 flags;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>通过每个 field 的注释我们已经能够大致的了解到它们的用途。</p>
+<h4 id="切入点相关的-fields">3.2.1 切入点相关的 Fields</h4>
+<p>首先在前面的内容中已经提到过，在 <code>kprobe</code>
+中可以指定切入点的 <code>addr</code>，也可以指定
+<code>symbol_name + offset</code> 作为切入点，但 <code>addr</code> 和
+<code>symbol_name</code>
+是互斥关系，不能同时存在，否则注册时会报错。实际上在 kprobe
+最终运作时，都是以 <code>addr</code> 作为实际的切入点位置，而假如指定了
+<code>symbol_name</code> 则会经过一个转换的过程将之转换为
+<code>addr</code>。这也证明，Kprobes
+框架支持几乎在程序任意位置进行切入（在 Kprobes
+框架中存在一些黑名单地址，禁止切入）。</p>
+<p>对符号到地址的转换过程依赖子系统提供的能力：根据配置不同，默认情况下内核中已导出的符号和其地址会由
+<code>kallsyms</code> 记录并提供运行时查询。因此如果 <code>kprobe</code>
+中通过 <code>symbol_name + offset</code> 的形式描述切入点位置，Kprobes
+框架会通过 <code>kallsyms</code> 接口来对其进行验证并转换为实际的
+<code>addr</code>。简化流程可见：</p>
+<img src="/2025/06/29/linux-tracing-kprobe/2.png" class="">
+<p>其次，<code>pre_handler</code> 和 <code>post_handler</code>
+会在切入点被命中的前后被执行，简单看看它们的函数签名：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/linux/kprobes.h</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="title function_">int</span> <span class="params">(*<span class="type">kprobe_pre_handler_t</span>)</span> <span class="params">(<span class="keyword">struct</span> kprobe *, <span class="keyword">struct</span> pt_regs *)</span>;</span><br><span class="line"><span class="keyword">typedef</span> <span class="title function_">void</span> <span class="params">(*<span class="type">kprobe_post_handler_t</span>)</span> <span class="params">(<span class="keyword">struct</span> kprobe *, <span class="keyword">struct</span> pt_regs *, <span class="type">unsigned</span> <span class="type">long</span> flags)</span>;</span><br></pre></td></tr></table></figure>
+<p>第一个相同的参数 <code>struct kprobe *</code>
+不多做赘述，而第二个相同的参数 <code>struct pt_regs *</code>
+中保存了当前执行 CPU 的寄存器值。此外，根据 <a
+href="https://docs.kernel.org/trace/kprobes.html#register-kprobe">kprobe
+文档</a>，<code>post_handler</code> 的最后一个参数 <code>flags</code>
+目前总是为零值。</p>
+<p>需要注意的是<code>pre_handler</code>
+还需要一个<code>int</code>返回值。由于 kprobe 运行在内核态，handler
+程序实际上可以修改任何寄存器的值从而改变程序执行路径（例如修改 program
+counter），但这非常危险，在 kprobe 文档的<a
+href="https://docs.kernel.org/trace/kprobes.html#changing-execution-path">相关章节</a>中建议：“对于要修改程序执行流程的内核老司机，在修改寄存器值之后记得让
+<code>pre_handler</code> 返回非零值，进而 kprobe
+框架会直接跳转到新的地址，而不再执行原切入点的指令，也不再执行
+<code>post_handler</code>”。</p>
+<p>对于 <code>kprobe_opcode_t opcode;</code> 则涉及到了 kprobe
+的核心原理，即为了正确命中切入点，kprobe
+框架会把切入点的原始指令暂存，并替换为 Breakpoint 指令，例如 x86
+架构下的 INT3，这里的 <code>opcode</code>
+就保存了切入点指令。更多细节我们在下一小节讨论。</p>
+<p>相对应的，<code>struct arch_specific_insn ainsn;</code>
+保存了与体系结构相关的额外信息，<code>opcode</code>
+是与体系结构无关的字段，它直接保存了指令的内容。而 <code>ainsn</code>
+进一步保存了与体系结构相关的一些信息，不同的体系结构下其实现可能存在差异，例如
+<a
+href="https://elixir.bootlin.com/linux/v6.15.4/source/arch/x86/include/asm/kprobes.h#L54">x86
+的实现</a>以及 <a
+href="https://elixir.bootlin.com/linux/v6.15.4/source/arch/riscv/include/asm/probes.h#L19">riscv
+的实现</a>。</p>
+<p>此外，<code>unsigned long nmissed;</code> 存储了当前 kprobe
+被触发，但未能成功执行 handler 的次数，通常情况下，这是由于该 kprobe
+发生了重入（reenter），即该 kprobe 触发了另一个
+kprobe。在这种情况下，handler 不会再被运行，而是记录一次
+<code>nmissed</code>。</p>
+<p>最后，<code>u32 flags;</code>
+作为一个状态指示器指示了当前的各种状态，其中包括启用、禁用、已注册等等。</p>
+<h4 id="相同切入点上的多个-kprobes">3.2.2 相同切入点上的多个
+Kprobes</h4>
+<p>回到前面提到过的一个问题：作为一个通用的框架，假如有多个调用方期望在同一个切入点上挂载多个
+kprobe，该怎么办呢？</p>
+<p>事实上 Kprobes
+框架依然采用了线性表的方式来确保这种情况能够被满足。<code>struct list_head list;</code>
+充当了该职责，<code>list_head</code>
+是内核中提供的双向链表结构，它非常简单的只包含了前后指针两个字段。与
+<code>hlist_head</code>
+类似，实际使用时嵌入到具体的结构中，通过计算偏移量就能取回实际的结构。</p>
+<p>因此，<code>kprobe</code> 可以通过 <code>list</code>
+字段将其他与其具有相同切入点的<code>kropbe</code>
+通过该双向链表串联在了一起，从而当切入点被命中时，每一个
+<code>kprobe</code> 都会被依次触发而不会被漏掉。</p>
+<p>有趣的是，为了实现依次触发的要求，在每一个<code>kprobe</code>
+链表的头部，会放置一个特殊的 <code>kprobe</code> 结构，名为
+“aggregator”。它与普通<code>kprobe</code> 的唯一区别在于其
+<code>pre_handler</code> 和 <code>post_handler</code> 会被替换为如下的
+handler：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/kprobes.c</span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">aggr_pre_handler</span><span class="params">(<span class="keyword">struct</span> kprobe *p, <span class="keyword">struct</span> pt_regs *regs)</span></span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    list_for_each_entry_rcu(kp, &amp;p-&gt;<span class="built_in">list</span>, <span class="built_in">list</span>) &#123;</span><br><span class="line">        ... ...</span><br><span class="line">        <span class="keyword">if</span> (kp-&gt;pre_handler(kp, regs))</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">        ... ...</span><br><span class="line">        &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">aggr_post_handler</span><span class="params">(<span class="keyword">struct</span> kprobe *p, <span class="keyword">struct</span> pt_regs *regs, <span class="type">unsigned</span> <span class="type">long</span> flags)</span></span><br><span class="line">&#123;</span><br><span class="line">    ...</span><br><span class="line">    list_for_each_entry_rcu(kp, &amp;p-&gt;<span class="built_in">list</span>, <span class="built_in">list</span>) &#123;</span><br><span class="line">        ... ...</span><br><span class="line">        kp-&gt;post_handler(kp, regs, flags);</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>很简单的，这些 aggrator handler 实际上遍历了所有链表内的
+<code>kprobe</code> 并实际调用它们的 handler。</p>
+<p>同时，我们现在可以更新一下 Kprobes 框架的结构图：</p>
+<img src="/2025/06/29/linux-tracing-kprobe/3.png" class="">
+<h3 id="命中">3.3 命中</h3>
+<p>在前面的章节中我们已经或多或少的设计了一些切入点命中的原理。现在我们将通过更多的细节来具体了解切入点的命中，以及
+handler 执行相关的原理。</p>
+<p>我们已经知道，kprobe 框架激活某个 <code>kprobe</code>
+后，会将其设定的切入点指令暂存，并替换为 Breakpoint
+指令。首先不同体系结构下的 Breakpoint
+指令是完全不同的，为了支持不同的体系结构，实际的激活动作（也就是<code>register_kprobe()</code>的最后一步）的实现是与
+CPU 类型相关的（这里函数签名中的 “arm” 指的不是 arm CPU 而是
+“装备”、“配备” 的意思）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// arch/x86/kernel/kprobes/core.c</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">arch_arm_kprobe</span><span class="params">(<span class="keyword">struct</span> kprobe *p)</span></span><br><span class="line">&#123;</span><br><span class="line">    u8 int3 = INT3_INSN_OPCODE;</span><br><span class="line"></span><br><span class="line">    text_poke(p-&gt;addr, &amp;int3, <span class="number">1</span>);</span><br><span class="line">    text_poke_sync();</span><br><span class="line">    perf_event_text_poke(p-&gt;addr, &amp;p-&gt;opcode, <span class="number">1</span>, &amp;int3, <span class="number">1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// arch/arm64/kernel/probes/kprobes.c</span></span><br><span class="line"><span class="type">void</span> __kprobes <span class="title function_">arch_arm_kprobe</span><span class="params">(<span class="keyword">struct</span> kprobe *p)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">void</span> *addr = p-&gt;addr;</span><br><span class="line">    u32 insn = BRK64_OPCODE_KPROBES;</span><br><span class="line"></span><br><span class="line">    aarch64_insn_patch_text(&amp;addr, &amp;insn, <span class="number">1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// arch/riscv/kernel/probes/kprobes.c</span></span><br><span class="line"><span class="type">void</span> __kprobes <span class="title function_">arch_arm_kprobe</span><span class="params">(<span class="keyword">struct</span> kprobe *p)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">size_t</span> len = GET_INSN_LENGTH(p-&gt;opcode);</span><br><span class="line">    u32 insn = len == <span class="number">4</span> ? __BUG_INSN_32 : __BUG_INSN_16;</span><br><span class="line"></span><br><span class="line">    patch_text(p-&gt;addr, &amp;insn, len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以x86下的实现为例，<code>text_poke</code> 将 INT3
+指令写入切入点地址中，而在此之前，原切入点指令已经通过 <a
+href="https://elixir.bootlin.com/linux/v6.15.4/source/include/linux/kprobes.h#L272"><code>arch_prepare_kprobe()</code></a>
+被保存在了 <code>opcode</code> 和 <code>ainsn</code>
+中了（保存原始指令的实现也是体系结构特有的）。</p>
+<p>引用 Kprobes 文档的 <a
+href="https://docs.kernel.org/trace/kprobes.html#how-does-a-kprobe-work">"How
+Does a Kprobe Work"</a>
+章节，我们可以从描述上进一步了解完整的执行过程：</p>
+<blockquote>
+<p><em>当一个 kprobe 注册后，Kprobes
+框架将切入点指令复制一份，并将原始切入点的第一个字节替换为一个
+Breakpoint 指令（如在 i386 和 x86_64 上的 int3）。</em></p>
+<p><em>当某个 CPU 命中该 Breakpoint 指令时，将发生 trap，该 CPU
+的寄存器被暂存，控制流通过 notifier_call_chain 被传递给 Kprobes
+框架。Kprobes 框架执行与 kprobe 关联的 “pre_handler”，将
+<code>struct kprobe</code> 的地址以及暂存的寄存器传递给
+handler。</em></p>
+<p><em>之后，Kprobes
+对其复制的切入点指令进行单步执行（single-steps）。（直接在指令原始位置上
+single-step 会更简单，但 Kprobes 框架将必须临时性移除 Breakpoint
+指令。这可能会打开一个小时间窗口使其他 CPU
+有可能在运行时直接掠过切入点。）</em></p>
+<p><em>在指令被单步执行后，Kprobes 框架执行
+“post_handler”（如果有的话）。之后，程序会接着切入点的位置继续执行。</em></p>
+</blockquote>
+<p>这里所谓的
+“命中后单步执行”，在不同体系结构下虽略有差异，但都遵循类似的流程。下图展示了
+x86、arm64、riscv 三种体系结构下 Kprobes 命中的流程：</p>
+<img src="/2025/06/29/linux-tracing-kprobe/4.png" class="">
+<p>显然，对于上述三种类型的 CPU，其本质都是将原始指令取出并替换为
+Breakpoint，之后将原始指令与同样的另一个 Breakpoint 合并，之后放置在一个
+“trampoline” 的区域（也称为 "out-of-line buffer"，在 trampoline
+区域执行期间必须关闭中断以简化流程）。这样两个 Breakpoint 的存在就能允许
+Kprobes 框架即能执行 <code>pre_handler</code> 又能执行
+<code>post_handler</code>了。</p>
+<blockquote>
+<p>有趣的是，在 v5.13 以前，x86 的实现并不是在原始指令之后直接跟随
+INT3，而是在 INT3 后续的 handler 中将当前模式设置为 Debug
+模式，从而实现原始指令执行完后就会立即终止执行并进入名为
+<code>do_debug()</code> 的 Debug 模式 handler。</p>
+<p>那这又是为什么呢？可以设想，在原始指令之后添加 INT3 的确看起来和
+Debug 模式下单步执行等效，但假如原始指令是一条跳转指令，或者任意会修改
+<code>ip register</code> 的指令呢？由于下一条执行指令的位置被修改，INT3
+会被跳过，因此看起来只能进入 Debug 模式来避免这种场景。</p>
+<p>参考提交历史，Masami Hiramatsu 在 2021 年提交了修改 x86
+single-stepping 的 patch：<a
+href="https://lore.kernel.org/lkml/161460769556.430263.12936080446789384938.stgit@devnote2/">[RFC
+PATCH 1/1] x86/kprobes: Use int3 instead of debug trap for
+single-step</a> 在 email thread 中上述问题被讨论并且给出了结论：在 x86
+下 single-stepping 很慢，可以改为原始指令后追加 INT3
+的方案。同时，对于会修改 <code>ip</code> 的指令，他们参照 <a
+href="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=7ee31a3aa8f490c6507bc4294df6b70bed1c593e">arm64
+的实现方式</a>，通过 emulation 模拟了部分指令的执行。</p>
+<p>简单举个例子，假如对于普通指令，第一次进入 <code>do_int3()</code>
+将执行 <code>pre_handler()</code>，之后跳转至 trampoline
+执行原始指令，然后再次进入 <code>do_int3()</code> 后执行
+<code>post_handler()</code>。</p>
+<p>而假如原始指令是 <code>jmp</code>，此时在
+<code>prepare_emulation()</code> 中会识别到该指令，并将执行
+<code>jmp</code> 的动作替换为执行一个函数
+<code>int3_emulate_jmp()</code>，其内容类似
+<code>regs-&gt;ip = new_ip;</code>，这正是 <code>jmp</code>
+指令所做的。在这个情况下，当第一次进入 <code>do_int3()</code> 并执行
+<code>pre_handler()</code>之后，不再跳转 trampoline，而是直接执行
+<code>int3_emulate_jmp()</code> 模拟跳转，紧接着执行
+<code>post_handler()</code> 。如此，当从 INT3 返回后，程序会跳转至
+<code>new_ip</code> 处继续运行。</p>
+</blockquote>
+<h3 id="优化">3.4 优化</h3>
+<p>前面曾提到过，是不是有可能不使用 Breakpoint
+这类软件中断，而是直接将切入点位置的指令替换为 jump
+指令，从而降低开销呢？事实上 Kprobes
+框架的确这么做了，并将这种操作称之为优化（optimization）。</p>
+<p>首先我们引用 Kprobes 官方文档中的数据来看看优化前后的<a
+href="https://docs.kernel.org/trace/kprobes.html#optimized-probe-overhead">开销变化</a>：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">k = unoptimized kprobe, b = boosted (single-step skipped), o = optimized kprobe,</span><br><span class="line">r = unoptimized kretprobe, rb = boosted kretprobe, ro = optimized kretprobe.</span><br><span class="line"></span><br><span class="line">i386: Intel(R) Xeon(R) E5410, 2.33GHz, 4656.90 bogomips</span><br><span class="line">k = 0.80 usec; b = 0.33; o = 0.05; r = 1.10; rb = 0.61; ro = 0.33</span><br><span class="line"></span><br><span class="line">x86-64: Intel(R) Xeon(R) E5410, 2.33GHz, 4656.90 bogomips</span><br><span class="line">k = 0.99 usec; b = 0.43; o = 0.06; r = 1.24; rb = 0.68; ro = 0.30</span><br></pre></td></tr></table></figure>
+<p>优化能产生数十倍的开销降低，效果令人满意。那么 Kprobes
+是如何进行优化的呢？（目前主要是 x86
+实现了优化功能，其他体系结构实现了优化逻辑的较少。）</p>
+<img src="/2025/06/29/linux-tracing-kprobe/5.png" class="">
+<p>如上图，优化后的效果，是跳转到 trampoline
+和跳转回切入点位置的操作全部从 Breakpoint 指令替换为简单的跳转指令。</p>
+<p>正因为 Breakpoint 全部替换为了跳转，不再需要处理中断，CPU
+的执行流也更简单，这样就减少了包括锁、保存/恢复上下文、iCache
+失效、分支预测失败等等的各种开销，因此能极大提升Kprobes 的执行速度。</p>
+<p>但并不是任何 Kprobes 都支持优化，优化的限制并不少：</p>
+<ul>
+<li>被切入函数中不能包含任何间接跳转（indirect jump），因为 x86 jump
+指令长度很长（相比 INT3 只占 1 字节），原先的间接跳转有可能跳到 jump
+指令中间</li>
+<li>被切入函数不能包含任何可能导致 exception 的指令，因为 exception
+handler 在跳回原函数时有可能跳到 jump 指令中间</li>
+<li>在替换为 jump 指令的区域（称为 optimized region）内不能有 near
+jump（目标位置在-128~127 bytes 之间），因为直接跳转到 trampoline
+的操作没有像 Breakpoint handler
+那样处理和调整寄存器的值以适配这种情况</li>
+</ul>
+<p>因此在进行 Kprobes 优化前，会先检查各种 pre-condition
+是否满足要求，如果都符合要求才会进行优化。并且，为了确保 kprobe
+总是可用的，Kprobes 框架在 <code>kprobe</code> 注册时默认会先采用
+Breakpoint + single-step
+的形式对切入点进行改造，而在注册的最后一步尝试优化，并且即使可优化，也会将优化工作扔到一个工作队列中异步进行。</p>
+<p>更详细的流程可见下图：</p>
+<img src="/2025/06/29/linux-tracing-kprobe/6.png" class="">
+<p>和前面简化的图相比，上图中被优化的 Kprobe 多了一些细节：实际上在
+trampoline（out-of-buffer）的起始位置并不直接是原始指令，而是先放置了一个<code>CALL</code>
+指令，跳转到 <a
+href="https://elixir.bootlin.com/linux/v6.15.4/source/arch/x86/kernel/kprobes/opt.c#L177"><code>optimized_callback()</code></a>，在该函数中执行了
+<code>pre_handler()</code>，之后才跳回到原始指令继续执行。如果看源码会发现，在执行<code>pre_handler()</code>
+的过程中禁止了抢占，这是为了避免可能由抢占而引发的复杂情况如递归调用、随机跳转等。</p>
+<p>另外，优化的 Kprobes 也不支持 <code>post_handler</code>，在 Optimized
+Kprobes 的前身 <a
+href="https://landley.net/kdocs/ols/2007/ols2007v1-pages-189-200.pdf">djprobe</a>
+的设计中，Masami Hiramatsu 提到不支持 <code>post_handler</code>
+是基于性能和功能考量下的一种 tradeoff，他最终在二者之间选择了性能。</p>
+<blockquote>
+<p>向前追溯 Kprobe
+优化的历史，我们会发现绕不开一位日本的内核开发者：Masami
+Hiramatsu。Masami 近二十年来一直持续的在为 Kprobes 贡献，并尝试改进其在
+x86 的性能。</p>
+<p>在 2006 年时，Masami 提交了 <a
+href="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=311ac88fd2d4194a95e9e38d2fe08917be98723c">“kprobes-booster”</a>
+方案，先尝试将 single-step 优化为 jump，该优化将 Kprobes
+的执行开销缩短了一半。</p>
+<p>之后，他又开发了 <a
+href="https://landley.net/kdocs/ols/2007/ols2007v1-pages-189-200.pdf">djprobe</a>，即
+direct jump probe，djprobe 将 Breakpoint 和 single-step 全部替换为了
+jump 的方式，这也使其称为 Optimized Kprobe 的前身。</p>
+<p>在 djprobe 经过了持续的演进后，2010 年它以 “Optprobe”
+的形式合入了内核（见 <a
+href="https://tracingsummit.org/ts/2010/files/HiramatsuLinuxCon2010.pdf"><em>The
+Enhancement of Kernel Probing - Kprobes Jump
+Optimization</em></a>）。</p>
+</blockquote>
+<h3 id="黑名单">3.5 黑名单</h3>
+<p>前面提到过通过直接设置 <code>kprobe.addr</code>
+属性可以选择任意的位置作为切入点。然而为了防止不可控，Kprobes
+框架限制了一些位置不能被作为切入点。</p>
+<p>根据 <a
+href="https://docs.kernel.org/trace/kprobes.html#blacklist">Kprobes
+文档</a>：</p>
+<blockquote>
+<p>Kprobes 能探测大部分 kernel 区域，但除了它自己。这意味着有一些函数是
+Kprobes 不能探测的。探测那些函数会导致递归陷阱或者嵌套的 handler
+永远无法被调用到。Kprobes
+将这些函数以黑名单的形式管理。假如你想将某个函数添加到黑名单中，你只需要（1）将
+<code>linux/kprobes.h</code> include
+进来，然后（2）使用<code>NOKPROBE_SYMBOL()</code>
+宏来指定一个函数为黑名单函数。Kprobes
+会在注册时检查黑名单并在切入点出现在黑名单时拒绝注册。</p>
+</blockquote>
+<p>Kprobes
+框架在初始化时会对黑名单进行初始化，而黑名单本质上是一个链表。首先
+Kprobes 框架会确保Kprobes 自身的代码段加入黑名单，以防止 Kprobes
+自身被探测；其次，对于定义的 “Non-instrumentable”
+的代码区域也需要加入黑名单；最后，如同前面引用段落中描述的，用户可以通过
+<code>NOKPROBE_SYMBOL()</code>
+来自定义黑名单函数，所有的自定义黑名单函数也会被加载到黑名单。</p>
+<p>Kprobes 黑名单加载过程中的有趣之处在于自定义黑名单函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/asm-generic/kprobes.h</span></span><br><span class="line"></span><br><span class="line"><span class="meta"># <span class="keyword">define</span> __NOKPROBE_SYMBOL(fname)</span></span><br><span class="line"><span class="type">static</span> <span class="type">unsigned</span> <span class="type">long</span> __used        \</span><br><span class="line">    __section(<span class="string">&quot;_kprobe_blacklist&quot;</span>)   \</span><br><span class="line">    _kbl_addr_#<span class="meta">#fname = (unsigned long)fname;</span></span><br></pre></td></tr></table></figure>
+<p><code>NOKPROBE_SYMBOL()</code>仅仅是定义了一个静态变量持有函数地址，除此之外没有更多操作，特别之处在于
+<code>__section("_kprobe_blacklist")</code> 提示编译器将该变量放在
+<code>_kprobe_blacklist</code> 段。</p>
+<p>然后转到 <code>vmlinus.lds.h</code>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/asm-generic/vmlinus.lds.h</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> KPROBE_BLACKLIST()</span></span><br><span class="line">    . = ALIGN(<span class="number">8</span>);                     \</span><br><span class="line">    BOUNDED_SECTION(_kprobe_blacklist)</span><br><span class="line">    </span><br><span class="line">... ...</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BOUNDED_SECTION(_sec)	 </span></span><br><span class="line">    BOUNDED_SECTION_BY(_sec, _sec)</span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BOUNDED_SECTION_BY(_sec_, _label_)</span></span><br><span class="line">    BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)</span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_)</span></span><br><span class="line">    _BEGIN_##_label_ = .;						  \</span><br><span class="line">    KEEP(*(_sec_))							      \</span><br><span class="line">    _END_##_label_ = .;</span><br></pre></td></tr></table></figure>
+<p>根据上述链接器头文件中的宏定义，展开后实际上是如下内容：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">__start_kprobe_blacklist = .;        \</span><br><span class="line">KEEP(*(_kprobe_blacklist))					 \</span><br><span class="line">__stop_kprobe_blacklist = .;</span><br></pre></td></tr></table></figure>
+<p>这意味着所有被放置在 <code>_kprobe_blacklist</code> 段的内容都会处于
+<code>__start_kprobe_blacklist</code> 和
+<code>__stop_kprobe_blacklist</code> 之间，因此当我们查看 Kprobes
+框架初始化过程中加载黑名单的代码时，就能理解其原理了：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kernel/kprobes.c</span></span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> __init <span class="title function_">init_kprobes</span><span class="params">(<span class="type">void</span>)</span></span><br><span class="line">&#123;</span><br><span class="line">    ... ...</span><br><span class="line">    err = populate_kprobe_blacklist(__start_kprobe_blacklist, __stop_kprobe_blacklist);</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> __init <span class="title function_">populate_kprobe_blacklist</span><span class="params">(<span class="type">unsigned</span> <span class="type">long</span> *start, <span class="type">unsigned</span> <span class="type">long</span> *end)</span></span><br><span class="line">&#123;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">for</span> (iter = start; iter &lt; end; iter++) &#123;</span><br><span class="line">        entry = (<span class="type">unsigned</span> <span class="type">long</span>)dereference_symbol_descriptor((<span class="type">void</span> *)*iter);</span><br><span class="line">        ret = kprobe_add_ksym_blacklist(entry);</span><br><span class="line">        <span class="keyword">if</span> (ret == -EINVAL)</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        <span class="keyword">if</span> (ret &lt; <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">return</span> ret;</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如上述代码所示，<code>populate_kprobe_blacklist()</code> 会将
+<code>__start_kprobe_blacklist</code> 和
+<code>__stop_kprobe_blacklist</code>
+之间的所有变量都解引用后加入到黑名单中。</p>
+<h3 id="kretprobes">3.6 Kretprobes</h3>
+<p>除了 Kprobes，还有一种 Kretprobes，主要用于在函数返回时添加切入点和
+handler。显而易见，假如仅有
+Kprobes，我们将很难监控函数的返回动作，因为很多时候函数不止有一个分支路径会
+return，将所有 return 位置都注册为切入点对于长函数而言是个灾难。</p>
+<p>Kretprobe 专为上述场景设计。其本质原理仍旧是
+Kprobes，但相比之下它会在函数入口处注册切入点，当切入点被命中后，Kretprobe
+获取到函数的返回地址并保存起来，同时将返回地址替换为 trampoline
+地址，从而就实现了函数的所有返回路径都会先经过 trampoline。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// include/linux/kprobes.h</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="title function_">int</span> <span class="params">(*<span class="type">kretprobe_handler_t</span>)</span> <span class="params">(<span class="keyword">struct</span> kretprobe_instance *, <span class="keyword">struct</span> pt_regs *)</span>;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">kretprobe</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">kprobe</span> <span class="title">kp</span>;</span></span><br><span class="line">    <span class="type">kretprobe_handler_t</span> handler;</span><br><span class="line">    <span class="type">kretprobe_handler_t</span> entry_handler;</span><br><span class="line">    <span class="type">int</span> maxactive;</span><br><span class="line">    <span class="type">int</span> nmissed;</span><br><span class="line">    <span class="type">size_t</span> data_size;</span><br><span class="line"><span class="meta">#<span class="keyword">ifdef</span> CONFIG_KRETPROBE_ON_RETHOOK</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rethook</span> *<span class="title">rh</span>;</span></span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">kretprobe_holder</span> *<span class="title">rph</span>;</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>显然，<code>kretprobe</code> 嵌套了一个
+<code>kprobe</code>，并添加了一些额外的 fields 来完成操作。</p>
+<p><code>handler</code> 会在函数返回后执行，这也是 Kretprobes
+功能中用户最需要关心的部分。此外 <code>entry_handler</code>
+允许用户自定义函数入口被命中后的操作。</p>
+<p><code>maxactive</code> 限定了允许同时触发 <code>Kretprobe</code>
+的数量，假如同时触发数超限，那么被忽略的操作数将被累加至
+<code>nmissed</code>。</p>
+<p>最后，对于返回地址的暂存，当定义
+<code>CONFIG_KRETPROBE_ON_RETHOOK</code> 时会采用 <code>rethook</code>
+的方式，这也是目前较新的内核版本所推荐的通用方案，而如果不支持就回退到原来的
+<code>kretprobe_holder</code> 方案。</p>
+<h2 id="reference">4. Reference</h2>
+<p>[1] <a
+href="https://docs.kernel.org/trace/kprobes.html#kernel-probes-kprobes">Kprobes
+Document</a></p>
+<p>[2] <a href="https://kernelnewbies.org/FAQ/Hashtables">Kernel
+Hashtables</a></p>
+<p>[3] <a
+href="https://lore.kernel.org/lkml/161460769556.430263.12936080446789384938.stgit@devnote2/">[RFC
+PATCH 1/1] x86/kprobes: Use int3 instead of debug trap for
+single-step</a></p>
+<p>[4] <a
+href="https://landley.net/kdocs/ols/2007/ols2007v1-pages-189-200.pdf">djprobe</a></p>
+<p>[5] <a
+href="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=311ac88fd2d4194a95e9e38d2fe08917be98723c">kprobes-booster</a></p>
+<p>[6] <a
+href="https://tracingsummit.org/ts/2010/files/HiramatsuLinuxCon2010.pdf">The
+Enhancement of Kernel Probing - Kprobes Jump Optimization</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/" title="Linux Tracing - Kprobe">http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/linux/" rel="tag"># linux</a>
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/kprobe/" rel="tag"># kprobe</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2025/02/24/xv6-rust-6/" rel="prev" title="&#x2F;Xv6 Rust 0x06&#x2F; - User Space">
+                  <i class="fa fa-angle-left"></i> /Xv6 Rust 0x06/ - User Space
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

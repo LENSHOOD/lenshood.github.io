@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="新集合类型 Guava 引入了许多 JDK 未包含但我们却广泛使用的的新集合类型。他们全都设计为可以和 JDK 的集合框架友好的共存， 而不是硬塞入 JDK 的集合类抽象中。 一般来说，Guava 的集合会精确地按照 JDK interface 所定义的契约来实现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="（Guava 译文系列）新集合类型">
+<meta property="og:url" content="http://lenshood.github.io/2019/11/15/guava-new-collection/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="新集合类型 Guava 引入了许多 JDK 未包含但我们却广泛使用的的新集合类型。他们全都设计为可以和 JDK 的集合框架友好的共存， 而不是硬塞入 JDK 的集合类抽象中。 一般来说，Guava 的集合会精确地按照 JDK interface 所定义的契约来实现。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-11-15T03:19:30.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.102Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="guava">
+<meta property="article:tag" content="translation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2019/11/15/guava-new-collection/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2019/11/15/guava-new-collection/","path":"2019/11/15/guava-new-collection/","title":"（Guava 译文系列）新集合类型"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>（Guava 译文系列）新集合类型 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%96%B0%E9%9B%86%E5%90%88%E7%B1%BB%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">新集合类型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#multiset"><span class="nav-number">1.1.</span> <span class="nav-text">Multiset</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#multiset-%E4%B8%8D%E6%98%AF-map"><span class="nav-number">1.1.1.</span> <span class="nav-text">Multiset 不是 Map</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E7%B1%BB"><span class="nav-number">1.1.2.</span> <span class="nav-text">实现类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sortedmultiset"><span class="nav-number">1.1.3.</span> <span class="nav-text">SortedMultiset</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#multimap"><span class="nav-number">1.2.</span> <span class="nav-text">Multimap</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%84%E5%BB%BA"><span class="nav-number">1.2.1.</span> <span class="nav-text">构建</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BF%AE%E6%94%B9"><span class="nav-number">1.2.2.</span> <span class="nav-text">修改</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%86%E5%9B%BE"><span class="nav-number">1.2.3.</span> <span class="nav-text">视图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#multimap-%E4%B8%8D%E6%98%AF-map"><span class="nav-number">1.2.4.</span> <span class="nav-text">Multimap 不是 Map</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E7%B1%BB-1"><span class="nav-number">1.2.5.</span> <span class="nav-text">实现类</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#bimap"><span class="nav-number">1.3.</span> <span class="nav-text">BiMap</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E7%B1%BB-2"><span class="nav-number">1.3.1.</span> <span class="nav-text">实现类</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#table"><span class="nav-number">1.4.</span> <span class="nav-text">Table</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#classtoinstancemap"><span class="nav-number">1.5.</span> <span class="nav-text">ClassToInstanceMap</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rangeset"><span class="nav-number">1.6.</span> <span class="nav-text">RangeSet</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%86%E5%9B%BE-1"><span class="nav-number">1.6.1.</span> <span class="nav-text">视图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9F%A5%E8%AF%A2"><span class="nav-number">1.6.2.</span> <span class="nav-text">查询</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rangemap"><span class="nav-number">1.7.</span> <span class="nav-text">RangeMap</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%86%E5%9B%BE-2"><span class="nav-number">1.7.1.</span> <span class="nav-text">视图</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2019/11/15/guava-new-collection/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="（Guava 译文系列）新集合类型 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          （Guava 译文系列）新集合类型
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-11-15 11:19:30" itemprop="dateCreated datePublished" datetime="2019-11-15T11:19:30+08:00">2019-11-15</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Guava/" itemprop="url" rel="index"><span itemprop="name">Guava</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="新集合类型">新集合类型</h1>
+<p>Guava 引入了许多 JDK
+未包含但我们却广泛使用的的新集合类型。他们全都设计为可以和 JDK
+的集合框架友好的共存， 而不是硬塞入 JDK 的集合类抽象中。</p>
+<p>一般来说，Guava 的集合会精确地按照 JDK interface
+所定义的契约来实现。</p>
+<span id="more"></span>
+<h2 id="multiset">Multiset</h2>
+<p>按照传统的 Java
+习惯，计算单词在文档中出现的次数通常会按照如下方式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Map&lt;String, Integer&gt; counts = <span class="keyword">new</span> <span class="title class_">HashMap</span>&lt;String, Integer&gt;();</span><br><span class="line"><span class="keyword">for</span> (String word : words) &#123;</span><br><span class="line">  <span class="type">Integer</span> <span class="variable">count</span> <span class="operator">=</span> counts.get(word);</span><br><span class="line">  <span class="keyword">if</span> (count == <span class="literal">null</span>) &#123;</span><br><span class="line">    counts.put(word, <span class="number">1</span>);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    counts.put(word, count + <span class="number">1</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述方案不仅尴尬，容易出错，而且不支持收集更多的有用的统计信息，比如单词总数等。我们可以做得更好。</p>
+<p>Guava 提供了新的集合类型，<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html"><code>Multiset</code></a>，支持多次添加同一个元素。维基百科定义
+Multiset 为在数学上 “集合概念的一种推广，其中成员可以出现多次...在
+multisets 中，与 set 类似，与 tuple 相反，其与成员的顺序无关：{a, a, b}
+和 {a, b, a} 是等同的 multiset”。</p>
+<p>有两种主流的方式来理解：</p>
+<ul>
+<li>multiset
+就像一个没有顺序限制的<code>ArrayList&lt;E&gt;</code>：顺序无关紧要。</li>
+<li>这就像是一个<code>Map&lt;E, Integer&gt;</code>，包括元素和计数。</li>
+</ul>
+<p>API结合了上述对<code>Multiset</code>的两种理解方式，如下：</p>
+<ul>
+<li>当他被视为一个普通的<code>Collection</code>,
+<code>Multiset</code>表现的行为更像是一个未排序的<code>ArrayList</code>：
+<ul>
+<li>调用<code>add(E)</code>将给定的元素添加单个引用。</li>
+<li>Multiset 的<code>iterator()</code>遍历每一个元素的每一个引用</li>
+<li>Multiset 的<code>size()</code>为每一个元素的每一个引用的总和</li>
+</ul></li>
+<li>附加的查询操作及其性能特性，与你对<code>Map&lt;E, Integer&gt;</code>的期望一致。
+<ul>
+<li><code>count(Object)</code>返回与该元素相关联的计数。对<code>HashMultiset</code>，计数的复杂度是O(1)，对<code>TreeMultiset</code>，计数的复杂度O(log
+n)。</li>
+<li><code>entrySet()</code>
+返回一个<code>Set&lt;Multiset.Entry&lt;E&gt;&gt;</code>，与<code>Map</code>的
+entrySet 类似。</li>
+<li><code>elementSet()</code>返回一个对 multiset
+元素去重的<code>Set&lt;E&gt;</code>，就像<code>Map</code>的<code>keySet()</code>。</li>
+<li><code>Multiset</code>实现的内存消耗与不同元素的数量线性相关。</li>
+</ul></li>
+</ul>
+<p>值得注意的是，<code>Multiset</code> 的契约与 <code>Collection</code>
+interface 完全一致，除非在极少数的情况下存在 JDK
+自身的先例。特别的，<code>TreeMultiset</code> 像 <code>TreeSet</code>
+一样,
+使用比较来判断相等而不是<code>Object.equals</code>.另外，<code>Multiset.addAll(Collection)</code>方法，会在<code>Collection</code>中的元素每次出现时，对其引用加一，这样会比先前采用循环添加<code>Map</code>的方式方便很多。</p>
+<table>
+<colgroup>
+<col style="width: 64%" />
+<col style="width: 35%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#count-java.lang.Object-"><code>count(E)</code></a></td>
+<td style="text-align: left;">计算被加入到 multiset
+中的元素出现的次数</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#elementSet--"><code>elementSet()</code></a></td>
+<td
+style="text-align: left;">以<code>Set&lt;E&gt;</code>的形式查看去重了的
+<code>Multiset&lt;E&gt;</code>元素</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#entrySet--"><code>entrySet()</code></a></td>
+<td style="text-align: left;">类似 <code>Map.entrySet()</code>, 返回一个
+<code>Set&lt;Multiset.Entry&lt;E&gt;&gt;</code>, 包含支持
+<code>getElement()</code> and <code>getCount()</code> 的 entry.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#add-java.lang.Object-int-"><code>add(E, int)</code></a></td>
+<td style="text-align: left;">给指定的元素增加指定的引用次数</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#remove-java.lang.Object-int--"><code>remove(E, int)</code></a></td>
+<td style="text-align: left;">给指定的元素减少指定的引用次数</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multiset.html#setCount-E-int-"><code>setCount(E, int)</code></a></td>
+<td style="text-align: left;">给指定的元素设置指定的非负引用次数</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>size()</code></td>
+<td
+style="text-align: left;">返回<code>Multiset</code>中的所有元素的所有引用次数的总和</td>
+</tr>
+</tbody>
+</table>
+<h3 id="multiset-不是-map">Multiset 不是 Map</h3>
+<p>请注意 <code>Multiset&lt;E&gt;</code> <em>不是</em>
+<code>Map&lt;E, Integer&gt;</code>, 即便是它可能属于
+<code>Multiset</code> 实现的一部分. <code>Multiset</code> 是一个真正的
+<code>Collection</code> 类型, 满足其所有相关的契约义务.
+其他值得注意的不同点包括：</p>
+<ul>
+<li>一个<code>Multiset&lt;E&gt;</code>只能包含记录正数次数的元素。没有元素可以拥有负数计数，且计数为<code>0</code>的值被认为不包含在
+multiset 中。他们不会在<code>elementSet()</code> 或
+<code>entrySet()</code>中出现。</li>
+<li><code>multiset.size()</code>返回集合的尺寸，等于所有元素的计数之和。如果想要了解去重后的元素的数量，使用<code>elementSet().size()</code>。（所以，例如<code>add(E)</code>会对<code>multiset.size()</code>增加一。）</li>
+<li><code>multiset.iterator()</code>对每个元素的每个引用进行遍历，所以该迭代器的长度等于<code>multiset.size()</code>。</li>
+<li><code>Multiset&lt;E&gt;</code>支持添加元素，删除元素，或直接设定元素的计数值。<code>setCount(elem, 0)</code>相当于删除该元素的所有引用。</li>
+<li><code>multiset.count(elem)</code> 对不包含在 multiset
+中的元素总会返回<code>0</code>。</li>
+</ul>
+<h3 id="实现类">实现类</h3>
+<p>Guava 提供了许多<code>Multiset</code>的实现，<em>大致</em>与 JDK
+的实现相对应。</p>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 37%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Map</th>
+<th style="text-align: left;">Corresponding Multiset</th>
+<th style="text-align: left;">Supports <code>null</code> elements</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/HashMultiset.html"><code>HashMultiset</code></a></td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>TreeMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/TreeMultiset.html"><code>TreeMultiset</code></a></td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>LinkedHashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/LinkedHashMultiset.html"><code>LinkedHashMultiset</code></a></td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>ConcurrentHashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ConcurrentHashMultiset.html"><code>ConcurrentHashMultiset</code></a></td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>ImmutableMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableMultiset.html"><code>ImmutableMultiset</code></a></td>
+<td style="text-align: left;">No</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sortedmultiset">SortedMultiset</h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/SortedMultiset.html"><code>SortedMultiset</code></a>是<code>Multiset</code>接口的一种变体，它能够支持按照特定范围来高效的取出
+sub-multisets。例如你可以使用<code>latencies.subMultiset(0, BoundType.CLOSED, 100, BoundType.OPEN).size()</code>来测算你的网站中有多少点击延迟小于
+100ms
+并且与<code>latencies.size()</code>相比较来测算与点击总量的占比。</p>
+<p><code>TreeMultiset</code> 实现了 <code>SortedMultiset</code>
+接口。在本文撰写时，<code>ImmutableSortedMultiset</code>对 GWT
+的兼容性测试仍在进行中。</p>
+<h2 id="multimap">Multimap</h2>
+<p>每一个有经验的 Java
+程序员，在某些时刻，都尝试实现并处理过一种令人尴尬的结构：
+<code>Map&lt;K, List&lt;V&gt;&gt;</code> 或
+<code>Map&lt;K, Set&lt;V&gt;&gt;</code>。例如
+<code>Map&lt;K, Set&lt;V&gt;&gt;</code>
+是一种典型的表示未标记有向图的方式。Guava 的 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html"><code>Multimap</code></a>框架让处理一个
+key 与多个 value 之间的映射变得简单。<code>Multimap</code>
+是一种通用的关联单个 key 与任意多个 value 的方法。</p>
+<p>理解 Multimap 的概念有两种办法：看作是单个 key 对单个 value
+的映射的集合：</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="title">a</span> -&gt;</span> <span class="number">1</span></span><br><span class="line"><span class="function"><span class="title">a</span> -&gt;</span> <span class="number">2</span></span><br><span class="line"><span class="function"><span class="title">a</span> -&gt;</span> <span class="number">4</span></span><br><span class="line"><span class="function"><span class="title">b</span> -&gt;</span> <span class="number">3</span></span><br><span class="line"><span class="function"><span class="title">c</span> -&gt;</span> <span class="number">5</span></span><br></pre></td></tr></table></figure>
+<p>或者作为唯一 key 到 value 集合的映射：</p>
+<figure class="highlight xl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="title">a</span> -&gt;</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">4</span>]</span><br><span class="line"><span class="function"><span class="title">b</span> -&gt;</span> [<span class="number">3</span>]</span><br><span class="line"><span class="function"><span class="title">c</span> -&gt;</span> [<span class="number">5</span>]</span><br></pre></td></tr></table></figure>
+<p>通常，<code>Multimap</code>
+接口根据第一种视角来理解是最好的，但他也允许你按照另一种视角来看待，即以<code>asMap()</code>的视角，他会返回
+<code>Map&lt;K, Collection&lt;V&gt;&gt;</code>。重要的是一个 key
+映射一个空集合的形式并不存在：一个 key 映射到至少一个
+value，否则他就不会在<code>Multimap</code>中存在。</p>
+<p>很少会直接使用 <code>Multimap</code> 接口，反之，更多情况你会使用
+<code>ListMultimap</code> 或 <code>SetMultimap</code>，对应分别将 key
+映射为一个<code>List</code> 或一个 <code>Set</code>。</p>
+<h3 id="构建">构建</h3>
+<p>创建一个 <code>Multimap</code> 最直接的方式就是使用 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MultimapBuilder.html"><code>MultimapBuilder</code></a>，它允许你配置
+key 和 value 以怎样的形式展现。比如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// creates a ListMultimap with tree keys and array list values</span></span><br><span class="line">ListMultimap&lt;String, Integer&gt; treeListMultimap =</span><br><span class="line">    MultimapBuilder.treeKeys().arrayListValues().build();</span><br><span class="line"></span><br><span class="line"><span class="comment">// creates a SetMultimap with hash keys and enum set values</span></span><br><span class="line">SetMultimap&lt;Integer, MyEnum&gt; hashEnumMultimap =</span><br><span class="line">    MultimapBuilder.hashKeys().enumSetValues(MyEnum.class).build();</span><br></pre></td></tr></table></figure>
+<p>你也可以选择直接在实现类上使用 <code>create()</code>
+方法，只不过这样相比于 <code>MultimapBuilder</code> 有一些不妥。</p>
+<h3 id="修改">修改</h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#get-K-"><code>Multimap.get(key)</code></a>
+返回与指定 key 关联的所有值的<em>视图</em>，即使当前并没有值。对
+<code>ListMultimap</code> 他会返回一个 <code>List</code>，对
+<code>SetMultimap</code> 他会返回一个 <code>Set</code>。</p>
+<p>修改操作通过底层的 <code>Multimap</code> 来进行写。例如,</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Set&lt;Person&gt; aliceChildren = childrenMultimap.get(alice);</span><br><span class="line">aliceChildren.clear();</span><br><span class="line">aliceChildren.add(bob);</span><br><span class="line">aliceChildren.add(carol);</span><br></pre></td></tr></table></figure>
+<p>通过底层 multimap 来写.</p>
+<p>Other ways of modifying the multimap (more directly) include:
+另外的（更直接的）修改 multimap 的方法包括：</p>
+<table>
+<colgroup>
+<col style="width: 12%" />
+<col style="width: 83%" />
+<col style="width: 3%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Signature</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#put-K-V-"><code>put(K, V)</code></a></td>
+<td style="text-align: left;">增加一个 key 和 value 的关联</td>
+<td
+style="text-align: left;"><code>multimap.get(key).add(value)</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#putAll-K-java.lang.Iterable-"><code>putAll(K, Iterable&lt;V&gt;)</code></a></td>
+<td style="text-align: left;">按顺序增加 key 与 value 的关联。</td>
+<td
+style="text-align: left;"><code>Iterables.addAll(multimap.get(key), values)</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#remove-java.lang.Object-java.lang.Object-"><code>remove(K, V)</code></a></td>
+<td style="text-align: left;">删除一个 <code>key</code> 与
+<code>value</code> 的关联并在 multimap 被修改后返回
+<code>true</code>.</td>
+<td
+style="text-align: left;"><code>multimap.get(key).remove(value)</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#removeAll-java.lang.Object-"><code>removeAll(K)</code></a></td>
+<td style="text-align: left;">删除所有与 key 相关联的 value 并将这些
+value 返回. 返回的集合可能可以也可能不可以被修改,
+但不论怎样对其进行修改都不会影响原 multimap.
+(会返回何时的集合类型。)</td>
+<td
+style="text-align: left;"><code>multimap.get(key).clear()</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#replaceValues-K-java.lang.Iterable-"><code>replaceValues(K, Iterable&lt;V&gt;)</code></a></td>
+<td style="text-align: left;">删除所有与 <code>key</code> 关联的
+<code>value</code> 并且将 <code>key</code> 与新的 <code>values</code>
+关联. 返回先前与<code>key</code> 关联的所有值。</td>
+<td
+style="text-align: left;"><code>multimap.get(key).clear(); Iterables.addAll(multimap.get(key), values)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="视图">视图</h3>
+<p><code>Multimap</code> 也支持多种强大的视图.</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#asMap--"><code>asMap</code></a>
+将任何 <code>Multimap&lt;K, V&gt;</code> 以
+<code>Map&lt;K, Collection&lt;V&gt;&gt;</code> 的形式展示。返回的 map
+支持 <code>remove</code>，修改会写回原对象，但他并不支持<code>put</code>
+或 <code>putAll</code>。重要的是，当你期望对不存在的 key 返回
+<code>null</code> 而不是空的可写集合时，你可以使用
+<code>asMap().get(key)</code>。（你可以也应该将
+<code>asMap.get(key)</code> 的返回值转换为适当的集合类型 -- 对
+<code>SetMultimap</code> 返回 <code>Set</code>，对
+<code>ListMultimap</code> 返回 <code>List</code> -- 然而类型系统不允许
+<code>ListMultimap</code> 返回
+<code>Map&lt;K, List&lt;V&gt;&gt;</code>。）</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#entries--"><code>entries</code></a>
+以 <code>Collection&lt;Map.Entry&lt;K, V&gt;&gt;</code> 形式展示
+<code>Multimap</code> 的所有 entries。（对 <code>SetMultimap</code>
+会返回一个 <code>Set</code>。）</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#keySet--"><code>keySet</code></a>
+以的 <code>Set</code> 形式展示 <code>Multimap</code> 中所有不重复的
+key。</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#keys--"><code>keys</code></a>
+以 <code>Multiset</code> 的形式展示 <code>Multimap</code> 的所有
+key，相同 key 的数量与对应的值的数量一致。允许从 <code>Multiset</code>
+中删除元素，但不允许添加，相应的更改会被写入原对象。</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimap.html#values--"><code>values()</code></a>
+以“拍平”的<code>Collection&lt;V&gt;</code>形式展示 <code>Multimap</code>
+所有的值，值都处于同一个集合中。这与
+<code>Iterables.concat(multimap.asMap().values())</code>
+很类似，只是返回了一个满的<code>Collection</code>。</li>
+</ul>
+<h3 id="multimap-不是-map">Multimap 不是 Map</h3>
+<p><code>Multimap&lt;K, V&gt;</code> <em>不是</em>
+<code>Map&lt;K, Collection&lt;V&gt;&gt;</code>，尽管上述 map 可能被用于
+<code>Multimap</code> 的实现。其显著的差异包括：</p>
+<ul>
+<li><code>Multimap.get(key)</code> 总是返回一个非
+null，但可能为空的集合。这并不意味着 multimap 会耗费内存来与 key
+做关联，相反，返回的集合是一个视图，能允许你根据需要添加与该 key
+的关联。</li>
+<li>假如你更喜欢当 multimap 中不存在 key 时返回 <code>null</code>
+这种类似 <code>Map</code> 的行为，使用 <code>asMap()</code>
+视图来获得一个<code>Map&lt;K,Collection&lt;V&gt;&gt;</code>，（或者使用静态方法
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#asMap-com.google.common.collect.ListMultimap-"><code>Multimaps.asMap()</code></a>
+来从<code>ListMultimap</code>中获取<code>Map&lt;K,</code><strong><code>List</code></strong><code>&lt;V&gt;&gt;</code>，类似的方法在<code>SetMultimap</code>
+和 <code>SortedSetMultimap</code> 亦存在）</li>
+<li>当且仅当对指定的 key
+存在相关联的任意个元素时，<code>Multimap.containsKey(key)</code>返回
+true。特别的，如果一个 key <code>k</code>
+曾经与一个或多个元素关联，但这些元素已经被移除，则
+<code>Multimap.containsKey(key)</code> 返回 false。</li>
+<li><code>Multimap.entries()</code> 返回 <code>Multimap</code> 中所有
+key 的所有 entries。假如你想要一个 key-collection 的 entries，则使用
+<code>asMap().entrySet()</code>。</li>
+<li><code>Multimap.size()</code> 返回整个 multimap 中所有 entries
+的数量，而不是无重复的 key 的数量。想要获得无重复 key 的数量，使用
+<code>Multimap.keySet().size()</code>。</li>
+</ul>
+<h3 id="实现类-1">实现类</h3>
+<p><code>Multimap</code>
+提供了大量的实现类。你可以在大多数情况下使用他来替代
+<code>Map&lt;K, Collection&lt;V&gt;&gt;</code>。</p>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 29%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Implementation</th>
+<th style="text-align: left;">Keys behave like...</th>
+<th style="text-align: left;">Values behave like..</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ArrayListMultimap.html"><code>ArrayListMultimap</code></a></td>
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><code>ArrayList</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/HashMultimap.html"><code>HashMultimap</code></a></td>
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><code>HashSet</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/LinkedListMultimap.html"><code>LinkedListMultimap</code></a>
+<code>*</code></td>
+<td style="text-align: left;"><code>LinkedHashMap``*</code></td>
+<td style="text-align: left;"><code>LinkedList``*</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/LinkedHashMultimap.html"><code>LinkedHashMultimap</code></a><code>**</code></td>
+<td style="text-align: left;"><code>LinkedHashMap</code></td>
+<td style="text-align: left;"><code>LinkedHashSet</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/TreeMultimap.html"><code>TreeMultimap</code></a></td>
+<td style="text-align: left;"><code>TreeMap</code></td>
+<td style="text-align: left;"><code>TreeSet</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableListMultimap.html"><code>ImmutableListMultimap</code></a></td>
+<td style="text-align: left;"><code>ImmutableMap</code></td>
+<td style="text-align: left;"><code>ImmutableList</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableSetMultimap.html"><code>ImmutableSetMultimap</code></a></td>
+<td style="text-align: left;"><code>ImmutableMap</code></td>
+<td style="text-align: left;"><code>ImmutableSet</code></td>
+</tr>
+</tbody>
+</table>
+<p>除了不可变的类以外，每一个实现类都支持 null key 和 value。</p>
+<p><code>*</code> <code>LinkedListMultimap.entries()</code> 在重复的 key
+和 value 之间保留迭代顺序。点击链接查看详情。</p>
+<p><code>**</code> <code>LinkedHashMultimap</code> 保留 entries
+的插入顺序，也即是 key 的插入顺序，以及与任何一个 key 关联的 value
+集。</p>
+<p>注意并不是所有列出的实现的其本质都是
+<code>Map&lt;K, Collection&lt;V&gt;&gt;</code>！（尤其是一些
+<code>Multimap</code>的实现采用定制化的哈希表来使得开销最小。）</p>
+<p>假如你想要更多的定制，使用<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newMultimap-java.util.Map-com.google.common.base.Supplier-"><code>Multimaps.newMultimap(Map, Supplier&lt;Collection&gt;)</code></a>或
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newListMultimap-java.util.Map-com.google.common.base.Supplier-">list</a>
+以及 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newSetMultimap-java.util.Map-com.google.common.base.Supplier-">set</a>
+的变体或使用自定义集合，列表或集来实现支持 multimap。</p>
+<h2 id="bimap">BiMap</h2>
+<p>将 value 映射回 key 的传统方法是维护两个独立的 map
+并且使他们保持同步，然而，这种方式容易出错，且当一个 value 已经存在于
+map 中时，会变得非常令人困惑。例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Map&lt;String, Integer&gt; nameToId = Maps.newHashMap();</span><br><span class="line">Map&lt;Integer, String&gt; idToName = Maps.newHashMap();</span><br><span class="line"></span><br><span class="line">nameToId.put(<span class="string">&quot;Bob&quot;</span>, <span class="number">42</span>);</span><br><span class="line">idToName.put(<span class="number">42</span>, <span class="string">&quot;Bob&quot;</span>);</span><br><span class="line"><span class="comment">// 假如 &quot;Bob&quot; 或 42 已经存在时会怎么样?</span></span><br><span class="line"><span class="comment">// 如果我们忘记使他们保持一致，那么可能会出现奇奇怪怪的 bug...</span></span><br></pre></td></tr></table></figure>
+<p>一个 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/BiMap.html"><code>BiMap&lt;K, V&gt;</code></a>
+是一个 <code>Map&lt;K, V&gt;</code>，它能够：</p>
+<ul>
+<li>允许你通过<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/BiMap.html#inverse--"><code>inverse()</code></a>来获得反向视图
+<code>BiMap&lt;V, K&gt;</code></li>
+<li>确保 values 是唯一的，返回的<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/BiMap.html#values--"><code>values()</code></a>
+是一个 <code>Set</code></li>
+</ul>
+<p>假如你尝试将 key 映射至一个已经存在的 value
+时，<code>BiMap.put(key, value)</code>会抛出<code>IllegalArgumentException</code>。假如你期望删除具有指定
+value 的任何已经存在的 entry，可以使用 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/BiMap.html#forcePut-java.lang.Object-java.lang.Object-"><code>BiMap.forcePut(key, value)</code></a></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">BiMap&lt;String, Integer&gt; userId = HashBiMap.create();</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="type">String</span> <span class="variable">userForId</span> <span class="operator">=</span> userId.inverse().get(id);</span><br></pre></td></tr></table></figure>
+<h3 id="实现类-2">实现类</h3>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Key-Value Map Impl</th>
+<th style="text-align: left;">Value-Key Map Impl</th>
+<th style="text-align: left;">Corresponding <code>BiMap</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/HashBiMap.html"><code>HashBiMap</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>ImmutableMap</code></td>
+<td style="text-align: left;"><code>ImmutableMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableBiMap.html"><code>ImmutableBiMap</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>EnumMap</code></td>
+<td style="text-align: left;"><code>EnumMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/EnumBiMap.html"><code>EnumBiMap</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>EnumMap</code></td>
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/EnumHashBiMap.html"><code>EnumHashBiMap</code></a></td>
+</tr>
+</tbody>
+</table>
+<p><em>注意：</em> <code>BiMap</code> 工具类例如
+<code>synchronizedBiMap</code> 在 <a
+href="CollectionUtilitiesExplained#Maps"><code>Maps</code></a>
+中存在.</p>
+<h2 id="table">Table</h2>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Table&lt;Vertex, Vertex, Double&gt; weightedGraph = HashBasedTable.create();</span><br><span class="line">weightedGraph.put(v1, v2, <span class="number">4</span>);</span><br><span class="line">weightedGraph.put(v1, v3, <span class="number">20</span>);</span><br><span class="line">weightedGraph.put(v2, v3, <span class="number">5</span>);</span><br><span class="line"></span><br><span class="line">weightedGraph.row(v1); <span class="comment">// returns a Map mapping v2 to 4, v3 to 20</span></span><br><span class="line">weightedGraph.column(v3); <span class="comment">// returns a Map mapping v1 to 20, v2 to 5</span></span><br></pre></td></tr></table></figure>
+<p>通常，当你尝试同时对超过一个 key 进行索引时，你最终会选择类似
+<code>Map&lt;FirstName, Map&lt;LastName, Person&gt;&gt;</code>
+的难看而尴尬的解决方案。Guava 提供了一个新的集合类， <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html"><code>Table</code></a>，用于支持
+"row" 类型和 "column" 类型的情况。<code>Table</code>
+支持多种视图，来提供多角度的数据展示，包括：</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#rowMap--"><code>rowMap()</code></a>,
+将 <code>Table&lt;R, C, V&gt;</code> 展示为
+<code>Map&lt;R, Map&lt;C, V&gt;&gt;</code>. 同样的, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#rowKeySet--"><code>rowKeySet()</code></a>
+返回一个 <code>Set&lt;R&gt;</code>.</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#row-R-"><code>row(r)</code></a>
+返回一个非 null <code>Map&lt;C, V&gt;</code>. 写入这个 <code>Map</code>
+写入底层的 <code>Table</code>.</li>
+<li>类似的也提供了类方法： <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#columnMap--"><code>columnMap()</code></a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#columnKeySet--"><code>columnKeySet()</code></a>,
+和 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#column-C-"><code>column(c)</code></a>.
+(基于列的查询会比基于行的效率更低一些)</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.html#cellSet--"><code>cellSet()</code></a>
+的返回将 <code>Table</code> 展示为一组 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Table.Cell.html"><code>Table.Cell&lt;R, C, V&gt;</code></a>.
+<code>Cell</code> 就像 <code>Map.Entry</code>, 但区分了行和列的
+key。</li>
+</ul>
+<p>多种 <code>Table</code> 的实现类如下：</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/HashBasedTable.html"><code>HashBasedTable</code></a>,
+实际上底层是 <code>HashMap&lt;R, HashMap&lt;C,V&gt;&gt;</code>。</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/TreeBasedTable.html"><code>TreeBasedTable</code></a>,
+实际上底层是 <code>TreeMap&lt;R, TreeMap&lt;C,V&gt;&gt;</code>。</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableTable.html"><code>ImmutableTable</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ArrayTable.html"><code>ArrayTable</code></a>，它要求在创建时即指定完整的行和列，当表密集时通过二维数组来提升速度与内存效率。<code>ArrayTable</code>与其他的实现上有些许不同，查看
+javadoc 来获取详情。</li>
+</ul>
+<h2 id="classtoinstancemap">ClassToInstanceMap</h2>
+<p>有些时候，map 中的 key
+不一定全都是同样的类型：他们<em>是各种</em>类型，且你想要让某种类型映射对应其类型的值。Guava
+提供了 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ClassToInstanceMap.html"><code>ClassToInstanceMap</code></a>
+来实现它。</p>
+<p>除了扩展 <code>Map</code> 接口外，<code>ClassToInstanceMap</code>
+提供了 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ClassToInstanceMap.html#getInstance-java.lang.Class-"><code>T getInstance(Class&lt;T&gt;)</code></a>
+和 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ClassToInstanceMap.html#putInstance-java.lang.Class-java.lang.Object-"><code>T putInstance(Class&lt;T&gt;, T)</code></a>
+方法，以此来避免在强制类型安全时不愉快的类型转换。</p>
+<p><code>ClassToInstanceMap</code> 有一个单一类型的参数，通常命名为
+<code>B</code>，代表由 map 管理的类型上界。例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ClassToInstanceMap&lt;Number&gt; numberDefaults = MutableClassToInstanceMap.create();</span><br><span class="line">numberDefaults.putInstance(Integer.class, Integer.valueOf(<span class="number">0</span>));</span><br></pre></td></tr></table></figure>
+<p>技术上讲，<code>ClassToInstanceMap&lt;B&gt;</code> 实现了
+<code>Map&lt;Class&lt;? extends B&gt;, B&gt;</code> --
+或者换句话说，一个 B 的子类映射到 B 的一个实例。这让
+<code>ClassToInstanceMap</code> 引入泛型变得有点混乱，但只要记住
+<code>B</code> 总是 map 的上边界 -- 通常 <code>B</code> 只是
+<code>Object</code>。</p>
+<p>Guava 提供了名为 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MutableClassToInstanceMap.html"><code>MutableClassToInstanceMap</code></a>
+和 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableClassToInstanceMap.html"><code>ImmutableClassToInstanceMap</code></a>
+的实现类。</p>
+<p><strong>重要</strong>：就像其他的<code>Map&lt;Class, Object&gt;</code>一样，<code>ClassToInstanceMap</code>
+也许会包含基本类型的
+entries，因此基本类型和其对应的包装类也许会映射至不同的值。</p>
+<h2 id="rangeset">RangeSet</h2>
+<p>A <code>RangeSet</code> describes a set of <em>disconnected,
+nonempty</em> ranges. When adding a range to a mutable
+<code>RangeSet</code>, any connected ranges are merged together, and
+empty ranges are ignored. For example: <code>RangeSet</code>
+描述了一种存储 <em>非连续，非空</em> 范围的 set。当给不可变的
+<code>RangeSet</code>
+增加了一个范围时，任何连续的范围被合并，空范围被忽略。例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">RangeSet&lt;Integer&gt; rangeSet = TreeRangeSet.create();</span><br><span class="line">rangeSet.add(Range.closed(<span class="number">1</span>, <span class="number">10</span>)); <span class="comment">// &#123;[1, 10]&#125;</span></span><br><span class="line">rangeSet.add(Range.closedOpen(<span class="number">11</span>, <span class="number">15</span>)); <span class="comment">// disconnected range: &#123;[1, 10], [11, 15)&#125;</span></span><br><span class="line">rangeSet.add(Range.closedOpen(<span class="number">15</span>, <span class="number">20</span>)); <span class="comment">// connected range; &#123;[1, 10], [11, 20)&#125;</span></span><br><span class="line">rangeSet.add(Range.openClosed(<span class="number">0</span>, <span class="number">0</span>)); <span class="comment">// empty range; &#123;[1, 10], [11, 20)&#125;</span></span><br><span class="line">rangeSet.remove(Range.open(<span class="number">5</span>, <span class="number">10</span>)); <span class="comment">// splits [1, 10]; &#123;[1, 5], [10, 10], [11, 20)&#125;</span></span><br></pre></td></tr></table></figure>
+<p>注意当合并类似<code>Range.closed(1, 10)</code> 和
+<code>Range.closedOpen(11, 15)</code> 时，你需要通过 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Range.html#canonical-com.google.common.collect.DiscreteDomain-"><code>Range.canonical(DiscreteDomain)</code></a>
+来对范围进行预处理，例如 <code>DiscreteDomain.integers()</code>。</p>
+<p><strong>NOTE</strong>: <code>RangeSet</code> is not supported under
+GWT, nor in the JDK 1.5 backport; <code>RangeSet</code> requires full
+use of the <code>NavigableMap</code> features in JDK 1.6.
+<strong>注意</strong>：<code>RangeSet</code> 在 GWT 和 JDK 1.5
+之前都不受支持，<code>RangeSet</code>依赖 JDK 1.6 的
+<code>NavigableMap</code> 功能。</p>
+<h3 id="视图-1">视图</h3>
+<p><code>RangeSet</code> 的实现类支持非常广泛的范围视图，例如：</p>
+<ul>
+<li><code>complement()</code>: <code>RangeSet</code>
+的补集视图。<code>complement</code> 也是一个
+<code>RangeSet</code>，即包含非连续、非空的范围。</li>
+<li><code>subRangeSet(Range&lt;C&gt;)</code>: 返回 <code>RangeSet</code>
+中指定 <code>Range</code>
+的交叉视图。这可以概括为传统有序集合的<code>headSet</code>,
+<code>subSet</code>, 和 <code>tailSet</code> 视图。</li>
+<li><code>asRanges()</code>: 以可迭代的
+<code>Set&lt;Range&lt;C&gt;&gt;</code> 形式展示
+<code>RangeSet</code>。</li>
+<li><code>asSet(DiscreteDomain&lt;C&gt;)</code>
+(<code>ImmutableRangeSet</code> only): 以
+<code>ImmutableSortedSet&lt;C&gt;</code> 的形式展示
+<code>RangeSet&lt;C&gt;</code>，展示其中的元素，而不是范围本身。（这个操作不支持在
+<code>DiscreteDomain</code> 和 <code>RangeSet</code>
+都无上界或下界的情况）</li>
+</ul>
+<h3 id="查询">查询</h3>
+<p>除了对视图的操作以外，<code>RangeSet</code>
+还支持多种直接查询操作，其中最突出的有：</p>
+<ul>
+<li><code>contains(C)</code>: <code>RangeSet</code> 最基础的操作，查询
+<code>RangeSet</code> 的任意范围中是否包含给定的元素。</li>
+<li><code>rangeContaining(C)</code>:
+返回包围了指定元素的范围，若不存在则返回 <code>null</code>。</li>
+<li><code>encloses(Range&lt;C&gt;)</code>: 直截了当，测试
+<code>RangeSet</code> 中是否存在任何 <code>Range</code>
+包含了给定的范围。</li>
+<li><code>span()</code>: 返回一个最小的 <code>Range</code>，他能
+<code>encloses</code> 所有 <code>RangeSet</code> 中的范围。</li>
+</ul>
+<h2 id="rangemap">RangeMap</h2>
+<p><code>RangeMap</code>
+是一个集合类型，描述一个不相交、非空的范围与值的映射。不像<code>RangeSet</code>，<code>RangeMap</code>
+从不“合并”相邻的映射， 即使相邻的映射指向相同的值。例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">RangeMap&lt;Integer, String&gt; rangeMap = TreeRangeMap.create();</span><br><span class="line">rangeMap.put(Range.closed(<span class="number">1</span>, <span class="number">10</span>), <span class="string">&quot;foo&quot;</span>); <span class="comment">// &#123;[1, 10] =&gt; &quot;foo&quot;&#125;</span></span><br><span class="line">rangeMap.put(Range.open(<span class="number">3</span>, <span class="number">6</span>), <span class="string">&quot;bar&quot;</span>); <span class="comment">// &#123;[1, 3] =&gt; &quot;foo&quot;, (3, 6) =&gt; &quot;bar&quot;, [6, 10] =&gt; &quot;foo&quot;&#125;</span></span><br><span class="line">rangeMap.put(Range.open(<span class="number">10</span>, <span class="number">20</span>), <span class="string">&quot;foo&quot;</span>); <span class="comment">// &#123;[1, 3] =&gt; &quot;foo&quot;, (3, 6) =&gt; &quot;bar&quot;, [6, 10] =&gt; &quot;foo&quot;, (10, 20) =&gt; &quot;foo&quot;&#125;</span></span><br><span class="line">rangeMap.remove(Range.closed(<span class="number">5</span>, <span class="number">11</span>)); <span class="comment">// &#123;[1, 3] =&gt; &quot;foo&quot;, (3, 5) =&gt; &quot;bar&quot;, (11, 20) =&gt; &quot;foo&quot;&#125;</span></span><br></pre></td></tr></table></figure>
+<h3 id="视图-2">视图</h3>
+<p><code>RangeMap</code> 提供两种视图:</p>
+<ul>
+<li><code>asMapOfRanges()</code>: 以
+<code>Map&lt;Range&lt;K&gt;, V&gt;</code> 的形式展示
+<code>RangeMap</code>。例如这可以用于遍历 <code>RangeMap</code>。</li>
+<li><code>subRangeMap(Range&lt;K&gt;)</code> 将 <code>RangeMap</code>
+与指定的 <code>Range</code> 相交为一个
+<code>RangeMap</code>。这可以概括为传统 <code>headMap</code>,
+<code>subMap</code>, 和 <code>tailMap</code>操作。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2019/11/15/guava-new-collection/" title="（Guava 译文系列）新集合类型">http://lenshood.github.io/2019/11/15/guava-new-collection/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/guava/" rel="tag"># guava</a>
+              <a href="/tags/translation/" rel="tag"># translation</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/09/28/webflux-and-redis-lock/" rel="prev" title="在 Spring Webflux 使用 Spring Integration Redis 实现分布式锁">
+                  <i class="fa fa-angle-left"></i> 在 Spring Webflux 使用 Spring Integration Redis 实现分布式锁
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/12/07/guava-collection-utilities/" rel="next" title="（Guava 译文系列）集合工具类">
+                  （Guava 译文系列）集合工具类 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

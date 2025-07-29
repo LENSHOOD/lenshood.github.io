@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文是对我自己的一个库 go-lock-free-ring-buffer （简称 lfring）改造泛型而产生性能影响的讨论。 介绍该 lfring 的文章可见这里。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="探索引入泛型对 lfring 产生的性能影响">
+<meta property="og:url" content="http://lenshood.github.io/2022/08/01/optimize-lfring-performance/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文是对我自己的一个库 go-lock-free-ring-buffer （简称 lfring）改造泛型而产生性能影响的讨论。 介绍该 lfring 的文章可见这里。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2022/08/01/optimize-lfring-performance/ring.png">
+<meta property="article:published_time" content="2022-08-01T15:31:32.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.313Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="lock free ring buffer">
+<meta property="article:tag" content="go generics">
+<meta property="article:tag" content="performance optimization">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2022/08/01/optimize-lfring-performance/ring.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2022/08/01/optimize-lfring-performance/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2022/08/01/optimize-lfring-performance/","path":"2022/08/01/optimize-lfring-performance/","title":"探索引入泛型对 lfring 产生的性能影响"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>探索引入泛型对 lfring 产生的性能影响 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%95%E5%85%A5%E6%B3%9B%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">1. 引入泛型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 性能测试</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 测试结果</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E4%BA%8E%E6%B3%9B%E5%9E%8B%E7%9A%84%E8%AE%A8%E8%AE%BA"><span class="nav-number">2.</span> <span class="nav-text">2. 关于泛型的讨论</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B3%9B%E5%9E%8B%E6%A6%82%E8%A7%88"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 泛型概览</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%8D%E5%90%8C%E7%9A%84-gcshape"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 不同的 GCShape</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%95%B0%E5%80%BC%E7%B1%BB%E5%9E%8B%E6%B3%9B%E5%9E%8B"><span class="nav-number">2.2.1.</span> <span class="nav-text">数值类型泛型</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#struct-%E7%B1%BB%E5%9E%8B%E6%B3%9B%E5%9E%8B-1puttoarray"><span class="nav-number">2.2.2.</span> <span class="nav-text">Struct 类型泛型 ~
+1：putToArray</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#struct-%E7%B1%BB%E5%9E%8B%E6%B3%9B%E5%9E%8B---2dosay"><span class="nav-number">2.2.3.</span> <span class="nav-text">Struct 类型泛型 - 2：doSay</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%9E%E5%88%B0-lfring"><span class="nav-number">3.</span> <span class="nav-text">3. 回到 lfring</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AE%80%E5%8D%95%E7%9C%8B%E7%9C%8B%E6%B1%87%E7%BC%96"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 简单看看汇编</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%94%B9%E5%8F%98%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 改变数据类型</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">4. 总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#reference"><span class="nav-number">5.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2022/08/01/optimize-lfring-performance/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="探索引入泛型对 lfring 产生的性能影响 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          探索引入泛型对 lfring 产生的性能影响
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2022-08-01 23:31:32" itemprop="dateCreated datePublished" datetime="2022-08-01T23:31:32+08:00">2022-08-01</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Go/" itemprop="url" rel="index"><span itemprop="name">Go</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2022/08/01/optimize-lfring-performance/ring.png" class="" width="300">
+<p>本文是对我自己的一个库 <a
+href="https://github.com/LENSHOOD/go-lock-free-ring-buffer">go-lock-free-ring-buffer</a>
+（简称 lfring）改造泛型而产生性能影响的讨论。</p>
+<p>介绍该 lfring 的文章可见<a
+href="https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">这里</a>。</p>
+<span id="more"></span>
+<hr />
+<p>Lock Free Ring Buffer 系列文章：</p>
+<ol type="1">
+<li><a
+href="https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">一个简单的
+Lock Free Ring Buffer，有多简单？</a></li>
+<li><a
+href="https://lenshood.github.io/2022/08/01/optimize-lfring-performance/">探索引入泛型对
+lfring 产生的性能影响</a></li>
+<li><a
+href="https://lenshood.github.io/2022/09/04/decide-lfring-channel/">lfring
+和 channel，到底要怎么选？</a></li>
+</ol>
+<hr />
+<h3 id="引入泛型">1. 引入泛型</h3>
+<p>随着 go1.18 的发布，等待了 10 年的泛型终于发布了。想想去年写的 <a
+href="https://github.com/LENSHOOD/go-lock-free-ring-buffer">lfring</a>
+的库，正是因为 go 没有泛型的支持，对数据的存取全部都用了
+<code>interface&#123;&#125;</code>，导致整个流程中反复的进行类型转换，用户在使用的时候也需要大量类型推断。</p>
+<p>虽然在实际当中，可以采用单态化的方式简化编程，改善性能，但作为一个通用的无锁队列，用<code>interface&#123;&#125;</code>来传递参数实属没有办法的办法。</p>
+<p>泛型发布之后，各种评论褒贬不一，但是从 lfring
+的角度看，我觉得引入泛型一定是利大于弊的。那么唯一的问题就是，引入了泛型之后，会不会真的如一些文章的测试结果所展示的，会产生性能劣化。lfring
+本身是想通过 lock-free 的方式来改善性能从而在某些特定场景下替代
+<code>channel</code>
+的，假如引入泛型会导致性能出现劣化，那就需要多多斟酌了。</p>
+<h4 id="性能测试">1.1 性能测试</h4>
+<p>性能测试沿用了<a
+href="https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">之前文章</a>里提到的测试办法：</p>
+<p>代码片段：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">b.RunParallel(<span class="function"><span class="keyword">func</span><span class="params">(pb *testing.PB)</span></span> &#123;</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">for</span> i := <span class="number">1</span>; pb.Next(); i++ &#123;</span><br><span class="line">    <span class="comment">// producer 分支</span></span><br><span class="line">    <span class="keyword">if</span> producer &#123;</span><br><span class="line">      buffer.Offer(ints[(i &amp; (<span class="built_in">len</span>(ints) - <span class="number">1</span>))])</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// consumer 分支</span></span><br><span class="line">      <span class="keyword">if</span> _, success := buffer.Poll(); success &#123;</span><br><span class="line">        <span class="comment">// handover counter 递增</span></span><br><span class="line">        atomic.AddInt32(&amp;counter, <span class="number">1</span>)</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line">...</span><br><span class="line"><span class="comment">// 取 counter 作为性能指标</span></span><br><span class="line">b.ReportMetric(<span class="type">float64</span>(counter), <span class="string">&quot;handovers&quot;</span>)</span><br></pre></td></tr></table></figure>
+<ul>
+<li><p>数据源：构造 64 个元素的 int 类型数组，<code>Offer</code>
+时按顺序从中取出</p></li>
+<li><p>对照组：直接与原先 <code>interface&#123;&#125;</code>
+方案的代码作为对照</p></li>
+<li><p>测试指标：</p>
+<ul>
+<li>不同的 goroutine 分别进行<code>Offer</code> 和 <code>Poll</code>
+的动作，由于生产消费之间的速度差异，以及不同 goroutine
+之间竞争的原因，<code>Poll</code> 可能会拿不到值（返回
+<code>success = false</code>，代表这一次取操作失败，需要重试），需要重试</li>
+<li>设置一个 counter，每一次成功的 <code>Poll</code> 都能让
+counter+1，counter+1 代表了某个数成功的完成了一次<code>Offer</code> 到
+<code>Poll</code> 的 handover</li>
+<li>显然，在相同的时间限制内，handover
+次数越多，代表性能越高（考虑到一定的随机性，实际测试中采取的是多次采样，去除
+3σ 区间外的离群值后取均值的办法）</li>
+</ul></li>
+<li><p>测试类型：通过三个不同的维度变量来测试不同场景下的性能表现</p>
+<ul>
+<li>环型队列中的元素容量，从 2 到 1024 变化</li>
+<li>生产者、消费者的比例，从 11:1 到 1:11 变化（测试机器一共 12
+个逻辑核）</li>
+<li>总线程数量，从 2 到 48 变化（采用设置 <code>GOMAXPROCS</code>
+的办法控制底层线程数，P 和 goroutine
+仍旧一一对应。让线程竞争更多的表现在OS 调度器上而不是 go 调度器上）</li>
+</ul></li>
+</ul>
+<p>此外，为了防止 go 版本更新而产生的其他优化对数据造成影响，使用
+<code>interface&#123;&#125;</code> 和泛型的两套代码都在
+<code>go version go1.19 darwin/amd64</code> 环境下测试。</p>
+<p>平台是2019 款 MBP，2.6 GHz 6-Core Intel Core i7 CPU，超线程后共 12
+个逻辑核。</p>
+<h4 id="测试结果">1.2 测试结果</h4>
+<p>注：下图中的 <code>NodeBased</code> 和 <code>Hybrid</code> 是 lfring
+库中队列的两种不同实现，我在<a
+href="https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">先前的博客</a>中对其进行了介绍，同时在文中也分析了
+<code>NodeBased</code>的性能比 <code>Hybrid</code> 好的原因 。</p>
+<ol type="1">
+<li>环形队列元素容量变化 <iframe src="with-capacity.html" width="100%" height="500" frameborder="0" loading="lazy" allowfullscreen></iframe></li>
+</ol>
+<p>从图中可见，不论是哪一种类型，其容量在 2 和 4
+时都没有太大的变化，而后才产生了差异，可以暂且假设在容量为 2 和 4
+时，因为其他未明因素限制了发挥。</p>
+<p>除去容量 2 和 4 后，对于 <code>NodeBased</code> 类型的 lfring，泛型比
+<code>interface&#123;&#125;</code> 性能提升从最少 5% 到最多13.8%，平均提升约
+8.4%，而对<code>Hybrid</code>类型的 lfring，泛型比
+<code>interface&#123;&#125;</code> 性能提升度不大，从最低 -4% 到最高
+7.5%，平均提升约 3.1%。</p>
+<ol start="2" type="1">
+<li>生产者与消费者比例变化 <iframe src="with-producer.html" width="100%" height="500" frameborder="0" loading="lazy" allowfullscreen></iframe></li>
+</ol>
+<p>在容量固定为 32 时，对于 <code>NodeBased</code> 类型的 lfring，泛型比
+<code>interface&#123;&#125;</code> 性能提升从最少 5.2% 到最多 27.2%，平均提升约
+17.4%，整体上看在生产者比例较低时，性能提升更明显；而对<code>Hybrid</code>类型的
+lfring，泛型比 <code>interface&#123;&#125;</code> 性能提升度同样稍逊，从最低 -0.1%
+到最高 15.3%，平均提升约 5%。</p>
+<ol start="3" type="1">
+<li>总线程数变化 <iframe src="with-thread.html" width="100%" height="500" frameborder="0" loading="lazy" allowfullscreen></iframe></li>
+</ol>
+<p>在容量固定为 32 时，对于 <code>NodeBased</code> 类型的 lfring，泛型比
+<code>interface&#123;&#125;</code> 性能提升从最少 3% 到最多 35.9%，平均提升约
+16.9%；而对<code>Hybrid</code>类型的 lfring，除了 2
+线程（一个生产者，一个消费者）性能提升较为明显，其他提升度相对较小，改善不明显。</p>
+<p>从测试结果上看，改造了泛型以后，性能非但没有劣化，反倒有所提升，而<code>NodeBased</code>
+类型的 ring 要比 <code>Hybrid</code>
+类型的性能提升更明显。后文将具体分析其原因。</p>
+<h3 id="关于泛型的讨论">2. 关于泛型的讨论</h3>
+<h4 id="泛型概览">2.1 泛型概览</h4>
+<p>Golang 在 2009 年公开发布的时候，就没有包含泛型特性，从 2009
+年开始，一直到 2020 年之间，不断地有人提出泛型的 feature
+request，有关泛型的各种讨论也层出不穷（参考有关泛型的 <a
+href="https://github.com/golang/go/issues?q=label%3Agenerics">issue</a>
+）。</p>
+<p>为什么 Golang 一直没有引入泛型呢？其作者之一 rsc 在 2009 年的讨论 <a
+href="https://research.swtch.com/generic">The Generic Dilemma</a>
+提到了一个”泛型困境“：</p>
+<p>对于泛型，市面上可见的三种处理方式：</p>
+<ol type="1">
+<li>不处理（C ），不会对语言添加任何复杂度，但会让编程的过程更慢（slows
+programers）</li>
+<li>在编译期进行单态化或宏扩展（C++），生成大量代码。不产生运行时开销，但由于单态化的代码可能导致
+icache miss
+增多从而影响部分性能。由于会在编译器生成代码，这种方式会让编译更慢（slows
+compilation）</li>
+<li>隐式装箱/拆箱（Java），可以共用一套泛型函数，实例对象在运行时做强制转换。虽然共享代码可以提高
+icache
+效率，但运行时的类型转换、运行时通过查表进行函数调用都会限制编译优化、降低运行速度，因此这种方式会让执行更慢（slows
+execution）</li>
+</ol>
+<p>rsc 的文章并没有归纳所有的泛型实践，比如<a
+href="https://docs.microsoft.com/en-us/previous-versions/ms379564(v=vs.80)?redirectedfrom=MSDN#generics-implementation">C#
+的实现</a>：对于值类型，采用类似 C++
+的方式用实际类型替换，而对于引用类型，则直接改写为
+<code>Object</code>，当前 go1.18 的泛型实现，和 C# 有点类似，不过，C#
+中泛型实例化的操作都是在运行时的，所以相对来说也可以归在 ”slow
+execution“。此外，在一篇专门记录 go 泛型讨论的文章 <a
+href="https://docs.google.com/document/d/1vrAy9gMpMoS3uaVphB32uVXX4pi-HnNjkMEgyAHX4N4/edit#heading=h.5nkda67to6u0">Summary
+of Go Generics Discussions</a>
+里面总结了十几种实现泛型的方法。总之，各种实现也大都是在上面的三个”slow“之间抉择。</p>
+<p>总之，go 团队一方面认为直接使用 <code>interface&#123;&#125;</code>
+的折中办法能解决大多数问题，因此引入泛型并不着急，另一方面也自认为还没有找到能让泛型实现的与
+go 语言其他部分紧密配合的方法。结果泛型就一拖再拖，拖了 10 年终于在 1.18
+版本发布了。</p>
+<p>在 go1.18 中，泛型的实现可以用一句话来概括：<em>GCShape Stenciling
+with Dictionaries</em>。</p>
+<ul>
+<li><a
+href="https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-stenciling.md">Stenciling</a>
+是一种泛型实现方式，指的就是类似 monomorphizing
+的办法，对同一个泛型函数，给每个实际类型都生成一个实现，在编译之后，所有对泛型函数的调用，都会被替换为生成的实例类型函数的调用。这是类似
+C++的实现。然而由于 Go 的 Type Alias
+特性，相同底层类型的多个别称类型，就会生成多个实例函数，所以链接时去重是一个大工程。</li>
+<li><a
+href="https://go.googlesource.com/proposal/+/refs/heads/master/design/generics-implementation-dictionaries.md">Dictionaries</a>
+恰好相反，在编译期，对每个泛型函数，只会生成单个汇编代码块，它将作为一个参数传入泛型函数中。dictionary
+中主要包含的就是所有可能涉及到的实例类型的 <code>runtime._type</code>
+引用。在泛型函数被实际调用时，如果函数逻辑涉及到对泛型参数的方法调用，就可以通过
+dictionary + 偏移量来获得实例类型的 <code>runtime._type</code>
+，而后再进一步获得 <code>itab</code> 信息并找到函数地址。</li>
+</ul>
+<p>Go 的泛型，在 Stenciling 和 Dictionaries
+之间，做了一个折中，既不是给所有泛型类型都生成自己独一无二的实现，又不是一种泛型类型全都用一套实现，而是按照
+GCShape 的维度来划分：同一个 GCShape 下共享一套实现，不同的
+GCShape，生成各自的实现。</p>
+<p>所以，GCShape 是什么？</p>
+<p>在 <a
+href="https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries-go1.18.md">go1.18
+的泛型实现文档</a>中用一句话对其进行了概括：<em>Two concrete types are
+in the same gcshape grouping if and only if they have the same
+underlying type or they are both pointer
+types</em>。即当且仅当两个具体类型，其底层类型完全一致，或是这两个类型都是指针类型时，它们的
+GCShape 才是一致的。</p>
+<h4 id="不同的-gcshape">2.2 不同的 GCShape</h4>
+<p>为了更具象化的了解 go
+泛型的底层实现，我们通过几个例子来尝试泛型，并看一看 go
+的编译器是怎么处理它们的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Number <span class="keyword">interface</span> &#123; ~<span class="type">int64</span> | ~<span class="type">float32</span> | ~<span class="type">uint8</span> &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> u8 <span class="type">uint8</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 数值类型约束的泛型</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">numeric</span>[<span class="title">T</span> <span class="title">Number</span>]<span class="params">(left, right T)</span></span> T &#123;</span><br><span class="line">	<span class="keyword">if</span> left &gt; right &#123;</span><br><span class="line">		<span class="keyword">return</span> (left - right) * <span class="number">8</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> (right - left) * <span class="number">4</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Animal <span class="keyword">interface</span> &#123; say() <span class="type">string</span> &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 接口类型约束的泛型</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">doSay</span>[<span class="title">T</span> <span class="title">Animal</span>]<span class="params">(e T)</span></span> <span class="type">string</span> &#123; <span class="keyword">return</span> e.say() &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Cat <span class="keyword">struct</span> &#123; name <span class="type">string</span> &#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Cat)</span></span> say() <span class="type">string</span> &#123; <span class="keyword">return</span> c.name &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Dog <span class="keyword">struct</span> &#123; name <span class="type">string</span> &#125;</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Dog)</span></span> say() <span class="type">string</span> &#123; <span class="keyword">return</span> c.name &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 实例类型约束的泛型</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">putToArr</span>[<span class="title">T</span> <span class="title">Dog</span> | <span class="title">Cat</span>]<span class="params">(e T)</span></span> []T &#123;</span><br><span class="line">	arr := <span class="built_in">make</span>([]T, <span class="number">1</span>)</span><br><span class="line">	arr[<span class="number">0</span>] = e</span><br><span class="line">	<span class="keyword">return</span> arr</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	n1 := numeric(<span class="type">int64</span>(<span class="number">17</span>), <span class="type">int64</span>(<span class="number">35</span>))</span><br><span class="line">	n2 := numeric(<span class="type">float32</span>(<span class="number">155.5</span>), <span class="type">float32</span>(<span class="number">233.1</span>))</span><br><span class="line">	n3 := numeric(u8(<span class="number">3</span>), u8(<span class="number">5</span>))</span><br><span class="line">	fmt.Printf(<span class="string">&quot;n1: %v, n2, %v, n3 %v\n&quot;</span>, n1, n2, n3)</span><br><span class="line"></span><br><span class="line">	cat := Cat&#123;<span class="string">&quot;cat&quot;</span>&#125;</span><br><span class="line">	dog := Dog&#123;<span class="string">&quot;dog&quot;</span>&#125;</span><br><span class="line">	s1 := cat.say()</span><br><span class="line">	s2 := dog.say()</span><br><span class="line">	s3 := Animal(&amp;cat).say()</span><br><span class="line">	fmt.Printf(<span class="string">&quot;s1: %v, s2, %v, s3: %v\n&quot;</span>, s1, s2, s3)</span><br><span class="line"></span><br><span class="line">	s4 := putToArr(dog)</span><br><span class="line">	s5 := putToArr(cat)</span><br><span class="line">	s6 := doSay(&amp;cat)</span><br><span class="line">	s7 := doSay(&amp;dog)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;s4: %v, s5: %v, s6: %v, s7: %v\n&quot;</span>, s4, s5, s6, s7)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> animal = Animal(&amp;cat)</span><br><span class="line">	s8 := doSay(animal)</span><br><span class="line">	fmt.Printf(<span class="string">&quot;s8: %v\n&quot;</span>, s8)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述程序大致对泛型进行了如下的两种测试：</p>
+<ul>
+<li>定义泛型函数
+<code>numeric()</code>，可接受的底层类型为三种数值类型；在<code>main()</code>
+测试中，分别测试了<code>int64</code>、<code>float32</code>、以及重命名的<code>uint8</code></li>
+<li>定义具有<code>say()</code> 方法的 interface
+<code>Animal</code>，并定义两个底层类型都是 string 的 struct
+<code>Cat</code> 和
+<code>Dog</code>，之后分别定义了两个泛型函数，一个接受限制为
+<code>Animal</code> 的泛型类型，另一个接受限制为 <code>Cat</code> 或
+<code>Dog</code> 的泛型类型</li>
+</ul>
+<p>接下来我们分别看一看上述两种测试，其实际的编译结果是怎么样的。为了理解上更清晰，我们还会对比编译结果在进行编译优化前/后的不同状态。</p>
+<h5 id="数值类型泛型">数值类型泛型</h5>
+<p>对于泛型函数
+<code>func numeric[T Number](left, right T) T</code>，我们得到其未经优化的汇编代码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">main.numeric[go.shape.int64_0] STEXT dupok nosplit size=107 args=0x18 locals=0x10 funcid=0x0 align=0x0</span><br><span class="line">	TEXT	main.numeric[go.shape.int64_0](SB), DUPOK|NOSPLIT|ABIInternal, $16-24</span><br><span class="line">	...</span><br><span class="line">	MOVQ	AX, main..dict+24(SP)</span><br><span class="line">	MOVQ	BX, main.left+32(SP)</span><br><span class="line">	MOVQ	CX, main.right+40(SP)</span><br><span class="line">	MOVQ	$0, main.~r0(SP)</span><br><span class="line">	MOVQ	main.left+32(SP), CX</span><br><span class="line">	CMPQ	main.right+40(SP), CX ## if left &gt; right</span><br><span class="line">	JLT	51</span><br><span class="line">	JMP	79</span><br><span class="line">	MOVQ	main.left+32(SP), AX</span><br><span class="line">	SUBQ	main.right+40(SP), AX ## AX = left - right</span><br><span class="line">	SHLQ	$3, AX                ## AX &lt;&lt; 3 as AX = AX*8</span><br><span class="line">	MOVQ	AX, main.~r0(SP)</span><br><span class="line">	MOVQ	8(SP), BP</span><br><span class="line">	ADDQ	$16, SP</span><br><span class="line">	RET</span><br><span class="line">	MOVQ	main.right+40(SP), AX</span><br><span class="line">	SUBQ	main.left+32(SP), AX  ## AX = right - left</span><br><span class="line">	SHLQ	$2, AX                ## AX &lt;&lt; 2 as AX = AX*4</span><br><span class="line">	MOVQ	AX, main.~r0(SP)</span><br><span class="line">	MOVQ	8(SP), BP</span><br><span class="line">	ADDQ	$16, SP</span><br><span class="line">	RET</span><br><span class="line">	...</span><br><span class="line">main.numeric[go.shape.float32_0] STEXT dupok nosplit size=139 args=0x10 locals=0x10 funcid=0x0 align=0x0</span><br><span class="line">	...</span><br><span class="line">main.numeric[go.shape.uint8_0] STEXT dupok nosplit size=103 args=0x10 locals=0x10 funcid=0x0 align=0x0</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>我们最先发现的就是，函数真的生成了三个版本！它们的名字分别是
+<code>main.numeric[go.shape.int64_0]</code>，<code>main.numeric[go.shape.float32_0]</code>，
+<code>main.numeric[go.shape.uint8_0]</code>，正好对应了泛型约束中的
+<code>~int64</code>、<code>~float32</code>、<code>~uint8</code>，而我们定义的别名
+<code>u8</code> 没有出现输出代码中，而 <code>u8</code>
+被替换为了其底层类型 <code>uint8</code>。</p>
+<p>由于三个不同 GCShape 所生成的代码，几乎一致（除了<code>float32</code>
+中用 X0 寄存器替换 BX，用 MOVSS 指令替换 MOVQ
+这类整数和浮点数的指令差异），因此只保留了<code>int64</code> 的代码。
+三种数值类型的 GCShape，生成了三个函数，代表了 Stenciling。</p>
+<p>在程序开头我们发现，除了按照 calling convention 将传入参数
+<code>left</code> 和 <code>right</code> 从栈上拷贝到 BX 和 CX
+寄存器，还拷贝了一个名为 <code>main..dict</code> 的入参，放入
+AX（并且按顺序来看，该参数还是第一个入参）。这其实就是
+Dictionaries：对于相同的
+GCShape，可能映射到不同的具体类型，那么当调用方法时，到底调用哪一个呢？这就需要在传入的
+<code>main..dict</code>
+结构中进行二次检索才能找到。不过这里的例子中并没有用到
+<code>main..dict</code> 的场景。</p>
+<p>再来看一看开启了编译优化的结果：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">main.numeric[go.shape.int64_0] STEXT dupok nosplit size=27 args=0x18 locals=0x0 funcid=0x0 align=0x0</span><br><span class="line">	TEXT	main.numeric[go.shape.int64_0](SB), DUPOK|NOSPLIT|ABIInternal, $0-24</span><br><span class="line">	...</span><br><span class="line">	CMPQ	CX, BX  ## register based argument</span><br><span class="line">	JGE	16</span><br><span class="line">	SUBQ	CX, BX</span><br><span class="line">	SHLQ	$3, BX</span><br><span class="line">	MOVQ	BX, AX</span><br><span class="line">	RET</span><br><span class="line">	SUBQ	BX, CX</span><br><span class="line">	SHLQ	$2, CX</span><br><span class="line">	MOVQ	CX, AX</span><br><span class="line">	RET</span><br></pre></td></tr></table></figure>
+<p>显而易见，通过栈传参没了，直接替换为了寄存器传参（<a
+href="https://go.googlesource.com/proposal/+/refs/changes/78/248178/1/design/40724-register-calling.md">proposal</a>），另外
+<code>mian..dict</code> 既然没用，也不必出现了。</p>
+<p>另外，非优化版本中的各种来回在寄存器和栈直接传值，也全部优化成了直接在寄存器中运算。</p>
+<h5 id="struct-类型泛型-1puttoarray">Struct 类型泛型 ~
+1：putToArray</h5>
+<p>由于编译优化和上文类似，因此直接展示开启编译优化后的
+<code>putToArray()</code> 的汇编结果：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">main.putToArr[go.shape.struct &#123; &lt;unlinkable&gt;.name string &#125;_0] STEXT dupok size=159 args=0x18 locals=0x30 funcid=0x0 align=0x0</span><br><span class="line">	TEXT	main.putToArr[go.shape.struct &#123; &lt;unlinkable&gt;.name string &#125;_0](SB), DUPOK|ABIInternal, $48-24</span><br><span class="line">	...</span><br><span class="line">	MOVQ	CX, main..autotmp_7+24(SP)</span><br><span class="line">	MOVQ	BX, main..autotmp_8+32(SP)</span><br><span class="line">	## AX，BX，CX 存放 makeslice 需要的三个入参，type，len，cap</span><br><span class="line">	LEAQ	type.go.shape.struct &#123; &lt;unlinkable&gt;.name string &#125;_0(SB), AX</span><br><span class="line">	MOVL	$1, BX</span><br><span class="line">	MOVQ	BX, CX</span><br><span class="line">	...</span><br><span class="line">	CALL	runtime.makeslice(SB)       ## 堆上构造并初始化容量为 1 的 slice，首地址存入 AX</span><br><span class="line">	## 入参的底层类型是 string，包含一个 8 字节的 &quot;str unsafe.Pointer&quot; 和 8 字节的 &quot;len int&quot;</span><br><span class="line">	MOVQ	main..autotmp_7+24(SP), DX  ## (AX) + 8 &lt;= string.len</span><br><span class="line">	MOVQ	DX, 8(AX)</span><br><span class="line">	...</span><br><span class="line">	MOVQ	main..autotmp_8+32(SP), DX  ## (AX) &lt;= string.str</span><br><span class="line">	MOVQ	DX, (AX)</span><br><span class="line">	JMP	101</span><br><span class="line">	...</span><br><span class="line">	## 函数返回的 slice，AX 已经存储了地址，再向 BX，CX 中存放 len == cap == 1</span><br><span class="line">	MOVL	$1, BX</span><br><span class="line">	MOVQ	BX, CX</span><br><span class="line">	MOVQ	40(SP), BP</span><br><span class="line">	ADDQ	$48, SP</span><br><span class="line">	RET</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>生成的函数
+<code>main.putToArr[go.shape.struct &#123; &lt;unlinkable&gt;.name string &#125;_0]</code>
+再次证明了，相同底层类型的
+struct，共享同一个GCShape，因此没有出现专为<code>Cat</code> 和
+<code>Dog</code> 生成的代码。</p>
+<h5 id="struct-类型泛型---2dosay">Struct 类型泛型 - 2：doSay</h5>
+<p><code>doSay()</code> 在汇编结果上看，生成了两个函数：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br></pre></td><td class="code"><pre><span class="line">main.doSay[go.shape.*uint8_0] STEXT dupok size=118 args=0x10 locals=0x30 funcid=0x0 align=0x0</span><br><span class="line">	TEXT	main.doSay[go.shape.*uint8_0](SB), DUPOK|ABIInternal, $48-16</span><br><span class="line">	...</span><br><span class="line">	MOVQ	AX, main..dict+56(SP)</span><br><span class="line">	MOVQ	BX, main.e+64(SP)     ## 入参 e</span><br><span class="line">	MOVUPS	X15, main.~r0+8(SP) </span><br><span class="line">	MOVQ	main..dict+56(SP), DX ## DX 存放 dict 地址</span><br><span class="line">	...</span><br><span class="line">	TESTB	AL, (DX)</span><br><span class="line">	LEAQ	16(DX), CX            ## dict+16 存入 CX</span><br><span class="line">	MOVQ	main.e+64(SP), AX     ## 方法隐式参数：receiver</span><br><span class="line">	MOVQ	16(DX), BX            ## dict+16 指向的数据即 (*Dog).say 方法地址</span><br><span class="line">	MOVQ	CX, DX                ## 按目前的 calling convention，DX 存放 closure ctx</span><br><span class="line">	...</span><br><span class="line">	CALL	BX                    ## 跳转到 (*Dog).say</span><br><span class="line">	MOVQ	AX, main..autotmp_3+24(SP)</span><br><span class="line">	MOVQ	BX, main..autotmp_3+32(SP)</span><br><span class="line">	MOVQ	AX, main.~r0+8(SP)</span><br><span class="line">	MOVQ	BX, main.~r0+16(SP)</span><br><span class="line">	MOVQ	40(SP), BP</span><br><span class="line">	ADDQ	$48, SP</span><br><span class="line">	RET</span><br><span class="line">	...</span><br><span class="line">main.doSay[go.shape.interface &#123; &lt;unlinkable&gt;.say() string &#125;_0] STEXT dupok size=141 args=0x18 locals=0x38 funcid=0x0 align=0x0</span><br><span class="line">	...</span><br><span class="line">	LEAQ	16(DX), CX</span><br><span class="line">	MOVQ	main.e+72(SP), AX</span><br><span class="line">	MOVQ	main.e+80(SP), BX</span><br><span class="line">	MOVQ	16(DX), SI             ## dict+16 存入 SI</span><br><span class="line">	MOVQ	CX, DX</span><br><span class="line">	PCDATA	$1, $1</span><br><span class="line">	CALL	SI                     ## 跳转到 Animal.say</span><br><span class="line">	...</span><br><span class="line">&lt;unlinkable&gt;..dict.doSay[*&lt;unlinkable&gt;.Dog] SRODATA dupok size=24</span><br><span class="line">	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span><br><span class="line">	0x0010 00 00 00 00 00 00 00 00                          ........</span><br><span class="line">	rel 0+8 t=1 type.*&lt;unlinkable&gt;.Dog+0</span><br><span class="line">	rel 0+0 t=23 type.*&lt;unlinkable&gt;.Dog+0</span><br><span class="line">	rel 16+8 t=1 &lt;unlinkable&gt;.(*Dog).say+0</span><br><span class="line">&lt;unlinkable&gt;..dict.doSay[&lt;unlinkable&gt;.Animal] SRODATA dupok size=24</span><br><span class="line">	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span><br><span class="line">	0x0010 00 00 00 00 00 00 00 00                          ........</span><br><span class="line">	rel 0+8 t=1 type.&lt;unlinkable&gt;.Animal+0</span><br><span class="line">	rel 16+8 t=1 &lt;unlinkable&gt;.Animal.say+0</span><br><span class="line">	</span><br><span class="line">&quot;&quot;.doSay[go.shape.*uint8_0] STEXT dupok size=124 args=0x10 locals=0x38 funcid=0x0 align=0x0</span><br><span class="line">	...</span><br><span class="line">	MOVQ	AX, &quot;&quot;..dict+64(SP)</span><br><span class="line">	MOVQ	BX, &quot;&quot;.e+72(SP)         ## 入参 e</span><br><span class="line">	MOVUPS	X15, &quot;&quot;.~r0+16(SP)</span><br><span class="line">	MOVQ	&quot;&quot;.e+72(SP), AX</span><br><span class="line">	MOVQ	AX, &quot;&quot;..autotmp_3+8(SP)</span><br><span class="line">	MOVQ	&quot;&quot;..dict+64(SP), CX     ## CX 存放 dict 地址</span><br><span class="line">	...</span><br><span class="line">	TESTB	AL, (CX)</span><br><span class="line">	MOVQ	16(CX), CX              ## dict+16 指向 Cat/Dog 的 itab</span><br><span class="line">	TESTB	AL, (CX)</span><br><span class="line">	MOVQ	24(CX), CX              ## itab+24 即为实际方法列表地址</span><br><span class="line">	...</span><br><span class="line">	CALL	CX                      ## 方法列表中只有一个方法，直接调用就是 say()</span><br><span class="line">	MOVQ	AX, &quot;&quot;..autotmp_4+32(SP)</span><br><span class="line">	MOVQ	BX, &quot;&quot;..autotmp_4+40(SP)</span><br><span class="line">	MOVQ	AX, &quot;&quot;.~r0+16(SP)</span><br><span class="line">	MOVQ	BX, &quot;&quot;.~r0+24(SP)</span><br><span class="line">	MOVQ	48(SP), BP</span><br><span class="line">	ADDQ	$56, SP</span><br><span class="line">	NOP</span><br><span class="line">	RET</span><br><span class="line">	...</span><br><span class="line">&quot;&quot;.doSay[go.shape.interface &#123; &quot;&quot;.say() string &#125;_0] STEXT dupok size=170 args=0x18 locals=0x58 funcid=0x0 align=0x0</span><br><span class="line">	...</span><br><span class="line">	MOVQ	&quot;&quot;.e+112(SP), CX         ## 入参 e.data (参见 iface)</span><br><span class="line">	MOVQ	CX, &quot;&quot;..autotmp_5+24(SP)</span><br><span class="line">	MOVQ	&quot;&quot;.e+104(SP), BX         ## 入参 e.tab (参见 iface)</span><br><span class="line">	LEAQ	type.&quot;&quot;.Animal(SB), AX   ## Animal type</span><br><span class="line">	PCDATA	$1, $1</span><br><span class="line">	CALL	runtime.assertI2I(SB)    ## 校验传入的 e 是否是 Animal，返回值 itab 存入 AX</span><br><span class="line">	MOVQ	AX, &quot;&quot;..autotmp_3+64(SP)</span><br><span class="line">	MOVQ	&quot;&quot;..autotmp_5+24(SP), CX</span><br><span class="line">	MOVQ	CX, &quot;&quot;..autotmp_3+72(SP)</span><br><span class="line">	TESTB	AL, (AX)</span><br><span class="line">	MOVQ	24(AX), DX               ## itab+24 即为实际方法列表地址</span><br><span class="line">	MOVQ	CX, AX</span><br><span class="line">	...</span><br><span class="line">	CALL	DX                       ## 方法列表中只有一个方法，直接调用就是 say()</span><br><span class="line">	...</span><br><span class="line">&quot;&quot;..dict.doSay[*&quot;&quot;.Cat] SRODATA dupok size=24</span><br><span class="line">	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span><br><span class="line">	0x0010 00 00 00 00 00 00 00 00                          ........</span><br><span class="line">	rel 0+8 t=1 type.*&quot;&quot;.Cat+0</span><br><span class="line">	rel 0+0 t=23 type.*&quot;&quot;.Cat+0</span><br><span class="line">	rel 0+0 t=23 type.*&quot;&quot;.Cat+0</span><br><span class="line">	rel 16+8 t=1 go.itab.*&quot;&quot;.Cat,&quot;&quot;.Animal+0</span><br><span class="line">&quot;&quot;..dict.doSay[*&quot;&quot;.Dog] SRODATA dupok size=24</span><br><span class="line">	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span><br><span class="line">	0x0010 00 00 00 00 00 00 00 00                          ........</span><br><span class="line">	rel 0+8 t=1 type.*&quot;&quot;.Dog+0</span><br><span class="line">	rel 0+0 t=23 type.*&quot;&quot;.Dog+0</span><br><span class="line">	rel 0+0 t=23 type.*&quot;&quot;.Dog+0</span><br><span class="line">	rel 16+8 t=1 go.itab.*&quot;&quot;.Dog,&quot;&quot;.Animal+0</span><br><span class="line">&quot;&quot;..dict.doSay[&quot;&quot;.Animal] SRODATA dupok size=24</span><br><span class="line">	0x0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span><br><span class="line">	0x0010 00 00 00 00 00 00 00 00                          ........</span><br><span class="line">	rel 0+8 t=1 type.&quot;&quot;.Animal+0</span><br></pre></td></tr></table></figure>
+<p>对于<code>doSay()</code> 分别基于在<code>main()</code> 中直接传入的
+<code>*Cat/*Dog</code> 和传入被转换为 <code>Animal</code> 的
+Dog，生成了两个类似的函数。<code>*Cat/*Dog</code>对应的函数其 GCShape 是
+<code>*uint8_0</code>，而<code>Animal</code> 对应的 GCShape 则是
+<code>interface &#123; &lt;unlinkable&gt;.say() string &#125;_0</code>，符合
+GCShape 的定义（interface 视为单独的
+GCShape，而指针类型全部视为<code>*unit8</code>）。</p>
+<p>这里我们会发现，由于指针类型的 GCShape
+是完全相同的，那么当传入的参数分别是 <code>*Cat/*Dog</code>
+时，如何才能找到正确的 <code>say()</code> 呢？</p>
+<p>通过汇编代码可知，泛型函数需要先到<code>dict</code> 中找到对应类型的
+interface <code>itab</code>，再通过<code>itab</code>
+里面的方法列表找到方法进行调用。相比非泛型下的 interface
+接口调用，多了一次寻址 dict 的步骤，可以预见这种方式一定更慢。而对
+<code>Animal</code>
+的泛型调用更夸张，中间竟然还穿插了一次运行时的类型校验函数调用。</p>
+<p>上述测试主要参考了 Vicent Marti 的文章 <a
+href="https://planetscale.com/blog/generics-can-make-your-go-code-slower">Generics
+can make your Go code slower</a>
+中设计的测试，更详细的解读参见该文。</p>
+<h3 id="回到-lfring">3. 回到 lfring</h3>
+<h4 id="简单看看汇编">3.1 简单看看汇编</h4>
+<p>基于前一节的介绍，我们已经对 go
+泛型所生成的汇编代码有了一定的认识，那么现在我们直接将两个版本（interface{}
+和 generics）的 lfring 汇编结果进行比较，来直观的进行体会：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">###### interface&#123;&#125; 代码经过精简，省略了无关本文的部分</span><br><span class="line">&lt;unlinkable&gt;.(*nodeBased).Offer STEXT size=293 args=0x18 locals=0x30 funcid=0x0 align=0x0</span><br><span class="line">	MOVQ	AX, &lt;unlinkable&gt;.r+56(SP)         ## receiver</span><br><span class="line">	MOVQ	BX, &lt;unlinkable&gt;.value+64(SP)     ## eface._type</span><br><span class="line">	MOVQ	CX, &lt;unlinkable&gt;.value+72(SP)     ## eface.data</span><br><span class="line">	LEAQ	type.interface &#123;&#125;(SB), AX</span><br><span class="line">	CALL	runtime.newobject(SB)             ## 堆上创建 interface&#123;&#125; 类型对象</span><br><span class="line">	MOVUPS	&lt;unlinkable&gt;.value+64(SP), X0   ## 将 eface 赋值到创建的对象上</span><br><span class="line">	MOVUPS	X0, (AX)                        ## MOVUPS SSE 指令一次性移动 128bit</span><br><span class="line">  ... 之后完全相同</span><br><span class="line"></span><br><span class="line">###### generics 代码经过精简，省略了无关本文的部分</span><br><span class="line">&lt;unlinkable&gt;.(*nodeBased[go.shape.int_0]).Offer STEXT dupok size=249 args=0x18 locals=0x20 funcid=0x0 align=0x0</span><br><span class="line">	MOVQ	BX, &lt;unlinkable&gt;.r+48(SP)         ## receiver</span><br><span class="line">	MOVQ	CX, &lt;unlinkable&gt;.value+56(SP)     ## value</span><br><span class="line">	LEAQ	type.go.shape.int_0(SB), AX</span><br><span class="line">	CALL	runtime.newobject(SB)             ## 堆上创建 go.shape.int_0 类型对象</span><br><span class="line">	MOVQ	&lt;unlinkable&gt;.value+56(SP), CX</span><br><span class="line">	MOVQ	CX, (AX)                          ## 为创建的对象赋值为 value</span><br><span class="line">  ... 之后完全相同</span><br></pre></td></tr></table></figure>
+<p>以<code>Offer</code>为例，我们发现 <code>interface&#123;&#125;</code> 和
+<code>generics</code> 两种区别不大，基本都是将传入的<code>value</code>
+在堆上创建对象，唯一区别是创建对象的类型不同。</p>
+<p>再看一看实际调用的地方：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">###### interface&#123;&#125;</span><br><span class="line">	...</span><br><span class="line">	MOVQ	(DX)(BX*8), AX       ## 入参放到 AX</span><br><span class="line">	CALL	runtime.convT64(SB)  ## 入参是 64bit int，convT64 将其分配在堆上</span><br><span class="line">	MOVQ	&lt;unlinkable&gt;.buffer.itab+48(SP), CX</span><br><span class="line">	MOVQ	24(CX), DX           ## Buffer.iface.fun 得到接口第一个方法地址</span><br><span class="line">	LEAQ	type.int(SB), BX     ## interface&#123;&#125; 类型的 value：eface._type</span><br><span class="line">	MOVQ	AX, SI</span><br><span class="line">	MOVQ	&lt;unlinkable&gt;.buffer.data+64(SP), AX ## receiver</span><br><span class="line">	MOVQ	SI, CX               ## interface&#123;&#125; 类型的 value：eface.data</span><br><span class="line">	CALL	DX                   ## Offer(receiver, eface._type, eface.data)</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">###### generics</span><br><span class="line">	...</span><br><span class="line">	MOVQ	&lt;unlinkable&gt;.buffer.itab+40(SP), R8</span><br><span class="line">	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun</span><br><span class="line">	MOVQ	(DI)(R10*8), BX      ## 入参放到 BX</span><br><span class="line">	MOVQ	SI, AX               ## receiver</span><br><span class="line">	CALL	CX                   ## Offer(receiver, int value)</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>这里就能看出区别了，对于接收泛型类型参数的函数，在编译期其泛型就已经确定被替换为了
+<code>go.shape.int_0</code>，该 GCShape
+不包含指针，因此传参时直接传值。</p>
+<p>但对于接收 <code>interface&#123;&#125;</code>
+类型的参数，虽然实际上传入的参数仍旧是 int，但由于强行转换成了
+<code>interface&#123;&#125;</code>，因此编译器在进行逃逸分析时，难以确定该
+<code>interface&#123;&#125;</code> 里面的 data
+指针，传入函数体内后会如何被使用（栈上分配要求<a
+href="https://github.com/golang/go/blob/64b260dbdefcd2205e74d236a7f33d0e6b8f48cb/src/cmd/compile/internal/escape/escape.go#L22">堆上指针不可指向栈</a>），因此保守的做法就是产生一次额外的
+<code>runtime.convT64</code> 内存分配动作。</p>
+<p>经过对比，我们可以假设，就是因为这一次额外的堆内存分配，导致了性能的差异。</p>
+<h4 id="改变数据类型">3.2 改变数据类型</h4>
+<p>根据上述推断，如果在转换 <code>interface&#123;&#125;</code>
+时不再需要进行堆内存分配，也许两者的差异就会消失。设想，假如传入的参数已经在堆上了，不就不需要额外分配一次了吗？（这里主要为了测试
+buffer 本身的性能，把堆上分配的开销排除在了测试外）。</p>
+<p>一次，直接给<code>Offer()</code>
+传入一个已经在堆上分配过的对象指针，我们得到了如下的测试结果：</p>
+<iframe src="with-capacity-pointer.html" width="100%" height="500" frameborder="0" loading="lazy" allowfullscreen></iframe>
+<p>看到上图，不需要任何计算，肉眼也能看出来二者几乎一致。既然从测试结果能印证我们的假设，我们再看看汇编：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">###### interface&#123;&#125;</span><br><span class="line">	...</span><br><span class="line">	MOVQ	24(R8), DX           ## Buffer.iface.fun 得到接口第一个方法地址</span><br><span class="line">	LEAQ	(DI)(R10*8), CX      ## interface&#123;&#125; 类型的 value：eface.data</span><br><span class="line">	MOVQ	SI, AX               ## receiver</span><br><span class="line">	LEAQ	type.*int(SB), BX    ## interface&#123;&#125; 类型的 value：eface._type</span><br><span class="line">	CALL	DX                   ## Offer(receiver, eface._type, eface.data)</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">###### generics</span><br><span class="line">	...</span><br><span class="line">	MOVQ	24(R8), CX           ## CX = Buffer.iface.fun</span><br><span class="line">	LEAQ	(DI)(R10*8), BX      ## 入参放到 BX</span><br><span class="line">	MOVQ	SI, AX               ## receiver</span><br><span class="line">	CALL	CX                   ## Offer(receiver, int value)</span><br><span class="line">	...</span><br></pre></td></tr></table></figure>
+<p>可以看到在传入了指针后，<code>interface&#123;&#125;</code> 不再调用
+<code>runtime.convT64(SB)</code> 了。另外，从第 6 行也可以发现，type
+变成了 <code>*int</code>。</p>
+<p>另外，我们省略了对 <code>Hybrid</code>
+类型汇编结果的展示。考虑到第一节的对比中，<code>Hybrid</code>
+类型的性能提升相比 <code>NodeBased</code> 更不明显，我认为主要原因是
+<code>Hybrid</code>
+本来就更慢，因此减少一次堆内存分配所能产生的效应就更小（<a
+href="https://en.wikipedia.org/wiki/Amdahl%27s_law">Amdahl's
+Law</a>）。</p>
+<h3 id="总结">4. 总结</h3>
+<p>在前面的文章中，我们先通过测试发现，将 lfring
+改造为泛型后，性能有大约 5%~10% 左右的提升。之后分析了 go
+泛型的原理以及对几种泛型编译结果的解读。最后通过对 lfring
+的泛型、<code>interface&#123;&#125;</code>
+两种形式的性能、编译结果的对比，得出了性能提升的主要原因是：对非指针类型参数，<code>interface&#123;&#125;</code>
+在转换过程中需要一次额外的堆内存分配，而泛型不需要。</p>
+<p>但由于性能测试中的数据类型恰好选取了值类型而非指针，因此使测试得出了性能更优的片面结论，在全面了解了泛型的实现原理并做了测试后，我们最终可知：只在实际类型是值类型时才会提升性能，而指针类型并不行。</p>
+<p>基于第二节对于泛型的分析，我们还发现了 go
+当前泛型实现的缺陷：对于传入接口类型的泛型参数，调用泛型函数需要进行两次内存寻址才能找到正确的方法地址，在这种场景下，泛型反倒会降低性能。</p>
+<p>最后，引用 Vicent Marti 的文章 <a
+href="https://planetscale.com/blog/generics-can-make-your-go-code-slower">Generics
+can make your Go code slower</a> 中最后对于 go 泛型使用场景的总结：</p>
+<ul>
+<li><strong>建议用泛型</strong> 的<code>ByteSeq</code> 约束，来消除接收
+<code>string</code> 和 <code>[]byte</code>
+参数的相同行为方法。泛型生成的 GCShape 和手写的非常相近。</li>
+<li><strong>建议用泛型</strong>
+在数据结构中。这种方式是目前为止最合适的：先前在数据结构中用
+<code>interface&#123;&#125;</code>
+来实现泛型的方式又复杂又不友好（un-ergonomic）。用了泛型之后，可以在类型安全的方式下存储拆箱类型，因此类型推断不再需要了。这样既简单，又高效。（本文讨论的例子，实际上就是应用了这一条建议）</li>
+<li><strong>建议用泛型</strong> 来约束回调函数参数的类型。在某些情况下
+Go 编译器还能将回调函数直接内联拍平。</li>
+<li><strong>不建议用泛型</strong>
+来尝试去虚化（de-virtualize）或内涵方法调用，这根本没用。这是因为所有指针类型的
+GCShape 都一样，所以真正的方法信息还是存放在运行时 dictionary
+中的。</li>
+<li><strong>不建议用泛型</strong>
+在需要给泛型函数传入一个接口的任何场景。因为实例化 GCShape
+时，对于接口类型参数，泛型并没有降低虚化程度，反倒还引入了额外的一层来在全局哈希表中查找方法。只要在性能敏感的场景，都不要传入接口，而是传入实例指针。</li>
+<li><strong>不建议用泛型</strong> 重写基于接口的
+API。由于目前泛型实现的限制，使用接口（除了
+<code>interface&#123;&#125;</code>）的行为要比用泛型更容易预测。泛型在进行方法调用时有可能会产生的两次间接查找，坦率的讲这很可怕。</li>
+<li><strong>也别忧伤</strong>，因为 Go
+泛型在实现中并未存在任何技术上的限制来阻止它最终发展成以真正的单态化（monomorphization）方式来内联和去虚化方法调用的实现。</li>
+</ul>
+<h3 id="reference">Reference</h3>
+<ol type="1">
+<li><a
+href="https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries-go1.18.md">Go
+1.18 Implementation of Generics</a></li>
+<li><a
+href="https://github.com/golang/proposal/blob/master/design/generics-implementation-gcshape.md">Generics
+implementation - GC Shape Stenciling</a></li>
+<li><a
+href="https://github.com/golang/proposal/blob/master/design/generics-implementation-dictionaries.md">Generics
+implementation - Dictionaries</a></li>
+<li><a
+href="https://github.com/golang/proposal/blob/master/design/generics-implementation-stenciling.md">Generics
+implementation - Stenciling</a></li>
+<li><a
+href="https://planetscale.com/blog/generics-can-make-your-go-code-slower">Generics
+can make your Go code slower</a></li>
+<li><a
+href="https://go.googlesource.com/proposal/+/HEAD/design/43651-type-parameters.md">Type
+Parameters Proposal</a></li>
+<li><a href="https://research.swtch.com/interfaces">Go Data Structures:
+Interfaces</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2022/08/01/optimize-lfring-performance/" title="探索引入泛型对 lfring 产生的性能影响">http://lenshood.github.io/2022/08/01/optimize-lfring-performance/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/lock-free-ring-buffer/" rel="tag"># lock free ring buffer</a>
+              <a href="/tags/go-generics/" rel="tag"># go generics</a>
+              <a href="/tags/performance-optimization/" rel="tag"># performance optimization</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/07/16/build-analysis-and-implement-pipeline/" rel="prev" title="构建分析设计与落地交付的迭代式工作流">
+                  <i class="fa fa-angle-left"></i> 构建分析设计与落地交付的迭代式工作流
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/09/04/decide-lfring-channel/" rel="next" title="lfring 和 channel，到底要怎么选？">
+                  lfring 和 channel，到底要怎么选？ <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

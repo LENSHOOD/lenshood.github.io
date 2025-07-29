@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="这一节，我们涉及的知识是 TiDB 如何实现 DDL。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiDB 学习课程 Lesson-5">
+<meta property="og:url" content="http://lenshood.github.io/2020/09/19/tidb-lesson-5/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="这一节，我们涉及的知识是 TiDB 如何实现 DDL。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-09-19T14:14:32.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.457Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="tidb">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/09/19/tidb-lesson-5/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/09/19/tidb-lesson-5/","path":"2020/09/19/tidb-lesson-5/","title":"TiDB 学习课程 Lesson-5"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>TiDB 学习课程 Lesson-5 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#tidb-ddl-%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"><span class="nav-number">1.</span> <span class="nav-text">TiDB DDL 工作原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%BB%E5%8A%A1%E5%88%86%E5%8F%91%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.1.</span> <span class="nav-text">任务分发模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%82%E6%AD%A5-schema-%E5%8F%98%E6%9B%B4%E5%8E%9F%E7%90%86"><span class="nav-number">1.2.</span> <span class="nav-text">异步 Schema 变更原理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BC%82%E6%AD%A5%E5%8F%98%E6%9B%B4%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">1.2.1.</span> <span class="nav-text">异步变更存在的问题</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%8A%B6%E6%80%81%E6%8B%86%E5%88%86%E8%A7%A3%E5%86%B3%E4%B8%8D%E4%B8%80%E8%87%B4%E9%97%AE%E9%A2%98"><span class="nav-number">1.2.2.</span> <span class="nav-text">状态拆分解决不一致问题</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%9C%9F%E5%AE%9E%E7%A4%BA%E4%BE%8B"><span class="nav-number">1.2.2.1.</span> <span class="nav-text">真实示例</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tidb-ddl-%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">TiDB DDL 实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ddl-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="nav-number">2.1.</span> <span class="nav-text">DDL 初始化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#in-place-instant"><span class="nav-number">2.2.</span> <span class="nav-text">in place &#x2F; instant</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/09/19/tidb-lesson-5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="TiDB 学习课程 Lesson-5 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TiDB 学习课程 Lesson-5
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-09-19 22:14:32" itemprop="dateCreated datePublished" datetime="2020-09-19T22:14:32+08:00">2020-09-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/TiDB/" itemprop="url" rel="index"><span itemprop="name">TiDB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>这一节，我们涉及的知识是 TiDB 如何实现 DDL。</p>
+<span id="more"></span>
+<h2 id="tidb-ddl-工作原理">TiDB DDL 工作原理</h2>
+<p>我们知道，TiDB 的元信息，与数据一样是以 k-v 的形式存储在 TiKV 的，DDL
+操作，包括了对元数据本身的修改，以及必要时对相关数据的修改。</p>
+<p>那么作为一个多实例分布式部署形态的数据集群，TiDB 是如何完成 DDL
+操作的呢？他又是如何避免多实例之间不一致的问题呢？TiDB 在 DDL 期间，会像
+MySQL 一样产生锁表的动作吗？</p>
+<p>我们来一一解答上述问题。</p>
+<h3 id="任务分发模型">任务分发模型</h3>
+<p>由于 TiDB 本身是无状态的服务，用户的 DDL 请求，可能会发送到任意一个
+TiDB
+实例上，进而要求对基于元数据考虑分布式一致性问题。为了简化实现，TiDB
+采用了 owner 的概念，即每个集群内只有一个实例作为 DDL owner 来真正的执行
+DDL 任务，而不论哪个实例接收到 DDL 请求，最终该 DDL
+任务的实际执行都会被分发给 owner。</p>
+<p>为了实现这一目标，TiDB 的 DDL 操作采用了基于 worker
+的任务分发模型实现上述要求。</p>
+<p>简单来说，一个 DDL 被处理的流程如下：</p>
+<ol type="1">
+<li>TiDB 接收到 DDL 请求，将该请求解析并封装为一个 DDL job，扔进 ddl job
+queue（该队列放在 TiKV）</li>
+<li>每一个 TiDB 实例都会启动一个 worker goroutine，用来从 ddl job queue
+中领取任务来执行。但注意前文的要求是只有 owner 才能执行任务，因此 worker
+会判断自己所在的实例是否是 owner，如果不是则不会领取任务。当 owner
+worker 执行完任务后，将执行结果扔进 history ddl job queue（该队列放在
+TiKV）</li>
+<li>发起 DDL 任务的 TiDB 实例会持续等待 history ddl job queue
+中返回对应的 job，获取成功后整个 ddl 操作结束。</li>
+</ol>
+<p>根据上述描述，一切 DDL
+操作都会遵循该流程来执行，这种方式实现了在线无锁 DDL。</p>
+<p>下图是 TiDB 官方博客中提供的关于 DDL 执行过程的示意图：</p>
+<p><img
+src="https://download.pingcap.com/images/blog-cn/tidb-source-code-reading-17/1.png" /></p>
+<h3 id="异步-schema-变更原理">异步 Schema 变更原理</h3>
+<p>TiDB 的 Scheme 变更过程，借鉴了 <a
+href="http://static.googleusercontent.com/media/research.google.com/zh-CN//pubs/archive/41376.pdf">Google
+F1 的异步 Schema 变更算法</a>。</p>
+<p>实际上 TiDB 的设计基础本身就是基于 Google 的 Spanner / F1，在 F1 的
+Schema 变更论文摘要中就已经提到，他的算法：</p>
+<ol type="1">
+<li>asynchronous—it allows different servers in the database system to
+transition to a new schema at different times</li>
+<li>online—all servers can access and update all data during a schema
+change.</li>
+</ol>
+<p>这种算法不仅不要求各节点 Schema 的状态保持一致，还实现了 Schema
+变更完全的无锁，我们可以一边更新数据，一边更新数据表。</p>
+<p>我们可以想一想，对于 TiDB
+这种分布式数据库，如果期望实现简单的同步带锁的 Schema
+变更，似乎也不那么容易：</p>
+<ol type="1">
+<li>TiDB
+节点本身无状态，且没有一个地方可以保存所有节点列表的最新状态（这本身就需要同步），那么想要让所有节点的
+Schema 在同一时刻变更到新的状态就会非常复杂，且不可靠。</li>
+<li>由于节点众多，时间不统一，数据规模庞大等等多种因素，Schema
+变更的时间可能不会太快，如果在此期间与对应表相关的 DML/DQL
+不可用，那么将极大地影响正常业务（MySQL 5.6 以后也引入了 Online DDL
+来在绝大多数 DDL 场景下保证业务连续性）</li>
+</ol>
+<p>那么既然客观条件要求 Schema
+变更期间数据可用，同时无法实现状态同步变更，那么异步无锁的 Schema
+变更策略就是唯一的选择了。</p>
+<h4 id="异步变更存在的问题">异步变更存在的问题</h4>
+<p>从上文中我们已经知道，很难保证所有 TiDB 节点暂存的 Schema
+信息都是最新状态的，那么异步变更时就会存在问题：</p>
+<p>假如有 A/B/C 三个 TiDB 节点，目前对 table t 增加了一列 c，且当前 A/B
+节点都已经更新的该状态，即表 t 包含了列 c，那么业务方此时就可能在 insert
+t 的时候，加上 c 相关的信息，例如：</p>
+<p><code>insert into t (c) values('c-value')</code></p>
+<p>假如该语句被定向到节点 C 时，就会产生错误，因为 C 并不知道表 t
+中已经包含了 c 列，这就产生了数据的插入失败。</p>
+<p>类似的，当我们进行添加索引操作时，假如部分节点已经获知索引的信息，而另一部分并未获知，则索引列就很可能产生有的值有索引，有的值没有索引的情况。</p>
+<h4 id="状态拆分解决不一致问题">状态拆分解决不一致问题</h4>
+<p>既然我们无法确保所有节点在同一时刻达到统一状态，那么有没有一个折中的办法，允许状态不一致的情况暂时存在，并且最终达到一致呢？</p>
+<p>F1 引入了中间状态的概念，仍旧以添加列为例：</p>
+<p>直接状态变更：</p>
+<p><code>original ---&gt; column added</code></p>
+<p>中间状态变更：</p>
+<p><code>original ---&gt; column added but not valid ---&gt; column added</code></p>
+<p>对于中间状态变更，我们只要保证，同一时刻所有的节点只能处于两个相邻状态中的一个，例如：</p>
+<ol type="1">
+<li>A/B/C 三个节点，A/B 节点处于初始状态，C
+节点已经变更，进入中间状态，column 已经增加，但不发布。</li>
+</ol>
+<ul>
+<li>此时，即使 C
+节点已经先添加了列，但并没有发布，从外部看，表仍然是原来的样子，因此所有包含新列的
+insert 语句都会报错</li>
+</ul>
+<ol start="2" type="1">
+<li>A/B 节点逐步到达中间状态，此时 C 节点进入最终态，增加 column
+的状态被发布出来。</li>
+</ol>
+<ul>
+<li>此时，对于 insert 语句中包含新列的请求，如果进入 C
+节点，一切按照正常流程，而如果进入 A/B 节点，则由于 A/B
+也已经存在新列，因此 insert 语句也可以成功</li>
+</ul>
+<ol start="3" type="1">
+<li>最后 A/B/C 都达到终态</li>
+</ol>
+<p>我们看到，采用这种方式就可以逐步地让整个集群的状态趋于一致。那么如何确保，同一时刻只有两种状态可以共存呢？</p>
+<p>在 F1 中，采用 <strong>租约(lease)</strong>
+来实现，租约本身有时间限制，节点会强制在租约到期后重新加载
+Schema。这种方式是采用宽松的时间段来规避了各节点时间不统一的问题。</p>
+<p>假设节点的Schema 租约时间是 30s，A/B/C 节点的本地时间分别有 5s
+的延迟误差，因此，A 节点首先刷新租约进入中间状态，5 秒后 B 节点进入，再
+5 秒后 C 节点进入，这样就保证了同一时刻只有两个 Schema
+状态可以同时存在。另外我们也能看到，假如节点间的时间误差大于租约期时，就可能破坏我们的预期（因此我们可以通过提升时间精度的办法来降低租约期，提升
+DDL 速度）。</p>
+<h5 id="真实示例">真实示例</h5>
+<p>显然，很多 DDL
+操作可能会比较复杂，因此实际中，仅有一个中间状态是不现实的，通常至少会有两个中间状态：</p>
+<ul>
+<li><strong>write only</strong>：变更的 schema
+元素仅对写操作有效，读操作不生效</li>
+<li><strong>delete only</strong>：变更的 schema
+元素仅对删除操作有效，读操作不生效</li>
+</ul>
+<p>那么实际的添加 column 操作中，状态变更流程是这样的：</p>
+<figure class="highlight livescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">absent --&gt; <span class="keyword">delete</span> only --&gt; write only --<span class="function"><span class="params">(reorg)</span>--&gt;</span> public</span><br></pre></td></tr></table></figure>
+<p>其中，<code>reorg</code> 不指代一个状态而是在 write only
+状态后，需要做的一系列操作，例如对所有现存数据增加索引，增加默认值等等。</p>
+<p>而对于删除列，则正好相反：</p>
+<figure class="highlight livescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public --&gt; write only --&gt; <span class="keyword">delete</span> only --<span class="function"><span class="params">(reorg)</span>--&gt;</span> absent</span><br></pre></td></tr></table></figure>
+<ol type="1">
+<li>public：能够对该列数据进行读写</li>
+<li>write only：列数据不可读，只可写，确保写操作正常进行（此时仍存在
+public 节点，因此写操作仍然需要支持，删除操作会被忽略）</li>
+<li>delete
+only：列数据不可读，只可删除，处于该状态的节点，已经不会再有任何被删除列上的新数据被插入了。</li>
+<li>reorg：此时可以开始逐步删除列上数据，就算有节点处于 delete only
+状态，且成功删除了列上的数据，reorg 时只需要忽略删除失败的行即可。</li>
+<li>absent：最终状态</li>
+</ol>
+<h2 id="tidb-ddl-实现">TiDB DDL 实现</h2>
+<p>TiDB DDL 的实现主要在 <code>ddl.go</code> 、
+<code>ddl_api.go</code>、<code>ddl_worker.go</code>、<code>syncer.go</code>
+几个文件中。</p>
+<p>首先，根据 TiDB 的设计架构，DDL 操作首先会被封装为一个
+<code>DDLExec</code> 的 Executor，作为执行器来执行。在
+<code>DDLExec.Next()</code> 方法中，根据不同的 DDL
+操作，执行路径被分发到不同的逻辑中（实际上调用了 ddl 的逻辑）：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// executor/ddl.go</span></span><br><span class="line"><span class="keyword">switch</span> x := e.stmt.(<span class="keyword">type</span>) &#123;</span><br><span class="line">	<span class="keyword">case</span> *ast.AlterDatabaseStmt:</span><br><span class="line">		err = e.executeAlterDatabase(x)</span><br><span class="line">	<span class="keyword">case</span> *ast.AlterTableStmt:</span><br><span class="line">		err = e.executeAlterTable(x)</span><br><span class="line">	<span class="keyword">case</span> *ast.CreateIndexStmt:</span><br><span class="line">		err = e.executeCreateIndex(x)</span><br><span class="line">	<span class="keyword">case</span> *ast.CreateDatabaseStmt:</span><br><span class="line">		err = e.executeCreateDatabase(x)</span><br><span class="line">	<span class="keyword">case</span> *ast.CreateTableStmt:</span><br><span class="line">		err = e.executeCreateTable(x)</span><br><span class="line">	<span class="keyword">case</span> *ast.CreateViewStmt:</span><br><span class="line">		err = e.executeCreateView(x)</span><br><span class="line">  </span><br><span class="line">  ... ...</span><br></pre></td></tr></table></figure>
+<p>以 <code>Alter Table XXX Modify XXX</code> 的操作为例，在
+<code>ddl_api.go</code> 的实现如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line"></span><br><span class="line">job, err := d.getModifiableColumnJob(ctx, ident, originalColName, spec)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> infoschema.ErrColumnNotExists.Equal(err) &amp;&amp; spec.IfExists &#123;</span><br><span class="line">			ctx.GetSessionVars().StmtCtx.AppendNote(infoschema.ErrColumnNotExists.GenWithStackByArgs(originalColName, ident.Name))</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> errors.Trace(err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	err = d.doDDLJob(ctx, job)</span><br><span class="line"></span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>首先通过 <code>getModifiableColumnJob</code> 构造对应的 ddl
+job，之后通过 <code>doDDLJob</code> 执行任务。</p>
+<p>结合 <code>doDDLJob</code> 的逻辑：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *ddl)</span></span> doDDLJob(ctx sessionctx.Context, job *model.Job) <span class="type">error</span> &#123;</span><br><span class="line">	... ...</span><br><span class="line">	task := &amp;limitJobTask&#123;job, <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">error</span>)&#125;</span><br><span class="line">	d.limitJobCh &lt;- task</span><br><span class="line">  ... ...</span><br><span class="line">	<span class="comment">// Notice worker that we push a new job and wait the job done.</span></span><br><span class="line">	d.asyncNotifyWorker(job.Type)</span><br><span class="line">  ... ...</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		... ...</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-d.ddlJobDoneCh:</span><br><span class="line">		<span class="keyword">case</span> &lt;-ticker.C:</span><br><span class="line">		<span class="keyword">case</span> &lt;-d.ctx.Done():</span><br><span class="line">			logutil.BgLogger().Error(<span class="string">&quot;[ddl] doDDLJob will quit because context done&quot;</span>, zap.Error(d.ctx.Err()))</span><br><span class="line">			err := d.ctx.Err()</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">    </span><br><span class="line">		historyJob, err = d.getHistoryDDLJob(jobID)</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">// If a job is a history job, the state must be JobStateSynced or JobStateRollbackDone or JobStateCancelled.</span></span><br><span class="line">		<span class="keyword">if</span> historyJob.IsSynced() &#123;</span><br><span class="line">			logutil.BgLogger().Info(<span class="string">&quot;[ddl] DDL job is finished&quot;</span>, zap.Int64(<span class="string">&quot;jobID&quot;</span>, jobID))</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>首先将 <code>job</code> 封装为 <code>task</code> 塞入
+<code>limitJobCh</code> 中，之后 <code>asyncNotifyWorker()</code> 提醒
+ddlWorker 有任务塞入，最后通过 <code>getHistoryDDLJob(jobID)</code>
+轮询已完成的任务，获取当前任务的执行状态。</p>
+<p>因此，对于 DDL
+任务的发起方而言，它只需要将任务发出，并等待最终的执行结果即可，实际的工作，都是由
+<code>worker</code> 来完成的。</p>
+<h3 id="ddl-初始化">DDL 初始化</h3>
+<p>在 <code>domain</code> 初始化时，<code>ddl</code>
+被初始化，整个初始化动作，主要包含三部分：</p>
+<ol type="1">
+<li>启动一个 go-routine 来执行向 tikv 任务队列中塞入任务的工作</li>
+<li>创建 worker 并在 go-routine 中启动</li>
+<li>启动一个 go-routine 来清理过期的 Schema
+信息（当超过租约期仍未更新时）</li>
+</ol>
+<p>对于将任务塞入队列的操作，大致实现如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *ddl)</span></span> addBatchDDLJobs(tasks []*limitJobTask) &#123;</span><br><span class="line">	startTime := time.Now()</span><br><span class="line">	err := kv.RunInNewTxn(d.store, <span class="literal">true</span>, <span class="function"><span class="keyword">func</span><span class="params">(txn kv.Transaction)</span></span> <span class="type">error</span> &#123;</span><br><span class="line">		... ...</span><br><span class="line">		<span class="keyword">for</span> i, task := <span class="keyword">range</span> tasks &#123;</span><br><span class="line">			job := task.job</span><br><span class="line">			... ...</span><br><span class="line">			<span class="keyword">if</span> job.Type == model.ActionAddIndex || job.Type == model.ActionAddPrimaryKey &#123;</span><br><span class="line">				jobKey := meta.AddIndexJobListKey</span><br><span class="line">				err = t.EnQueueDDLJob(job, jobKey)</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				err = t.EnQueueDDLJob(job)</span><br><span class="line">			&#125;</span><br><span class="line">			... ...</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;)</span><br><span class="line">	... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>EnQueueDDLJob</code> 最终会调用底层的 kv
+方法，而实际上任务队列是储存在 tikv 中的一个 list。</p>
+<p>在第二步，会创建两个 <code>worker</code>：general worker 和 add index
+worker，其中 add index worker 专职于添加索引动作，其余动作都由 general
+worker 来执行（这是为了防止添加索引可能的长时间执行会阻塞到其他 ddl
+操作）。</p>
+<p>worker 在被创建之后，由 ddl 初始化逻辑分别在独立的 go-routine
+中启动。</p>
+<p>###DDL Worker</p>
+<p>有关 <code>workder</code> 的代码，都放在 <code>ddl_worker.go</code>
+中。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(w *worker)</span></span> start(d *ddlCtx) &#123;</span><br><span class="line">	... ...</span><br><span class="line">	<span class="comment">// We use 4 * lease time to check owner&#x27;s timeout, so here, we will update owner&#x27;s status</span></span><br><span class="line">	<span class="comment">// every 2 * lease time. If lease is 0, we will use default 1s.</span></span><br><span class="line">	<span class="comment">// But we use etcd to speed up, normally it takes less than 1s now, so we use 1s as the max value.</span></span><br><span class="line">	checkTime := chooseLeaseTime(<span class="number">2</span>*d.lease, <span class="number">1</span>*time.Second)</span><br><span class="line"></span><br><span class="line">	ticker := time.NewTicker(checkTime)</span><br><span class="line">	<span class="keyword">defer</span> ticker.Stop()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-ticker.C:</span><br><span class="line">			logutil.Logger(w.logCtx).Debug(<span class="string">&quot;[ddl] wait to check DDL status again&quot;</span>, zap.Duration(<span class="string">&quot;interval&quot;</span>, checkTime))</span><br><span class="line">		<span class="keyword">case</span> &lt;-w.ddlJobCh:</span><br><span class="line">		<span class="keyword">case</span> &lt;-w.ctx.Done():</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		&#125;</span><br><span class="line">    </span><br><span class="line">    err := w.handleDDLJobQueue(d)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			logutil.Logger(w.logCtx).Error(<span class="string">&quot;[ddl] handle DDL job failed&quot;</span>, zap.Error(err))</span><br><span class="line">		&#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，worker 实际上同时接收 <code>ticker</code> 和
+<code>ddlJobCh</code>
+的信号，不论是到达检查时间，还是被通知有新任务到来，worker
+都会开始<code>handleDDLJobQueue()</code>。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(w *worker)</span></span> handleDDLJobQueue(d *ddlCtx) <span class="type">error</span> &#123;</span><br><span class="line">	once := <span class="literal">true</span></span><br><span class="line">	waitDependencyJobCnt := <span class="number">0</span></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		... ...</span><br><span class="line">		err := kv.RunInNewTxn(d.store, <span class="literal">false</span>, <span class="function"><span class="keyword">func</span><span class="params">(txn kv.Transaction)</span></span> <span class="type">error</span> &#123;</span><br><span class="line">			<span class="comment">// We are not owner, return and retry checking later.</span></span><br><span class="line">			<span class="keyword">if</span> !d.isOwner() &#123;</span><br><span class="line">				<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			<span class="keyword">var</span> err <span class="type">error</span></span><br><span class="line">			t := newMetaWithQueueTp(txn, w.typeStr())</span><br><span class="line">			<span class="comment">// We become the owner. Get the first job and run it.</span></span><br><span class="line">			job, err = w.getFirstDDLJob(t)</span><br><span class="line">			... ...</span><br><span class="line">      <span class="keyword">if</span> job.IsDone() || job.IsRollbackDone() &#123;</span><br><span class="line">				<span class="keyword">if</span> !job.IsRollbackDone() &#123;</span><br><span class="line">					job.State = model.JobStateSynced</span><br><span class="line">				&#125;</span><br><span class="line">				err = w.finishDDLJob(t, job)</span><br><span class="line">				<span class="keyword">return</span> errors.Trace(err)</span><br><span class="line">			&#125;</span><br><span class="line">			... ...      </span><br><span class="line">			<span class="comment">// If running job meets error, we will save this error in job Error</span></span><br><span class="line">			<span class="comment">// and retry later if the job is not cancelled.</span></span><br><span class="line">			schemaVer, runJobErr = w.runDDLJob(d, t, job)</span><br><span class="line">			... ...</span><br><span class="line">			err = w.updateDDLJob(t, job, runJobErr != <span class="literal">nil</span>)</span><br><span class="line">			... ...</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">		&#125;)</span><br><span class="line">    ... ...</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>具体的执行中，首先获取队列中第一个任务，然后执行<code>runDDLJob()</code>，完成后执行<code>updateDDLJob()</code>更新
+job 的状态（参考前述的中间状态变化），在下一次循环中，如果 job
+已经结束，则执行<code>finishDDLJob()</code> 将任务放入 history
+队列。</p>
+<p><code>runDDLJob()</code>中实现了47 种 DDL
+任务的执行过程，由于篇幅原因，不再详述。</p>
+<h3 id="in-place-instant">in place / instant</h3>
+<p>在目前的 DDL 任务中，根据其执行时间的不同，将所有 DDL
+任务分成了两类：</p>
+<ul>
+<li>in place：执行时间长、执行速度慢，如 add index 操作</li>
+<li>instant：执行时间短、执行速度快，如 add column 操作</li>
+</ul>
+<p>之所以分为两类，是由于 TiDB 的 DDL 机制限制：前文提到过，TiDB
+为了简化 DDL 的操作，实际上不论有多少个节点，只有一个 <code>owner</code>
+节点才能处理 DDL，其他节点只接受 DDL 请求，并将实际任务转发给
+<code>owner</code> 来执行。</p>
+<p>那么就会存在一个问题，只有一个 <code>owner</code>，相当于所有 DDL
+任务是串行执行的，对于通常的 DDL 比如建表、增加列、删除 schema
+等操作，速度很快，串行执行没有任何问题，然而对于例如添加索引这种操作，每一条记录都要添加对应的索引，一旦遇到大表，就会明显的阻塞其他
+DDL 请求。</p>
+<p>为了解决这一问题，TiDB 专门将原先的模式进行改造，再目前现有的 DDL
+任务队列基础上，单独增加了一个队列，专门用于存放各种添加索引任务。同时，在
+DDL 初始化时，也专门增加了一个
+worker，专门处理添加索引任务。这样就解决了 <code>in place</code>
+任务阻塞 <code>instant</code>
+任务的情况（实际上目前<em>删除带有组合索引的列</em>以及<em>修改列数据类型</em>的
+DDL 任务同样执行时间很久，这些任务也会阻塞其他任务，<a
+href="https://github.com/pingcap/tidb/issues/19397">Issue19397</a>正在讨论如何处理这一情况）。</p>
+<p>由于增加了一个
+worker，原本的串行执行变成了部分并行，那么就会存在先添加列，之后给新添加的列添加索引时，由于添加的列还在排队，导致添加索引操作失败的现象。解决这一问题的方法，TiDB
+是通过任务依赖的方式：对于同一张表，不论是 <code>in place</code> 还是
+<code>instant</code>，标号较大的 job 会依赖标号较小的 job。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/09/19/tidb-lesson-5/" title="TiDB 学习课程 Lesson-5">http://lenshood.github.io/2020/09/19/tidb-lesson-5/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/tidb/" rel="tag"># tidb</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/09/06/tidb-lesson-4/" rel="prev" title="TiDB 学习课程 Lesson-4">
+                  <i class="fa fa-angle-left"></i> TiDB 学习课程 Lesson-4
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/10/03/tidb-lesson-6/" rel="next" title="TiDB 学习课程 Lesson-6">
+                  TiDB 学习课程 Lesson-6 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

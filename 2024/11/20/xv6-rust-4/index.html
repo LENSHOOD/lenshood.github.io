@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="In this chapter, we are going to explore the cpu virtualization, also known as process, in the xv6. I&#39;m really excited about writing this chapter, because process is one of the fundamental concepts o">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x04&#x2F; - CPU Virtualization">
+<meta property="og:url" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="In this chapter, we are going to explore the cpu virtualization, also known as process, in the xv6. I&#39;m really excited about writing this chapter, because process is one of the fundamental concepts o">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/5.png">
+<meta property="article:published_time" content="2024-11-20T14:50:32.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.522Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2024/11/20/xv6-rust-4/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2024/11/20/xv6-rust-4/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2024/11/20/xv6-rust-4/","path":"2024/11/20/xv6-rust-4/","title":"/Xv6 Rust 0x04/ - CPU Virtualization"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x04/ - CPU Virtualization | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#overview-of-virtual-cpu"><span class="nav-number">1.</span> <span class="nav-text">1. Overview of Virtual CPU</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#process-memory"><span class="nav-number">2.</span> <span class="nav-text">2. Process Memory</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#concurrency"><span class="nav-number">3.</span> <span class="nav-text">3. Concurrency</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#scheduling"><span class="nav-number">4.</span> <span class="nav-text">4. Scheduling</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#process-lifecycle"><span class="nav-number">5.</span> <span class="nav-text">5. Process Lifecycle</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2024/11/20/xv6-rust-4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="&#x2F;Xv6 Rust 0x04&#x2F; - CPU Virtualization | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x04/ - CPU Virtualization
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2024-11-20 22:50:32" itemprop="dateCreated datePublished" datetime="2024-11-20T22:50:32+08:00">2024-11-20</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2024/11/20/xv6-rust-4/header.jpg" class="" width="500">
+<p>In this chapter, we are going to explore the cpu virtualization, also
+known as process, in the xv6.</p>
+<p>I'm really excited about writing this chapter, because process is one
+of the fundamental concepts of the operating system. Process is very
+useful for multiple tasks, and in the design wise, its abstraction is
+also very elegant.</p>
+<span id="more"></span>
+<h2 id="overview-of-virtual-cpu">1. Overview of Virtual CPU</h2>
+<p>We all know that with the concept if process, we could run multiple
+programs on one or a few cpu cores, that makes the processes and the cpu
+cores present as a many-to-many mappings.</p>
+<p>But the key point here is, a process will not need to know how many
+cpu cores and how many memory it can have. Through some sort of
+abstraction, a process can freely use all cpu and memory resources to
+run its program, any resource management should have done by the
+kernel.</p>
+<p>So before we take a look at the design of xv6 process, let's think
+about what elements a process should have, to ensure the cpu
+virtualization works.</p>
+<p>We can simply recap the machine code we introduced in the first two
+chapters as an analogy, when we built the "xv6-rust-sample", there are
+few things that need to be taken care of:</p>
+<ul>
+<li>We should understand the address space then link the program to the
+right places</li>
+<li>There should be a way to load the program and run from the entry
+point</li>
+<li>Some necessary registers should be initialized, such as stack
+pointer</li>
+<li>Error handling is also required, like panic</li>
+</ul>
+<p>Additionally, standing in the kernel's shoes, more points turn
+out:</p>
+<ul>
+<li>There are more processes than cpu cores, how to switch different
+processes on one cpu?</li>
+<li>Where to save process status when it's switched?</li>
+<li>How to manage the process lifecycle, including create, destroy, and
+error handling?</li>
+<li>How to allocate and restore memory to and from processes</li>
+</ul>
+<p>Actually, if a kernel implements all above points, then it has all
+elements to run multiple processes. So let's take a first look at the
+design of xv6 process (you can also check the real code at <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L168">here</a>):</p>
+<img src="/2024/11/20/xv6-rust-4/1.png" class="">
+<p>For the elements contained inside the process:</p>
+<p>The "PID / Name" identifies a specific process.</p>
+<p>The "State" field records the current state of the process, the
+common state are Running / Runnable / Sleeping, which indicates running
+on cpu, waiting to be scheduled, waiting to be waken up
+respectively.</p>
+<p>The "Open Files" tracks any files that opened by the process, we
+haven't talked about file system before, but at least we can realize the
+basic three files that every process will open are STDIN, STDOUT and
+STDERR.</p>
+<p>The "Parent" to track the process parent, like linux, the xv6 also
+creates a new process by <code>fork()</code>, therefore, every process
+should have a parent process.</p>
+<p>The "Kernel Stack" allows running kernel code on the address space of
+a process. After all, every process needs to interact with kernel
+through different types of syscalls, for safety purpose, user process
+cannot share the same stack with kernel.</p>
+<p>The "Trap Frame" stores user space process data, this kind of data
+will be saved and restored when switching between user space and kernel
+space. We'll cover this part in the following chapter about interrupt
+and syscall.</p>
+<p>The "Page Table" records the mapping between virtual memory and
+physical memory. We have described virtual memory in the previous
+chapter, actually every process should have its own page table.</p>
+<p>The "Context" records the basic registers a process is using. When a
+process needs to be paused and run another process, the current states
+in the registers should be saved, and once the process can re-run, the
+registers should be restored.</p>
+<h2 id="process-memory">2. Process Memory</h2>
+<p>The previous code <code>xv6-rust-sample</code> set it address space
+starts from <code>0x80000000</code>, and put its text section at the
+beginning of the address, then set the code entry there. So where should
+a process starts from?</p>
+<p>We could refer the process creation syscall <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/exec.rs#L61"><code>exec()</code></a>
+to find out (again, we'll cover this in a later chapter):</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// exec.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">exec</span>(path: [<span class="type">u8</span>; MAXPATH], argv: &amp;[<span class="type">Option</span>&lt;*<span class="keyword">mut</span> <span class="type">u8</span>&gt;; MAXARG]) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">  ... ...</span><br><span class="line">	<span class="keyword">for</span> <span class="variable">_i</span> <span class="keyword">in</span> <span class="number">0</span>..elf.phnum &#123;</span><br><span class="line">        <span class="comment">// load program from file system</span></span><br><span class="line">      	<span class="keyword">let</span> <span class="variable">tot</span> = ip.<span class="title function_ invoke__">readi</span>(<span class="literal">false</span>, &amp;<span class="keyword">mut</span> ph, off, ph_sz);</span><br><span class="line">        ... ...</span><br><span class="line">        <span class="comment">// allocate enough space and map into process page table</span></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">sz1</span> = <span class="title function_ invoke__">uvmalloc</span>(</span><br><span class="line">            page_table,</span><br><span class="line">            sz,</span><br><span class="line">            (ph.vaddr + ph.memsz) <span class="keyword">as</span> <span class="type">usize</span>,</span><br><span class="line">            <span class="title function_ invoke__">flags2perm</span>(ph.flags),</span><br><span class="line">        );</span><br><span class="line">        ... ...</span><br><span class="line">    		<span class="comment">// the program will be loaded into virtual address ph.vaddr</span></span><br><span class="line">        <span class="keyword">if</span> <span class="title function_ invoke__">loadseg</span>(page_table, ph.vaddr, ip, ph.off, ph.filesz) &lt; <span class="number">0</span> &#123;</span><br><span class="line">            ... ...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">// the entry point will be set into &quot;sepc&quot; csr later</span></span><br><span class="line">    tf.epc = elf.entry; <span class="comment">// initial program counter = main</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>From the above code, we realized the program will be loaded into
+<code>ph.vaddr</code>, actually <code>ph</code> means "ProgramHeader",
+which is also ELF format, therefore, to find the real entry point, we
+have to check the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/user/src/ld/user.ld#L7">linker
+script</a> of user program:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">// user/src/ld/user.ld</span><br><span class="line">OUTPUT_ARCH( &quot;riscv&quot; )</span><br><span class="line">ENTRY( main )</span><br><span class="line"></span><br><span class="line">SECTIONS</span><br><span class="line">&#123;</span><br><span class="line"> . = 0x0;</span><br><span class="line"> </span><br><span class="line"> ... ...</span><br><span class="line"></span><br><span class="line"> PROVIDE(end = .);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Obviously, a user program starts from <code>main</code>, and the
+entry address is <code>0x0</code>. Of cause, we can change that to any
+address, because the entry address will be set into the CSR "sepc", and
+once the CPU switches to user mode, the user program will start from
+there.</p>
+<p>Besides, like we mentioned before, every process needs a dedicated
+stack that allows kernel <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L272">code</a>
+running on it. The following code shows the initialization of every
+kernel stacks:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">proc_mapstacks</span>(kpgtbl: &amp;<span class="keyword">mut</span> PageTable) &#123;</span><br><span class="line">    <span class="keyword">for</span> <span class="variable">idx</span> <span class="keyword">in</span> <span class="number">0</span>..NPROC &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">pa_0</span>: *<span class="keyword">mut</span> <span class="type">u8</span> = KMEM.<span class="title function_ invoke__">kalloc</span>();</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">pa_1</span>: *<span class="keyword">mut</span> <span class="type">u8</span> = KMEM.<span class="title function_ invoke__">kalloc</span>();</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">va</span> = KSTACK!(idx);</span><br><span class="line">            <span class="title function_ invoke__">kvmmap</span>(kpgtbl, va, pa_0 <span class="keyword">as</span> <span class="type">usize</span>, PGSIZE, PTE_R | PTE_W);</span><br><span class="line">            <span class="title function_ invoke__">kvmmap</span>(kpgtbl, va + PGSIZE, pa_1 <span class="keyword">as</span> <span class="type">usize</span>, PGSIZE, PTE_R | PTE_W);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// memlayout.rs</span></span><br><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> KSTACK &#123;</span><br><span class="line">    ( $p:expr ) =&gt; &#123;</span><br><span class="line">        $crate::memlayout::TRAMPOLINE - (($p) + <span class="number">1</span>) * <span class="number">3</span> * $crate::riscv::PGSIZE</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>We have already introduced <code>proc_mapstacks()</code> in the
+previous chapter, but no details about it. Here, apparently this
+function allocates two pages for each process as their kernel stack.</p>
+<p>But there are some interesting things here:</p>
+<ol type="1">
+<li>In the original xv6 implementation with C language, one process only
+has one page of stack, however, in my rust version, many core lib
+functions were introduced, because one page (4096 bytes) of stack is not
+enough, lead to risc-v throw an invalid access exception. Hence, the
+kernel stack is extended to two pages, and that's enough at least now.
+You may wonder, we have set nearly all address space available for RWX
+permission (refer to chapter 2, pmpaddr0 / pmpcfg0) how can it be
+possible to throw an exception of no access permission? Let's move to
+the second interesting thing.</li>
+<li>The access exception relates to the macro <code>KSTACK!()</code>. If
+you see it carefully, you may find this macro actually makes each
+process has 3 pages of stack space, but we only allocate 2 pages for it,
+and leave the last page of stack space with no physical memory mapping
+to it. If any code allocate stack exceeded the 2 pages stack, the
+<code>sp</code> will point to the third stack page, which is invalid
+because of no mapped physical memory, then the exception is thrown. This
+kind of page is called "guard page", it can prevent other process's
+stack from accidentally overwritten by an overflowed stack operation.
+(There's a defect here that if the applied stack space exceeded more
+than one page, then it can break the guard in some cases)</li>
+</ol>
+<img src="/2024/11/20/xv6-rust-4/2.png" class="">
+<p>The above image shows the location of the process stacks in kernel
+memory layout, it's worth noting that all of these stacks are allocated
+while kernel is starting, so they occupy physical memory all the time,
+on the contrary, if a user process needs some memory to store data, they
+can do that by calling syscall <code>mmap()</code>, which can
+dynamically allocate memory space.</p>
+<h2 id="concurrency">3. Concurrency</h2>
+<p>Once the concept of multiple tasks is introduced, the data contention
+issue will be definitely along with too. Additionally, although we only
+assign one cpu core in the QEMU runner, multiple cpu cores is also
+allowed for xv6 to run. Therefore, there should be some form of
+mechanisms to take care of the concurrency and parallelization.</p>
+<p>The most fundamental thing about concurrency is lock. I suppose you
+have noticed that there were many code examples in the previous chapters
+containing locks, but we just ignored them and said we would cover them
+later. Here we are going to cover this part.</p>
+<p><a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/spinlock.rs#L7"><code>Spinlock</code></a>
+is the simplest lock implementation, the definition is as follows:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// spinlock.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">Spinlock</span> &#123;</span><br><span class="line">    locked: <span class="type">u64</span>, <span class="comment">// Is the lock held?</span></span><br><span class="line">    name: &amp;<span class="symbol">&#x27;static</span> <span class="type">str</span>,             <span class="comment">// For debugging: Name of lock.</span></span><br><span class="line">    cpu: <span class="type">Option</span>&lt;*<span class="keyword">mut</span> Cpu&lt;<span class="symbol">&#x27;static</span>&gt;&gt;, <span class="comment">// The cpu holding the lock.</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>From the definition, we can learn that it's basically a value holder,
+<code>locked == 1</code> indicates the lock is held, otherwise if
+<code>locked == 0</code> means the lock is released. Besides, there is a
+reference <code>cpu</code> points to current cpu, which also means the
+<code>Spinlock</code> is related to specific cpu.</p>
+<p>So how does it work? Let's look closer:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// spinlock.rs</span></span><br><span class="line"><span class="keyword">impl</span> <span class="title class_">Spinlock</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">acquire</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>) &#123;</span><br><span class="line">        <span class="title function_ invoke__">push_off</span>(); <span class="comment">// disable interrupts to afn deadlock.</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// On RISC-V, sync_lock_test_and_set turns into an atomic swap:</span></span><br><span class="line">        <span class="comment">//   a5 = 1</span></span><br><span class="line">        <span class="comment">//   s1 = &amp;lk-&gt;locked</span></span><br><span class="line">        <span class="comment">//   amoswap.w.aq a5, a5, (s1)</span></span><br><span class="line">        <span class="keyword">while</span> __sync_lock_test_and_set(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>.locked, <span class="number">1</span>) != <span class="number">0</span> &#123;&#125;</span><br><span class="line">        __sync_synchronize();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">self</span>.cpu = <span class="title function_ invoke__">Some</span>(<span class="title function_ invoke__">mycpu</span>());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">release</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>) &#123;</span><br><span class="line">        <span class="keyword">self</span>.cpu = <span class="literal">None</span>;</span><br><span class="line"></span><br><span class="line">        __sync_synchronize();</span><br><span class="line">        <span class="comment">// On RISC-V, sync_lock_release turns into an atomic swap:</span></span><br><span class="line">        <span class="comment">//   s1 = &amp;lk-&gt;locked</span></span><br><span class="line">        <span class="comment">//   amoswap.w zero, zero, (s1)</span></span><br><span class="line">        __sync_lock_release(&amp;<span class="keyword">self</span>.locked);</span><br><span class="line"></span><br><span class="line">        <span class="title function_ invoke__">pop_off</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/// Check whether this cpu is holding the lock.</span></span><br><span class="line">    <span class="comment">/// Interrupts must be off.</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">holding</span>(<span class="keyword">self</span>: &amp;<span class="keyword">Self</span>) <span class="punctuation">-&gt;</span> <span class="type">bool</span> &#123;</span><br><span class="line">        <span class="keyword">self</span>.locked == <span class="number">1</span> &amp;&amp; <span class="keyword">self</span>.cpu == <span class="title function_ invoke__">Some</span>(<span class="title function_ invoke__">mycpu</span>())</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The <code>Spinlock</code> essentially using the atomic "test and
+swap" instruction <code>amoswap</code> provided by risc-v, and in the
+phase of acquire, since the lock might be held by another cpu, so it
+simply retry forever inside a loop to keep applying the lock (there is
+no logic such as wait in a queue to let it wait effectively, because
+<code>Spinlock</code> is the simplest implementation here). But when it
+comes to releasing the lock, since the lock has already been held by
+current cpu, try loop is no longer needed.</p>
+<p>However, any unexpected interruption is able to break the lock, so we
+can notice that once the lock is held, the cpu interrupt will be
+disabled. Of cause, this will significantly impact the performance, but
+after all, for a teaching OS, simplicity is more important than
+performance :) .</p>
+<p>At last, the <code>__sync_synchronize()</code> internally call
+<code>fence</code> instruction, to keep the memory ordering before and
+after the "test and swap". And since the “AMO” instructions in risc-v by
+default not support any memory barrier(need to add extra "aq, rl" after
+the instruction), and to make sure the compiler can also realize the
+memory ordering, the <code>fence</code> is added before and after the
+"AMO" instructions to ensure the correct memory ordering in both cpu and
+compiler. The memory model of risc-v is complicated, here is a <a
+href="https://youtu.be/QkbWgCSAEoo?si=0cMjiypXe8iTUntZ">good video</a>
+to talk about that.</p>
+<p>Now we are familiar with the basic lock, in the next let's take a
+look at <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/sleeplock.rs#L6"><code>Sleeplock</code></a>:</p>
+<p><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sleeplock.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">Sleeplock</span> &#123;</span><br><span class="line">    locked: <span class="type">u64</span>,  <span class="comment">// Is the lock held?</span></span><br><span class="line">    lk: Spinlock, <span class="comment">// spinlock protecting this sleep lock</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// For debugging:</span></span><br><span class="line">    name: &amp;<span class="symbol">&#x27;static</span> <span class="type">str</span>, <span class="comment">// Name of lock.</span></span><br><span class="line">    pid: <span class="type">u32</span>,           <span class="comment">// Process holding lock</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>Sleeplock</code> holds a <code>Spinlook</code>, which utilize
+<code>Spinlook</code> as an internal lock to protect its inner fields.
+However, <code>Sleeplock</code> was designed to be a lock that is held
+in a relatively long period of time. It doesn't rely on
+<code>Spinlock</code>, instead, introduced a "sleep / wakeup" mechanism
+to allow the lock sleeping wait until it woken up by the lock holder who
+is releasing the lock:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sleeplock.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">acquire_sleep</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>) &#123;</span><br><span class="line">    <span class="keyword">self</span>.lk.<span class="title function_ invoke__">acquire</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">self</span>.locked != <span class="number">0</span> &#123;</span><br><span class="line">      <span class="comment">// once a process falls sleep, it will no longer spend</span></span><br><span class="line">      <span class="comment">// any CPU cycles to check if the lock is released</span></span><br><span class="line">      <span class="title function_ invoke__">sleep</span>(<span class="keyword">self</span> <span class="keyword">as</span> *<span class="keyword">const</span> Sleeplock, &amp;<span class="keyword">mut</span> <span class="keyword">self</span>.lk);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">self</span>.locked = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    <span class="keyword">self</span>.pid = p.pid;</span><br><span class="line">    <span class="keyword">self</span>.lk.<span class="title function_ invoke__">release</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">release_sleep</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>) &#123;</span><br><span class="line">    <span class="keyword">self</span>.lk.<span class="title function_ invoke__">acquire</span>();</span><br><span class="line">    <span class="keyword">self</span>.locked = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">self</span>.pid = <span class="number">0</span>;</span><br><span class="line">  	<span class="comment">// wake up all processes that are waiting for this lock</span></span><br><span class="line">    <span class="title function_ invoke__">wakeup</span>(&amp;<span class="keyword">self</span>);</span><br><span class="line">    <span class="keyword">self</span>.lk.<span class="title function_ invoke__">release</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>In xv6, device interaction logic such as file system reading or
+writing would need <code>Sleeplock</code>, as the interaction between
+cpu with device often takes a long time. But, how does "sleep / wakeup"
+work? Let's go to the next section to see how xv6 deals with process
+switching.</p>
+<h2 id="scheduling">4. Scheduling</h2>
+<p>With the introduction of virtual memory, our process can have its own
+memory to store the text and data, especially, its stack. Now, there is
+only one question left, how to put the process on a cpu and run? This
+question is asked from the process perspective, if we think as we are
+the kernel, this is an even more important question, how can the kernel
+run multiple processes simultaneously?</p>
+<p>Before deep dive into the kernel implementation to answering the
+above questions, we should have a preliminary understanding, that is
+process doesn't decide when to run, kernel does, process doesn't control
+the switch, kernel does (but process do can influence the kernel‘s
+decision).</p>
+<p>The following image shows the process management and scheduling of
+the xv6:</p>
+<img src="/2024/11/20/xv6-rust-4/3.png" class="">
+<p>Firstly, there are two arrays that store 64 proc structs and 8 cpu
+structs respectively, all of the proc structs are empty at the beginning
+and each of them can hold real process data, as well as cpu structs,
+which can hold cpu data.</p>
+<p>We have talked about what data fields are in the process at the first
+section, let's see what data filed that a cpu struct can hold:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">Cpu</span>&lt;<span class="symbol">&#x27;a</span>&gt; &#123;</span><br><span class="line">    proc: <span class="type">Option</span>&lt;*<span class="keyword">mut</span> Proc&lt;<span class="symbol">&#x27;a</span>&gt;&gt;,</span><br><span class="line">    <span class="comment">// The process running on this cpu, or null.</span></span><br><span class="line">    context: Context,</span><br><span class="line">    <span class="comment">// swtch() here to enter scheduler().</span></span><br><span class="line">    <span class="keyword">pub</span> noff: <span class="type">u8</span>,</span><br><span class="line">    <span class="comment">// Depth of push_off() nesting.</span></span><br><span class="line">    <span class="keyword">pub</span> intena: <span class="type">bool</span>, <span class="comment">// Were interrupts enabled before push_off()?</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>It's very straightforward that a cpu can hold a <code>proc</code>
+reference, to indicate the current process that running on the cpu, and
+this field can also be empty if there is not much process to be run.</p>
+<p>The <code>context</code> hold the registers state that before the
+current process has been switched. Therefore, no matter what happens
+that let the kernel decide to switch the current process off the cpu,
+the <code>context</code> can always be restored so that the kernel
+scheduler code can be run to choose the next process.</p>
+<p>Other two fields <code>noff</code> and <code>intena</code> are work
+together to record the lock depth that is used for controling the
+interrupt, we'll check them in the later chapter.</p>
+<p>Now let's take a close look at the scheduling. Not like modern
+multi-tasks OS such as Linux, which has very complicated scheduling
+component that can make sure the cpu is fully utilized for many
+different scenarios, instead, the scheduling algorithm is very very
+simple in the xv6:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Per-CPU process scheduler.</span></span><br><span class="line"><span class="comment">// Each CPU calls scheduler() after setting itself up.</span></span><br><span class="line"><span class="comment">// Scheduler never returns.  It loops, doing:</span></span><br><span class="line"><span class="comment">//  - choose a process to run.</span></span><br><span class="line"><span class="comment">//  - swtch to start running that process.</span></span><br><span class="line"><span class="comment">//  - eventually that process transfers control</span></span><br><span class="line"><span class="comment">//    via swtch back to the scheduler.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">scheduler</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">c</span> = <span class="title function_ invoke__">mycpu</span>();</span><br><span class="line"></span><br><span class="line">    c.proc = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="comment">// Avoid deadlock by ensuring that devices can interrupt.</span></span><br><span class="line">        <span class="title function_ invoke__">intr_on</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> <span class="variable">p</span> <span class="keyword">in</span> <span class="keyword">unsafe</span> &#123; &amp;<span class="keyword">mut</span> PROCS &#125; &#123;</span><br><span class="line">            p.lock.<span class="title function_ invoke__">acquire</span>();</span><br><span class="line">            <span class="keyword">if</span> p.state == RUNNABLE &#123;</span><br><span class="line">                <span class="comment">// Switch to chosen process.  It is the process&#x27;s job</span></span><br><span class="line">                <span class="comment">// to release its lock and then reacquire it</span></span><br><span class="line">                <span class="comment">// before jumping back to us.</span></span><br><span class="line">                p.state = RUNNING;</span><br><span class="line">                c.proc = <span class="title function_ invoke__">Some</span>(p);</span><br><span class="line">                <span class="keyword">unsafe</span> &#123; <span class="title function_ invoke__">swtch</span>(&amp;c.context, &amp;p.context) &#125;</span><br><span class="line"></span><br><span class="line">                <span class="comment">// Process is done running for now.</span></span><br><span class="line">                <span class="comment">// It should have changed its p-&gt;state before coming back.</span></span><br><span class="line">                c.proc = <span class="literal">None</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            p.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The code comments have already made it quite clear. Just like the
+previous image shows, each cpu has its own scheduler, and the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>
+function running in a loop, which only does one thing: pick up a
+<code>RUNNABLE</code> process (ready to run but not run yet) and then
+put it on current cpu. Of cause due to potential concurrency
+modification in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>,
+a lock should be held whenever access the <code>PROCS</code> array.</p>
+<p>But how exactly is the process put on the cpu? That relies on a key
+assembly function <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9"><code>swtch</code></a>:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">### switch.S</span><br><span class="line">.globl swtch</span><br><span class="line">swtch:</span><br><span class="line">        sd ra, 0(a0)</span><br><span class="line">        sd sp, 8(a0)</span><br><span class="line">        sd s0, 16(a0)</span><br><span class="line">        sd s1, 24(a0)</span><br><span class="line">        sd s2, 32(a0)</span><br><span class="line">        sd s3, 40(a0)</span><br><span class="line">        sd s4, 48(a0)</span><br><span class="line">        sd s5, 56(a0)</span><br><span class="line">        sd s6, 64(a0)</span><br><span class="line">        sd s7, 72(a0)</span><br><span class="line">        sd s8, 80(a0)</span><br><span class="line">        sd s9, 88(a0)</span><br><span class="line">        sd s10, 96(a0)</span><br><span class="line">        sd s11, 104(a0)</span><br><span class="line"></span><br><span class="line">        ld ra, 0(a1)</span><br><span class="line">        ld sp, 8(a1)</span><br><span class="line">        ld s0, 16(a1)</span><br><span class="line">        ld s1, 24(a1)</span><br><span class="line">        ld s2, 32(a1)</span><br><span class="line">        ld s3, 40(a1)</span><br><span class="line">        ld s4, 48(a1)</span><br><span class="line">        ld s5, 56(a1)</span><br><span class="line">        ld s6, 64(a1)</span><br><span class="line">        ld s7, 72(a1)</span><br><span class="line">        ld s8, 80(a1)</span><br><span class="line">        ld s9, 88(a1)</span><br><span class="line">        ld s10, 96(a1)</span><br><span class="line">        ld s11, 104(a1)</span><br><span class="line"></span><br><span class="line">        ret</span><br></pre></td></tr></table></figure>
+<p>Basically the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9"><code>swtch</code></a>
+exchanges values of several registers, here is the <a
+href="https://drive.google.com/file/d/1Ja_Tpp_5Me583CGVD-BIZMlgGBnlKU4R/view">calling
+convention</a> of risc-v:</p>
+<img src="/2024/11/20/xv6-rust-4/4.png" class="">
+<p>According to this, the <code>ra</code> refers to "return address",
+which means after <code>ret</code> the cpu will run code from the
+address stored in the <code>ra</code>. The fun thing is a function
+usually returns to its calling address, however, <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9"><code>swtch</code></a>
+no longer returns to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>,
+instead it will return to the <code>ra</code> from the
+<code>p.context</code>, which is the second argument of the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9"><code>swtch</code></a>.</p>
+<p>But what's in the <code>p.context.ra</code>? We need to check the
+process creation function <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L460"><code>inner_alloc()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">fn</span> <span class="title function_">inner_alloc</span>&lt;<span class="symbol">&#x27;a</span>&gt;(p: &amp;<span class="symbol">&#x27;a</span> <span class="keyword">mut</span> Proc&lt;<span class="symbol">&#x27;a</span>&gt;) <span class="punctuation">-&gt;</span> <span class="type">Option</span>&lt;&amp;<span class="symbol">&#x27;a</span> <span class="keyword">mut</span> Proc&lt;<span class="symbol">&#x27;a</span>&gt;&gt; &#123;</span><br><span class="line">    p.pid = <span class="title function_ invoke__">allocpid</span>();</span><br><span class="line">    p.state = USED;</span><br><span class="line"></span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Set up new context to start executing at forkret,</span></span><br><span class="line">    <span class="comment">// which returns to user space.</span></span><br><span class="line">    p.context.ra = forkret <span class="keyword">as</span> <span class="type">u64</span>;</span><br><span class="line">    p.context.sp = (p.kstack + <span class="number">2</span> * PGSIZE) <span class="keyword">as</span> <span class="type">u64</span>;</span><br><span class="line">    <span class="title function_ invoke__">Some</span>(p)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>See, the <code>ra</code> set to <code>forkret</code>, and the
+<code>sp</code> set to the <code>kstack</code> that initialized in the
+<code>proc_mapstacks()</code>(we've talked about this function in the
+second section). We won't discuss the details of the
+<code>forkret</code> in this chapter, but all you need to know right now
+is that through <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L426"><code>forkret</code></a>
+the program can eventually jump to the first line of code in the user
+process.</p>
+<p>Go back to the <code>swtch</code>, at the same time as the values
+from <code>p.context</code> are set to cpu registers, the original
+registers are also stored into the first argument
+<code>c.context</code>, which is held by the <code>CPU</code> structure.
+So next time when the current on-cpu process needs to be switched off
+the cpu, the program can be restored to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>.</p>
+<p>In the following section, we'll see some cases that will make a
+process switch off its cpu.</p>
+<h2 id="process-lifecycle">5. Process Lifecycle</h2>
+<p>As mentioned in the first section, a process has a "State" field to
+record its status, there are several status defined:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">enum</span> <span class="title class_">Procstate</span> &#123;</span><br><span class="line">    UNUSED,</span><br><span class="line">    USED,</span><br><span class="line">    SLEEPING,</span><br><span class="line">    RUNNABLE,</span><br><span class="line">    RUNNING,</span><br><span class="line">    ZOMBIE,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>I suppose we have seen some of them, for example, when the
+<code>PROCS</code> array has been initialized, all of the proc struct it
+holds, are set their status to "UNUSED", and once a process has been
+created, its state will be set to "USED", refer to the function <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L460"><code>inner_alloc()</code></a>
+we have just talked.</p>
+<p>And if we recap the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>
+function, we'll find only a process that state is "RUNNABLE" can be
+chosen to put on cpu, and in the meantime, its state will be updated to
+"RUNNING".</p>
+<p>There are two states left, a process will "SLEEPING" when <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607"><code>sleep()</code></a>
+called, the typical case is the <code>Sleeplock</code>, when the lock is
+held by another process, the current process that tries to acquire the
+lock will go to sleep. While once a process exited by calling <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704"><code>exit()</code></a>
+its state will become "ZOMBIE", a zombie process can only been recycled
+by <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L491"><code>freeproc()</code></a>.</p>
+<p>There are many new concepts and functions that were brought, don't
+worry, let's see the full picture of process lifecycle first:</p>
+<img src="/2024/11/20/xv6-rust-4/5.png" class="">
+<p>Interesting! There are many different functions that get involved in
+driving the state change. We'll briefly explain them, for more details
+please read the code directly.</p>
+<p>Generally, from "USED" to "RUNNABLE" happens when a process is being
+created. <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L307"><code>userinit</code></a>
+creates the very first process(the init process, pid = 1) in the entire
+system, so the state will be changed in that function. Except for the
+special init process, a normal process will often be created through the
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L365"><code>fork()</code></a>
+syscall, it also changes state to "RUNNABLE".</p>
+<p>We have discussed the scheduling procedure back in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>
+function, but there is also a path that can put a process directly from
+"RUNNING" to "RUNNABLE". Please note that, this kind of state change is
+not very easy to implement.</p>
+<p>For example, there is a user process with content is only an infinite
+loop: <code>loop &#123;&#125;</code>, and this loop is running forever. You may
+imagine how to stop the infinite loop and switch off the process from
+the cpu. Even in the running kernel code in a privileged mode, it's also
+impossible to stop it because the loop fully occupied the cpu, expect
+for one case, interrupt. BTW, to directly interrupt a program from
+running, this type of scheduling way is called <a
+href="https://en.wikipedia.org/wiki/Preemption_(computing)">"Preemptive
+multitasking"</a>, conversely, the type that requires the program itself
+to assist the scheduling is called <a
+href="https://en.wikipedia.org/wiki/Cooperative_multitasking">"Cooperative
+multitasking"</a>.</p>
+<p>If you still remember, back to chapter 2, there was a function <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L55"><code>timerinit()</code></a>
+in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/start.rs#L16"><code>start()</code></a>,
+we didn't talk about it at that time, but now we can bring it up. This
+function initializes the timer interrupt, which will send an interrupt
+every 1/10 sec to every cpu. We'll see more details about trap and
+interrupt in the next chapter, now we only need to know that the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L226"><code>proc_yiled()</code></a>
+will be called while the timer interrupt is handled:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">proc_yield</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>) &#123;</span><br><span class="line">    <span class="keyword">self</span>.lock.<span class="title function_ invoke__">acquire</span>();</span><br><span class="line">    <span class="keyword">self</span>.state = RUNNABLE;</span><br><span class="line">    <span class="title function_ invoke__">sched</span>();</span><br><span class="line">    <span class="keyword">self</span>.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">sched</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line"></span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="title function_ invoke__">swtch</span>(&amp;p.context, &amp;<span class="title function_ invoke__">mycpu</span>().context);</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>And with the stat is changed to "RUNNABLE", it also calls <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675"><code>sched()</code></a>,
+which call the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/asm/switch.S#L9"><code>swtch</code></a>
+again, to save the current process context, and restore the previous
+context saved in the <code>Cpu</code> struct, the previous saved context
+can go back to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L641"><code>scheduler()</code></a>
+and let it choose next process to be run.</p>
+<p>Just like that, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607"><code>sleep()</code></a>
+/ <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593"><code>wakeup()</code></a>
+acts as a similar behavior:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">sleep</span>&lt;T&gt;(chan: *<span class="keyword">const</span> T, lk: &amp;<span class="keyword">mut</span> Spinlock) &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    ... ...</span><br><span class="line">	  p.chan = <span class="title function_ invoke__">Some</span>(chan <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>);</span><br><span class="line">    p.state = SLEEPING;</span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">sched</span>();</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">wakeup</span>&lt;T&gt;(chan: &amp;T) &#123;</span><br><span class="line">    <span class="keyword">for</span> <span class="variable">p</span> <span class="keyword">in</span> <span class="keyword">unsafe</span> &#123; &amp;<span class="keyword">mut</span> PROCS &#125; &#123;</span><br><span class="line">        <span class="keyword">if</span> p <span class="keyword">as</span> *<span class="keyword">const</span> Proc != <span class="title function_ invoke__">myproc</span>() <span class="keyword">as</span> *<span class="keyword">const</span> Proc &#123;</span><br><span class="line">            p.lock.<span class="title function_ invoke__">acquire</span>();</span><br><span class="line">            <span class="keyword">if</span> p.state == SLEEPING &amp;&amp; p.chan == <span class="title function_ invoke__">Some</span>(chan <span class="keyword">as</span> *<span class="keyword">const</span> T <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>) &#123;</span><br><span class="line">                p.state = RUNNABLE;</span><br><span class="line">            &#125;</span><br><span class="line">            p.lock.<span class="title function_ invoke__">release</span>()</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>When a process calls <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607"><code>sleep()</code></a>,
+its state will be set to "SLEEPING", and then switch off the cpu. At
+that time, the process stops running, and its context is saved into
+<code>Proc</code> struct.</p>
+<p>Once the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593"><code>wakeup()</code></a>
+is called somewhere, the sleeping process will be found by the
+<code>chan</code> filed (with a generic type and acts like a key), then
+just simply set the state to <code>RUNNABLE</code> then do nothing,
+because after some round of scheduling, it can eventually been chosen to
+run. That also implies that a woke up process cannot immediately go back
+to running, it must wait a period of time to be re-scheduled. If you
+search in the xv6 code base about the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L607"><code>sleep()</code></a>
+/ <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L593"><code>wakeup()</code></a>
+, you'll find that these pair of functions are usually used at the
+places that corresponding to file system, uart device and inter process
+communication. Because all of these cases share one thing in common,
+which is long response time compared to cpu cycles.</p>
+<p>At last, you can have a look at the "ZOMBIE" state. There is a
+syscall <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704"><code>exit()</code></a>,
+when a process finishes its job and wants to exit itself, it can call
+it.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">exit</span>(status: <span class="type">i32</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">// Give any children to init.</span></span><br><span class="line">    <span class="title function_ invoke__">reparent</span>(p);</span><br><span class="line">  </span><br><span class="line">    <span class="comment">// Parent might be sleeping in wait().</span></span><br><span class="line">    <span class="title function_ invoke__">wakeup</span>(p.parent.<span class="title function_ invoke__">unwrap</span>());</span><br><span class="line">  </span><br><span class="line">    <span class="comment">// record exit status</span></span><br><span class="line">    p.xstate = status <span class="keyword">as</span> <span class="type">u8</span>;</span><br><span class="line">    p.state = ZOMBIE;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">// Jump into the scheduler, never to return.</span></span><br><span class="line">    <span class="title function_ invoke__">sched</span>();</span><br><span class="line">    <span class="built_in">panic!</span>(<span class="string">&quot;zombie exit&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>In addition to setting the exit status and process state, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L675"><code>sched()</code></a>
+is called with a <code>panic</code> follows after it, which means there
+is no another way to go back here, if that happens, something's
+definitely wrong.</p>
+<p>After exit, there is one more step to do, then the state can be
+changed to "UNUSED" eventually:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">wait</span>(addr: <span class="type">usize</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> <span class="variable">i</span> <span class="keyword">in</span> <span class="number">0</span>..NPROC &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">pp</span> = <span class="keyword">unsafe</span> &#123; &amp;<span class="keyword">mut</span> PROCS[i] &#125;;</span><br><span class="line">            <span class="keyword">if</span> pp.parent.<span class="title function_ invoke__">is_some</span>() &amp;&amp; pp.parent.<span class="title function_ invoke__">unwrap</span>() <span class="keyword">as</span> *<span class="keyword">const</span> Proc == p <span class="keyword">as</span> *<span class="keyword">const</span> Proc &#123;</span><br><span class="line">                ... ...</span><br><span class="line">                <span class="keyword">if</span> pp.state == ZOMBIE &#123;</span><br><span class="line">                    <span class="comment">// Found one.</span></span><br><span class="line">                    <span class="keyword">let</span> <span class="variable">pid</span> = pp.pid;</span><br><span class="line">                    ... ...</span><br><span class="line">                    <span class="title function_ invoke__">freeproc</span>(pp);</span><br><span class="line">                    ... ...</span><br><span class="line">                    <span class="keyword">return</span> pid <span class="keyword">as</span> <span class="type">i32</span>;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                pp.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">// Wait for a child to exit.</span></span><br><span class="line">    <span class="title function_ invoke__">sleep</span>(p, <span class="keyword">unsafe</span> &#123; &amp;<span class="keyword">mut</span> WAIT_LOCK &#125;); <span class="comment">//DOC: wait-sleep</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">freeproc</span>(p: &amp;<span class="keyword">mut</span> Proc) &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    p.state = UNUSED;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>Actually the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L752"><code>wait()</code></a>
+is also a syscall, it allows any process can wait its children to be
+exited, according to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L704"><code>exit()</code></a>,
+the process will wake up its parent while exit, if the parent calls the
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/569774eeff135ebc877bd25a4b283d75ad62d35c/kernel/src/proc.rs#L752"><code>wait()</code></a>
+after create the child process, then the parent will be waken up to
+recycle the process, and set its state to "UNUSED".</p>
+<p>Generally, when a process creates a child process, it has the
+responsibility to take care of the exit of the child process as well.
+But what if there is a careless parent that only creates but never
+recycles? Or what if the parent process accidentally exits itself due to
+unexpected errors?</p>
+<p>For the first case, if a parent never recycles its children, then
+once a child process exited, it will remain in "ZOMBIE" state, until the
+parent exits. And after parent exits (it's also the second case), then
+all of its children will <code>reparent()</code> to the
+<code>init</code> process, and the <code>init</code> will eventually
+become their parent and take care of their exit (this behavior is just
+like other systems such as Linux does):</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">reparent</span>(p: &amp;<span class="keyword">mut</span> Proc) &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> <span class="variable">i</span> <span class="keyword">in</span> <span class="number">0</span>..NPROC &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">pp</span> = &amp;<span class="keyword">mut</span> PROCS[i];</span><br><span class="line">            <span class="keyword">if</span> pp.parent.<span class="title function_ invoke__">is_some</span>() &#123;</span><br><span class="line">                <span class="keyword">if</span> ptr::<span class="title function_ invoke__">eq</span>(pp.parent.<span class="title function_ invoke__">unwrap</span>(), p) &#123;</span><br><span class="line">                    <span class="comment">// reparent to init</span></span><br><span class="line">                    pp.parent = <span class="title function_ invoke__">Some</span>(&amp;INIT_PROC.<span class="title function_ invoke__">as_ref</span>().<span class="title function_ invoke__">unwrap</span>());</span><br><span class="line">                    <span class="title function_ invoke__">wakeup</span>(&amp;INIT_PROC);</span><br><span class="line">                &#125;;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Let's see the first user process <code>init</code>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/init.rs</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">main</span>(_argc: <span class="type">isize</span>, _argv: *<span class="keyword">const</span> *<span class="keyword">const</span> <span class="type">u8</span>) <span class="punctuation">-&gt;</span> <span class="type">isize</span> &#123;</span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="comment">// this call to wait() returns if the shell exits,</span></span><br><span class="line">        <span class="comment">// or if a parentless process exits.</span></span><br><span class="line">        wpid = <span class="title function_ invoke__">wait</span>(<span class="number">0</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>);</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2024/11/20/xv6-rust-4/" title="&#x2F;Xv6 Rust 0x04&#x2F; - CPU Virtualization">http://lenshood.github.io/2024/11/20/xv6-rust-4/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/11/08/xv6-rust-3/" rel="prev" title="&#x2F;Xv6 Rust 0x03&#x2F; - Memory Virtualization">
+                  <i class="fa fa-angle-left"></i> /Xv6 Rust 0x03/ - Memory Virtualization
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/12/10/xv6-rust-5/" rel="next" title="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence">
+                  /Xv6 Rust 0x05/ - Persistence <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

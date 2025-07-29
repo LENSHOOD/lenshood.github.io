@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="近期所在的项目，在进行近 4 个月的紧张交付后，与客户一起安排并进行了一次发布上线。在上线过程中出现了一个较为严重的事故，好在没有对客户造成太大的损失，本文期望针对完整的事件进行复盘与反思，以加强自己对线上环境的敬畏。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="对一次发布失败的反思">
+<meta property="og:url" content="http://lenshood.github.io/2020/07/10/rethink-of-a-release-failed/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="近期所在的项目，在进行近 4 个月的紧张交付后，与客户一起安排并进行了一次发布上线。在上线过程中出现了一个较为严重的事故，好在没有对客户造成太大的损失，本文期望针对完整的事件进行复盘与反思，以加强自己对线上环境的敬畏。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-07-10T07:21:05.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.413Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="rethink">
+<meta property="article:tag" content="release">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/07/10/rethink-of-a-release-failed/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/07/10/rethink-of-a-release-failed/","path":"2020/07/10/rethink-of-a-release-failed/","title":"对一次发布失败的反思"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>对一次发布失败的反思 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8B%E5%8F%91%E7%BC%98%E7%94%B1"><span class="nav-number">1.</span> <span class="nav-text">事发缘由</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E6%89%80%E5%9C%A8"><span class="nav-number">2.</span> <span class="nav-text">问题所在</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B7%B1%E5%85%A5%E6%8E%A2%E8%AE%A8"><span class="nav-number">3.</span> <span class="nav-text">深入探讨</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">4.</span> <span class="nav-text">解决方案</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/07/10/rethink-of-a-release-failed/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="对一次发布失败的反思 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          对一次发布失败的反思
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-07-10 15:21:05" itemprop="dateCreated datePublished" datetime="2020-07-10T15:21:05+08:00">2020-07-10</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>近期所在的项目，在进行近 4
+个月的紧张交付后，与客户一起安排并进行了一次发布上线。在上线过程中出现了一个较为严重的事故，好在没有对客户造成太大的损失，本文期望针对完整的事件进行复盘与反思，以加强自己对线上环境的敬畏。</p>
+<span id="more"></span>
+<h3 id="事发缘由">事发缘由</h3>
+<p>此次发布所涵盖的功能点中，有一个功能。会定时获取上游服务数据，并根据其中的相关干系人信息，给他们发送提醒邮件。正是这样一个简单且经过多次验证的功能，导致出了事故：</p>
+<ul>
+<li>由于首次上线，第一次获取到了大量的用户数据（后续才会增量获取），导致发送了大量邮件给相关干系人（试想早上来上班发现自己邮箱里多了几千封莫名其妙的邮件的感受），结果产生了多个相关的投诉单。</li>
+</ul>
+<p>在发现这些问题后，我们先紧急关闭了邮件服务（但其实该发的都发完了），之后了解了相关上下文以及问题的直接原因后，向相关受到骚扰的用户发出了致歉信。</p>
+<h3 id="问题所在">问题所在</h3>
+<p>只从前文对事故的描述上看，首先以下几点是无可辩驳的失误：</p>
+<ol type="1">
+<li><p>为什么在告知相关用户新系统上线并可能会发送邮件之前，就把邮件服务打开，并开始给真实用户发送邮件（用户未被告知，一脸懵逼）</p></li>
+<li><p>为什么会在短时间内（一天内）给用户发送超过数十封邮件的情况下，代码仍然继续执行发送逻辑（完全没有设置限流、报警等措施，当问题发现时已经不可挽回）</p></li>
+<li><p>第一次同步了大量数据，为什么没有对这些数据进行筛选，难道同步的所有数据都是业务需要的吗？（很多历史数据生命周期早已结束只做留存用，根本不应该再发邮件提醒干系人）</p></li>
+<li><p>本身业务上存在给相同用户发送数百封邮件的设计，是否合理？（完全没有从用户体验角度考虑）</p></li>
+</ol>
+<h3 id="深入探讨">深入探讨</h3>
+<p>从我们整体的交付流程上看，通常情况下的交付流程是这样的：</p>
+<ol type="1">
+<li>由客户给出需求说明方案，我们的 BA + UX + TL
+会客户一起进行需求澄清，并给出大致的工作量估计。</li>
+<li>UX 根据要求给出高保真稿，与客户确认，BA
+将原始需求进行拆解，划分迭代，并将最近迭代的细化需求转化为用户故事。</li>
+<li>全员一起开 IPM 会议，对迭代内的用户故事进行估点。</li>
+<li>进入迭代开发流程，包括研发 -&gt; DC -&gt; QA。</li>
+<li>对近期 1-2 个迭代的产出物与客户进行 showcase。</li>
+<li>继续下一个迭代</li>
+</ol>
+<p>回到事故本身，发送大量邮件的问题上：</p>
+<ol type="1">
+<li>在需求澄清阶段，我们完全没有对发送邮件需求中 --
+可能给相同的人发送大量邮件 -- 这种 case
+做任何讨论，我们作为实现方没能发现业务需求中的漏洞，默默地接收了这样的需求。</li>
+<li>需求澄清阶段拿到的需求可能的确比较粗，忽略了一些边界条件情有可原，但
+BA
+在进行需求转化为用户故事的过程中，会细致的对需求进行梳理，然而也没能发现这样的问题。（实际情况是发现了并和客户进行了沟通，但没有说服客户修改业务，遂放弃）</li>
+<li>所有成员一起 IPM
+时，也没能发现这个潜在的故障需求，大家都默认客户已经知道这种风险，且没有再深究（潜意识里将风险与责任甩锅给客户，而忽视了自己的专业性判断）</li>
+<li>研发全流程中，开发同学没有考虑给邮件服务增加限流、报警等功能的意识，认为实现邮件服务就是发送邮件，能收到，开发完成。QA
+同学也没能覆盖到大批量发送邮件的场景。</li>
+<li>showcase 时我们与客户又一次全体 blind，忽略了这个问题。</li>
+</ol>
+<p>可以看到，经过分析发现，并不仅仅是由于上线准备不足，或是功能开发不完善而导致事故的发生，真实的情况是只要在交付的任何一个流程我们发现了可能的问题并对其进行限制，就一定不会出现问题，然而并没有。</p>
+<p>所以实际上，问题的根因在于：<code>作为交付团队，实际上只是在机械的实现客户的需要，简单而直接的满足需求的实现，但却没有拿出自身的专业性，从根本上对需求本身进行质疑和深入思考，甲乙双方甚至略有陷入互相对立的局面。</code></p>
+<p>如果不解决根因，再进行安全学习、流程优化，这种事故仍然会一而再而三的发生。</p>
+<h3 id="解决方案">解决方案</h3>
+<ol type="1">
+<li>修复邮件服务风险，增加相关保护逻辑</li>
+<li>与客户重新沟通业务，确保达成一致</li>
+<li>提高团队服务意识，增进客户合作。</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/07/10/rethink-of-a-release-failed/" title="对一次发布失败的反思">http://lenshood.github.io/2020/07/10/rethink-of-a-release-failed/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/rethink/" rel="tag"># rethink</a>
+              <a href="/tags/release/" rel="tag"># release</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/07/04/feature-toggle/" rel="prev" title="Feature Toggles (aka Feature Flags)">
+                  <i class="fa fa-angle-left"></i> Feature Toggles (aka Feature Flags)
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/08/14/tidb-lesson-1/" rel="next" title="TiDB 学习课程 Lesson-1">
+                  TiDB 学习课程 Lesson-1 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

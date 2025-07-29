@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="MySQL 的事务隔离级别 在 MySQL 8.0 Reference Manual 中描述了 InnoDB 的事务隔离介绍： &gt; InnoDB 提供了 SQL-92 标准中描述的所有 4 种隔离级别的支持，它们是：READ UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。InnoDB 的默认隔离级别为 REPEATABLE">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MySQL(InnoDB) 独特的 Repeatable Read 隔离级别">
+<meta property="og:url" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="MySQL 的事务隔离级别 在 MySQL 8.0 Reference Manual 中描述了 InnoDB 的事务隔离介绍： &gt; InnoDB 提供了 SQL-92 标准中描述的所有 4 种隔离级别的支持，它们是：READ UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。InnoDB 的默认隔离级别为 REPEATABLE">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/summary.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/p2.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/p2_2.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/p4.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/a5a.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/a5b.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/a3.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/p3.png">
+<meta property="article:published_time" content="2020-11-30T02:05:35.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.179Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="database">
+<meta property="article:tag" content="isolation level">
+<meta property="article:tag" content="mysql">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/summary.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/","path":"2020/11/30/isolation-level-with-mysql/","title":"MySQL(InnoDB) 独特的 Repeatable Read 隔离级别"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>MySQL(InnoDB) 独特的 Repeatable Read 隔离级别 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">true</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#mysql-%E7%9A%84%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">1.</span> <span class="nav-text">MySQL 的事务隔离级别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ansi-isolation-level-%E7%9A%84%E6%89%A9%E5%B1%95"><span class="nav-number">2.</span> <span class="nav-text">ANSI Isolation Level 的扩展</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E9%94%81%E7%9A%84%E9%9A%94%E7%A6%BB"><span class="nav-number">2.1.</span> <span class="nav-text">基于锁的隔离</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#p0-w_1x...w_2x...-c_1-or-a_1-and-c_2-or-a_2-in-any-order"><span class="nav-number">2.1.1.</span> <span class="nav-text">P0：
+\(w_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\  and\
+(c_2\ or\ a_2)\ in\ any\ order)\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#p1w_1x...r_2x...-c_1-or-a_1-and-c_2-or-a_2-in-any-order"><span class="nav-number">2.1.2.</span> <span class="nav-text">P1：\(w_1[x]...r_2[x]...\ ((c_1\ or\ a_1)\ and\ (c_2\
+or\ a_2)\ in\ any\ order)\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#p2r_1x...w_2x...-c_1-or-a_1-and-c_2-or-a_2-in-any-order"><span class="nav-number">2.1.3.</span> <span class="nav-text">P2：\(r_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\ and\ (c_2\
+or\ a_2)\ in\ any\ order)\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#p3-r_1p...w_2y-in-p...-c_1-or-a_1-and-c_2-or-a_2-in-any-order"><span class="nav-number">2.1.4.</span> <span class="nav-text">P3：
+\(r_1[P]...w_2[y \ in \ P]...\ ((c_1\ or\
+a_1)\ and\ (c_2\ or\ a_2)\ in\ any\ order)\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#cursor-stability"><span class="nav-number">2.1.5.</span> <span class="nav-text">CURSOR STABILITY</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#p4r_1x...w_2x...w_1x...c1"><span class="nav-number">2.1.6.</span> <span class="nav-text">P4：\(r_1[x]...w_2[x]...w_1[x]...c1\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#p4crc_1x...w_2x...w_1x...c1"><span class="nav-number">2.1.7.</span> <span class="nav-text">P4C：\(rc_1[x]...w_2[x]...w_1[x]...c1\)</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E5%BF%AB%E7%85%A7%E7%89%88%E6%9C%AC%E7%9A%84%E9%9A%94%E7%A6%BB"><span class="nav-number">2.2.</span> <span class="nav-text">基于快照（版本）的隔离</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#a5ar_1x...w_2x...w_2y...c_2...r_1y...c_1-or-a_1"><span class="nav-number">2.2.1.</span> <span class="nav-text">A5A：\(r_1[x]...w_2[x]...w_2[y]...c_2...r_1[y]...(c_1\
+or\ a_1)\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#a5br_1x...r_2y...w_1y...w_2x...c_1-and-c_2-occur"><span class="nav-number">2.2.2.</span> <span class="nav-text">A5B：\(r_1[x]...r_2[y]...w_1[y]...w_2[x]...(c_1\ and\
+c_2\ occur)\)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#a3r_1p...w_2y-in-p...c_2...r_1p...c_1"><span class="nav-number">2.2.3.</span> <span class="nav-text">A3：\(r_1[P]...w_2[y\ in\
+P]...c_2...r_1[P]...c_1\)</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%8C%E6%95%B4%E7%9A%84%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%E4%B8%8E%E5%BC%82%E8%B1%A1%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="nav-number">2.3.</span> <span class="nav-text">完整的隔离级别与异象的关系</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mysql-%E7%9A%84-repeatable-read-%E8%83%BD%E5%A4%9F%E9%81%BF%E5%85%8D-write-skew-%E5%90%97"><span class="nav-number">3.</span> <span class="nav-text">MySQL 的
+REPEATABLE READ 能够避免 Write Skew 吗？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#p2-non-repeatable-read"><span class="nav-number">3.1.</span> <span class="nav-text">P2 Non-repeatable Read</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#p4-lost-update"><span class="nav-number">3.2.</span> <span class="nav-text">P4 Lost Update</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#a5a-read-skew"><span class="nav-number">3.3.</span> <span class="nav-text">A5A Read Skew</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#a5b-write-skew"><span class="nav-number">3.4.</span> <span class="nav-text">A5B Write Skew</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#a3-phantom"><span class="nav-number">3.5.</span> <span class="nav-text">A3 Phantom</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9B%B4%E4%BD%8E%E7%9A%84%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB"><span class="nav-number">3.6.</span> <span class="nav-text">更低的隔离级别</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mysql-%E7%9A%84%E5%AE%9E%E7%8E%B0%E4%B8%8D%E5%A5%BD%E5%90%97"><span class="nav-number">4.</span> <span class="nav-text">MySQL 的实现不好吗？</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="MySQL(InnoDB) 独特的 Repeatable Read 隔离级别 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MySQL(InnoDB) 独特的 Repeatable Read 隔离级别
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-11-30 10:05:35" itemprop="dateCreated datePublished" datetime="2020-11-30T10:05:35+08:00">2020-11-30</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/DB/" itemprop="url" rel="index"><span itemprop="name">DB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="mysql-的事务隔离级别">MySQL 的事务隔离级别</h2>
+<p>在 <a
+href="https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html">MySQL
+8.0 Reference Manual</a> 中描述了 InnoDB 的事务隔离介绍： &gt; InnoDB
+提供了 SQL-92 标准中描述的所有 4 种隔离级别的支持，它们是：READ
+UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。InnoDB
+的默认隔离级别为 REPEATABLE READ。</p>
+<span id="more"></span>
+<p>对于 REPEATABLE READ 和 READ COMMITTED，Reference Manual
+中描述到：</p>
+<ul>
+<li><p>REPEATABLE READ 对于同一个事务中的<a
+href="https://dev.mysql.com/doc/refman/8.0/en/glossary.html#glos_consistent_read">一致性读（即读取事务开始时的数据库快照，是
+MySQL 读的默认行为）</a>，MySQL
+会基于事务开始的快照。就是说如果在同一个事务中发起了多个非阻塞
+SELECT，这些 SELECT 彼此之间是保持一致的。</p>
+<p>对于 SELECT...FOR UPDATE（FOR SHARE)、UPDATE 、DELETE
+语句，锁取决于语句是使用了具有唯一搜索条件的唯一索引，还是使用范围类型的搜索条件。</p>
+<ul>
+<li>对于唯一搜索条件的唯一索引，InnoDB 只锁住索引找到的记录，而不会包含
+gap 锁</li>
+<li>对于其他的搜索条件，InnoDB 会锁住整个范围，使用 gap 锁或 next-key
+锁来阻塞其他会话对被覆盖范围数据的插入。</li>
+</ul></li>
+<li><p>READ COMMITTED 对于一致性读，设置或读取记录的最新版本快照。 对于
+SELECT...FOR UPDATE（FOR SHARE)、UPDATE 、DELETE 语句，InnoDB
+只锁索引记录，不使用 gap 锁。由于不使用 gap
+锁，可能会出现幻读（phantom）现象。</p>
+<p>额外影响：</p>
+<ul>
+<li>对于 UPDATE 、DELETE 语句，InnoDB
+只持有被修改或删除的行的锁。对于未匹配到的记录的锁，会在执行完 WHERE
+条件后释放。这极大地降低了（但未消除）死锁发生的概率。</li>
+<li>对于 UPDATE 语句，如果行已经被锁，InnoDB 执行
+“半一致（semi-consistent）” 读，返回最新提交的版本给 MySQL，以便 MySQL
+判断该行是否符合更新的 WHERE
+条件。如果某一行成功匹配，MySQL再一次读取该行，之后 InnoDB
+给该行加锁或等待行上已有的锁。</li>
+</ul></li>
+</ul>
+<p>因此，从 MySQL Reference Manual 的角度看，MySQL 能够支持 <a
+href="https://datacadamia.com/_media/data/type/relation/sql/sql1992.txt">ANSI
+SQL-92</a> 中定义的完整隔离级别，并且默认处于 ANSI SQL-92 REPEATABLE
+READ。</p>
+<h2 id="ansi-isolation-level-的扩展">ANSI Isolation Level 的扩展</h2>
+<p>ANSI SQL 标准的第一版发布于 1986
+年，之后又陆续发布了多个主版本和修订版本，最新的修订版是
+SQL-2019。不过，其最新的主版本仍然是 1992 年发布的 SQL-92。</p>
+<p>如同 MySQL 文档中提到的，SQL-92 定义了四种隔离级别：READ
+UNCOMMITTED，READ COMMITTED，REPEATABLE READ，和 SERIALIZABLE。SQL-92
+主要通过三种异象（phenomena）来对这四种隔离级别进行描述。这三种异象分别是:
+1. 脏读（Dirty Read） 2. 不可重复读（Non-repetable Read） 3.
+幻象（Phantom）</p>
+<p>上面三种异象是我们耳熟能详的数据库基础知识。不过，在 ANSI SQL
+发布三年后的 1995
+年，一篇文章对这种隔离级别的划分与描述方法提出了质疑：</p>
+<p>在文章 <a
+href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf"><em>A
+Critique of ANSI SQL Isolation Levels</em></a>
+中，作者认为仅通过上述三种异象还不足以清晰的定义隔离级别。相应的，作者对
+ANSI SQL 的异象与隔离级别做了扩展，重新定义了 8 种异象和 6
+种隔离级别。后来，该文成为了理解数据库隔离性的重要论文之一。</p>
+<p>这一节我们将简单整理作者的理论。</p>
+<p>为了能更清晰的表述事务之间的操作关系，我们将操作简化为 <span
+class="math inline">\(w\)</span> (write)，<span
+class="math inline">\(r\)</span> (read) ，每个操作的下标 <span
+class="math inline">\(n\)</span> 代表执行操作的事务，例如 <span
+class="math inline">\(r_1\)</span> 代表事务 1 读，<span
+class="math inline">\(w_2\)</span> 代表事务 2 写。紧跟着操作的中括号
+<span class="math inline">\([]\)</span>
+的内容代表当前操作所涉及的资源，例如 <span
+class="math inline">\(w_1[x]\)</span> 代表事务 1 写入了资源 <span
+class="math inline">\(x\)</span>，<span
+class="math inline">\(r_2[P]\)</span> 代表事务 2 读取了满足谓词 <span
+class="math inline">\(P\)</span> 的资源。最后，使用 <span
+class="math inline">\(c\)</span> (commit) 和 <span
+class="math inline">\(a\)</span> (abort) 来表示提交与回滚。</p>
+<p>因此我们就可以用一连串的操作来表示一段操作历史：</p>
+<p><span class="math inline">\(w_1[x]...r_2[x]...\ (a_1\ and\ c_2\ in\
+any\ order)\)</span></p>
+<p>可以表述事务 2 先写 <span class="math inline">\(x\)</span> ，之后事务
+1 读 <span class="math inline">\(x\)</span>，最后事务 1 回滚或事务 2
+提交。</p>
+<h3 id="基于锁的隔离">基于锁的隔离</h3>
+<p>为了实现事务之间的隔离，可以通过给读写分别加锁的方式（读共享锁、写独占锁）进行并发控制，加锁又可以分为以下三种粒度：</p>
+<ol type="1">
+<li>不加锁</li>
+<li>使用前加锁，使用完立即释放锁，称为 Short duration 锁</li>
+<li>使用前加锁，直到事务提交后释放锁，称为 Long duration 锁
+（类似两阶段锁的实现）</li>
+</ol>
+<p>在使用锁隔离的事务控制实现下，能够定义如下异象与隔离级别的关系：</p>
+<h4 id="p0-w_1x...w_2x...-c_1-or-a_1-and-c_2-or-a_2-in-any-order">P0：
+<span class="math inline">\(w_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\  and\
+(c_2\ or\ a_2)\ in\ any\ order)\)</span></h4>
+<p>P0 称为 <strong>Dirty Write</strong>，在读写均不加锁时可能发生
+P0。这种异象会破坏数据库的一致性，因此是任何隔离级别都不可容忍的。</p>
+<p>禁止 P0 发生，隔离级别就能达到 READ UNCOMMITTED。</p>
+<h4
+id="p1w_1x...r_2x...-c_1-or-a_1-and-c_2-or-a_2-in-any-order">P1：<span
+class="math inline">\(w_1[x]...r_2[x]...\ ((c_1\ or\ a_1)\ and\ (c_2\
+or\ a_2)\ in\ any\ order)\)</span></h4>
+<p>P1 称为 <strong>Dirty Read</strong>，在读不加锁，写加 Long duration
+锁时可能发生
+P1。这种情况可能导致事务读取到未提交的脏数据。如下事务执行历史模拟了 P1
+发生的情况：</p>
+<p><span
+class="math inline">\(r_1[x=50]..w_1[x=10]..r_2[x=10]..r_2[y=50]..c_2..r_1[y=50]..w_1[y=90]..c_1\)</span></p>
+<p>银行维护了账户<span class="math inline">\(x\)</span> 与 <span
+class="math inline">\(y\)</span>，它们在银行的存款总余额为 <span
+class="math inline">\(x+y=100\)</span> 元。事务 1 中，<span
+class="math inline">\(x\)</span> 向 <span
+class="math inline">\(y\)</span> 转账 40 元，先修改 <span
+class="math inline">\(x\)</span> 为 10元，接着修改 <span
+class="math inline">\(y\)</span> 为 90 元。但事务 2 在事务 1 修改 <span
+class="math inline">\(y\)</span> 之前开始，它读取了账户余额，得取到
+<span class="math inline">\(x=10\)</span>，<span
+class="math inline">\(y=50\)</span>，因此事务 2 中 <span
+class="math inline">\(x+y=60\)</span> 元，产生了不一致状态。</p>
+<p>禁止 P1 发生，隔离级别就能达到 READ COMMITTED。</p>
+<h4
+id="p2r_1x...w_2x...-c_1-or-a_1-and-c_2-or-a_2-in-any-order">P2：<span
+class="math inline">\(r_1[x]...w_2[x]...\ ((c_1\ or\ a_1)\ and\ (c_2\
+or\ a_2)\ in\ any\ order)\)</span></h4>
+<p>P2 称为 <strong>Non-repeatable Read (Fuzzy Read)</strong>，在读加
+Short duration 锁，写加 Long duration 锁时可能发生
+P2。这种情况可能导致同一事务中两次读取到的数据不一致。如下事务执行历史模拟了
+P2 发生的情况：</p>
+<p><span
+class="math inline">\(r_1[x=50]..r_2[x=50]..w_2[x=10]..r_2[y=50]..w_2[y=90]..c_2..r_1[y=90]..c_1\)</span></p>
+<p>与前面的例子类似，能够看到在事务 2 提交之后，事务 1 对 <span
+class="math inline">\(y\)</span> 的第二次读与第一次不同，此时，在事务 1
+中， <span
+class="math inline">\(x+y=140\)</span>，产生了不一致状态。</p>
+<p>禁止 P2 发生，隔离级别就能达到 REPEATABLE READ。</p>
+<h4
+id="p3-r_1p...w_2y-in-p...-c_1-or-a_1-and-c_2-or-a_2-in-any-order">P3：
+<span class="math inline">\(r_1[P]...w_2[y \ in \ P]...\ ((c_1\ or\
+a_1)\ and\ (c_2\ or\ a_2)\ in\ any\ order)\)</span></h4>
+<p>P3 称为 <strong>Phantom</strong>，在读数据项加 Long duration
+锁，读谓词（Predicate）加 Short duration 锁，写加 Long duration
+锁时可能发生
+P3。这种情况可能导致同一事务中两次读取到的数据量不一致。如下事务执行历史模拟了
+P3 发生的情况：</p>
+<p><span class="math inline">\(r_1[P]..w_2[insert\ y\ to\
+P]..r_2[z]..w_2[z]..c_2..r_1[z]..c_1\)</span></p>
+<p>上述执行历史描述了事务 1 基于某种条件谓词 <span
+class="math inline">\(P\)</span> 来查找在职员工列表，这时事务 2
+向在职员工列表插入了一个新员工，并更新了代表员工总数的数据项 <span
+class="math inline">\(z\)</span>，在事务 2 提交后，事务 1 检查数据项
+<span
+class="math inline">\(z\)</span>，会发现与读取的在职员工列表不符。</p>
+<p>禁止 P3 发生，隔离级别就能达到最高级 SERIALIZABLE。</p>
+<h4 id="cursor-stability">CURSOR STABILITY</h4>
+<p>以上 P0 - P3 的描述相对比较符合 ANSI SQL-92
+中对异象与隔离级别的描述。但论文作者认为 P0 - P3
+还不足以更细致、完整的的描述异象与隔离级别的关系，因此文中继续定义了：</p>
+<h4 id="p4r_1x...w_2x...w_1x...c1">P4：<span
+class="math inline">\(r_1[x]...w_2[x]...w_1[x]...c1\)</span></h4>
+<p>P4 称为 <strong>Lost Update</strong>，稍加观察就可以发现，如果禁止 P2
+发生，那么 P4 也一定不会发生。因此可以得出 P4 也是在 READ COMMITTED
+级别下可能发生的异象。如下事务执行历史模拟了 P4 发生的情况：</p>
+<p><span
+class="math inline">\(r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1\)</span></p>
+<p>显而易见，事务 2 对 <span class="math inline">\(x\)</span>
+进行的更新丢失了。</p>
+<p>现在，让我们引入游标：定义 <span class="math inline">\(rc\)</span>
+为读游标， <span class="math inline">\(wc\)</span>
+为写游标指向的数据项，那么存在游标时，P4 限定为 P4C：</p>
+<h4 id="p4crc_1x...w_2x...w_1x...c1">P4C：<span
+class="math inline">\(rc_1[x]...w_2[x]...w_1[x]...c1\)</span></h4>
+<p>假如在读数据项时加基于游标（Cursor）的 Short duration
+锁，读谓词（Predicate）加 Short duration 锁，写加 Long duration
+锁（相比读完数据立即释放的 Short duration
+读锁，基于游标的锁会将持有时间扩展到游标移动到下一个位置前）。</p>
+<p>由于游标锁的存在，在 <span class="math inline">\(rc_1\)</span> 和
+<span class="math inline">\(wc_1\)</span> 之间，一定不会插入 <span
+class="math inline">\(wc_2\)</span>
+（游标没有移动，锁一直存在），所以游标锁可以避免 P4C 的发生。</p>
+<p>基于上述讨论，引入一个新的隔离级别 <strong>CURSOR
+STABILITY</strong>，当禁止 P4C 发生时，隔离级别就能达到 CURSOR
+STABILITY。</p>
+<h3 id="基于快照版本的隔离">基于快照（版本）的隔离</h3>
+<p>为了在性能和一致性之间找到更好的平衡，许多数据库选择使用快照版本来进行并发控制（即
+MVCC）。在事务开始时获取
+<em>Start-Timestamp</em>，依据该时间戳读取最新的快照，读、写都基于快照进行，因此只读事务可以不被阻塞。</p>
+<p>对于这种基于版本的隔离方式，作者提出了一种新的隔离级别
+<strong>SNAPSHOT
+ISOLATION</strong>。在这样的隔离下，读、写操作都会基于事务开始时选择的一个快照，在事务提交前，获取一个提交时间戳
+<em>Commit-Timestamp</em>，假如提交时间戳比当前系统内所有存在的
+<em>Start-Timestamp</em> 或 <em>Commit-Timestamp</em>
+都要新，则事务提交成功，否则失败，这种称为 <em>First-committer-wins</em>
+的机制避免了
+P4。进一步的，由于事务内读取当前快照，而不会读取到其他事务新提交的快照，因此
+P2 也能够避免。从这个角度讲，SNAPSHOT ISOLATION 是比 READ COMMITTED
+更高级别的隔离。</p>
+<p>为了将 SNAPSHOT ISOLATION 与 REPEATABLE READ
+进行对比，引入了如下几种异象：</p>
+<h4 id="a5ar_1x...w_2x...w_2y...c_2...r_1y...c_1-or-a_1">A5A：<span
+class="math inline">\(r_1[x]...w_2[x]...w_2[y]...c_2...r_1[y]...(c_1\
+or\ a_1)\)</span></h4>
+<h4 id="a5br_1x...r_2y...w_1y...w_2x...c_1-and-c_2-occur">A5B：<span
+class="math inline">\(r_1[x]...r_2[y]...w_1[y]...w_2[x]...(c_1\ and\
+c_2\ occur)\)</span></h4>
+<h4 id="a3r_1p...w_2y-in-p...c_2...r_1p...c_1">A3：<span
+class="math inline">\(r_1[P]...w_2[y\ in\
+P]...c_2...r_1[P]...c_1\)</span></h4>
+<p>其中 A5A 与 A5B 合称 A5（数据项约束冲突），A5 属于 P2
+的一个子集，区别是在 A5 下 <span class="math inline">\(x\)</span> 与
+<span class="math inline">\(y\)</span> 存在约束关系。</p>
+<p>因此对于 A5A：<span class="math inline">\(x\)</span> 与 <span
+class="math inline">\(y\)</span> 存在约束关系，事务 1 中 <span
+class="math inline">\(x\)</span> 先被读取，由于事务 2 的提交，在事务 1
+中随后读取的 <span class="math inline">\(y\)</span> 有可能已经不满足
+<span class="math inline">\(x\)</span> 与 <span
+class="math inline">\(y\)</span> 的约束。A5A 又被称为 <strong>Read
+Skew</strong>。显然 A5A 在 SNAPSHOT ISOLATION 与 REPEATABLE READ
+下都不会发生。</p>
+<p>对于 A5B：<span class="math inline">\(x\)</span> 与 <span
+class="math inline">\(y\)</span> 存在约束关系，事务 1 和事务 2
+分别读取了 <span class="math inline">\(x\)</span> 和 <span
+class="math inline">\(y\)</span> ，之后事务 1 更新了 <span
+class="math inline">\(y\)</span>，最后事务 2 更新了 <span
+class="math inline">\(x\)</span>。由于事务 2 更新 <span
+class="math inline">\(x\)</span> 时参考的 <span
+class="math inline">\(y\)</span> 已经不是最新值，因此 <span
+class="math inline">\(x\)</span> 与 <span
+class="math inline">\(y\)</span> 的约束可能会被打破，这种异象称
+<strong>Write Skew</strong>。显然，REPEATABLE READ 由于 Long duration
+的读锁限制了 A5B 不可能发生，但在 SNAPSHOT ISOLATION 下由于事务 1、2
+都读取满足各自时间戳的快照，所以 A5B 可能会发生。</p>
+<p>A3 属于 P3 的一个子集，与 P3
+的区别在于对事务的行为做了更多的限定。所以 A3 也属于一种
+<strong>Phantom</strong>。 事务 1 基于条件谓词 <span
+class="math inline">\(P\)</span> 读取到的结果，由于事务 2 对符合 <span
+class="math inline">\(P\)</span> 的集合中新插入了数据，导致事务 1 再次按
+<span class="math inline">\(P\)</span> 读取时读到了不同的结果集。由于
+SNAPSHOT ISOLATION 读快照的特性，事务 2 版本的快照中对 <span
+class="math inline">\(P\)</span> 产生的影响，不会反映在事务 1
+的快照中，因此 SNAPSHOT ISOLATION 下 A3 不可能发生，但显然 REPEATABLE
+READ 下由于对条件谓词的 Short duration 锁，A3 可能会发生。</p>
+<p>基于上述分析，可以得出结论：SNAPSHOT ISOLATION 与 REPEATABLE READ
+各有千秋，不分伯仲，无法简单比较高低。</p>
+<h3 id="完整的隔离级别与异象的关系">完整的隔离级别与异象的关系</h3>
+<p>综合前文的所有分析，论文作者总结了下图：</p>
+<img src="/2020/11/30/isolation-level-with-mysql/summary.png" class="">
+<h2 id="mysql-的-repeatable-read-能够避免-write-skew-吗">MySQL 的
+REPEATABLE READ 能够避免 Write Skew 吗？</h2>
+<p>根据第一节的描述，MySQL 的默认隔离级别是 REPEATABLE READ （实际是
+InnoDB 的隔离级别，考虑到 InnoDB 是 MySQL
+默认的存储引擎，后文不再区分）。同时，MySQL Reference Manual 中讲到 <a
+href="https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-model.html">InnoDB
+使用了锁技术（行级锁）与 MVCC
+技术（非阻塞读）来共同实现其事务模型</a>，这是为了将传统的两阶段锁与多版本数据库的优势相结合以提升整体性能。</p>
+<p>由于文档中对于隔离级别的描述是以 ANSI SQL-92
+的四级隔离级别来描述的，那么结合第二节的内容，以及 MySQL
+基于多版本的实现，我们是否可以假设，文档所述 MySQL 默认的 REPEATABLE
+READ，实际上是 SNAPSHOT ISOLATION？或者说，由于结合了锁与多版本，MySQL
+既支持了 REPEATABLE READ 同时也支持了 SNAPSHOT ISOLATION？</p>
+<p>以下我们用具体的示例来一一验证。</p>
+<h3 id="p2-non-repeatable-read">P2 Non-repeatable Read</h3>
+<p>我们先从较低的异象开始，看看在默认隔离级别下，P2 会不会发生：</p>
+<img src="/2020/11/30/isolation-level-with-mysql/p2.png" class="">
+<p>上图的执行顺序是：<span
+class="math inline">\(r_1[a]...w_2[a]...c_2...r_1[a]...c_1...r_1[a]\)</span>
+。</p>
+<p>由于多版本的特性，事务 1 中读不阻塞，在事务 2
+更新行并提交后，再次读取数据不变，直到事务 1
+提交后，才会读取到最新值。</p>
+<p>再以前文 P2 中的例子来测试：</p>
+<p><span
+class="math inline">\(r_1[x=50]..r_2[x=50]..w_2[x=10]..r_2[y=50]..w_2[y=90]..c_2..r_1[y=90]..c_1\)</span></p>
+<img src="/2020/11/30/isolation-level-with-mysql/p2_2.png" class="">
+<p>我们能看到在整个事务 1 中，始终保持 <span
+class="math inline">\(x+y=100\)</span> ，并没有出现 <span
+class="math inline">\(x+y=140\)</span> 的情况。</p>
+<p>依据上述测试我们能够确信，默认情况下，MySQL
+的“只读事务”（为什么是只读事务见下文）能够避免 Non-repeatable Read。</p>
+<h3 id="p4-lost-update">P4 Lost Update</h3>
+<p>借用第二节 P4 的例子来测试：</p>
+<p><span
+class="math inline">\(r_1[x=100]..r_2[x=100]..w_2[x=120]..c_2..w_1[x=130]..c_1\)</span></p>
+<img src="/2020/11/30/isolation-level-with-mysql/p4.png" class="">
+<p>神奇的是，我们发现事务 1 先开始，且在事务 2 已经修改了 x
+的情况下仍能正常提交（不满足 <em>First-committer-wins</em>），也就是说
+MySQL 在默认</p>
+<p>REPEATABLE READ 的隔离级别下发生了 Lost Update。可以分析：</p>
+<ol type="1">
+<li>假如 MySQL 是以 Long Duration 数据项读锁 + Long Duration 写锁来实现
+REPEATABLE READ，那么在事务 1 正在读 <span
+class="math inline">\(x\)</span> 时，事务 2 对 <span
+class="math inline">\(x\)</span> 只可读而不可写；</li>
+<li>假如 MySQL 是以 MVCC 来实现 SNAPSHOT ISOLATION，那么根据
+<em>First-committer-wins</em> 原则，事务 1 先开始，后提交，提交时会发现
+<span class="math inline">\(x\)</span> 已经被修改而提交失败。</li>
+</ol>
+<p>看来都不是，测试表明，默认情况下，MySQL 不能避免 Lost Update。</p>
+<h3 id="a5a-read-skew">A5A Read Skew</h3>
+<p>对于 Read Skew 异象的测试，仍然取先前转账的例子，其中有约束 <span
+class="math inline">\(x+y=100\)</span>：</p>
+<img src="/2020/11/30/isolation-level-with-mysql/a5a.png" class="">
+<p>上图的执行顺序是：<span
+class="math inline">\(r_1[x]..w_2[x]..w_2[y]..c_2..r_1[y]..c_1\)</span></p>
+<p>与 P2 的例子类似，由于多版本的特性，事务 1 的两次读取，第一次读 <span
+class="math inline">\(x\)</span>，第二次读 <span
+class="math inline">\(y\)</span>，虽然两次读取了不同的内容，但其仍然保持在同一个版本下，满足了
+<span class="math inline">\(x+y=100\)</span>
+的约束。因此默认情况下，MySQL 的只读事务能够避免 Read Skew。</p>
+<h3 id="a5b-write-skew">A5B Write Skew</h3>
+<p>对于 Write Skew 异象的测试，我们举一个直观的例子来说明：</p>
+<blockquote>
+<p>医院急诊科 24
+小时都有医生值班，为此医院会安排医生轮班。为了防止值班医生临时有事，通常轮班计划会尽量多安排几位医生同时在岗。此外，无论如何排班，都需要确保同一时刻至少有一位医生在岗。</p>
+<p>值班医生可以通过电脑系统请假，当请假时段内有除了该医生以外的其他医生在岗时，就可以请假成功，否则失败。这能确保
+“同一时刻至少一人在岗” 的约束条件。</p>
+<p>急诊科共有 a, b, c 三位医生。某时刻，医生 a 和 b 被安排值班，这时 a
+医生有事需要请假，不巧 b 医生也想请假，此时系统的操作历史如下...</p>
+</blockquote>
+<img src="/2020/11/30/isolation-level-with-mysql/a5b.png" class="">
+<p>上图的执行顺序是：<span
+class="math inline">\(r_1[P:on\_call=true]..r_2[P:on\_call=true]..w_1[on\_call_a=false]..c_1..w_2[on\_call_b=false]..c_2\)</span>，结果是操作过后没有人值班，打破了约束。</p>
+<p>以上的例子是一个很常见的并发故障，由于没有对条件谓词查询加 Long
+Duration
+锁，导致不同事务因为旧的条件查询结果执行了错误的操作。据此，默认情况下，MySQL
+不能避免 Write Skew。</p>
+<h3 id="a3-phantom">A3 Phantom</h3>
+<p>Phantom 的测试可以使用一个简单的例子：</p>
+<img src="/2020/11/30/isolation-level-with-mysql/a3.png" class="">
+<p>上图的执行顺序是：<span class="math inline">\(r_1[P:a=1]..w_2[insert\
+(1, 50)]..c_2..r_1[P:a=1]\)</span>，结果表明事务 1
+的两次条件查询结果一致，符合多版本的特性，因此 MySQL
+只读事务默认情况下能够避免 A3 （Phantom 的一种）。</p>
+<p>但当我们继续做如下尝试：</p>
+<img src="/2020/11/30/isolation-level-with-mysql/p3.png" class="">
+<p>事务 1 对条件 <span class="math inline">\(a=1\)</span> 的所有值 +1
+时，事务 2 插入的数据突然出现，并且也被 +1 了，这表明在读写事务中发生了
+Phantom。</p>
+<p>因此综合来看，默认情况下，MySQL 仍然不能避免 Phantom。</p>
+<h3 id="更低的隔离级别">更低的隔离级别</h3>
+<p>依据上述例子，我们发现，MySQL 所谓默认的 REPEATABLE READ
+级别，确实符合 ANSI SQL-92 中所定义的 “不会发生 Fuzzy Read，但可能发生
+Phantom” 的描述。但实际上比 A Critique of ANSI SQL Isolation Levels
+文中整理的 SNAPSHOT ISOLATION 和 REPEATABLE READ 都要低，因为 Lost
+Update、Write Skew、Phantom 都可能会发生。</p>
+<p>根据 MySQL 文档中关于<a
+href="https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html">一致性读</a>的描述，发生上述现象的原因是，InnoDB
+在处理读写事务时，并不纯粹按照 “事务内的读写都作用于当前快照”
+这一原则，而是采用另一种实现：<strong>当在事务内对数据进行 update
+操作后，再次 select 时，读取被 update
+影响的数据行会返回最新版本的数据，（也即 update
+会对最新版本而不是快照版本进行）。</strong>所以如果同时有另一个事务也在操作时，原事务中就可能看到原先不存在的数据。</p>
+<h2 id="mysql-的实现不好吗">MySQL 的实现不好吗？</h2>
+<p>根据上一节的测试，似乎 MySQL
+对事务隔离的实现并不怎么好，它在默认隔离级别下会出现各种异象，实现也难以准确的归类在
+A Critique of ANSI SQL Isolation Levels 所述的几种隔离级别内。那么 MySQL
+的事务隔离实现的不好吗？</p>
+<p>其实并不一定，事务隔离本身就是对一致性与性能的平衡。在 MySQL
+的实现下，虽然会出现多种异象，但事务提交失败回滚的几率相比标准的隔离级别实现要小得多，因此也就提升了并发性。对于相对简单的只读事务
+MySQL
+采用一致性读来支持更高的吞吐，而对于需要同时查询并更新数据的读写事务，常规的
+select 并不能提供足够的防护，因此 MySQL 建议使用<a
+href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html">上锁读</a>（即我们熟悉的
+<code>select ... for update</code> 或
+<code>select for share</code>）来确保符合用户操作的真实意图。</p>
+<p>InnoDB
+在其事务模型实现中提到：<code>the goal is to combine the best properties of a multi-versioning database with traditional two-phase locking</code>，所以结合前文看，
+MySQL
+的选择是默认采用多版本实现非阻塞读，同时提供了用户可选的两阶段锁实现更强的隔离性。这种实现直到最新的
+MySQL 8.0 都没有改变过，从运行在 MySQL
+上的多种应用，和其庞大的用户群来看，这种选择应该是有其内在合理性的。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/" title="MySQL(InnoDB) 独特的 Repeatable Read 隔离级别">http://lenshood.github.io/2020/11/30/isolation-level-with-mysql/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/database/" rel="tag"># database</a>
+              <a href="/tags/isolation-level/" rel="tag"># isolation level</a>
+              <a href="/tags/mysql/" rel="tag"># mysql</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/11/06/google-spanner/" rel="prev" title="Spanner：Google 的全球分布式数据库">
+                  <i class="fa fa-angle-left"></i> Spanner：Google 的全球分布式数据库
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/12/25/2020-summary/" rel="next" title="Summary of 2020">
+                  Summary of 2020 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

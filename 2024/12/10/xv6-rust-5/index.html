@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="With all of the content in the previous chapters, we have known how to initialize and run a process, but before the kernel runs the first line of a process&#39;s code, a question still remained, how does">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence">
+<meta property="og:url" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="With all of the content in the previous chapters, we have known how to initialize and run a process, but before the kernel runs the first line of a process&#39;s code, a question still remained, how does">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/6.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/7.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/8.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/9.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/10.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/11.png">
+<meta property="article:published_time" content="2024-12-10T14:25:29.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.527Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2024/12/10/xv6-rust-5/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2024/12/10/xv6-rust-5/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2024/12/10/xv6-rust-5/","path":"2024/12/10/xv6-rust-5/","title":"/Xv6 Rust 0x05/ - Persistence"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x05/ - Persistence | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#overview-of-persistence"><span class="nav-number">1.</span> <span class="nav-text">1. Overview of Persistence</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#file-organization"><span class="nav-number">2.</span> <span class="nav-text">2. File Organization</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#inode"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 INode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#pathname-directory"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 Pathname &amp; Directory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#log"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 Log</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#block-operation"><span class="nav-number">3.</span> <span class="nav-text">3. Block Operation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#virtio-device"><span class="nav-number">4.</span> <span class="nav-text">4. VirtIO Device</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2024/12/10/xv6-rust-5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x05/ - Persistence
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2024-12-10 22:25:29" itemprop="dateCreated datePublished" datetime="2024-12-10T22:25:29+08:00">2024-12-10</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2024/12/10/xv6-rust-5/header.jpg" class="" width="500">
+<p>With all of the content in the previous chapters, we have known how
+to initialize and run a process, but before the kernel runs the first
+line of a process's code, a question still remained, how does my user
+program store in the disk and how is it loaded?</p>
+<p>In this chapter, we are going to discover the disk management and
+file system in the xv6, we'll see the persistence stack from the top to
+the bottom, let's get started!</p>
+<span id="more"></span>
+<h2 id="overview-of-persistence">1. Overview of Persistence</h2>
+<p>The xv6 designs a very clear persistence system, which is designed by
+layers. The <a
+href="https://pdos.csail.mit.edu/6.828/2024/xv6/book-riscv-rev4.pdf">xv6-book</a>
+demonstrates a diagram(in chapter 8) to show such layers as follows:</p>
+<img src="/2024/12/10/xv6-rust-5/1.png" class="" width="300">
+<p>Actually, the first three layers are all related to the concept of
+"File". The xv6 inherits the unix philosophy of <a
+href="https://en.wikipedia.org/wiki/Everything_is_a_file">"everything is
+a file"</a>, which is a high level abstraction that regards all devices,
+pipes, directories, and disk files as "Files", to simplify access and
+management. Each file has a unique file descriptor that let it to be
+identified conveniently, file descriptor is also the name of the first
+layer.</p>
+<p>Let's have a first look at the structure <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L18"><code>File</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// file.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">File</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) file_type: FDType,</span><br><span class="line">    ref_cnt: <span class="type">i32</span>, <span class="comment">// reference count</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) readable: <span class="type">bool</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) writable: <span class="type">bool</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) pipe: <span class="type">Option</span>&lt;*<span class="keyword">mut</span> Pipe&gt;, <span class="comment">// FD_PIPE</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) ip: <span class="type">Option</span>&lt;*<span class="keyword">mut</span> INode&gt;,  <span class="comment">// FD_INODE and FD_DEVICE</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) off: <span class="type">u32</span>,                <span class="comment">// FD_INODE</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) major: <span class="type">i16</span>,              <span class="comment">// FD_DEVICE</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">enum</span> <span class="title class_">FDType</span> &#123;</span><br><span class="line">    FD_NONE,</span><br><span class="line">    FD_PIPE,</span><br><span class="line">    FD_INODE,</span><br><span class="line">    FD_DEVICE,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L11"><code>FDType</code></a>
+stands for "file descriptor type", apparently there are three different
+types of file descriptors except for the "NONE". The "PIPE" indicates a
+communication channel between two processes, and a pipe is completely
+lives in memory; the "DEVICE" indicates some kind of device like the
+UART console, which can be operated by reading and writing data; the
+"INODE" indicates a type of object that holds some data blocks in the
+disk.</p>
+<p>Looking into the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L18"><code>File</code></a>
+structure, it holds some fields that represent different types of files.
+For example, both the fields <code>pipe</code> and <code>ip</code> are
+type of "Option", which means they may exist in a file or not. Say a
+pipe file, it would only need the <code>pipe</code> field, all other
+fields corresponding to inode or device can be empty.</p>
+<p>The other two layers, "pathname" and "directory" represent the way to
+access and manage file. Path name provides a hierarchical way to locate
+a specific file, like <code>/home/lenshood/video.mkv</code>, while the
+directory is dedicated for a special type of file that holds all
+subdirectory files as its data, a directory is like
+<code>/home/lenshood/</code>.</p>
+<p>While <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L18"><code>File</code></a>
+act as a high-level abstraction object that exists in most of syscalls
+related to file systems. Here are some typical <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/master/user/src/ulib/stubs.rs">syscalls</a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/ulib/stubs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Create a pipe, put read/write file descriptors in p[0] and p[1].</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">pipe</span>(fdarray: *<span class="keyword">const</span> <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Write n bytes from buf to file descriptor fd; returns n.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">write</span>(fd: <span class="type">i32</span>, addr: *<span class="keyword">const</span> <span class="type">u8</span>, n: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Read n bytes into buf; returns number read; or 0 if end of file.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">read</span>(fd: <span class="type">i32</span>, addr: *<span class="keyword">mut</span> <span class="type">u8</span>, n: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Release open file fd.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">close</span>(fd: <span class="type">i32</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Load a file and execute it with arguments; only returns if error.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">exec</span>(path: *<span class="keyword">const</span> <span class="type">u8</span>, argv: *<span class="keyword">const</span> *<span class="keyword">const</span> <span class="type">u8</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Open a file; flags indicate read/write; returns an fd (file descriptor).</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">open</span>(path: *<span class="keyword">const</span> <span class="type">u8</span>, omode: <span class="type">u64</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Create a device file.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">mknod</span>(path: *<span class="keyword">const</span> <span class="type">u8</span>, major: <span class="type">u16</span>, minior: <span class="type">u16</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Return a new file descriptor referring to the same file as fd.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">dup</span>(fd: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br></pre></td></tr></table></figure>
+<p>Apparently, some of the syscalls using <code>fd</code> as their
+argument to locate a <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L18"><code>File</code></a>,
+but <code>open</code>, <code>exec</code> and <code>mknod</code> using
+<code>path</code> instead of <code>fd</code>, since these syscalls are
+only applicable to files that backed by inodes, and each inode has a
+<code>path</code>.</p>
+<p>As an example, the following code piece is taken from the
+implementation of the syscall <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/file.rs#L88"><code>read</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// file/file.rs</span></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">fileread</span>(f: &amp;<span class="keyword">mut</span> File, addr: <span class="type">usize</span>, n: <span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">match</span> f.file_type &#123;</span><br><span class="line">        FD_PIPE =&gt; &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">pipe</span> = <span class="keyword">unsafe</span> &#123; f.pipe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">            <span class="keyword">return</span> pipe.<span class="title function_ invoke__">read</span>(addr, n);</span><br><span class="line">        &#125;</span><br><span class="line">        FD_INODE =&gt; &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">ip</span> = <span class="keyword">unsafe</span> &#123; f.ip.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">            <span class="keyword">let</span> <span class="variable">r</span> = ip.<span class="title function_ invoke__">readi</span>(<span class="literal">true</span>, addr <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="type">u8</span>, f.off, n <span class="keyword">as</span> <span class="type">usize</span>) <span class="keyword">as</span> <span class="type">u32</span>;</span><br><span class="line">            ... ...</span><br><span class="line">        &#125;</span><br><span class="line">        FD_DEVICE =&gt; &#123;</span><br><span class="line">            <span class="keyword">if</span> f.major &lt; <span class="number">0</span> || f.major &gt;= NDEV || <span class="keyword">unsafe</span> &#123; DEVSW[f.major <span class="keyword">as</span> <span class="type">usize</span>].<span class="title function_ invoke__">is_none</span>() &#125; &#123;</span><br><span class="line">                <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">unsafe</span> &#123;</span><br><span class="line">                DEVSW[f.major <span class="keyword">as</span> <span class="type">usize</span>]</span><br><span class="line">                    .<span class="title function_ invoke__">unwrap</span>()</span><br><span class="line">                    .<span class="title function_ invoke__">as_mut</span>()</span><br><span class="line">                    .<span class="title function_ invoke__">unwrap</span>()</span><br><span class="line">                    .<span class="title function_ invoke__">read</span>(<span class="literal">true</span>, addr, n <span class="keyword">as</span> <span class="type">usize</span>)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The structure is quite clear. Based on the three different types of
+files, it reads data from a pipe, an inode or a device,
+respectively.</p>
+<h2 id="file-organization">2. File Organization</h2>
+<p>Because the file system on disk is very important and complicated,
+now we are focusing on the file and dir that are organized by the inode
+system. And we'll leave the device and pipe part at the end.</p>
+<p>As we mentioned before, inode is an object that holds the data of
+file or directory, and it's placed on the disk. So basically all of the
+files and directories are stored as form of inode on the disk.</p>
+<p>The problem is, we see the disk as a very big array (like memory but
+commonly slower and bigger), so how to effectively put the file and
+directory on this array, organized as the path name hierarchy, and at
+the same time, how to easily perform create, update and delete?</p>
+<p>Generally, most of the file systems are implemented by splitting the
+entire disk as multiple sections, some section records the metadata,
+some sections store file, and some sections just stay empty for future
+use. The file system in the xv6 is also designed like that, but much
+simpler.</p>
+<p>The following diagram describes the disk section structure for the
+xv6:</p>
+<img src="/2024/12/10/xv6-rust-5/2.png" class="">
+<p>We can see from the above diagram that the entire disk has been
+divided as numerous same sized blocks, each block has size of 4096
+bytes. That gives the file system the minimum control unit, which is one
+block. And each block has its own number, starting from 0.</p>
+<p>Based on block, a disk image can be divided into these six
+sections:</p>
+<ul>
+<li>Boot Section (block 0): size of 1 block, no particular purpose, it
+stays empty since the xv6 defines meaningful block starts from No.1</li>
+<li>Super Section (block 1): size of 1 block, it contains the metadata
+of the file system, including magic number, the size of the entire image
+and the size of other sections, we'll check it soon after.</li>
+<li>Log Section (block 2~31): size of 30 blocks, it mainly records the
+disk operation logs for recovery purpose, we'll check it soon
+after.</li>
+<li>INode Section (block 32~35): size of 4 blocks, the inode was
+designed to store its metadata and real data separately, these 4 blocks
+only store the metadata part of all inodes.</li>
+<li>Bitmap Section (block 36): size of 1 block, as we know the bitmap is
+a very efficiency data structure to indicate huge statuses by a few
+spaces, here is the same way, bitmap section using 1 block to indicate
+the occupied blocks and empty blocks in the entire disk.</li>
+<li>Data Section (block 37~2000): size of 1963 blocks, the real files
+data store in this section, which you can notice takes the most blocks
+of the disk. The end block 2000 was defined by a constant, and can be
+changed, but more data blocks also means more inodes, so extending the
+size of data section may need to extend inode section as well.</li>
+</ul>
+<p>Firstly, let's take a look at the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/fs.rs#L103"><code>SuperBlock</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// fs/fs.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">SuperBlock</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) magic: <span class="type">u32</span>,      <span class="comment">// Must be FSMAGIC</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) size: <span class="type">u32</span>,       <span class="comment">// Size of file system image (blocks)</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) nblocks: <span class="type">u32</span>,    <span class="comment">// Number of data blocks</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) ninodes: <span class="type">u32</span>,    <span class="comment">// Number of inodes.</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) nlog: <span class="type">u32</span>,       <span class="comment">// Number of log blocks</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) logstart: <span class="type">u32</span>,   <span class="comment">// Block number of first log block</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) inodestart: <span class="type">u32</span>, <span class="comment">// Block number of first inode block</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) bmapstart: <span class="type">u32</span>,  <span class="comment">// Block number of first free map block</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// mkfs/main.rs</span></span><br><span class="line"><span class="keyword">const</span> SB: SuperBlock = SuperBlock &#123;</span><br><span class="line">    magic: FSMAGIC,</span><br><span class="line">    size: (FSSIZE <span class="keyword">as</span> <span class="type">u32</span>).<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    nblocks: NBLOCKS.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    ninodes: NINODES.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    nlog: NLOG.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    logstart: <span class="number">2u32</span>.<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    inodestart: (<span class="number">2</span> + NLOG).<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">    bmapstart: (<span class="number">2</span> + NLOG + NINODEBLOCKS).<span class="title function_ invoke__">to_le</span>(),</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>As a place to hold the metadata of the file system, <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/fs.rs#L103"><code>SuperBlock</code></a>
+holds the data that is very essential, if we see the initialize of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/fs.rs#L103"><code>SuperBlock</code></a>
+in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L30">mkfs</a>,
+there are <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L30"><code>FSMAGIC</code></a>,
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/param.rs#L12"><code>FSSIZE</code></a>,
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L28"><code>NBLOCKS</code></a>,
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/param.rs#L5"><code>NINODES</code></a>,
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L24"><code>NLOG</code></a>
+and other constants are assigned, these constants define the block size
+of several sections.</p>
+<h3 id="inode">2.1 INode</h3>
+<p>We have been talking about the inode even though we don't know what
+exactly the inode is, because the inode is a really important concept in
+the file system and we can barely avoid it. Now let's deep dive into the
+"inode layer" to find out why it's so important.</p>
+<p>First, we should have a look at the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L67"><code>INode</code></a>
+structure:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// file/mod.rs</span></span><br><span class="line"><span class="comment">// in-memory copy of an inode</span></span><br><span class="line"><span class="meta">#[derive(Copy, Clone)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">INode</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) dev: <span class="type">u32</span>,        <span class="comment">// Device number</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) inum: <span class="type">u32</span>,       <span class="comment">// Inode number</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) ref_cnt: <span class="type">i32</span>,    <span class="comment">// Reference count</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) lock: Sleeplock, <span class="comment">// protects everything below here</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) valid: <span class="type">bool</span>,     <span class="comment">// inode has been read from disk?</span></span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) file_type: FileType, <span class="comment">// copy of disk inode</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) major: <span class="type">i16</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) minor: <span class="type">i16</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) nlink: <span class="type">i16</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) size: <span class="type">u32</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) addrs: [<span class="type">u32</span>; NDIRECT + <span class="number">1</span>],</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// fs/mod.rs</span></span><br><span class="line"><span class="comment">// On-disk inode structure</span></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="meta">#[derive(Copy, Clone)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">DINode</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> file_type: FileType,       <span class="comment">// File type</span></span><br><span class="line">    <span class="keyword">pub</span> major: <span class="type">i16</span>,                <span class="comment">// Major device number (T_DEVICE only)</span></span><br><span class="line">    <span class="keyword">pub</span> minor: <span class="type">i16</span>,                <span class="comment">// Minor device number (T_DEVICE only)</span></span><br><span class="line">    <span class="keyword">pub</span> nlink: <span class="type">i16</span>,                <span class="comment">// Number of links to inode in file system</span></span><br><span class="line">    <span class="keyword">pub</span> size: <span class="type">u32</span>,                 <span class="comment">// Size of file (bytes)</span></span><br><span class="line">    <span class="keyword">pub</span> addrs: [<span class="type">u32</span>; NDIRECT + <span class="number">1</span>], <span class="comment">// Data block addresses</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// stat.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">enum</span> <span class="title class_">FileType</span> &#123;</span><br><span class="line">    NO_TYPE,</span><br><span class="line">    T_DIR,    <span class="comment">// Directory</span></span><br><span class="line">    T_FILE,   <span class="comment">// File</span></span><br><span class="line">    T_DEVICE, <span class="comment">// Device</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Surprise! There are two inode structures actually, and that makes
+total sense. Because the inode would not only exist in memory, but also
+persistent on disk.</p>
+<p>Comparing the two forms of inodes, the memory version of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/file/mod.rs#L67"><code>INode</code></a>
+has a few more fields than the disk version, such as <code>lock</code>
+and <code>ref_cnt</code> for concurrently accessing, and
+<code>inum</code> for identification.</p>
+<p>Besides, the disk version of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+is very compact in its structure, that's good for store in block and
+easy to calculate the location in the disk. Let's calculate the real
+size of one <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+by its fields:</p>
+<ul>
+<li>file_type: 1 byte. (Rust allocate enumeration's size dynamically <a
+href="https://rust-lang.github.io/unsafe-code-guidelines/layout/enums.html">based
+on the number of elements</a> defined in the <code>enum</code>, since
+the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/stat.rs#L2"><code>FileType</code></a>
+has only 4 elements, 1 byte of space is enough for them.)</li>
+<li>major: <code>i16</code> == 2 bytes</li>
+<li>minor: <code>i16</code> == 2 bytes</li>
+<li>nlink: <code>i16</code> == 2 bytes</li>
+<li>size: <code>u32</code> == 4 bytes</li>
+<li>addrs: <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L32"><code>NDIRECT</code></a>
+== 12, so the size of addrs is 4 * (12 + 1) = 52 bytes</li>
+</ul>
+<p>Therefore, if we simply add them together, then one <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+takes 63 bytes of space on disk. However, like other programs languages,
+values in rust also have alignment beside size. In <a
+href="https://doc.rust-lang.org/reference/type-layout.html#representations">the
+rust representation</a>, the fields in a struct can be reordered, and
+aligned, so we cannot confidently say the size of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+is 63 bytes.</p>
+<p>Additionally, you may notice that the <a
+href="https://doc.rust-lang.org/reference/type-layout.html#reprc-structs"><code>#[repr(C)]</code></a>
+has been put on the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>,
+which makes sure the compiler keeps the memory layout of the type
+exactly the same as the type defined in C language. According to the
+size and alignment principle of <code>#[repr(C)]</code>, we can have the
+following diagram to help us calculate the real size:</p>
+<img src="/2024/12/10/xv6-rust-5/3.png" class="">
+<p>And based on the above diagram, the real size of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+is 64 bytes.</p>
+<p>So why is it so important to calculate the real size of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>?
+Because next we'll talk about how the inodes stay in the disk.</p>
+<p>We have known that there is a section in the disk which takes 4
+blocks to hold the inode, but only inode metadata, the data of inode
+stores in another location. Refer to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>,
+except for the last field <code>addrs</code>, all other fields can be
+seen as metadata of inode, the last field <code>addrs</code> stores the
+reference of the data blocks, which is block number.</p>
+<p>Hence, I guess you already figured out how the metadata and real data
+of inode store in the disk: the inode section stores <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>,
+while the data section stores the data blocks, which block numbers are
+stored in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+as references.</p>
+<p>So far, I suppose we can do a simple math to prove why we should 4
+blocks for the inode section:</p>
+<p>First, <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/mkfs/src/main.rs#L17"><code>NINODES</code></a>
+in the super block defines the max number of inodes the file system can
+have, the value by default is 200. Then we already know one <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+takes 64 bytes of space, so 200 inodes will need 12800 bytes to be
+saved. A block can store 4096 bytes data, since
+<code>12800 / 4096 = 3.125</code>, which means the inode section will
+need at least 4 blocks.</p>
+<p>The following diagram shows an inode and the placement of its
+metadata and real data:</p>
+<img src="/2024/12/10/xv6-rust-5/4.png" class="">
+<p>In the above example, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>
+has 10354 bytes of data, and that will need 3 blocks to store. But what
+if the size of data is too large to be stored within 13 blocks?
+Actually, in the <code>addrs[]</code>, only the first 12 blocks are used
+for store data, the number 13th block is specifically designed for more
+data. If the first 12 blocks are full, but there is still some data that
+needs to be stored, at that time, block 13 will become a big array
+dedicated to store block references.</p>
+<p>In the <code>addrs[]</code>, the first 12 blocks are called direct
+data blocks, which can be referenced from <code>addrs[]</code> directly,
+and the data blocks that exceeds 12, are called indirect data blocks,
+all of the block number of indirect blocks are stored in the 13th
+block.</p>
+<p>Let's see if the data size exceeds 12 blocks:</p>
+<img src="/2024/12/10/xv6-rust-5/5.png" class="">
+<p>So this time we assume the size is 1639184 bytes, which will need 401
+blocks, with the indirect blocks, they can be easily stored. Since the
+size of a block is 4096 bytes, and a <code>u32</code> block number takes
+4 bytes to store, in theory, the maximum size of a single file in xv6
+would be 4MiB.</p>
+<h3 id="pathname-directory">2.2 Pathname &amp; Directory</h3>
+<p>With the knowledge of inode, now we can have a look at the
+"directory". In the file system, a directory is also considered as an
+inode file, no matter the path of itself, or the paths of its sub
+directories or sub files, are all treated as plain data.</p>
+<p>This is the definition of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L72">directory
+entry</a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// fs/mod.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> DIRSIZ: <span class="type">usize</span> = <span class="number">14</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">Dirent</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> inum: <span class="type">u16</span>,    <span class="comment">// inode number</span></span><br><span class="line">    <span class="keyword">pub</span> name: [<span class="type">u8</span>; DIRSIZ],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Directory is a file containing a sequence of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L72"><code>Dirent</code></a>
+structures. And the interesting thing is that a directory file only
+contains the paths of its subdirectories and subfiles, its own path, on
+the other hand, is contained in its parent's file.</p>
+<p>The following image shows an example of
+<code>/home/lenshood</code>:</p>
+<img src="/2024/12/10/xv6-rust-5/6.png" class="">
+<p>So far we've seen the INode related structures and designs, which
+help us understand how INode level works. Thus, we are going to omit the
+INode operations, please check them at the <code>fs.rs</code> to see
+more details.</p>
+<h3 id="log">2.3 Log</h3>
+<p>Under the INode level, there is another important abstraction level
+called "log". Generally speaking, log level isn't responsible for any
+complex logic, it only cares about how to reduce the risk of disk write
+interruption if a crash occurs. Basically, the log level is building on
+the concept of <a
+href="https://dev.mysql.com/doc/refman/8.2/en/innodb-redo-log.html#:~:text=The%20redo%20log%20is%20a,or%20low%2Dlevel%20API%20calls.">"redo
+log"</a>. For the system that runs in the real world, we must assume
+crash will definitely happen someday.</p>
+<p>So if there is no mechanism to take care of the crash, then it has
+possibility that some disk write operations are ongoing while a power
+off crash occurs, lead to some blocks were written but some other blocks
+were not. Since we don't have any idea about what kind of data was in
+the block, the crash may cause a block has already been assigned to an
+INode (metadata is saved), but the assigned flag failed to save in the
+block. That's a serious problem because the kernel may reassign the
+block that it believes is a free block, to another INode.</p>
+<p>But don't give me wrong, the key thing that the log level should
+keep, is not "recovery", but "consistency", because data inconsistent is
+way more serious than data loss. The problem we just described above can
+turn the system into a total disaster because no one can simply tell
+which INode the block should belong to, comparing that, a data loss is
+more controllable as we should only revise the data in a few minutes
+before crash. There's another reason that we care more about consistency
+than recovery: keep no data loss sometimes too costly, the performance
+should also be considered, otherwise nobody would use the system.</p>
+<p>To learn how log level works, let's look deeper into the log
+blocks:</p>
+<img src="/2024/12/10/xv6-rust-5/7.png" class="" width="300">
+<p>We know there are 30 blocks reserved for log, but only the last 29
+blocks are used for save data, the first log block is for the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L36"><code>LogHeader</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">LogHeader</span> &#123;</span><br><span class="line">    n: <span class="type">u32</span>,</span><br><span class="line">    block: [<span class="type">u32</span>; LOGSIZE],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L36"><code>LogHeader</code></a>
+is very simple, <code>n</code> represents how many blocks are saved in
+log currently, and <code>block</code> records the block number where the
+log blocks map to the real blocks.</p>
+<p>When an fs syscall is executing to write data into disk, it first
+calls <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L189"><code>begin_op()</code></a>
+indicating a disk write transaction has begun. Next, rather than
+directly call block write method, it just calls <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L137"><code>log_write()</code></a>
+and return, actually the writing operation is not executed synchronously
+at that time, the log-related code will make sure the data is eventually
+written, but by an asynchronously way. After all things are done, the
+syscall will call <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L209"><code>end_op()</code></a>
+to finish the transaction.</p>
+<p>The following diagram may describe the data write process
+clearer:</p>
+<img src="/2024/12/10/xv6-rust-5/8.png" class="">
+<p>The <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L137"><code>log_write()</code></a>
+will only record the block number of the block that has updates. BTW, if
+a block was updated, before it goes to disk, there is a block cache to
+hold the block data temporary in the memory, we'll talk about the block
+cache later.</p>
+<p>When the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/log.rs#L209"><code>end_op()</code></a>
+is called, if there is no other log write operation on going, the data
+will be written. First the data will be written into log blocks, then
+writes the log header. After that, commit has been successfully
+executed, and if crash occurs at this point, all of the data saved in
+log can be recovered, but before that, all data will be lost, even if
+the log blocks are already written. This is how the log mechanism keeps
+the data writing atomically and consistency. (Here also implies that,
+the operation of writing log header must be atomically, we can imagine
+if some parts of log header are successfully written, but some parts are
+not, the inconsistency remains.)</p>
+<p>After log header is saved, the log blocks will be moved to real
+blocks, this process is exactly the same as the recovery process. When
+system started, it will check the log header first, if any log blocks
+are found, the recovery process will be executed to recover data into
+real blocks.</p>
+<h2 id="block-operation">3. Block Operation</h2>
+<p>Beneath the log, we finally arrive at the practical block operations
+level. Like we mentioned in the log section, the log level is only for
+recovery, so that it only cares about writing rather than reading.
+Actually if we check the INode operation code, we will notice many
+low-level block operations such as <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L130"><code>bread()</code></a>,
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L152"><code>brelse()</code></a>.
+The INode operations read or write its data through these low-level
+block operations.</p>
+<p>An INode represents an individual file (here we only talk disk file
+specifically), but a disk file needs more than one block to store its
+data, because in block level, block is the smallest control unit and a
+block can only hold 4096 bytes of data. Here we should always make our
+mind clear that we cannot simply operate the data structure placed in
+the disk, like INode, or block, as long as we want to retrieve from or
+make changes to those data structures, load them into memory is the very
+first thing we should do.</p>
+<p>Just like the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/fs/mod.rs#L38"><code>DINode</code></a>,
+block also has its memory form, which is called <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// fs/mode.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> BSIZE: <span class="type">usize</span> = <span class="number">4096</span>; <span class="comment">// block size</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// buf.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">struct</span> <span class="title class_">Buf</span> &#123;</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) valid: <span class="type">bool</span>, <span class="comment">// has data been read from disk?</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) disk: <span class="type">bool</span>,  <span class="comment">// does disk &quot;own&quot; buf?</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) dev: <span class="type">u32</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) blockno: <span class="type">u32</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) lock: Sleeplock,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) refcnt: <span class="type">u32</span>,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) prev: <span class="type">Option</span>&lt;NonNull&lt;Buf&gt;&gt;, <span class="comment">// LRU cache list</span></span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) next: <span class="type">Option</span>&lt;NonNull&lt;Buf&gt;&gt;,</span><br><span class="line">    <span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) data: [<span class="type">u8</span>; BSIZE],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+holds many fields to record its latest states as a memory block, such as
+<code>blockno</code> and <code>refcnt</code>. But we cannot actually
+load all of the blocks into memory, which also makes no sense, because
+essentially memory is like a cache to the disk, just like the CPU cache
+caches data from memory (see <a
+href="https://en.wikipedia.org/wiki/Memory_hierarchy">Memory
+Hierarchy</a>).</p>
+<p>So there should be some kind of structure to hold the limit numbers
+of memory blocks, and deal with the situation like a disk block wants to
+be loaded into memory, while there is no empty memory block
+(<code>Buf</code>) left.</p>
+<p>The xv6 introduced a structure called <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L23"><code>BCache</code></a>,
+which is a combined structure of array list and linked list, to act as
+the block cache in memory:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// bio.rs</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">BCache</span> &#123;</span><br><span class="line">    lock: Spinlock,</span><br><span class="line">    buf: [Buf; NBUF],</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Linked list of all buffers, through prev/next.</span></span><br><span class="line">    <span class="comment">// Sorted by how recently the buffer was used.</span></span><br><span class="line">    <span class="comment">// head.next is most recent, head.prev is least.</span></span><br><span class="line">    head: NonNull&lt;Buf&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>It's very simple because it only holds <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+as an array list, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+itself records <code>prev</code> and <code>next</code> to become a list
+with each other, that list makes use of LRU replacement algorithm to
+decide which one should be replaced if the cache is full.</p>
+<p>The following diagram shows the initial structure of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L23"><code>BCache</code></a>:</p>
+<img src="/2024/12/10/xv6-rust-5/9.png" class="">
+<p>The <code>buf</code> array contains 30 <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+as the memory cache, each element is a memory block frame that can hold
+actual data. They are also linked together, with a unique
+<code>head</code>.</p>
+<p>Refer to the code of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L77"><code>bget()</code></a>,
+we may find out how the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L23"><code>BCache</code></a>
+works:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// bio.rs</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">bget</span>(dev: <span class="type">u32</span>, blockno: <span class="type">u32</span>) <span class="punctuation">-&gt;</span> &amp;<span class="symbol">&#x27;static</span> <span class="keyword">mut</span> Buf &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// query</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">head_ptr</span> = BCACHE.head.<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">head</span> = head_ptr.<span class="title function_ invoke__">as_ref</span>().<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">b_ptr</span> = head.next.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> b_ptr == head_ptr &#123;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">b</span> = b_ptr.<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">        <span class="keyword">if</span> b.dev == dev &amp;&amp; b.blockno == blockno &#123;</span><br><span class="line">            b.refcnt += <span class="number">1</span>;</span><br><span class="line">            BCACHE.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line">            b.lock.<span class="title function_ invoke__">acquire_sleep</span>();</span><br><span class="line">            <span class="keyword">return</span> b;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        b_ptr = b.next.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">    ... ...</span><br><span class="line">  </span><br><span class="line">    <span class="comment">// assign</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">head_ptr</span> = BCACHE.head.<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">head</span> = head_ptr.<span class="title function_ invoke__">as_ref</span>().<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">b_ptr</span> = head.prev.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> b_ptr == head_ptr &#123;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">b</span> = b_ptr.<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">        <span class="keyword">if</span> b.refcnt == <span class="number">0</span> &#123;</span><br><span class="line">            b.dev = dev;</span><br><span class="line">            b.blockno = blockno;</span><br><span class="line">            b.valid = <span class="literal">false</span>;</span><br><span class="line">            b.refcnt = <span class="number">1</span>;</span><br><span class="line">            BCACHE.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line">            b.lock.<span class="title function_ invoke__">acquire_sleep</span>();</span><br><span class="line">            <span class="keyword">return</span> b;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        b_ptr = b.prev.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// recycle</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">brelse</span>(b: &amp;<span class="keyword">mut</span> Buf) &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    BCACHE.lock.<span class="title function_ invoke__">acquire</span>();</span><br><span class="line">    b.refcnt -= <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> b.refcnt == <span class="number">0</span> &#123;</span><br><span class="line">        b.next.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().prev = b.prev;</span><br><span class="line">        b.prev.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().next = b.next;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">head</span> = BCACHE.head.<span class="title function_ invoke__">as_mut</span>();</span><br><span class="line">        b.next = head.next;</span><br><span class="line">        b.prev = <span class="title function_ invoke__">Some</span>(BCACHE.head);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">b</span> = NonNull::<span class="title function_ invoke__">new_unchecked</span>(b <span class="keyword">as</span> *<span class="keyword">mut</span> Buf);</span><br><span class="line">        head.next.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().prev = <span class="title function_ invoke__">Some</span>(b);</span><br><span class="line">        head.next = <span class="title function_ invoke__">Some</span>(b);</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>There are three main <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L23"><code>BCache</code></a>
+operations: "query", "assign" and "recycle", let's look at the "assign"
+first, because the cache should be completely empty at the beginning, so
+that nothing will be found through "query".</p>
+<p>Assign an available block frame requires finding a frame that hasn't
+been referred, which means <code>refcnt == 0</code>. The finding process
+will start from <code>head.prev</code>, which is the
+<code>buf[29]</code>. Since there is no block frame is referred when
+system is just started, the first block frame will be the
+<code>buf[29]</code>, and if there is another disk request that needs
+another block to be loaded into memory, the <code>buf[28]</code> would
+be assigned, and so on.</p>
+<p>Based on the <a
+href="https://en.wikipedia.org/wiki/Principle_of_locality#:~:text=In%20physics%2C%20the%20principle%20of,only%20by%20its%20immediate%20surroundings.">principle
+of locality</a>, LRU assumes the data that is most recently used would
+have high possibility to be used again. On the contrary, the "Least
+Recently Used" block, would have less possibility to be used again.</p>
+<p>But how is a block frame considered as "used"? So once a block frame
+is used by some syscall, the <code>Buf.refcnt</code> will never be zero,
+a non-zero <code>refcnt</code> indicates the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+is "being" used. Only if there is no syscall accessing the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>,
+the state of this very block frame could be considered as "used".</p>
+<p>Hence, we can check the "recycle" logic in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/bio.rs#L152"><code>brelse()</code></a>,
+if <code>b.refcnt == 0</code>, the block frame will be moved to the head
+of the linked list, because this <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+is most recently used. Now we can understand why the "query" code
+traverses the cache from the <code>head.next</code>, because from this
+direction, the most recently used block will be queried first, that's
+the most efficient way.</p>
+<p>As time goes by, the least recently used block frame will sink to the
+tail, when a new empty block frame is needed, the "assign" logic
+traverses the list from the tail, which is also the
+<code>head.prev</code>.</p>
+<p>The following diagram depict such kind of process:</p>
+<p><img src="/2024/12/10/xv6-rust-5/10.png" class=""></p>
+<p>Assume <code>buf[0]</code> and <code>buf[1]</code> are assigned and
+being used. Firstly <code>buf[0]</code> is released and is put to the
+head, then <code>buf[1]</code> is released, and is also put to the head,
+at the time, <code>buf[1]</code> is closer to the head than
+<code>buf[0]</code>.</p>
+<p>But next, the <code>buf[0]</code> is queried, and released again,
+that makes it returned to the head position, because the most recently
+used block is <code>buf[1]</code>.</p>
+<p>Finally, <code>buf[2]</code> is assigned since it's never used
+before, we can also imagine once <code>buf[2]</code> is released, it
+will be put to the head as well.</p>
+<h2 id="virtio-device">4. VirtIO Device</h2>
+<p>With many different layers above, now we arrive at the bottom layer:
+disk layer. At this layer, the data will be read from or written to a
+"real disk".</p>
+<p>The phrase real disk was quoted by quotation marks, because we have
+known in the first chapter that our OS is running on the qemu virtual
+machine, and according to the runner command, we can see the disk is
+actually an image file placed in the host machine:</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">runner</span> = <span class="string">&quot;qemu-system-riscv64 -S -s -machine virt -bios none -m 128M -smp 3 -nographic -global virtio-mmio.force-legacy=false -drive file=../mkfs/fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 -kernel &quot;</span></span><br></pre></td></tr></table></figure>
+<p>In a virtual machine, the IO devices are usually virtual devices. For
+example, a virtual disk often has two parts, the first part acts as a
+disk device connected to the virtual machine, and can only be seen in
+the guest machine; while the second part is a program that is located in
+the host machine, responsible for data transformation.</p>
+<p>Looking at the "runner" command, the "-drive" argument set the file
+"fs.img" as the disk image, and the "-device virtio-blk-device ..." uses
+the "virtio-blk-device" to emulate block device. The "virtio-blk-device"
+adds a virtio block device in the guest machine that mount on the
+"virtio-mmio-bus.0", and sets the image file as real data store in the
+host machine. So that with the above configuration, we should see the
+virtio device in the guest machine:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">qemu-system-riscv64 ... -monitor stdio</span></span><br><span class="line">(qemu) info qtree</span><br><span class="line">... ...</span><br><span class="line">dev: virtio-mmio, id &quot;&quot;</span><br><span class="line">    gpio-out &quot;sysbus-irq&quot; 1</span><br><span class="line">    format_transport_address = true</span><br><span class="line">    force-legacy = false</span><br><span class="line">    ioeventfd = true</span><br><span class="line">    mmio 0000000010001000/0000000000000200</span><br><span class="line">    bus: virtio-mmio-bus.0</span><br><span class="line">      type virtio-mmio-bus</span><br><span class="line">      dev: virtio-blk-device, id &quot;&quot;</span><br><span class="line">        drive = &quot;x0&quot;</span><br><span class="line">        backend_defaults = &quot;auto&quot;</span><br><span class="line">        logical_block_size = 512 (512 B)</span><br><span class="line">        physical_block_size = 512 (512 B)</span><br><span class="line">        min_io_size = 0 (0 B)</span><br><span class="line">        opt_io_size = 0 (0 B)</span><br><span class="line">        discard_granularity = 4294967295 (4 GiB)</span><br><span class="line">        write-cache = &quot;auto&quot;</span><br><span class="line">        share-rw = false</span><br><span class="line">        account-invalid = &quot;auto&quot;</span><br><span class="line">        account-failed = &quot;auto&quot;</span><br><span class="line">        rerror = &quot;auto&quot;</span><br><span class="line">        werror = &quot;auto&quot;</span><br><span class="line">        cyls = 15 (0xf)</span><br><span class="line">        heads = 16 (0x10)</span><br><span class="line">        secs = 63 (0x3f)</span><br><span class="line">        lcyls = 0 (0x0)</span><br><span class="line">        lheads = 0 (0x0)</span><br><span class="line">        lsecs = 0 (0x0)</span><br><span class="line">        serial = &quot;&quot;</span><br><span class="line">        config-wce = true</span><br><span class="line">        request-merging = true</span><br><span class="line">        num-queues = 1 (0x1)</span><br><span class="line">        queue-size = 256 (0x100)</span><br><span class="line">        seg-max-adjust = true</span><br><span class="line">        iothread-vq-mapping = &lt;null&gt;</span><br><span class="line">        discard = true</span><br><span class="line">        report-discard-granularity = true</span><br><span class="line">        write-zeroes = true</span><br><span class="line">        max-discard-sectors = 4194303 (0x3fffff)</span><br><span class="line">        max-write-zeroes-sectors = 4194303 (0x3fffff)</span><br><span class="line">        x-enable-wce-if-config-wce = true</span><br><span class="line">        indirect_desc = true</span><br><span class="line">        event_idx = true</span><br><span class="line">        notify_on_empty = true</span><br><span class="line">        any_layout = true</span><br><span class="line">        iommu_platform = false</span><br><span class="line">        packed = false</span><br><span class="line">        queue_reset = true</span><br><span class="line">        in_order = false</span><br><span class="line">        use-started = true</span><br><span class="line">        use-disabled-flag = true</span><br><span class="line">        x-disable-legacy-check = false</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>The <code>info qtree</code> command in qemu monitor prints the device
+tree of the guest machine, we can see the device "virtio-blk-device" is
+mounted on the <code>bus: virtio-mmio-bus.0</code>, its address starts
+from <code>0x0000000010001000</code>, and it has the size range of
+<code>0x0000000000000200</code>, which is 512 bytes.</p>
+<p>So far we have encountered some concepts that we are not familiar
+with, such as "virtio-blk-device" and "virtio-mmio-bus". So what exactly
+is “virtio”?</p>
+<p>Basically, virtio is a type of standard that aims to provide a
+general abstraction of devices.</p>
+<p>With the virtio standard, common hardware can be virtualized in guest
+machine, as virtual devices. Virtio standard defines many types of
+devices, such as block device, net device, console, scsi and gpu.</p>
+<p>We have slightly mentioned before, about the two parts consist of
+virtual disk device. In the same way, virtio actually works based on a
+frontend and a backend, and they exchange data through shared memory and
+a kind of ring queue called "virtqueue".</p>
+<p>According to the <a
+href="https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf">virtio
+specification</a>:</p>
+<blockquote>
+<p>In virtio standard, each virtqueue can consist of up to 3 parts:</p>
+<p>Descriptor Area - used for describing buffers</p>
+<p>Driver Area - extra data supplied by driver to the device</p>
+<p>Device Area - extra data supplied by device to driver</p>
+</blockquote>
+<p>In the previous version of virtio, the above parts were called
+"Descriptor", "Available" and "Used", which are also adopted in the xv6
+code. Essentially, the data change between frontend and backend is
+achieved by those buffers, we'll see how they work together to do so
+afterward.</p>
+<p>Besides, virtio also provides several ways to communicate between the
+frontend and the backend, such as virtio-mmio, which maps its address
+into memory space, so that the virtio backend can be accessed by
+ordinary memory operation; and virtio-pci, which takes pci bus to
+communicate with virtio backend. For more details, please also refer to
+the latest <a
+href="https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf">virtio
+specification</a>.</p>
+<p>The following diagram shows how xv6 interact with qemu by virtio:</p>
+<img src="/2024/12/10/xv6-rust-5/11.png" class="">
+<p>It clearly illustrates the frontend, backend and transport bus. When
+QEMU setup virtio block device for the guest OS (xv6), it implements the
+backend program as a virtual device, and maps the device control
+registers into address space of guest OS, this way is called virtio over
+MMIO. Besides, an external interrupt source specific for this virtio
+device is also connected.</p>
+<p>The program(<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/virtio/virtio_disk.rs"><code>virtio_disk.rs</code></a>)
+within the xv6, act as the frontend to operate virtio, can also be
+called as virtio driver. The driver initialize virtio device at the boot
+stage, then once a block operation wants to read data from or write data
+to the disk, the function <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/virtio/virtio_disk.rs#L202"><code>virtio_disk_rw()</code></a>
+will be called. This function prepares the two parts of virtqueue:
+descriptor and available, to build a virtio request that contains fields
+such as request id, read/write flag, address of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/buf.rs#L7"><code>Buf</code></a>
+. After the request is prepared, it would notify the device that data is
+ready. Since IO operation is relatively slow, there is no need to hold
+the CPU waiting for response, at this time, the function will start
+sleeping to wait.</p>
+<p>Once receive the notification, the virtio device starts to read or
+write data in to the image file, after operation is complete, the device
+will trigger an interrupt so that an interrupt service routine located
+in the guest OS could handle that interrupt. The operation response will
+be fetched from the third part of virtqueue: used, then the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/virtio/virtio_disk.rs#L202"><code>virtio_disk_rw()</code></a>
+will be waken up too, so that it can finally return to the upper level
+block operation.</p>
+<p>Because the real code seems straightforward, I'll leave them for the
+readers to discover. FYI, xv6 chose split virtqueues format for device
+operation, see chapter <a
+href="https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf"><em>2.7
+Split Virtqueues</em></a> to get to know the definition of virtqueue
+structures. And for the specification of MMIO control registers, please
+check the chapter <a
+href="https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.pdf"><em>4.2
+Virtio Over MMIO</em></a>.</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2024/12/10/xv6-rust-5/" title="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence">http://lenshood.github.io/2024/12/10/xv6-rust-5/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/11/20/xv6-rust-4/" rel="prev" title="&#x2F;Xv6 Rust 0x04&#x2F; - CPU Virtualization">
+                  <i class="fa fa-angle-left"></i> /Xv6 Rust 0x04/ - CPU Virtualization
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2025/02/24/xv6-rust-6/" rel="next" title="&#x2F;Xv6 Rust 0x06&#x2F; - User Space">
+                  /Xv6 Rust 0x06/ - User Space <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

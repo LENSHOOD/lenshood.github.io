@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Caches 举例 1234567891011LoadingCache&lt;Key, Graph&gt; graphs &#x3D; CacheBuilder.newBuilder()       .maximumSize(1000)       .expireAfterWrite(10, TimeUnit.MINUTES)       .removalListener(MY_LISTENER)">
+<meta property="og:type" content="article">
+<meta property="og:title" content="（Guava 译文系列）缓存">
+<meta property="og:url" content="http://lenshood.github.io/2019/12/21/guava-cache/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Caches 举例 1234567891011LoadingCache&lt;Key, Graph&gt; graphs &#x3D; CacheBuilder.newBuilder()       .maximumSize(1000)       .expireAfterWrite(10, TimeUnit.MINUTES)       .removalListener(MY_LISTENER)">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-12-21T15:31:25.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.102Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="guava">
+<meta property="article:tag" content="translation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2019/12/21/guava-cache/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2019/12/21/guava-cache/","path":"2019/12/21/guava-cache/","title":"（Guava 译文系列）缓存"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>（Guava 译文系列）缓存 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#caches"><span class="nav-number">1.</span> <span class="nav-text">Caches</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BE%E4%BE%8B"><span class="nav-number">1.1.</span> <span class="nav-text">举例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%82%E7%94%A8%E6%80%A7"><span class="nav-number">1.2.</span> <span class="nav-text">适用性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#population"><span class="nav-number">1.3.</span> <span class="nav-text">Population</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#from-a-cacheloader"><span class="nav-number">1.3.0.1.</span> <span class="nav-text">From a CacheLoader</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#from-a-callable"><span class="nav-number">1.3.0.2.</span> <span class="nav-text">From a Callable</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#inserted-directly"><span class="nav-number">1.3.0.3.</span> <span class="nav-text">Inserted Directly</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#eviction"><span class="nav-number">1.4.</span> <span class="nav-text">Eviction</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E5%AE%B9%E9%87%8F%E5%A4%B1%E6%95%88"><span class="nav-number">1.4.1.</span> <span class="nav-text">基于容量失效</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E6%97%B6%E9%97%B4%E5%A4%B1%E6%95%88"><span class="nav-number">1.4.2.</span> <span class="nav-text">基于时间失效</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95"><span class="nav-number">1.4.2.1.</span> <span class="nav-text">测试</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E5%BC%95%E7%94%A8%E5%A4%B1%E6%95%88"><span class="nav-number">1.4.3.</span> <span class="nav-text">基于引用失效</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%98%BE%E5%BC%8F%E7%A7%BB%E9%99%A4"><span class="nav-number">1.4.4.</span> <span class="nav-text">显式移除</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A7%BB%E9%99%A4%E7%9B%91%E5%90%AC%E5%99%A8"><span class="nav-number">1.4.5.</span> <span class="nav-text">移除监听器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B8%85%E9%99%A4%E5%9C%A8%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E5%8F%91%E7%94%9F"><span class="nav-number">1.4.6.</span> <span class="nav-text">清除在什么时候发生?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%B7%E6%96%B0"><span class="nav-number">1.4.7.</span> <span class="nav-text">刷新</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%89%B9%E6%80%A7"><span class="nav-number">1.5.</span> <span class="nav-text">特性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%9F%E8%AE%A1"><span class="nav-number">1.5.1.</span> <span class="nav-text">统计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#asmap"><span class="nav-number">1.5.2.</span> <span class="nav-text">asMap</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%AD%E6%96%AD"><span class="nav-number">1.6.</span> <span class="nav-text">中断</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2019/12/21/guava-cache/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="（Guava 译文系列）缓存 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          （Guava 译文系列）缓存
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-12-21 23:31:25" itemprop="dateCreated datePublished" datetime="2019-12-21T23:31:25+08:00">2019-12-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Guava/" itemprop="url" rel="index"><span itemprop="name">Guava</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="caches">Caches</h1>
+<h2 id="举例">举例</h2>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">LoadingCache&lt;Key, Graph&gt; graphs = CacheBuilder.newBuilder()</span><br><span class="line">       .maximumSize(<span class="number">1000</span>)</span><br><span class="line">       .expireAfterWrite(<span class="number">10</span>, TimeUnit.MINUTES)</span><br><span class="line">       .removalListener(MY_LISTENER)</span><br><span class="line">       .build(</span><br><span class="line">           <span class="keyword">new</span> <span class="title class_">CacheLoader</span>&lt;Key, Graph&gt;() &#123;</span><br><span class="line">             <span class="meta">@Override</span></span><br><span class="line">             <span class="keyword">public</span> Graph <span class="title function_">load</span><span class="params">(Key key)</span> <span class="keyword">throws</span> AnyException &#123;</span><br><span class="line">               <span class="keyword">return</span> createExpensiveGraph(key);</span><br><span class="line">             &#125;</span><br><span class="line">           &#125;);</span><br></pre></td></tr></table></figure>
+<span id="more"></span>
+<h2 id="适用性">适用性</h2>
+<p>缓存在许多场景下都有巨大的用处。比如，当计算或取值的操作比较耗费资源，或你需要多次使用对于给定输入的输出值时，我们都应该使用缓存。</p>
+<p><code>Cache</code>与<code>ConcurrentMap</code>比较相似，但却并不完全一样。最显著的区别在于<code>ConcurrentMap</code>会将所有加入的元素持久化直至它们被显式的移除。而<code>Cache</code>通常可以被配置为自动移除
+entries，来节省内存占用。某些情况下，由于<code>LoadingCache</code>的自动装载功能，即使不会自动清除entries，它也非常有用。</p>
+<p>通常，Guava 的缓存工具在下述情况下比较适用：</p>
+<ul>
+<li>你期望用一些消耗内存的代价来换取速度提升。</li>
+<li>你期望一些 key 会被查询多次。</li>
+<li>你的缓存不需要存储超过 RAM 容量大小的数据。 （Guava
+缓存对于你的应用而言是<strong>本地</strong>唯一的。它不会将数据存入文件或外部服务器。假如这不满足你的需求，可以考虑其他实现，例如
+<a href="http://memcached.org/">Memcached</a>。）</li>
+</ul>
+<p>假如上面每一条都满足你的使用场景，那么 Guava 的缓存工具正适合你！</p>
+<p>你当然可以像上述例子一样通过 builder模式<code>CacheBuilder</code>
+来获取 <code>Cache</code>，然而更有趣的部分却是自定义你的缓存。</p>
+<p>_注意：_假如你不需要<code>Cache</code>的特性，实际上
+<code>ConcurrentHashMap</code>的存储效率更高 --
+可是采用古老的<code>ConcurrentMap</code>会非常难以甚至不可能复制大多数<code>Cache</code>提供的特性。</p>
+<h2 id="population">Population</h2>
+<p>你需要问自己的第一个关于缓存的问题是：是否存在某个 <em>sensible
+default</em> 函数，通过某个 key 来加载或计算与之关联的
+value？如果是，你应该使用
+<code>CacheLoader</code>。如果不是，或者如果你想要覆盖默认的函数，但是你仍然需要类似
+“有则取值，无则计算” 的模式，那么你应该在调用 <code>get</code>
+时传递一个 <code>Callable</code>。我们当然可以先用
+<code>Cache.put</code>
+来设置缓存，但是显然原子的缓存加载操作会更好，因为这会使我们更容易对所有缓存内容的一致性进行推理解释。</p>
+<h4 id="from-a-cacheloader">From a CacheLoader</h4>
+<p><code>LoadingCache</code>是通过<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheLoader.html"><code>CacheLoader</code></a>来构造的<code>Cache</code>。创建一个<code>CacheLoader</code>简单来说只需实现<code>V load(K key) throws Exception</code>。所以举例来说，你可以通过下述代码来创建<code>CacheLoader</code>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">LoadingCache&lt;Key, Graph&gt; graphs = CacheBuilder.newBuilder()</span><br><span class="line">       .maximumSize(<span class="number">1000</span>)</span><br><span class="line">       .build(</span><br><span class="line">           <span class="keyword">new</span> <span class="title class_">CacheLoader</span>&lt;Key, Graph&gt;() &#123;</span><br><span class="line">             <span class="keyword">public</span> Graph <span class="title function_">load</span><span class="params">(Key key)</span> <span class="keyword">throws</span> AnyException &#123;</span><br><span class="line">               <span class="keyword">return</span> createExpensiveGraph(key);</span><br><span class="line">             &#125;</span><br><span class="line">           &#125;);</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> graphs.get(key);</span><br><span class="line">&#125; <span class="keyword">catch</span> (ExecutionException e) &#123;</span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">OtherException</span>(e.getCause());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>查询<code>LoadingCache</code>的规范操作是调用<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/LoadingCache.html#get-K-"><code>get(K)</code></a>方法。它将返回一个已经缓存的值，或是使用预设的<code>CacheLoader</code>自动加载一个新值并缓存。由于<code>CacheLoader</code>可能会抛出一个<code>Exception</code>，<code>LoadingCache.get(K)</code>会抛出<code>ExecutionException</code>。（假如
+cache loader 抛出 <em>非检查</em> 异常，<code>get(K)</code>
+则会抛出一个<code>UncheckedExecutionException</code>来包装它。）你也可以选择使用<code>getUnchecked(K)</code>来将所有的异常包装为<code>UncheckedExecutionException</code>，然而假如底层的<code>CacheLoader</code>正常抛出检查异常时，该方法可能会导致某些令人惊讶的行为。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">LoadingCache&lt;Key, Graph&gt; graphs = CacheBuilder.newBuilder()</span><br><span class="line">       .expireAfterAccess(<span class="number">10</span>, TimeUnit.MINUTES)</span><br><span class="line">       .build(</span><br><span class="line">           <span class="keyword">new</span> <span class="title class_">CacheLoader</span>&lt;Key, Graph&gt;() &#123;</span><br><span class="line">             <span class="keyword">public</span> Graph <span class="title function_">load</span><span class="params">(Key key)</span> &#123; <span class="comment">// no checked exception</span></span><br><span class="line">               <span class="keyword">return</span> createExpensiveGraph(key);</span><br><span class="line">             &#125;</span><br><span class="line">           &#125;);</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="keyword">return</span> graphs.getUnchecked(key);</span><br></pre></td></tr></table></figure>
+<p><code>getAll(Iterable&lt;? extends K&gt;)</code>
+能实现批量查找。默认的，<code>getAll</code> 会对每一个在缓存中未找到的
+key
+调用<code>CacheLoader.load</code>。当批量检索的效率高于大多单独查找时，你可以通过覆盖<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheLoader.html#loadAll-java.lang.Iterable-"><code>CacheLoader.loadAll</code></a>方法来使他被
+<code>getAll(Iterable)</code>调用，以此提升整体性能。</p>
+<p>请注意，你可以编写一个<code>CacheLoader.loadAll</code>的实现来加载并未明确被请求的
+key 所对应的 value。例如，假设在某个组中，计算任意 key 返回的 value
+正好是该组中所有的 key，那么用 <code>loadAll</code>
+便可能同时将组内余下的 value 一并加载。</p>
+<h4 id="from-a-callable">From a Callable</h4>
+<p>所有的 Guava 缓存，不论 loading 与否，都支持 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/Cache.html#get-java.lang.Object-java.util.concurrent.Callable-"><code>get(K, Callable&lt;V&gt;)</code></a>方法。该方法返回与给定
+key 相关联的缓存 value，或者从给定的<code>Callable</code>中计算出
+value，并添加进缓存。任何与缓存相关联的可观察状态都不会在加载完成前发生改变。该方法为传统的
+“有则取值，无则计算” 模式提供了一个简单的替代。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Cache&lt;Key, Value&gt; cache = CacheBuilder.newBuilder()</span><br><span class="line">    .maximumSize(<span class="number">1000</span>)</span><br><span class="line">    .build(); <span class="comment">// look Ma, no CacheLoader</span></span><br><span class="line">...</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="comment">// If the key wasn&#x27;t in the &quot;easy to compute&quot; group, we need to</span></span><br><span class="line">  <span class="comment">// do things the hard way.</span></span><br><span class="line">  cache.get(key, <span class="keyword">new</span> <span class="title class_">Callable</span>&lt;Value&gt;() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Value <span class="title function_">call</span><span class="params">()</span> <span class="keyword">throws</span> AnyException &#123;</span><br><span class="line">      <span class="keyword">return</span> doThingsTheHardWay(key);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br><span class="line">&#125; <span class="keyword">catch</span> (ExecutionException e) &#123;</span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">OtherException</span>(e.getCause());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="inserted-directly">Inserted Directly</h4>
+<p>value 可以直接通过 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/Cache.html#put-K-V-"><code>cache.put(key, value)</code></a>
+方法直接插入进缓存。该方法会覆盖所有对应 key
+先前的缓存值。也可以通过<code>Cache.asMap()</code>暴露出的<code>ConcurrentMap</code>行为来实现修改。请注意，<code>asMap</code>中暴露的任何方法都不会使
+entries
+自动加载到缓存中。而且，该视图上的原子操作超出了自动缓存加载的范围，所以<code>Cache.get(K, Callable&lt;V&gt;)</code>
+总是应该优先于<code>Cache.asMap().putIfAbsent</code>来通过<code>CacheLoader</code>
+或 <code>Callable</code>加载数据。</p>
+<h2 id="eviction">Eviction</h2>
+<p>一个冰冷的现实是，我们 <em>从来</em>
+没有过够用的内存来缓存所有我们想缓存的东西。你得决定：在什么时候缓存的
+entry 不值得再存下去了？Guava
+提供了三种基础的失效类型：基于容量失效，基于时间失效，基于引用失效。</p>
+<h3 id="基于容量失效">基于容量失效</h3>
+<p>假如你不想让缓存超出某个固定的容量，可以用<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#maximumSize-long-"><code>CacheBuilder.maximumSize(long)</code></a>设置。缓存会尝试使某些不常用或最近未使用的
+entries 失效。<em>注意</em>：缓存可能会在还未超出容量限制时就开始失效
+entries -- 通常是当缓存容量即将达到限额时。</p>
+<p>此外，假如不同的 entries 有不同的“权重” -- 例如，假如你的缓存 value
+有着完全不同的内存占用 -- 你也许可以通过 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#weigher-com.google.common.cache.Weigher-"><code>CacheBuilder.weigher(Weigher)</code></a>
+来指定一个权重，并且用 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#maximumWeight-long-"><code>CacheBuilder.maximumWeight(long)</code></a>来指定最大权重。另外，与<code>maximumSize</code>一样，请注意权重会在
+entry 创建时计算，之后以 static 形式存在。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">LoadingCache&lt;Key, Graph&gt; graphs = CacheBuilder.newBuilder()</span><br><span class="line">       .maximumWeight(<span class="number">100000</span>)</span><br><span class="line">       .weigher(<span class="keyword">new</span> <span class="title class_">Weigher</span>&lt;Key, Graph&gt;() &#123;</span><br><span class="line">          <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">weigh</span><span class="params">(Key k, Graph g)</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> g.vertices().size();</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">       .build(</span><br><span class="line">           <span class="keyword">new</span> <span class="title class_">CacheLoader</span>&lt;Key, Graph&gt;() &#123;</span><br><span class="line">             <span class="keyword">public</span> Graph <span class="title function_">load</span><span class="params">(Key key)</span> &#123; <span class="comment">// no checked exception</span></span><br><span class="line">               <span class="keyword">return</span> createExpensiveGraph(key);</span><br><span class="line">             &#125;</span><br><span class="line">           &#125;);</span><br></pre></td></tr></table></figure>
+<h3 id="基于时间失效">基于时间失效</h3>
+<p><code>CacheBuilder</code> 对基于时间失效提供了两种方式：</p>
+<ul>
+<li><a
+href="https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#expireAfterAccess-long-java.util.concurrent.TimeUnit-"><code>expireAfterAccess(long, TimeUnit)</code></a>
+只会在距离最后一次读写的时间超出了指定的时间后失效。要注意的是，entries
+的失效顺序与 <a href="#基于容量失效">基于容量失效</a> 一致。</li>
+<li><a
+href="https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#expireAfterWrite-long-java.util.concurrent.TimeUnit-"><code>expireAfterWrite(long, TimeUnit)</code></a>会在距离
+entry 被创建，或 value
+最近一次被替换的时间超出了指定的时间后失效。假如数据会在一段时间之后变为脏数据，那么正好可以使用这种方式。</li>
+</ul>
+<p>定时过期是在写入、偶尔读取的期间执行定期维护的，具体见下述。</p>
+<h4 id="测试">测试</h4>
+<p>测试基于时间失效并不该痛苦...
+而且事实上也不用真的等待两秒钟来测试一个两秒失效的缓存。可以使用 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/base/Ticker.html">Ticker</a>
+接口和 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#ticker-com.google.common.base.Ticker-"><code>CacheBuilder.ticker(Ticker)</code></a>
+方法来给 cache builder 指定一个时间源，而不需要等待系统时钟。</p>
+<h3 id="基于引用失效">基于引用失效</h3>
+<p>Guava 可以让你将缓存配置为允许对 entries 进行垃圾收集，这可以通过 <a
+href="http://docs.oracle.com/javase/6/docs/api/java/lang/ref/WeakReference.html">weak
+references</a> 的 key 和 value，以及<a
+href="http://docs.oracle.com/javase/6/docs/api/java/lang/ref/SoftReference.html">soft
+references</a> 的 value 来实现。</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#weakKeys--"><code>CacheBuilder.weakKeys()</code></a>
+通过弱引用来存储 key。这允许该 entries 在其 key
+没有被其他（强、软）引用时，可以被垃圾收集。由于垃圾收集只依赖与标识相等性，这使得整个缓存都使用标识相等
+(<code>==</code>) 来比较 key，而不是 <code>equals()</code>。</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#weakValues--"><code>CacheBuilder.weakValues()</code></a>
+通过弱引用来存储 value。这允许该 entries 在其 value
+没有被其他（强、软）引用时，可以被垃圾收集。由于垃圾收集只依赖与标识相等性，这使得整个缓存都使用标识相等
+(<code>==</code>) 来比较 key，而不是 <code>equals()</code>。</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#softValues--"><code>CacheBuilder.softValues()</code></a>
+将 value
+包装为软引用。软引用对象以全局最近使用最少的方式进行垃圾收集，<em>来响应内存需求</em>
+。由于使用软引用对性能可能的影响，我们通常建议使用能加具有可预测性的 <a
+href="#基于容量失效">最大缓存容量</a>
+来代替。使用<code>softValues()</code>可能会使 value 的比较使用标识相等
+(<code>==</code>) ，而不是 <code>equals()</code>。</li>
+</ul>
+<h3 id="显式移除">显式移除</h3>
+<p>任何时候，你想要显式的使缓存失效，而不是等待它被失效，可以通过下述方式实现：</p>
+<ul>
+<li>单个失效 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/Cache.html#invalidate-java.lang.Object-"><code>Cache.invalidate(key)</code></a></li>
+<li>批量失效 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/Cache.html#invalidateAll-java.lang.Iterable-"><code>Cache.invalidateAll(keys)</code></a></li>
+<li>全部失效 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/Cache.html#invalidateAll--"><code>Cache.invalidateAll()</code></a></li>
+</ul>
+<h3 id="移除监听器">移除监听器</h3>
+<p>你可以给缓存指定一个移除监听器，使之在当一个 entry 被移除时，通过<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#removalListener-com.google.common.cache.RemovalListener-"><code>CacheBuilder.removalListener(RemovalListener)</code></a>
+来做一些操作。<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/RemovalListener.html"><code>RemovalListener</code></a>
+会接收一个 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/RemovalNotification.html"><code>RemovalNotification</code></a>参数，其中包含了<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/RemovalCause.html"><code>RemovalCause</code></a>，key
+和 value。</p>
+<p>不过要注意，所有从<code>RemovalListener</code>抛出的异常都会被吞掉，并打日志（通过<code>Logger</code>）。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">CacheLoader&lt;Key, DatabaseConnection&gt; loader = <span class="keyword">new</span> <span class="title class_">CacheLoader</span>&lt;Key, DatabaseConnection&gt; () &#123;</span><br><span class="line">  <span class="keyword">public</span> DatabaseConnection <span class="title function_">load</span><span class="params">(Key key)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">    <span class="keyword">return</span> openConnection(key);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line">RemovalListener&lt;Key, DatabaseConnection&gt; removalListener = <span class="keyword">new</span> <span class="title class_">RemovalListener</span>&lt;Key, DatabaseConnection&gt;() &#123;</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onRemoval</span><span class="params">(RemovalNotification&lt;Key, DatabaseConnection&gt; removal)</span> &#123;</span><br><span class="line">    <span class="type">DatabaseConnection</span> <span class="variable">conn</span> <span class="operator">=</span> removal.getValue();</span><br><span class="line">    conn.close(); <span class="comment">// tear down properly</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">return</span> CacheBuilder.newBuilder()</span><br><span class="line">  .expireAfterWrite(<span class="number">2</span>, TimeUnit.MINUTES)</span><br><span class="line">  .removalListener(removalListener)</span><br><span class="line">  .build(loader);</span><br></pre></td></tr></table></figure>
+<p><strong>警告</strong>：默认情况下，移除监听器的操作是同步执行的，由于缓存维护工作通常在正常的缓存操作期间执行，因此移除监听器执行某些重型操作时会拖慢正常的缓存功能！假如你真的需要在移除监听器里面执行重型操作，使用<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/RemovalListeners.html#asynchronous-com.google.common.cache.RemovalListener-java.util.concurrent.Executor-"><code>RemovalListeners.asynchronous(RemovalListener, Executor)</code></a>来将一个<code>RemovalListener</code>装饰为异步操作。</p>
+<h3 id="清除在什么时候发生">清除在什么时候发生?</h3>
+<p>通过<code>CacheBuilder</code>构建的缓存 <em>不会</em> “自动”对 value
+进行清除失效，也不会在 value
+过期后立即执行，也不会在任何有序的情况下执行。反之，他会在写操作期间做少量的维护工作，或当写操作非常少的时候，偶尔在读操作时进行维护。</p>
+<p>原因如下：假如我们期望持续的进行
+<code>Cache</code>维护，我们得创建一个线程，而该线程会在共享锁的情况下与用户操作产生竞争。此外，有些环境下创建线程是受到限制的，那么在该环境下<code>CacheBuilder</code>就无法使用了。</p>
+<p>取而代之的，我们将选择权交予你。假如你的缓存是高吞吐的，那么你就不用担心执行缓存维护来清除过期的
+entries
+以及类似操作。而假如你的缓存写的场景非常少，并且你不想让清除工作阻塞到读缓存，那么你也许期望创建你自己的维护线程来定时调用<a
+href="http://google.github.io/guava/releases/11.0.1/api/docs/com/google/common/cache/Cache.html#cleanUp--"><code>Cache.cleanUp()</code></a>
+。</p>
+<p>如果你想在写很少的情况下计划定期对缓存进行维护，只需要使用<a
+href="http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html"><code>ScheduledExecutorService</code></a>来创建定时计划即可。</p>
+<h3 id="刷新">刷新</h3>
+<p>刷新和失效不太一样。如<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/LoadingCache.html#refresh-K-"><code>LoadingCache.refresh(K)</code></a>中所述，刷新一个
+key 将会为该 key 加载一个新 value。可能会是异步加载。在进行 key
+刷新时，获取 key 的操作仍然会返回旧
+value（假如存在的话），而失效相反，当 key
+失效后，取值操作会被强制等待到加载新值完毕以后。</p>
+<p>假如在刷新时有异常抛出，则旧 value
+会被保存，而异常会被吞掉，并记录日志。</p>
+<p><code>CacheLoader</code>可以通过覆盖<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheLoader.html#reload-K-V-"><code>CacheLoader.reload(K, V)</code></a>来指定执行更聪明的行为，这允许你使用旧
+value 来计算新 value。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Some keys don&#x27;t need refreshing, and we want refreshes to be done asynchronously.</span></span><br><span class="line">LoadingCache&lt;Key, Graph&gt; graphs = CacheBuilder.newBuilder()</span><br><span class="line">       .maximumSize(<span class="number">1000</span>)</span><br><span class="line">       .refreshAfterWrite(<span class="number">1</span>, TimeUnit.MINUTES)</span><br><span class="line">       .build(</span><br><span class="line">           <span class="keyword">new</span> <span class="title class_">CacheLoader</span>&lt;Key, Graph&gt;() &#123;</span><br><span class="line">             <span class="keyword">public</span> Graph <span class="title function_">load</span><span class="params">(Key key)</span> &#123; <span class="comment">// no checked exception</span></span><br><span class="line">               <span class="keyword">return</span> getGraphFromDatabase(key);</span><br><span class="line">             &#125;</span><br><span class="line"></span><br><span class="line">             <span class="keyword">public</span> ListenableFuture&lt;Graph&gt; <span class="title function_">reload</span><span class="params">(<span class="keyword">final</span> Key key, Graph prevGraph)</span> &#123;</span><br><span class="line">               <span class="keyword">if</span> (neverNeedsRefresh(key)) &#123;</span><br><span class="line">                 <span class="keyword">return</span> Futures.immediateFuture(prevGraph);</span><br><span class="line">               &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                 <span class="comment">// asynchronous!</span></span><br><span class="line">                 ListenableFutureTask&lt;Graph&gt; task = ListenableFutureTask.create(<span class="keyword">new</span> <span class="title class_">Callable</span>&lt;Graph&gt;() &#123;</span><br><span class="line">                   <span class="keyword">public</span> Graph <span class="title function_">call</span><span class="params">()</span> &#123;</span><br><span class="line">                     <span class="keyword">return</span> getGraphFromDatabase(key);</span><br><span class="line">                   &#125;</span><br><span class="line">                 &#125;);</span><br><span class="line">                 executor.execute(task);</span><br><span class="line">                 <span class="keyword">return</span> task;</span><br><span class="line">               &#125;</span><br><span class="line">             &#125;</span><br><span class="line">           &#125;);</span><br></pre></td></tr></table></figure>
+<p>可以通过<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheBuilder.html#refreshAfterWrite-long-java.util.concurrent.TimeUnit-"><code>CacheBuilder.refreshAfterWrite(long, TimeUnit)</code></a>来给缓存增加自动定时刷新功能。与<code>expireAfterWrite</code>不同，
+<code>refreshAfterWrite</code>会使 key
+在指定的间隔时间之后符合刷新条件，但真正的刷新操作会在该 entry
+被查询时进行。（假如<code>CacheLoader.reload</code>以异步方式实现，那么查询就不会被刷新操作拖慢。）所以，例如，你可以在同一个缓存中指定<code>refreshAfterWrite</code>
+和 <code>expireAfterWrite</code>，这时对于 entry
+符合刷新条件时，其过期定时器就不会盲目的重置，而当一个 entry
+符合刷新条件，但之后并没有被查询时，则其允许被过期。</p>
+<h2 id="特性">特性</h2>
+<h3 id="统计">统计</h3>
+<p>通过使用 <a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/cache/CacheBuilder.html#recordStats--"><code>CacheBuilder.recordStats()</code></a>，你打开
+Guava 缓存的统计收集。<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/Cache.html#stats--"><code>Cache.stats()</code></a>方法返回一个<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html"><code>CacheStats</code></a>对象，它能提供的统计值包括：</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html#hitRate--"><code>hitRate()</code></a>，可返回请求的命中率</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html#averageLoadPenalty--"><code>averageLoadPenalty()</code></a>,
+加载 value 的平均时间，以纳秒记</li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/cache/CacheStats.html#evictionCount--"><code>evictionCount()</code></a>,
+缓存失效次数</li>
+</ul>
+<p>以及除此之外的大量其他统计值。这些信息在缓存调优中至关重要，因此我们推荐在注重性能的应用中应该考虑关注这些统计值。</p>
+<h3 id="asmap"><code>asMap</code></h3>
+<p>你可以通过<code>asMap</code>将任何<code>Cache</code>展现为<code>ConcurrentMap</code>视图，不过至于<code>asMap</code>如何与<code>Cache</code>交互需要一些解释。</p>
+<ul>
+<li><code>cache.asMap()</code>包含了缓存中 <em>目前加载</em> 的所有
+entries，所里举例说明，
+<code>cache.asMap().keySet()</code>即包含了目前所有加载的 key。</li>
+<li><code>asMap().get(key)</code>
+实际上与<code>cache.getIfPresent(key)</code>相同，也一定不会导致 value
+被加载。这与<code>Map</code>中的契约一致。</li>
+<li>访问时间会在所有缓存读写操作中被重置（包括<code>Cache.asMap().get(Object)</code>
+和
+<code>Cache.asMap().put(K, V)</code>），但不包括<code>containsKey(Object)</code>，也不包括<code>Cache.asMap()</code>的集合视图。所以举例说明，对<code>cache.asMap().entrySet()</code>的迭代不会对你所获取到的
+entries 的访问时间进行重置。</li>
+</ul>
+<h2 id="中断">中断</h2>
+<p>加载类方法（例如<code>get</code>）不会抛出<code>InterruptedException</code>。我们原本可以将这类方法设计为支持抛出<code>InterruptedException</code>异常的，但是我们的支持也许是不完整的，将成本强加给所有用户，而收益却只能归部分用户。预知详情请继续阅读。</p>
+<p>调用<code>get</code>请求未缓存的值，主要可分两大类：自己加载值或是等待其他正在加载的线程。我们支持中断在这两种情况下是不同的。等待其他正在加载过程中线程的情况相对更简单：我们可以直接进入一个可中断的等待。而相对困难的情况就是我们自己加载值的情况。这种情况下便完全由用户提供的<code>CacheLoader</code>来决定了。假如它恰好支持中断，那我们就能支持，而假如它不支持，那我们也无法支持。</p>
+<p>那为什么不在<code>CacheLoader</code>支持中断的情况下我们也支持中断呢？在某种意义上，我们确实这么做了（但是请继续看下文）：假如<code>CacheLoader</code>抛出了<code>InterruptedException</code>，所有对该
+key
+调用的<code>get</code>将会立即返回（就像遇到其他异常一样）。此外，<code>get</code>会在加载线程中存储该中断位。令人惊讶的部分是，
+<code>InterruptedException</code>会被包装为<code>ExecutionException</code>。</p>
+<p>原则上，我们可以将该异常解包给你。然而，这会强制要求所有<code>LoadingCache</code>的用户处理<code>InterruptedException</code>，即便大多数<code>CacheLoader</code>的实现并不会抛出它。也许你认为在所有
+<em>非阻塞</em>
+线程的等待可能被中断的情况下这仍然有价值。但大多数缓存都仅仅会在单线程内使用。然而这些用户仍然必须要捕获那不存在的<code>InterruptedException</code>。并且即使那些会在线程间共享缓存的用户他们也只有在
+<em>有些时候</em>
+才期望调用<code>get</code>时可以被中断，这基于到底那一个线程恰好先发出了请求。</p>
+<p>在对上述情况的决定中，我们的指导原则是让缓存的行为表现得像所有的值都在调用线程中加载。这一指导原则能让那些先前每一次调用都会重新计算值的代码更容易引入缓存。且如果旧代码并不能被中断，那么新代码也不能被中断也多半是合理的。</p>
+<p>我讲过了，我们“在某种意义上”支持中断。但在另一种意义上，我们不支持使<code>LoadingCache</code>成为一个泄露的抽象。假如加载线程被中断，我们会视它为更像任何其他的异常。这在大多数情况下就是合适的，但当多个<code>get</code>调用在等待值时，这并不合适。虽然碰巧正在计算值的操作被中断了，但其他需要该值的操作可能并没有。然而所有这些调用者都收到了<code>InterruptedException</code>
+（被包装为一个<code>ExecutionException</code>），即使加载操作的“失败”并不像“终止”那么多。合理的行为应该是由其中某个剩余的线程重试加载。我们<a
+href="https://github.com/google/guava/issues/1122">为这个提了一个
+bug</a>。然而，修复可能是有风险的。相较于修复这个问题，我们更可能会花额外的工作在给出一个<code>AsyncLoadingCache</code>上，它会返回一个包含正确的中断行为的<code>Future</code>对象。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2019/12/21/guava-cache/" title="（Guava 译文系列）缓存">http://lenshood.github.io/2019/12/21/guava-cache/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/guava/" rel="tag"># guava</a>
+              <a href="/tags/translation/" rel="tag"># translation</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/12/07/guava-collection-utilities/" rel="prev" title="（Guava 译文系列）集合工具类">
+                  <i class="fa fa-angle-left"></i> （Guava 译文系列）集合工具类
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/" rel="next" title="依赖倒置就是每一个实现都要抽一个接口出来吗？">
+                  依赖倒置就是每一个实现都要抽一个接口出来吗？ <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

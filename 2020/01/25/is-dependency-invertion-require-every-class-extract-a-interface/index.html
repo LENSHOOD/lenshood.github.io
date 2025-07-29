@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="依赖倒置就是每一个实现都要抽一个接口出来吗？ 本文的标题实际上来自于一次与项目上同事中午吃饭时的讨论：  A: 我觉得我们现在的抽象有点多，infra 层里面每一个类都抽取了接口，这些被调用的类多半只有一个实现， 我们是不是做的太细了？ B: 从依赖倒置的角度讲，domain 层和 service 层并不应该直接调用 infra 层的实现，因此我们确实是需要每一个实现都抽一个接口出来。 A: 那依">
+<meta property="og:type" content="article">
+<meta property="og:title" content="依赖倒置就是每一个实现都要抽一个接口出来吗？">
+<meta property="og:url" content="http://lenshood.github.io/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="依赖倒置就是每一个实现都要抽一个接口出来吗？ 本文的标题实际上来自于一次与项目上同事中午吃饭时的讨论：  A: 我觉得我们现在的抽象有点多，infra 层里面每一个类都抽取了接口，这些被调用的类多半只有一个实现， 我们是不是做的太细了？ B: 从依赖倒置的角度讲，domain 层和 service 层并不应该直接调用 infra 层的实现，因此我们确实是需要每一个实现都抽一个接口出来。 A: 那依">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-01-25T08:59:59.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.179Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="SOLID">
+<meta property="article:tag" content="Dependency Inversion">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/","path":"2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/","title":"依赖倒置就是每一个实现都要抽一个接口出来吗？"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>依赖倒置就是每一个实现都要抽一个接口出来吗？ | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BE%9D%E8%B5%96%E5%80%92%E7%BD%AE%E5%B0%B1%E6%98%AF%E6%AF%8F%E4%B8%80%E4%B8%AA%E5%AE%9E%E7%8E%B0%E9%83%BD%E8%A6%81%E6%8A%BD%E4%B8%80%E4%B8%AA%E6%8E%A5%E5%8F%A3%E5%87%BA%E6%9D%A5%E5%90%97"><span class="nav-number">1.</span> <span class="nav-text">依赖倒置就是每一个实现都要抽一个接口出来吗？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E5%95%A5%E8%A6%81%E4%BE%9D%E8%B5%96%E5%80%92%E7%BD%AE"><span class="nav-number">1.1.</span> <span class="nav-text">为啥要依赖倒置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B4%E4%BA%86%E5%8D%8A%E5%A4%A9%E6%B2%A1%E6%8F%90%E4%BE%9D%E8%B5%96%E5%80%92%E7%BD%AE%E5%91%80"><span class="nav-number">1.2.</span> <span class="nav-text">说了半天，没提依赖倒置呀？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%9E%E8%BF%87%E5%A4%B4%E6%9D%A5"><span class="nav-number">1.3.</span> <span class="nav-text">回过头来</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%80%E5%90%8E%E6%80%BB%E7%BB%93%E4%B8%80%E4%B8%8B"><span class="nav-number">1.4.</span> <span class="nav-text">最后总结一下</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="依赖倒置就是每一个实现都要抽一个接口出来吗？ | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          依赖倒置就是每一个实现都要抽一个接口出来吗？
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-01-25 16:59:59" itemprop="dateCreated datePublished" datetime="2020-01-25T16:59:59+08:00">2020-01-25</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2
+id="依赖倒置就是每一个实现都要抽一个接口出来吗">依赖倒置就是每一个实现都要抽一个接口出来吗？</h2>
+<p>本文的标题实际上来自于一次与项目上同事中午吃饭时的讨论：</p>
+<blockquote>
+<p>A: 我觉得我们现在的抽象有点多，infra
+层里面每一个类都抽取了接口，这些被调用的类多半只有一个实现，
+我们是不是做的太细了？</p>
+<p>B: 从依赖倒置的角度讲，domain 层和 service 层并不应该直接调用 infra
+层的实现，因此我们确实是需要每一个实现都抽一个接口出来。</p>
+<p>A: 那依赖倒置就是每一个实现都要抽一个接口出来吗？</p>
+<p>B: 这个...</p>
+</blockquote>
+<p>看来小伙伴 A 不经意间触碰到了 S.O.L.I.D. 的深水区...</p>
+<p>相比于单一职责、开闭、接口隔离等原则，依赖倒置与里氏替换类似，属于更偏向操作指导的一类原则，比如从依赖倒置的定义来看：</p>
+<p><em>依赖倒置：高层模块不应直接依赖低层模块，他们都应该依赖于彼此间的抽象。</em></p>
+<p><em>以开发的角度理解：高层不要直接调用低层，而是调用抽取出来的接口。</em></p>
+<p>那这么说，<strong>依赖倒置就是每一个实现都要抽一个接口出来吗？</strong></p>
+<p>为了解释这个问题，我们尝试来提出一个新的问题：<strong>为啥要依赖倒置？</strong></p>
+<span id="more"></span>
+<h3 id="为啥要依赖倒置">为啥要依赖倒置</h3>
+<p>先说结论：<strong>因为依赖倒置能隔离变化，使核心业务更稳定。</strong></p>
+<p>代码是由业务需求驱动出来的，而业务驱动路径一定是从高层（较为稳定的核心业务层）逐渐传递至低层（较为多变的外围支撑层）。高层不会去了解低层的实现细节，而只会对低层给出需求的定义。依赖倒置就是要明确需求的定义。</p>
+<p>我们引入一个例子， &gt; 业务需求如下： &gt; &gt;
+对于某文档管理系统，业务上需要对用户创建的文档进行存取。现有若干
+Document
+文档对象，期望提供某种服务，对文档进行存储，要求存储成功后拿到一个该文档的唯一标识
+DocId，并且可以通过该 DocId 再次取回该文档对象。</p>
+<p>显然，该系统核心业务是对文档的管理与操作。而将文档存储至某种库，之后对其建立索引并关联唯一标识的工作，应该属于对核心业务的一种支撑。所以，将之设计为独立的低层模块比较合适。而高层模块只需要知道我能提供什么，以及我能得到什么即可。所以，高层业务可以抽象出如下
+API 来描述这一需求： <figure class="highlight isbl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">id</span>:<span class="variable">DocId</span> <span class="function"><span class="title">saveDocument</span>(<span class="variable">doc</span>:<span class="variable">Document</span>)</span></span><br><span class="line"></span><br><span class="line"><span class="variable">doc</span>:<span class="variable">Document</span> <span class="function"><span class="title">getDocument</span>(<span class="variable">id</span>:<span class="variable">DocId</span>)</span></span><br></pre></td></tr></table></figure></p>
+<p>那么假如从低层即服务提供者角度来看呢？</p>
+<p>作为服务提供者，也就是需求实现方，我最先想到的也许是：文档对象应该就是文件吧？如果要存储某个文件，存储在独立的文件服务器上会比较稳妥。所以，首先我需要知道文件所在主机的
+IP（如有必要还需要相关认证信息），以及文件的绝对路径。之后的实现过程可以分为以下几步：</p>
+<ol type="1">
+<li>登录到主机上，根据路径找到文件；</li>
+<li>远程复制该文件到独立的文件服务器；</li>
+<li>生成一个唯一标识，并与文件服务器的真实路径关联；</li>
+<li>将唯一标识以 String 的形式返回给调用者。</li>
+</ol>
+<p>因此对于服务提供方，可能会提供如下 API：</p>
+<figure class="highlight mathematica"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">id</span><span class="operator">:</span><span class="built_in">String</span> <span class="variable">saveFile</span><span class="punctuation">(</span><span class="variable">ip</span><span class="operator">:</span><span class="built_in">String</span><span class="operator">,</span> <span class="variable">path</span><span class="operator">:</span><span class="built_in">Path</span><span class="punctuation">)</span></span><br><span class="line"></span><br><span class="line"><span class="variable">void</span> <span class="variable">getFile</span><span class="punctuation">(</span><span class="variable">id</span><span class="operator">:</span><span class="built_in">String</span><span class="operator">,</span> <span class="variable">ip</span><span class="operator">:</span><span class="built_in">String</span><span class="operator">,</span> <span class="variable">path</span><span class="operator">:</span><span class="built_in">Path</span><span class="punctuation">)</span></span><br></pre></td></tr></table></figure>
+<p>显然，提供方和消费方给出的 API 大相径庭。服务提供方甚至根本就默认把
+”文档“ 这样一个业务概念脑补成了 ”文件“ 。</p>
+<h3 id="说了半天没提依赖倒置呀">说了半天，没提依赖倒置呀？</h3>
+<p>我们顺着上文的思路，来想一想，假如高低层模块都是由同一个团队来开发维护，并且按照业务驱动的模式来开发，上述需求会怎么一步步变成代码呢？</p>
+<ol type="1">
+<li>出现业务需求，期望对文档进行存取</li>
+<li>团队认为，具体文档存取的实现应该不属于 domain 层，而是
+infrastructure 层。</li>
+<li>为了不影响业务卡的开发，团队根据讨论，提取出了文档存取所需的抽象，即：
+<figure class="highlight isbl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">id</span>:<span class="variable">DocId</span> <span class="function"><span class="title">saveDocument</span>(<span class="variable">doc</span>:<span class="variable">Document</span>)</span></span><br><span class="line"></span><br><span class="line"><span class="variable">doc</span>:<span class="variable">Document</span> <span class="function"><span class="title">getDocument</span>(<span class="variable">id</span>:<span class="variable">DocId</span>)</span></span><br></pre></td></tr></table></figure></li>
+<li>某小伙伴领取实现文档存取的故事卡，先通过工具类获取本机
+IP，之后从文档对象中拿到实际的
+file，以及对应的元数据，之后存储至远端文件服务，元数据入库，返回唯一
+id。</li>
+<li>后来，由于部署环境变更，远程文件服务不可用，文件存储要改为存储在本地，对于这个需求，做卡的小伙伴只要遵循抽象，重新实现一套本地存储的方案即可，对高层业务完全透明。</li>
+</ol>
+<p>可见，<strong>由于对需求进行了明确的定义，产出了需求的稳定抽象，基于此抽象的实现，不论如何变化，都不会影响到核心业务的稳定，这就是依赖倒置。</strong>由业务需求驱动的开发天然满足了依赖倒置的要求，层与层之间互相解耦，整个系统也就对变化表现出了更强的适应性。</p>
+<p>不过实际当中，很多时候不同模块的开发是由不同团队完成的，我们也许没办法左右已经提供了
+API 的基础设施，这时怎么办呢？</p>
+<p>在实践 DDD 中，我们经常会听到<a
+href="https://insights.thoughtworks.cn/from-sandwich-to-hexagon/">六边形架构</a>的概念，六边形架构内所有的业务逻辑与其他外部依赖之间，全部采用适配器(Adapter)进行适配，以尽可能的隔离业务边界，增加扩展性。</p>
+<p>所以引申到上述例子，假如系统现有的文件服务提供给我们的 API 必须要以
+IP
+和文件路径作为参数，那么为了防止业务与外部服务产生依赖，我们仍旧以业务需求驱动的方式，提取文档抽象，之后新增适配器，适配器一端依赖抽象，另一端依赖外部文件服务。通过这种办法就可以很好的实现依赖倒置。</p>
+<p>有了适配器，无论外部服务怎么变化，只要跟着改适配器，我们的业务仍然是高度内聚的。</p>
+<h3 id="回过头来">回过头来</h3>
+<p>前文聊了聊为什么要依赖倒置以及怎么进行依赖倒置。现在，我们可以再回到最开始的问题本身：</p>
+<p><strong>依赖倒置就是每一个实现都要抽一个接口出来吗？</strong></p>
+<p>答案显而易见了：</p>
+<p><strong>恰恰相反，依赖倒置应该是先由业务消费方定义接口，再由服务提供方实现，只不过从最终产出物的角度看，的确是可能每个实现都抽取了一个接口而已。</strong></p>
+<p>因此假如作为服务提供方，为了满足依赖倒置，臆想消费方的需求来抽取接口，那不叫依赖倒置，叫本末倒置。</p>
+<h3 id="最后总结一下">最后总结一下</h3>
+<ol type="1">
+<li><strong>什么是依赖倒置：</strong>
+高层模块不应直接依赖低层模块，他们应该都依赖于彼此间的抽象。</li>
+<li><strong>为什么要依赖倒置：</strong>
+因为依赖倒置能隔离变化，使核心业务更稳定。</li>
+<li><strong>怎么实现依赖倒置：</strong>
+核心业务方定义需求抽象，服务提供方实现需求抽象。</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/" title="依赖倒置就是每一个实现都要抽一个接口出来吗？">http://lenshood.github.io/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/SOLID/" rel="tag"># SOLID</a>
+              <a href="/tags/Dependency-Inversion/" rel="tag"># Dependency Inversion</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/12/21/guava-cache/" rel="prev" title="（Guava 译文系列）缓存">
+                  <i class="fa fa-angle-left"></i> （Guava 译文系列）缓存
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/02/04/redis-distributed-lock/" rel="next" title="Java 基于 Redis 实现分布式锁需要注意什么？">
+                  Java 基于 Redis 实现分布式锁需要注意什么？ <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

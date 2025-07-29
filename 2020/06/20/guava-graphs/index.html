@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Guava 的common.graph库对图结构进行了建模，图，是一种包含实体及其之间关系的数据结构。这种结构的例子包括 web 页面与超链接、科学家和他们写的论文、机场以及机场之间的航路、以及个人与其家庭关系（谱系树）。图结构的目的在于能提供一种通用且可扩展的语言来描述上述这类数据。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="（Guava 译文系列）图">
+<meta property="og:url" content="http://lenshood.github.io/2020/06/20/guava-graphs/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Guava 的common.graph库对图结构进行了建模，图，是一种包含实体及其之间关系的数据结构。这种结构的例子包括 web 页面与超链接、科学家和他们写的论文、机场以及机场之间的航路、以及个人与其家庭关系（谱系树）。图结构的目的在于能提供一种通用且可扩展的语言来描述上述这类数据。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-06-20T13:42:32.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.102Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="guava">
+<meta property="article:tag" content="translation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/06/20/guava-graphs/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/06/20/guava-graphs/","path":"2020/06/20/guava-graphs/","title":"（Guava 译文系列）图"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>（Guava 译文系列）图 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89"><span class="nav-number">1.</span> <span class="nav-text">定义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%83%BD%E5%8A%9B"><span class="nav-number">2.</span> <span class="nav-text">能力</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%BE%E7%9A%84%E7%A7%8D%E7%B1%BB"><span class="nav-number">3.</span> <span class="nav-text">图的种类</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#graph"><span class="nav-number">3.1.</span> <span class="nav-text">Graph</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#valuegraph"><span class="nav-number">3.2.</span> <span class="nav-text">ValueGraph</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#network"><span class="nav-number">3.3.</span> <span class="nav-text">Network</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%89%E6%8B%A9%E5%90%88%E9%80%82%E7%9A%84-graph-%E7%B1%BB%E5%9E%8B"><span class="nav-number">3.4.</span> <span class="nav-text">选择合适的 graph 类型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9E%84%E9%80%A0-graph-%E5%AE%9E%E4%BE%8B"><span class="nav-number">4.</span> <span class="nav-text">构造 graph 实例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#builder-%E7%9A%84%E7%BA%A6%E6%9D%9F-vs.-%E4%BC%98%E5%8C%96%E6%8F%90%E7%A4%BA"><span class="nav-number">4.1.</span> <span class="nav-text">Builder 的约束 vs. 优化提示</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mutable-%E5%92%8C-immutable-%E5%9B%BE"><span class="nav-number">5.</span> <span class="nav-text">Mutable 和
+Immutable 图</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#mutable-%E7%B1%BB%E5%9E%8B"><span class="nav-number">5.1.</span> <span class="nav-text">Mutable* 类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#immutable-%E5%AE%9E%E7%8E%B0"><span class="nav-number">5.2.</span> <span class="nav-text">Immutable* 实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BF%9D%E8%AF%81"><span class="nav-number">5.2.1.</span> <span class="nav-text">保证</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8A%8A%E8%BF%99%E4%BA%9B%E7%B1%BB%E5%BD%93%E4%BD%9C%E6%98%AF-interfaces-%E8%80%8C%E4%B8%8D%E6%98%AF%E5%AE%9E%E7%8E%B0"><span class="nav-number">5.2.2.</span> <span class="nav-text">把这些类当作是
+&quot;interfaces&quot;， 而不是实现</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#graph-%E5%85%83%E7%B4%A0-%E8%8A%82%E7%82%B9%E5%92%8C%E8%BE%B9"><span class="nav-number">6.</span> <span class="nav-text">Graph 元素 (节点和边)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%83%E7%B4%A0%E5%BF%85%E9%A1%BB%E5%8F%AF%E7%94%A8%E4%BD%9C-map-%E7%9A%84-key"><span class="nav-number">6.1.</span> <span class="nav-text">元素必须可用作 Map 的
+key</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%94%AF%E4%B8%80%E6%80%A7"><span class="nav-number">6.1.1.</span> <span class="nav-text">唯一性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#hashcode-%E5%92%8C-equals-%E4%B9%8B%E9%97%B4%E7%9A%84%E4%B8%80%E8%87%B4%E6%80%A7"><span class="nav-number">6.1.2.</span> <span class="nav-text">hashCode() 和
+equals() 之间的一致性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#equals-%E7%9A%84%E9%A1%BA%E5%BA%8F%E4%B8%80%E8%87%B4%E6%80%A7"><span class="nav-number">6.1.3.</span> <span class="nav-text">equals() 的顺序一致性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9D%9E%E9%80%92%E5%BD%92%E6%80%A7"><span class="nav-number">6.1.4.</span> <span class="nav-text">非递归性</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%83%E7%B4%A0%E5%92%8C%E5%8F%AF%E5%8F%98%E7%8A%B6%E6%80%81"><span class="nav-number">6.2.</span> <span class="nav-text">元素和可变状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%83%E7%B4%A0%E5%BF%85%E9%A1%BB%E9%9D%9E-null"><span class="nav-number">6.3.</span> <span class="nav-text">元素必须非 null</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#graph-%E5%BA%93%E7%9A%84%E5%A5%91%E7%BA%A6%E4%B8%8E%E8%A1%8C%E4%B8%BA"><span class="nav-number">7.</span> <span class="nav-text">Graph 库的契约与行为</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%98%E6%9B%B4"><span class="nav-number">7.1.</span> <span class="nav-text">变更</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#graph-equals-%E5%92%8C-graph-%E7%9B%B8%E7%AD%89"><span class="nav-number">7.2.</span> <span class="nav-text">Graph equals() 和 graph
+相等</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BF%E9%97%AE%E5%99%A8%E6%96%B9%E6%B3%95"><span class="nav-number">7.3.</span> <span class="nav-text">访问器方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5"><span class="nav-number">7.4.</span> <span class="nav-text">同步</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%83%E7%B4%A0%E5%AF%B9%E8%B1%A1"><span class="nav-number">7.5.</span> <span class="nav-text">元素对象</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E8%80%85%E9%A1%BB%E7%9F%A5"><span class="nav-number">8.</span> <span class="nav-text">实现者须知</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AD%98%E5%82%A8%E6%A8%A1%E5%9E%8B"><span class="nav-number">8.1.</span> <span class="nav-text">存储模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BF%E9%97%AE%E5%99%A8%E8%A1%8C%E4%B8%BA"><span class="nav-number">8.2.</span> <span class="nav-text">访问器行为</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#abstract-%E7%B1%BB"><span class="nav-number">8.3.</span> <span class="nav-text">Abstract* 类</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B"><span class="nav-number">9.</span> <span class="nav-text">代码示例</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#graph-%E5%8C%85%E5%90%ABnode-%E5%90%97"><span class="nav-number">9.1.</span> <span class="nav-text">Graph 包含node 吗？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%A8%E8%8A%82%E7%82%B9-u-%E5%92%8C-v%E4%B9%8B%E9%97%B4%E5%AD%98%E5%9C%A8%E8%BE%B9%E5%90%97-%E6%98%AF-graph-%E4%B8%AD%E5%B7%B2%E7%9F%A5%E7%9A%84%E5%90%97"><span class="nav-number">9.2.</span> <span class="nav-text">在节点
+u 和 v之间存在边吗 （是 graph
+中已知的吗）？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80-graph-%E7%A4%BA%E4%BE%8B"><span class="nav-number">9.3.</span> <span class="nav-text">基础 Graph 示例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80-valuegraph-%E7%A4%BA%E4%BE%8B"><span class="nav-number">9.4.</span> <span class="nav-text">基础 ValueGraph
+示例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80-network-%E7%A4%BA%E4%BE%8B"><span class="nav-number">9.5.</span> <span class="nav-text">基础 Network
+示例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%90%E8%8A%82%E7%82%B9%E9%81%8D%E5%8E%86%E6%97%A0%E5%90%91%E5%9B%BE"><span class="nav-number">9.6.</span> <span class="nav-text">逐节点遍历无向图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%90%E8%BE%B9%E9%81%8D%E5%8E%86%E6%9C%89%E5%90%91%E5%9B%BE"><span class="nav-number">9.7.</span> <span class="nav-text">逐边遍历有向图</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#faq"><span class="nav-number">10.</span> <span class="nav-text">FAQ</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88-guava-%E8%A6%81%E5%BC%95%E5%85%A5-common.graph"><span class="nav-number">10.1.</span> <span class="nav-text">为什么 Guava 要引入
+common.graph？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#common.graph-%E6%94%AF%E6%8C%81%E5%93%AA%E4%BA%9B%E7%B1%BB%E5%9E%8B%E7%9A%84-graph"><span class="nav-number">10.2.</span> <span class="nav-text">common.graph
+支持哪些类型的 graph？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#common.graph-%E5%B9%B6%E4%B8%8D%E5%8C%85%E5%90%AB%E6%9F%90%E4%B8%AA%E7%89%B9%E6%80%A7%E7%AE%97%E6%B3%95%E4%BD%A0%E4%BB%AC%E5%8F%AF%E4%BB%A5%E5%A2%9E%E5%8A%A0%E5%90%97"><span class="nav-number">10.3.</span> <span class="nav-text">common.graph
+并不包含某个特性&#x2F;算法，你们可以增加吗？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B6%85%E5%A4%A7%E8%A7%84%E6%A8%A1%E7%9A%84-graph-%E4%BC%9A%E8%A2%AB%E6%94%AF%E6%8C%81%E5%90%97%E4%BE%8B%E5%A6%82-mapreduce-%E8%A7%84%E6%A8%A1"><span class="nav-number">10.4.</span> <span class="nav-text">超大规模的 Graph
+会被支持吗（例如 MapReduce 规模）？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%88%91%E5%A6%82%E4%BD%95%E8%83%BD%E5%AE%9A%E4%B9%89-successorsnode%E7%9A%84%E9%A1%BA%E5%BA%8F"><span class="nav-number">10.5.</span> <span class="nav-text">我如何能定义
+successors(node)的顺序？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E6%88%91%E8%A6%81%E7%94%A8-guava-graph-%E5%BA%93%E8%80%8C%E4%B8%8D%E6%98%AF%E5%85%B6%E4%BB%96%E5%BA%93%E5%91%A2"><span class="nav-number">10.6.</span> <span class="nav-text">为什么我要用 Guava
+Graph 库而不是其他库呢？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E8%B4%A1%E7%8C%AE%E8%80%85"><span class="nav-number">11.</span> <span class="nav-text">主要贡献者</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/06/20/guava-graphs/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="（Guava 译文系列）图 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          （Guava 译文系列）图
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-06-20 21:42:32" itemprop="dateCreated datePublished" datetime="2020-06-20T21:42:32+08:00">2020-06-20</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Guava/" itemprop="url" rel="index"><span itemprop="name">Guava</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Guava 的<code>common.graph</code>库对图结构进行了建模，<a
+href="https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)">图</a>，是一种包含实体及其之间关系的数据结构。这种结构的例子包括
+web
+页面与超链接、科学家和他们写的论文、机场以及机场之间的航路、以及个人与其家庭关系（谱系树）。图结构的目的在于能提供一种通用且可扩展的语言来描述上述这类数据。</p>
+<span id="more"></span>
+<h2 id="定义">定义</h2>
+<p>一个图包含了一组<strong>节点（node）</strong>（也叫顶点）和一组<strong>边（edge）</strong>（也叫连接或弧线）；每一条边连接了两个节点。与边关联的节点成为<strong>端点（endpoints）</strong></p>
+<p>（当我们在下文中介绍<code>Graph</code>接口时，我们使用小写的"graph"来指代图这种数据结构。当我们想要指代<code>Graph</code>接口时，我们会用大写。（译者注：译文中图数据结构与<code>Graph</code>接口的名字不存在混淆。））。</p>
+<p>如果一条边拥有定义好的起点（他的<strong>源
+source</strong>）和终点（他的<strong>目标
+target</strong>，也叫目的地），那么这条边是<strong>有向的（directed）</strong>。否则便是<strong>无向的（undirected）</strong>。有向边适合表示不对称关系（派生自...，
+连接到...，
+被...撰写），而无向边适合表示对称关系（“与...为共同作者”，“两者之间距离...”，
+“与...是兄弟”）。</p>
+<p>假如一个图的所有边都是有向的，则称为有向图，反正如果一个图的所有边都是无向的，则成为无向图。（<code>common.graph</code>
+不支持同时包含有向边和无向边的图）。</p>
+<p>举例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">graph.addEdge(nodeU, nodeV, edgeUV);</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>nodeU</code> 和 <code>nodeV</code> 互为相邻（
+<strong>adjacent</strong>）</li>
+<li><code>edgeUV</code> 关联（ <strong>incident</strong>）
+<code>nodeU</code> 到 <code>nodeV</code> (反之亦然)</li>
+</ul>
+<p>如果 <code>graph</code> 是有向图，那么：</p>
+<ul>
+<li><code>nodeU</code> 是 <code>nodeV</code>
+的一个前任（<strong>predecessor</strong>）</li>
+<li><code>nodeV</code> 是<code>nodeU</code>
+的一个后继（<strong>successor</strong> ）</li>
+<li><code>edgeUV</code> 是<code>nodeU</code>的一条外向（
+<strong>outgoing</strong>）边</li>
+<li><code>edgeUV</code> 是<code>nodeV</code>的一条内向（
+<strong>incoming</strong>）边</li>
+<li><code>nodeU</code> 是
+<code>edgeUV</code>的一个源（<strong>source</strong>）</li>
+<li><code>nodeV</code> 是<code>edgeUV</code>的一个目标（
+<strong>target</strong> ）</li>
+</ul>
+<p>如果 <code>graph</code> 是无向图，那么：</p>
+<ul>
+<li><code>nodeU</code> 是 <code>nodeV</code>的一个前任和后继</li>
+<li><code>nodeV</code> 是<code>nodeU</code>的一个前任和后继</li>
+<li><code>edgeUV</code> 是 <code>nodeU</code>的一条外向与内向边</li>
+<li><code>edgeUV</code> 是 <code>nodeV</code>的一条外向与内向边</li>
+</ul>
+<p>所有这些关系，都与 <code>graph</code>有关。</p>
+<p><strong>自循环（self-loop）</strong>指一条边连接了一个节点到他自身，同样的，这也代表一条边的两个端点是同一个节点。如果一个自循环是有向的，那么他既是关联节点的外向边，也是内向边，且与之关联的节点既是源也是目标。</p>
+<p>如果两条边以相同的顺序连接了相同的节点，则称这两条边<strong>平行（parallel）</strong>，而如果他们以相反的顺序连接了相同的节点，则称<strong>反平行（antiparallel）</strong>。（无向边不能成为反平行。）</p>
+<p>举例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">directedGraph.addEdge(nodeU, nodeV, edgeUV_a);</span><br><span class="line">directedGraph.addEdge(nodeU, nodeV, edgeUV_b);</span><br><span class="line">directedGraph.addEdge(nodeV, nodeU, edgeVU);</span><br><span class="line"></span><br><span class="line">undirectedGraph.addEdge(nodeU, nodeV, edgeUV_a);</span><br><span class="line">undirectedGraph.addEdge(nodeU, nodeV, edgeUV_b);</span><br><span class="line">undirectedGraph.addEdge(nodeV, nodeU, edgeVU);</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>在 <code>directedGraph</code> 中，<code>edgeUV_a</code> 和
+<code>edgeUV_b</code> 互为平行, 且都与
+<code>edgeVU</code>互为反平行。</p>
+<p>在 <code>undirectedGraph</code>中， <code>edgeUV_a</code>，
+<code>edgeUV_b</code>， 和 <code>edgeVU</code> 都互为平行。</p>
+<h2 id="能力">能力</h2>
+<p><code>common.graph</code>
+聚焦于提供接口和类来支撑基于图的开发工作。它不提供类似于 I/O
+的功能或是可视化的支持，它的实用工具选择也很有限。详情可见<a
+href="#faq">FAQ</a>。</p>
+<p>总体上， <code>common.graph</code> 支持了一下几种图：</p>
+<ul>
+<li>有向图</li>
+<li>无向图</li>
+<li>能够关联值（权重、标签等等）的节点和边</li>
+<li>允许/不允许自循环的图</li>
+<li>允许/不允许平行边的图（有平行边的图有时会被称为multigraph）</li>
+<li>图的节点/边支持以插入顺序、可排序或无序。</li>
+</ul>
+<p>具体哪种<code>common.graph</code>支持哪些图，已在 javadoc
+中说明。而对内置的各种图的实现类，其说明文档处于对应的<code>Builder</code>类的
+javadoc
+中。在库内对特殊类型的<em>实现类</em>（特别是第三方实现）并不要求支持所有种类，且可能在后续添加支持其他种类。</p>
+<p>对于底层数据结构的选择，该库是不可知的：根据实现者对不同用例的优化，图关系的描述可以通过矩阵、邻接表、邻接映射等结构来表示。</p>
+<p><code>common.graph</code> 目前不包括对如下图种类的<em>明确</em>支持，
+即使他们能够用现有的类型来建模：</p>
+<ul>
+<li>树、森林</li>
+<li>具有相同类型的元素（节点或边）具有不同的数据类型（例如：二部/k部图，多模图）</li>
+<li>超图</li>
+</ul>
+<p><code>common.graph</code> 不允许图既包含有向边，又包含无向边。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graphs.html"><code>Graphs</code></a>
+类提供了一些基本实用工具（例如，对图的复制和比较）</p>
+<h2 id="图的种类">图的种类</h2>
+<p>顶层的图接口有三个，以边的表示方式可以区分为：<code>Graph</code>，
+<code>ValueGraph</code>，和
+<code>Network</code>。他们互为同级，不存在一种为另一种的子类型的关系。</p>
+<p>每一个“顶层”接口都扩展自<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/SuccessorsFunction.html"><code>SuccessorsFunction</code></a>
+和 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/PredecessorsFunction.html"><code>PredecessorsFunction</code></a>。这些接口的意义在于当作只需要获取前任和后继节点的图算法（例如广度优先算法）的参数。当图的拥有者已经有了一种行之有效的图表示方法，且他们并不想专门把自己的表示法转化为<code>common.graph</code>而只想采用一种图算法的时候，这种顶层接口十分有用。</p>
+<h3 id="graph">Graph</h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graph.html"><code>Graph</code></a>是最基础、最简单的一种图类型。他定义了一些底层操作符，来处理节点之间的关系，例如<code>successors(node)，</code>
+<code>adjacentNodes(node)，</code> 和
+<code>inDegree(node)</code>。他的节点是第一等的唯一对象；你可以将之在<code>Graph</code>内部数据结构类比为<code>Map</code>的键。</p>
+<p><code>Graph</code>的边是完全匿名的；他们仅仅由其端点来定义。</p>
+<p>示例用法：<code>Graph&lt;Airport&gt;</code>的边俩连接了能搭乘直达航班到达的机场。</p>
+<h3 id="valuegraph">ValueGraph</h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/ValueGraph.html"><code>ValueGraph</code></a>
+一样拥有 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graph.html"><code>Graph</code></a>
+所拥有的所有与节点相关的方法，但增加了两个从特定边获取值的方法。</p>
+<p><code>ValueGraph</code>的每一条边都关联着一个用户指定的值。这些值不要求唯一（因为节点是唯一的）；一个<code>ValueGraph</code>和一个
+<code>Graph</code> 的关系可以类比为<code>Map</code> 和
+<code>Set</code>；一个<code>Graph</code>的边是一对端点，而一个<code>ValueGraph</code>的边是一对端点与其值的映射。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/ValueGraph.html"><code>ValueGraph</code></a>
+提供了一个 <code>asGraph()</code>
+方法来返回一个<code>ValueGraph</code>的<code>Graph</code>视图。这允许以<code>Graph</code>为参数的方法同样能处理<code>ValueGraph</code>实例。</p>
+<p>示例用法：<code>ValueGraph&lt;Airport, Integer&gt;</code>的边代表了被一条边连接的两个<code>Airport</code>之间的旅途时间。</p>
+<h3 id="network">Network</h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Network.html"><code>Network</code></a>
+一样拥有 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graph.html"><code>Graph</code></a>
+所拥有的所有与节点相关的方法，但增加了操作边与操作节点-边关系的相关方法，例如<code>outEdges(node)</code>，<code>incidentNodes(edge)</code>和
+<code>edgesConnecting(nodeU, nodeV)</code>。</p>
+<p><code>Network</code>的边是第一等的唯一对象，就像所有图类型中的节点一样。边的唯一性约束使得
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Network.html"><code>Network</code></a>原生支持平行边，以及边之间关系的方法和节点-边之间关系的方法。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Network.html"><code>Network</code></a>
+提供了一个 <code>asGraph()</code> 方法来返回一个<code>Network</code>的
+<code>Graph</code>
+视图。这允许以<code>Graph</code>为参数的方法同样能处理<code>Network</code>实例。</p>
+<p>示例用法：<code>Network&lt;Airport, Flight&gt;</code>的边代表了一个人能从一个机场到另一个机场可以搭乘的具体航班。</p>
+<h3 id="选择合适的-graph-类型">选择合适的 graph 类型</h3>
+<p>上述三种 graph，其本质的区别在于他们对边的不同表示方式。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graph.html"><code>Graph</code></a>
+中节点之间连接的边是匿名的，边本身并不拥有任何标识或属性。当每一对节点都最多被一条边连接，且不需要在边上关联任何信息的时候，你应该使用<code>Graph</code>。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/ValueGraph.html"><code>ValueGraph</code></a>
+的边拥有自己的唯一或不唯一的值（例如边的权重或标签等）。当每一对节点都最多被一条边连接，且需要在边上关联信息，不同边上的信息并不要求唯一的时候（例如边的权重），你应该使用<code>ValueGraph</code>。</p>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Network.html"><code>Network</code></a>
+的边是第一等唯一对象，就像节点一样。当边对象唯一，且期望实施对其引用的查询时，你应该使用<code>Network</code>。（注意这种唯一性允许<code>Network</code>支持平行边。）</p>
+<h2 id="构造-graph-实例">构造 graph 实例</h2>
+<p><code>common.graph</code>提供的实现类在设计上并不是 public
+的。这减少了用户需要了解的 public
+类型类的数量，也使浏览内置实现类提供的多种能力变得更容易，而不会让只想创建一个
+graph 的用户感到不知所措。</p>
+<p>为了创建 graph 类型中的某一种内建实现类的实例，可以使用对应的
+<code>Builder</code> 类： <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/GraphBuilder.html"><code>GraphBuilder</code></a>，<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/ValueGraphBuilder.html"><code>ValueGraphBuilder</code></a>，或
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/NetworkBuilder.html"><code>NetworkBuilder</code></a>。例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Creating mutable graphs</span></span><br><span class="line">MutableGraph&lt;Integer&gt; graph = GraphBuilder.undirected().build();</span><br><span class="line"></span><br><span class="line">MutableValueGraph&lt;City, Distance&gt; roads = ValueGraphBuilder.directed()</span><br><span class="line">    .incidentEdgeOrder(ElementOrder.stable())</span><br><span class="line">    .build();</span><br><span class="line"></span><br><span class="line">MutableNetwork&lt;Webpage, Link&gt; webSnapshot = NetworkBuilder.directed()</span><br><span class="line">    .allowsParallelEdges(<span class="literal">true</span>)</span><br><span class="line">    .nodeOrder(ElementOrder.natural())</span><br><span class="line">    .expectedNodeCount(<span class="number">100000</span>)</span><br><span class="line">    .expectedEdgeCount(<span class="number">1000000</span>)</span><br><span class="line">    .build();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Creating an immutable graph</span></span><br><span class="line">ImmutableGraph&lt;Country&gt; countryAdjacencyGraph =</span><br><span class="line">    GraphBuilder.undirected()</span><br><span class="line">        .&lt;Country&gt;immutable()</span><br><span class="line">        .putEdge(FRANCE, GERMANY)</span><br><span class="line">        .putEdge(FRANCE, BELGIUM)</span><br><span class="line">        .putEdge(GERMANY, BELGIUM)</span><br><span class="line">        .addNode(ICELAND)</span><br><span class="line">        .build();</span><br></pre></td></tr></table></figure>
+<ul>
+<li>你可以通过以下两种方式来获得一个 graph <code>Builder</code> 实例:
+<ul>
+<li>调用静态方法 <code>directed()</code> 或
+<code>undirected()</code>。每一个<code>Builder</code>提供的 graph
+实例都会是有向或无向的。</li>
+<li>调用静态方法<code>from()</code>，他能返回一个基于已存在的 graph
+实例的<code>Builder</code>。</li>
+</ul></li>
+<li>在你创建好<code>Builder</code>实例之后，你可以选择指定其他的特性和能力。</li>
+<li>构建可变的 graph 实例
+<ul>
+<li>你可以通过对同一个<code>Builder</code>实例调用多次<code>build()</code>方法来构建相同配置的多个不同实例。</li>
+<li>你不需要指定<code>Builder</code>的元素类型，在 graph
+类型本身上指定他们就足够了。</li>
+<li><code>build()</code> 方法会返回一个对应 graph
+类型的<code>Mutable</code>
+子类型，他提供了修改方法，更多细节可见下文的<a
+href="#mutable-and-immutable-graphs">"<code>Mutable</code> and
+<code>Immutable</code> graphs"</a>章节。</li>
+</ul></li>
+<li>构建不可变的 graph 实例
+<ul>
+<li>在同一个<code>Builder</code>上多次调用<code>immmutable()</code>来获得多个相同配置的<code>ImmutableGraph.Builder</code>实例。</li>
+<li>你需要在调用<code>immutable</code>时指定元素类型。</li>
+</ul></li>
+</ul>
+<h3 id="builder-的约束-vs.-优化提示">Builder 的约束 vs. 优化提示</h3>
+<p><code>Builder</code>类型通常提供了两类可选项：约束和优化提示。</p>
+<p>约束指定了一个由<code>Builder</code>创建的 graph
+实例必须要满足的行为和属性，例如：</p>
+<ul>
+<li>graph 是否有向</li>
+<li>graph 是否允许自循环</li>
+<li>graph 的边是否可排序</li>
+</ul>
+<p>等等。</p>
+<p>graph
+的实现类可以选择性的使用优化提示来提高效率，例如，决定类型或是内部数据结构的初始大小。优化提示并不保证有任何效果。</p>
+<p>每个 graph
+类型都提供与其特定<code>Builder</code>约束相关的访问器，但并不提供优化提示的访问器。</p>
+<h2 id="mutable-和-immutable-图"><code>Mutable</code> 和
+<code>Immutable</code> 图</h2>
+<h3 id="mutable-类型"><code>Mutable*</code> 类型</h3>
+<p>每个 graph 类型都有一个与之相关联的 <code>Mutable*</code> 子类型： <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/MutableGraph.html"><code>MutableGraph</code></a>，<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/MutableValueGraph.html"><code>MutableValueGraph</code></a>，和
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/MutableNetwork.html"><code>MutableNetwork</code></a>。这些子类型定义了对其进行修改的方法：</p>
+<ul>
+<li>添加或删除节点功能：
+<ul>
+<li><code>addNode(node)</code> 和 <code>removeNode(node)</code></li>
+</ul></li>
+<li>添加或删除边功能：
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/MutableGraph.html"><code>MutableGraph</code></a>
+<ul>
+<li><code>putEdge(nodeU, nodeV)</code></li>
+<li><code>removeEdge(nodeU, nodeV)</code></li>
+</ul></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/MutableValueGraph.html"><code>MutableValueGraph</code></a>
+<ul>
+<li><code>putEdgeValue(nodeU, nodeV, value)</code></li>
+<li><code>removeEdge(nodeU, nodeV)</code></li>
+</ul></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/MutableNetwork.html"><code>MutableNetwork</code></a>
+<ul>
+<li><code>addEdge(nodeU, nodeV, edge)</code></li>
+<li><code>removeEdge(edge)</code></li>
+</ul></li>
+</ul></li>
+</ul>
+<p>这种方式与传统的 Java 集合框架（也包括 Guava
+的新集合类型）的工作方式不同；每种类型都包含（可选的）修改方法签名。我们选择将这些修改方法剥离开并放入子类型，有一部分鼓励防御型编程的考虑：通常，如果你的代码只是检查或遍历一个
+graph 而并不改变他，那么代码的输入应该被指定为 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graph.html"><code>Graph</code></a>，
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/ValueGraph.html"><code>ValueGraph</code></a>，或
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Network.html"><code>Network</code></a>
+而不是可变子类型。另一方面，如果你的代码的确需要修改一个对象，在一个带有“Mutable”标签的类型上工作有助于提醒你注意他会被修改这个事实。</p>
+<p>由于 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Graph.html"><code>Graph</code></a>
+等都是接口，即使他们不包含可变方法，向调用者提供该接口实例也<em>不保证</em>不会被调用者修改，就像（实际上他是一个<code>Mutable*</code>子类型的实例一样），调用者可以把它强制转换为一个可变子类型。如果你想要提供一个契约性的保证，即作为方法参数或返回值的
+graph
+不可被改变，你应该使用<code>Immutable</code>实现类，详情见下文。</p>
+<h3 id="immutable-实现"><code>Immutable*</code> 实现</h3>
+<p>每一种 graph 类型还有一个相关联的 <code>Immutable</code>
+实现。这些类与 Guava 的 <code>ImmutableSet</code>
+、<code>ImmutableList</code> 、 <code>ImmutableMap</code>
+类似：一旦创建，他们就再也不能被编辑了，同时，他们内部采用了高效的不可变数据结构。</p>
+<p>与 Guava 的其他 <code>Immutable</code>
+类型不同，这些实现并没有任何可变的方法签名，所以他们并不需要在被尝试改变时抛出
+<code>UnsupportedOperationException</code> 异常。</p>
+<p>你可以通过以下两种方式创建一个 <code>ImmutableGraph</code>
+的实例。</p>
+<p>使用 <code>GraphBuilder</code> ：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">ImmutableGraph&lt;Country&gt; immutableGraph1 =</span><br><span class="line">    GraphBuilder.undirected()</span><br><span class="line">        .&lt;Country&gt;immutable()</span><br><span class="line">        .putEdge(FRANCE, GERMANY)</span><br><span class="line">        .putEdge(FRANCE, BELGIUM)</span><br><span class="line">        .putEdge(GERMANY, BELGIUM)</span><br><span class="line">        .addNode(ICELAND)</span><br><span class="line">        .build();</span><br></pre></td></tr></table></figure>
+<p>使用 <code>ImmutableGraph.copyOf()</code>:</p>
+<figure class="highlight abnf"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ImmutableGraph&lt;Integer&gt; immutableGraph2 <span class="operator">=</span> ImmutableGraph.copyOf(otherGraph)<span class="comment">;</span></span><br></pre></td></tr></table></figure>
+<p>不可变图总能提供对关联边顺序稳定的保证。如果使用
+<code>GraphBuilder</code>
+来填充一个图，那么相关边的顺序将会在可能的情况下使用插入顺序（通过<a
+href="https://guava.dev/releases/snapshot/api/docs/com/google/common/graph/ElementOrder.html#stable--"><code>ElementOrder.stable()</code></a>了解更多细节）。当使用
+<code>copyOf</code>
+时，相关边的顺序将会采用他们在被访问并复制时的顺序。</p>
+<h4 id="保证">保证</h4>
+<p>每一个 <code>Immutable*</code> 类型都能做出如下保证：</p>
+<ul>
+<li><strong>浅不变性（shallow immutability）</strong>:
+元素不可被增加、删除或被替换 (这些类并不实现 <code>Mutable*</code>
+接口)</li>
+<li><strong>确定性迭代（deterministic iteration）</strong>:
+迭代的顺序总与输入图的顺序一致</li>
+<li><a href="#synchronization"><strong>线程安全（thread
+safety）</strong></a>: 多线程访问是安全的</li>
+<li><strong>完整性（integrity）</strong>: 该类型不能在包外被创建子类
+(子类会让上述保证被破坏)</li>
+</ul>
+<h4 id="把这些类当作是-interfaces-而不是实现">把这些类当作是
+"interfaces"， 而不是实现</h4>
+<p>每一个 <code>Immutable*</code> 类型都提供有意义的保证行为 --
+而不仅仅是具体的某个实现。你应当将他们视同接口。</p>
+<p>若存储一个 <code>Immutable*</code>
+的字段或方法返回值（类似<code>ImmutableGraph</code>）应该被声明为
+<code>Immutable*</code> 类而不是其关联的接口类型（例如
+<code>Graph</code>）。这向调用者传递了所有上述列举的语义保证，这是一种非常有用的信息。</p>
+<p>另一方面，一个 <code>ImmutableGraph</code>
+类型的参数通常会让调用者不快。因此，接受 <code>Graph</code> 更合适。</p>
+<p><strong>警告</strong>：就像<a
+href="#elements-and-mutable-state">下文中提到的</a>，修改一个集合中包含的元素（在某种程度上影响了他的
+<code>equals()</code>
+行为），多数情况下是个坏主意。这会导致未定义的行为和一些
+bug。所以最好的是使用不可变对象用作<code>Immutable*</code>实例的元素，因为用户可能希望你的“不可变”对象是完全不可变的。</p>
+<h2 id="graph-元素-节点和边">Graph 元素 (节点和边)</h2>
+<h3 id="元素必须可用作-map-的-key">元素必须可用作 <code>Map</code> 的
+key</h3>
+<p>用户提供 graph 元素应该被视作是 graph 内部实现维护的内部数据结构的
+key。所以，作为代表 graph 元素的类，必须实现 <code>equals()</code> 和
+<code>hashCode()</code>，或包含下面列举的属性。</p>
+<h4 id="唯一性">唯一性</h4>
+<p>如果 <code>A</code> 和 <code>B</code> 满足
+<code>A.equals(B) == true</code> 那么这两个对象中至多有一个能作为 graph
+的 key。</p>
+<h4 id="hashcode-和-equals-之间的一致性"><code>hashCode()</code> 和
+<code>equals()</code> 之间的一致性</h4>
+<p><code>hashCode()</code> 必须与由<a
+href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode--"><code>Object.hashCode()</code></a>
+定义的<code>equals()</code>保持一致。</p>
+<h4 id="equals-的顺序一致性"><code>equals()</code> 的顺序一致性</h4>
+<p>假如节点是有序的（例如，通过 <code>GraphBuilder.orderNodes()</code>
+创建的 graph），那么其顺序一定要与<code>equals()</code>保持一致，就如同
+<a
+href="https://docs.oracle.com/javase/8/docs/api/java/util/Comparator.html"><code>Comparator</code></a>
+和 <a
+href="https://docs.oracle.com/javase/8/docs/api/java/lang/Comparable.html"><code>Comparable</code></a>
+定义的一样。</p>
+<h4 id="非递归性">非递归性</h4>
+<p><code>hashCode</code> 和 <code>equals()</code>
+<em>一定不能</em>递归引用其他元素，例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// DON&#x27;T use a class like this as a graph element (or Map key/Set element)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">Node</span>&lt;T&gt; &#123;</span><br><span class="line">  T value;</span><br><span class="line">  Set&lt;Node&lt;T&gt;&gt; successors;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">equals</span><span class="params">(Object o)</span> &#123;</span><br><span class="line">    Node&lt;T&gt; other = (Node&lt;T&gt;) o;</span><br><span class="line">    <span class="keyword">return</span> Objects.equals(value, other.value)</span><br><span class="line">        &amp;&amp; Objects.equals(successors, other.successors);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">hashCode</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> Objects.hash(value, successors);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当给 <code>common.graph</code>使用上述类作为其元素类型时 (例如，
+<code>Graph&lt;Node&lt;T&gt;&gt;</code>) 存在如下问题：</p>
+<ul>
+<li><strong>冗余</strong>： 由 <code>common.graph</code> 提供的
+<code>Graph</code> 的内部实现已经提供了类似的关系。</li>
+<li><strong>低效</strong>： 添加/访问该元素时将会调用
+<code>equals()</code> (可能还会调用 <code>hashCode()</code>)，这将需要
+O(n) 的时间复杂度</li>
+<li><strong>不可行</strong>： 如果 graph 中包含环，
+<code>equals()</code> 和 <code>hashCode()</code> 将无法终止</li>
+</ul>
+<p>取而代之的， 仅使用 <code>T</code> 值自身来作为节点类型
+(假设<code>T</code> 本身能用做 <code>Map</code> 的 key)。</p>
+<h3 id="元素和可变状态">元素和可变状态</h3>
+<p>如果 graph 的元素包含可变状态：</p>
+<ul>
+<li>该可变状态一定不能反映在 <code>equals()/hashCode()</code>
+方法中（本条详情在 <code>Map</code> 的文档中有讨论）</li>
+<li>不要构建多个彼此相等的元素，并期望他们可以互换。尤其是，当将这种元素加入
+graph
+后，如果需要在创建过程中多次引用这些元素，则应该创建一次并存储引用（而不是将
+<code>new MyMutableNode(id)</code> 传递给每个 <code>add*()</code>
+调用）。</li>
+</ul>
+<p>如果你需要存储每个元素的可变状态，一种选择是使用不可变元素并将可变状态存储在单独的数据结构中（例如，一个元素到状态的映射）。</p>
+<h3 id="元素必须非-null">元素必须非 null</h3>
+<p>向 graph 中添加元素的方法按照契约需要拒绝 null 元素。</p>
+<h2 id="graph-库的契约与行为">Graph 库的契约与行为</h2>
+<p>本节将会讨论<code>common.graph</code>类型内置实现的行为。</p>
+<h3 id="变更">变更</h3>
+<p>你可以给一个还未被添加进 graph
+的节点增加一个对应的边。若他们还没有准备好展示，则他们会静默的被添加进
+graph：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Graph&lt;Integer&gt; graph = GraphBuilder.directed().build();  <span class="comment">// graph is empty</span></span><br><span class="line">graph.putEdge(<span class="number">1</span>, <span class="number">2</span>);  <span class="comment">// this adds 1 and 2 as nodes of this graph, and puts</span></span><br><span class="line">                      <span class="comment">// an edge between them</span></span><br><span class="line"><span class="keyword">if</span> (graph.nodes().contains(<span class="number">1</span>)) &#123;  <span class="comment">// evaluates to &quot;true&quot;</span></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="graph-equals-和-graph-相等">Graph <code>equals()</code> 和 graph
+相等</h3>
+<p>截止至 Guava 22，，每一个 <code>common.graph</code>的 graph
+类型都以一种对特定类型合理的方式定义了 <code>equals()</code> ：</p>
+<ul>
+<li><code>Graph.equals()</code> 定义了两个 <code>Graph</code>
+相等的条件是他们拥有相同的节点与边集合（即每一条边都有相同的终点和方向）。</li>
+<li><code>ValueGraph.equals()</code> 定义了两个 <code>ValueGraph</code>
+相等的条件是他们拥有相同的节点与边集合，且相同的边拥有相同的值。</li>
+<li><code>Network.equals()</code> 定义了两个 <code>Network</code>
+相等的条件是他们拥有相同的节点与边集合，且每一条边的对象都在相同的方向上连接了相同的节点。（如果有的话）</li>
+</ul>
+<p>另外,对每一种 graph 类型，两个 graph
+仅当他们的边拥有相同的方向性时才相等（要么二者都有向，要么都无向）。</p>
+<p>当然，每一种 graph 类型的 <code>hashCode()</code> 都与
+<code>equals()</code> 定义一致。</p>
+<p>如果你只想基于连通性来比较两个 <code>Network</code> 或
+<code>ValueGraph</code>，或是比较一个<code>Network</code> 或一个
+<code>ValueGraph</code> 与一个 <code>Graph</code>，你可以使用
+<code>Network</code> 和 <code>ValueGraph</code> 的<code>Graph</code>
+视图。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Graph&lt;Integer&gt; graph1, graph2;</span><br><span class="line">ValueGraph&lt;Integer, Double&gt; valueGraph1, valueGraph2;</span><br><span class="line">Network&lt;Integer, MyEdge&gt; network1, network2;</span><br><span class="line"></span><br><span class="line"><span class="comment">// compare based on nodes and node relationships only</span></span><br><span class="line"><span class="keyword">if</span> (graph1.equals(graph2)) &#123; ... &#125;</span><br><span class="line"><span class="keyword">if</span> (valueGraph1.asGraph().equals(valueGraph2.asGraph())) &#123; ... &#125;</span><br><span class="line"><span class="keyword">if</span> (network1.asGraph().equals(graph1.asGraph())) &#123; ... &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// compare based on nodes, node relationships, and edge values</span></span><br><span class="line"><span class="keyword">if</span> (valueGraph1.equals(valueGraph2)) &#123; ... &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// compare based on nodes, node relationships, and edge identities</span></span><br><span class="line"><span class="keyword">if</span> (network1.equals(network2)) &#123; ... &#125;</span><br></pre></td></tr></table></figure>
+<h3 id="访问器方法">访问器方法</h3>
+<p>访问器将会返回集合：</p>
+<ul>
+<li>也许是 graph 的视图；可能会影响视图的对 graph 的修改（例如，在用
+<code>nodes()</code> 迭代时调用 <code>addNode(n)</code> 或
+<code>removeNode(n)</code>）可能会抛出<code>ConcurrentModificationException</code>。</li>
+<li>假如输入合法但并没有元素满足该请求时，将会返回空集合（例如：如果<code>node</code>
+并没有相邻节点时，<code>adjacentNodes(node)</code>会返回空集合）。</li>
+</ul>
+<p>假如传入的元素并在 graph
+中，那么访问器会抛出<code>IllegalArgumentException</code>。</p>
+<p>Java
+的集合框架中的一些方法就像<code>contains()</code>会接受<code>Object</code>类型的参数而不是合适的泛型类，截止至
+Guava 22，<code>common.graph</code>
+的方法都会接受泛型类说明符来提升类型安全性。</p>
+<h3 id="同步">同步</h3>
+<p>不同的 graph
+实现会自主决定他们的同步策略。默认情况下，未定义的行为可能是由于调用正在被另一个线程所更改的
+graph 中的任意方法引起的。</p>
+<p>通常来说，内置的可变实现不提供任何同步保证，但<code>Immutable*</code>类是线程安全的（凭借他的不可变性）。</p>
+<h3 id="元素对象">元素对象</h3>
+<p>你添加到 graph
+中的节点、边、值等对象都与内置实现无关；他们只用作内部数据结构的
+key。这表明节点/边也许可以在 graph 实例之间共享。</p>
+<p>默认情况下，节点和边的对象遵从插入顺序（即，通过
+<code>Iterator</code> 的 <code>nodes()</code> 和 <code>edges()</code>
+访问的顺序就是他们被添加进 graph 的顺序，就像 <code>LinkedHashSet</code>
+一样）。</p>
+<h2 id="实现者须知">实现者须知</h2>
+<h3 id="存储模型">存储模型</h3>
+<p><code>common.graph</code> 支持多种机制来存储 graph 的拓扑，包括：</p>
+<ul>
+<li>the graph implementation stores the topology (for example, by
+storing a <code>Map&lt;N, Set&lt;N&gt;&gt;</code> that maps nodes onto
+their adjacent nodes); this implies that the nodes are just keys, and
+can be shared among graphs</li>
+<li>由 graph 的实现来存储拓扑（例如，通过存储一个
+<code>Map&lt;N, Set&lt;N&gt;&gt;</code>
+来将节点映射到他们相邻的节点）；这种实现中节点只作为 key，因此可以在
+graph 之间共享。</li>
+<li>由节点来存储拓扑（例如，通过存储一个相邻节点的
+<code>List&lt;E&gt;</code>）；这种实现（通常）是单个 graph 专有的。</li>
+<li>由一个独立的数据仓库（例如数据库）来存储拓扑</li>
+</ul>
+<p>注意：<code>Multimap</code> 并不能满足用作Graph
+实现需要支持节点隔离的要求（在节点没有关联边时），这是因为
+<code>Multimap</code> 限制了一个 key 要么会映射到至少一个
+value，要么就不会出现在<code>Multimap</code>中。</p>
+<h3 id="访问器行为">访问器行为</h3>
+<p>For accessors that return a collection, there are several options for
+the semantics, including:</p>
+<p>对于返回一个集合的访问器，在语义上有一些可选项，包括：</p>
+<ol type="1">
+<li>当其集合是一个不可变副本时（例如
+<code>ImmutableSet</code>）:任何尝试修改该集合的行为都会抛出一个异常，对
+graph 的任何修改，都<strong>不会</strong>反映在该集合上。</li>
+<li>当其集合是一个不可变视图时（例如<code>Collections.unmodifiableSet()</code>）：任何尝试修改该集合的行为都会抛出一个异常，对
+graph 的修改会反映在该集合上。</li>
+<li>当其集合是一个可变副本时：他可以被修改，但对 graph
+的任何修改，都<strong>不会</strong>反映在该集合上。</li>
+<li>当其集合是一个可变视图时：他可以被修改，对 graph
+的修改也会反映在该集合上。</li>
+</ol>
+<p>（理论上，可以返回在一个方向上的写操作集合，但不能返回另一个方向（集合到
+graph 或反之），但这基本上永远不会被用到，所以别这么干:)）</p>
+<p>（1）和（2）通常更好；直到撰写本文时，内置实现通常都使用（2）。</p>
+<p>（3）是一个可行的选项，但可能会在当用户期望对 graph
+或集合的修改会影响另一方的时让用户感到混淆。</p>
+<p>（4）是一种危险的设计选择，使用时应该特别小心，因为保持内部数据结构的一致性非常困难。</p>
+<h3 id="abstract-类"><code>Abstract*</code> 类</h3>
+<p>每一个 graph 类型都对应了一个 <code>Abstract</code>
+类：<code>AbstractGraph</code>，等等。</p>
+<p>如果可能的话，对该 graph
+接口的实现者应该继承合适的抽象类而不是直接去实现接口。抽象类提供了许多难以正确设计的关键方法实现，以及能够帮助给出一致性的实现，例如：</p>
+<ul>
+<li><code>*degree()</code></li>
+<li><code>toString()</code></li>
+<li><code>Graph.edges()</code></li>
+<li><code>Network.asGraph()</code></li>
+</ul>
+<h2 id="代码示例">代码示例</h2>
+<h3 id="graph-包含node-吗">Graph 包含<code>node</code> 吗？</h3>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">graph.nodes().contains(node);</span><br></pre></td></tr></table></figure>
+<h3 id="在节点-u-和-v之间存在边吗-是-graph-中已知的吗">在节点
+<code>u</code> 和 <code>v</code>之间存在边吗 （是 graph
+中已知的吗）？</h3>
+<p>当 graph 是无向时， 下例中参数 <code>u</code> 和 <code>v</code>
+的顺序无关。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// This is the preferred syntax since 23.0 for all graph types.</span></span><br><span class="line">graphs.hasEdgeConnecting(u, v);</span><br><span class="line"></span><br><span class="line"><span class="comment">// These are equivalent (to each other and to the above expression).</span></span><br><span class="line">graph.successors(u).contains(v);</span><br><span class="line">graph.predecessors(v).contains(u);</span><br><span class="line"></span><br><span class="line"><span class="comment">// This is equivalent to the expressions above if the graph is undirected.</span></span><br><span class="line">graph.adjacentNodes(u).contains(v);</span><br><span class="line"></span><br><span class="line"><span class="comment">// This works only for Networks.</span></span><br><span class="line">!network.edgesConnecting(u, v).isEmpty();</span><br><span class="line"></span><br><span class="line"><span class="comment">// This works only if &quot;network&quot; has at most a single edge connecting u to v.</span></span><br><span class="line">network.edgeConnecting(u, v).isPresent();  <span class="comment">// Java 8 only</span></span><br><span class="line">network.edgeConnectingOrNull(u, v) != <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// These work only for ValueGraphs.</span></span><br><span class="line">valueGraph.edgeValue(u, v).isPresent();  <span class="comment">// Java 8 only</span></span><br><span class="line">valueGraph.edgeValueOrDefault(u, v, <span class="literal">null</span>) != <span class="literal">null</span>;</span><br></pre></td></tr></table></figure>
+<h3 id="基础-graph-示例">基础 <code>Graph</code> 示例</h3>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ImmutableGraph&lt;Integer&gt; graph =</span><br><span class="line">    GraphBuilder.directed()</span><br><span class="line">        .&lt;Integer&gt;immutable()</span><br><span class="line">        .addNode(<span class="number">1</span>)</span><br><span class="line">        .putEdge(<span class="number">2</span>, <span class="number">3</span>) <span class="comment">// also adds nodes 2 and 3 if not already present</span></span><br><span class="line">        .putEdge(<span class="number">2</span>, <span class="number">3</span>) <span class="comment">// no effect; Graph does not support parallel edges</span></span><br><span class="line">        .build();</span><br><span class="line"></span><br><span class="line">Set&lt;Integer&gt; successorsOfTwo = graph.successors(<span class="number">2</span>); <span class="comment">// returns &#123;3&#125;</span></span><br></pre></td></tr></table></figure>
+<h3 id="基础-valuegraph-示例">基础 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/ValueGraph.html"><code>ValueGraph</code></a>
+示例</h3>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">MutableValueGraph&lt;Integer, Double&gt; weightedGraph = ValueGraphBuilder.directed().build();</span><br><span class="line">weightedGraph.addNode(<span class="number">1</span>);</span><br><span class="line">weightedGraph.putEdgeValue(<span class="number">2</span>, <span class="number">3</span>, <span class="number">1.5</span>);  <span class="comment">// also adds nodes 2 and 3 if not already present</span></span><br><span class="line">weightedGraph.putEdgeValue(<span class="number">3</span>, <span class="number">5</span>, <span class="number">1.5</span>);  <span class="comment">// edge values (like Map values) need not be unique</span></span><br><span class="line">...</span><br><span class="line">weightedGraph.putEdgeValue(<span class="number">2</span>, <span class="number">3</span>, <span class="number">2.0</span>);  <span class="comment">// updates the value for (2,3) to 2.0</span></span><br></pre></td></tr></table></figure>
+<h3 id="基础-network-示例">基础 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/graph/Network.html"><code>Network</code></a>
+示例</h3>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">MutableNetwork&lt;Integer, String&gt; network = NetworkBuilder.directed().build();</span><br><span class="line">network.addNode(<span class="number">1</span>);</span><br><span class="line">network.addEdge(<span class="string">&quot;2-&gt;3&quot;</span>, <span class="number">2</span>, <span class="number">3</span>);  <span class="comment">// also adds nodes 2 and 3 if not already present</span></span><br><span class="line"></span><br><span class="line">Set&lt;Integer&gt; successorsOfTwo = network.successors(<span class="number">2</span>);  <span class="comment">// returns &#123;3&#125;</span></span><br><span class="line">Set&lt;String&gt; outEdgesOfTwo = network.outEdges(<span class="number">2</span>);   <span class="comment">// returns &#123;&quot;2-&gt;3&quot;&#125;</span></span><br><span class="line"></span><br><span class="line">network.addEdge(<span class="string">&quot;2-&gt;3 too&quot;</span>, <span class="number">2</span>, <span class="number">3</span>);  <span class="comment">// throws; Network disallows parallel edges</span></span><br><span class="line">                                    <span class="comment">// by default</span></span><br><span class="line">network.addEdge(<span class="string">&quot;2-&gt;3&quot;</span>, <span class="number">2</span>, <span class="number">3</span>);  <span class="comment">// no effect; this edge is already present</span></span><br><span class="line">                                <span class="comment">// and connecting these nodes in this order</span></span><br><span class="line"></span><br><span class="line">Set&lt;String&gt; inEdgesOfFour = network.inEdges(<span class="number">4</span>); <span class="comment">// throws; node not in graph</span></span><br></pre></td></tr></table></figure>
+<h3 id="逐节点遍历无向图">逐节点遍历无向图</h3>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Return all nodes reachable by traversing 2 edges starting from &quot;node&quot;</span></span><br><span class="line"><span class="comment">// (ignoring edge direction and edge weights, if any, and not including &quot;node&quot;).</span></span><br><span class="line">Set&lt;N&gt; <span class="title function_">getTwoHopNeighbors</span><span class="params">(Graph&lt;N&gt; graph, N node)</span> &#123;</span><br><span class="line">  Set&lt;N&gt; twoHopNeighbors = <span class="keyword">new</span> <span class="title class_">HashSet</span>&lt;&gt;();</span><br><span class="line">  <span class="keyword">for</span> (N neighbor : graph.adjacentNodes(node)) &#123;</span><br><span class="line">    twoHopNeighbors.addAll(graph.adjacentNodes(neighbor));</span><br><span class="line">  &#125;</span><br><span class="line">  twoHopNeighbors.remove(node);</span><br><span class="line">  <span class="keyword">return</span> twoHopNeighbors;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="逐边遍历有向图">逐边遍历有向图</h3>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Update the shortest-path weighted distances of the successors to &quot;node&quot;</span></span><br><span class="line"><span class="comment">// in a directed Network (inner loop of Dijkstra&#x27;s algorithm)</span></span><br><span class="line"><span class="comment">// given a known distance for &#123;@code node&#125; stored in a &#123;@code Map&lt;N, Double&gt;&#125;,</span></span><br><span class="line"><span class="comment">// and a &#123;@code Function&lt;E, Double&gt;&#125; for retrieving a weight for an edge.</span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">updateDistancesFrom</span><span class="params">(Network&lt;N, E&gt; network, N node)</span> &#123;</span><br><span class="line">  <span class="type">double</span> <span class="variable">nodeDistance</span> <span class="operator">=</span> distances.get(node);</span><br><span class="line">  <span class="keyword">for</span> (E outEdge : network.outEdges(node)) &#123;</span><br><span class="line">    <span class="type">N</span> <span class="variable">target</span> <span class="operator">=</span> network.target(outEdge);</span><br><span class="line">    <span class="type">double</span> <span class="variable">targetDistance</span> <span class="operator">=</span> nodeDistance + edgeWeights.apply(outEdge);</span><br><span class="line">    <span class="keyword">if</span> (targetDistance &lt; distances.getOrDefault(target, Double.MAX_VALUE)) &#123;</span><br><span class="line">      distances.put(target, targetDistance);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="faq">FAQ</h2>
+<h3 id="为什么-guava-要引入-common.graph">为什么 Guava 要引入
+<code>common.graph</code>？</h3>
+<p>正如 Guava 所做的其他事情一样，引入 graph 也是基于同样的理由：</p>
+<ul>
+<li>代码重用、互用、范例统一：很多事情都与 graph 处理有关</li>
+<li>效率：有多少代码都在使用低效的 graph
+表示？太多了（例如矩阵的表示）</li>
+<li>正确性：有多少代码都将 graph 分析做错了？</li>
+<li>推广 graph 用作 ADT：当 graph
+用起来很简单的时候，有多少人都会用？</li>
+<li>简单性：假如显式的使用比喻，处理 graph 的代码会变得更容易理解。</li>
+</ul>
+<h3 id="common.graph-支持哪些类型的-graph"><code>common.graph</code>
+支持哪些类型的 graph？</h3>
+<p>请见上文章节： <a href="#能力">"能力"</a> 。</p>
+<h3
+id="common.graph-并不包含某个特性算法你们可以增加吗"><code>common.graph</code>
+并不包含某个特性/算法，你们可以增加吗？</h3>
+<p>也许吧，你可以给我们的邮箱<code>guava-discuss@googlegroups.com</code>发邮件或
+<a href="https://github.com/google/guava/issues">在 Github 上提
+Issue</a>。</p>
+<p>我们的处世哲学是只有当某种东西（a）与 Guava
+的核心使命相匹配且（b）有一个好的理由来期望他能够合理广泛的被使用时，才应该是
+Guava 的一部分。</p>
+<p><code>common.graph</code>也许永远也不会提供可视化或者 I/O
+的能力；这些都是他们自己项目中的内容，与 Guava 的使命并不相符。</p>
+<p>类似遍历、过滤、变换等的能力才更符合，因此也更有可能被引入，虽然最终我们仍期望其他的
+graph 库能提供大部分能力。</p>
+<h3 id="超大规模的-graph-会被支持吗例如-mapreduce-规模">超大规模的 Graph
+会被支持吗（例如 MapReduce 规模）？</h3>
+<p>现在还不行。Graph
+在较小的百万级别节点下应该能工作，但你考虑应该将本库类比为 Java
+的集合框架类型（<code>Map</code>，
+<code>List</code>，<code>Set</code>等等）。</p>
+<h3 id="我如何能定义-successorsnode的顺序">我如何能定义
+<code>successors(node)</code>的顺序？</h3>
+<p>在 graph builder 中设置<code>incidentEdgeOrder()</code>为 <a
+href="https://guava.dev/releases/snapshot/api/docs/com/google/common/graph/ElementOrder.html#stable--"><code>ElementOrder.stable()</code></a>就能确保
+<code>successors(node)</code> 会以边的插入顺序返回
+<code>node</code>的后继。这在对其他与边和节点相关方法（例如<code>incidentEdges(node)</code>）时也有效。</p>
+<h3 id="为什么我要用-guava-graph-库而不是其他库呢">为什么我要用 Guava
+Graph 库而不是其他库呢？</h3>
+<p><strong>太长不读</strong>：你应该使用对你奏效的，但当本库不支持你的需求时，请让我们知道！</p>
+<p>本库的主要竞争者（对 Java）是：<a
+href="https://github.com/jrtom/jung">JUNG</a> 和 <a
+href="http://jgrapht.org/">JGraphT</a>。</p>
+<p><code>JUNG</code> 是 Joshua O'Madadhain（ <code>common.graph</code>
+的带头人）在 2003年与其他人共同创建的， 他现在仍在维护它。 JUNG
+是一个相当成熟、功能齐全且被广泛使用的库，但在很多地方粗陋且低效。 现在
+<code>common.graph</code> 已经对外发布了，他目前工作在一个新的
+<code>JUNG</code>版本上，该版本试用了<code>common.graph</code>
+来作为他的数据模型。</p>
+<p><code>JGraphT</code> 是另一个已经存在了一段时间的第三方 Java graph
+库。我们对它并不熟悉，所以我们并不能评价他的细节，但是它至少在一些地方与
+<code>JUNG</code> 是相同的。这个库也包含了很多 <a
+href="https://jgrapht.org/javadoc/org/jgrapht/graph/guava/package-summary.html">适配器类</a>来将<code>common.graph</code>适配到<code>JGraphT</code>。</p>
+<p>如果你有非常特别的需求的话，推出自己的解决方案有时是正确的方法。但是就像通常你不会在
+Java 中实现自己的 hash table（而不是使用 <code>HashMap</code> 或
+<code>ImmutableMap</code>） 一样，基于以上列出的所有原因，你应该考虑使用
+<code>common.graph</code> （或者，如果有需要，使用其他现存的 graph
+库）。</p>
+<h2 id="主要贡献者">主要贡献者</h2>
+<p><code>common.graph</code> 是一个团队合作的成果，我们受到了 Google
+内外的各种人的帮助，但这些人的影响最大。</p>
+<ul>
+<li><strong>Omar Darwish</strong> 完成了很多早期实现，
+并设置了测试覆盖标准。</li>
+<li><a href="https://github.com/bezier89"><strong>James
+Sexton</strong></a>
+是对项目最多产的个人，他在方向和设计上拥有显著的影响力。他负责一些核心特性，以及我们提供实现的效率。</li>
+<li><a href="https://github.com/jrtom"><strong>Joshua
+O'Madadhain</strong></a> 在反思了他也参与创建的 <a
+href="http://jung.sf.net">JUNG</a>的优劣势之后，开启了
+<code>common.graph</code>
+项目。他作为项目带头人审阅或编写了设计和代码的几乎各个方面。</li>
+<li><a href="https://github.com/nymanjens"><strong>Jens
+Nyman</strong></a> 贡献了非常多近期的插件例如 <a
+href="https://guava.dev/releases/snapshot/api/docs/com/google/common/graph/Traverser.html"><code>Traverser</code></a>
+以及不可变 graph 的 builder。他对项目的未来发展方向也有重大影响。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/06/20/guava-graphs/" title="（Guava 译文系列）图">http://lenshood.github.io/2020/06/20/guava-graphs/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/guava/" rel="tag"># guava</a>
+              <a href="/tags/translation/" rel="tag"># translation</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/06/07/guava-strings/" rel="prev" title="Guava 译文系列）Strings">
+                  <i class="fa fa-angle-left"></i> Guava 译文系列）Strings
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/07/04/feature-toggle/" rel="next" title="Feature Toggles (aka Feature Flags)">
+                  Feature Toggles (aka Feature Flags) <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

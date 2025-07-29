@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="规范 Git 系列： 第一篇：如何保持公共开发分支的整洁 第二篇：Good Git Commit 第三篇：Good Commit Message 第四篇：Git Hooks">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Git Hooks">
+<meta property="og:url" content="http://lenshood.github.io/2019/05/30/git-hooks/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="规范 Git 系列： 第一篇：如何保持公共开发分支的整洁 第二篇：Good Git Commit 第三篇：Good Commit Message 第四篇：Git Hooks">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-05-30T15:11:58.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.069Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="git">
+<meta property="article:tag" content="hooks">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2019/05/30/git-hooks/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2019/05/30/git-hooks/","path":"2019/05/30/git-hooks/","title":"Git Hooks"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Git Hooks | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#what-exactly-the-git-hooks-is"><span class="nav-number">1.</span> <span class="nav-text">What exactly the GIT-HOOKS is
+?</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#what-kinds-of-hooks-dose-it-provided"><span class="nav-number">2.</span> <span class="nav-text">What kinds of HOOKS dose
+it provided ?</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#commit-workflow-%E7%9B%B8%E5%85%B3"><span class="nav-number">2.0.1.</span> <span class="nav-text">commit workflow 相关</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B6%E4%BB%96"><span class="nav-number">2.0.2.</span> <span class="nav-text">其他</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">3.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2019/05/30/git-hooks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Git Hooks | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Git Hooks
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-05-30 23:11:58" itemprop="dateCreated datePublished" datetime="2019-05-30T23:11:58+08:00">2019-05-30</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Git/" itemprop="url" rel="index"><span itemprop="name">Git</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>规范 Git 系列：</p>
+<p><a
+href="https://lenshood.github.io/2019/04/08/keep-git-branch-clean/">第一篇：如何保持公共开发分支的整洁</a></p>
+<p><a
+href="https://lenshood.github.io/2019/04/21/good-git-commit/">第二篇：Good
+Git Commit</a></p>
+<p><a
+href="https://lenshood.github.io/2019/04/21/conventional-commit-message/">第三篇：Good
+Commit Message</a></p>
+<p><a
+href="https://lenshood.github.io/2019/05/30/git-hooks/">第四篇：Git
+Hooks</a></p>
+<span id="more"></span>
+<hr />
+<p>本系列前几篇文章讲了许多理论，如何保持分支整洁，如何撰写合理的 commit
+message 等等。本文不再多谈理论，而是将引入一项 git built-in 的强大功能 -
+<strong>hooks</strong>。</p>
+<p>与我们所知的其他软件或系统的 hooks 一致，git hooks
+也是一种类似钩子函数的脚本，可以在执行某些 git 命令的前后自动触发。</p>
+<p>上面提到了 1.脚本 2.自动，有了这两点 git
+的功能将被极大的延伸，因为有无数的用户可以根据自己的喜好在 hooks
+定义的范围内进行自己的创作，来提升工作效率。正因此，github 上有非常多与
+git hooks 相关的优秀项目。</p>
+<h2 id="what-exactly-the-git-hooks-is">What exactly the GIT-HOOKS is
+?</h2>
+<p>正如前文所述，hooks 是 git
+内置的功能，能够允许用户定义脚本并在重要操作发生时被触发。hooks
+分为两部分，client-side 和 server-side。client-side 主要在 git
+命令操作时被触发，例如 commit、merge 等。server-side 主要在 git
+服务端起作用，例如在收到 push commit 的时候被触发(本文仅涉及
+client-side)。</p>
+<p>git hooks 作为 git 的内置功能，无需额外安装。具体的脚本存放在
+.git/hooks/ 下，git 默认在该目录下放置了一些示例脚本，都以 .sample
+作为后缀名，这些示例不会被运行，git hooks
+只会尝试运行该目录下没有后缀名的文件。此外，在运行 <code>git init</code>
+命令时，hooks 会自动被创建在 .git 下。</p>
+<h2 id="what-kinds-of-hooks-dose-it-provided">What kinds of HOOKS dose
+it provided ?</h2>
+<h4 id="commit-workflow-相关">commit workflow 相关</h4>
+<ol type="1">
+<li><p>pre-commit： 在 <code>git commit</code>
+执行前被执行（这里的执行前是指还没有进入到撰写 commit message
+的阶段），通常可以用此 hook
+来做一些提交前的工作，比如静态检查、运行测试等等，任何无法通过的情况都会打断
+commit 命令，并给出错误原因。</p></li>
+<li><p>prepare-commit-message 与上一条不同，这个 hook 在已生成默认
+commit message 之后，进入 message
+编辑之前执行。以上解释不是很清晰，实际上这个 hook
+很少会在普通提交时使用，它主要用于 merge、squash、amend
+等等场景下使用，可以看到这些场景的特点是在用户输入自定义 message
+之前都会默认创建 message，使用本 hook 即可对这些默认的 message
+进行修改。</p></li>
+<li><p>commit-msg 这个 hook 在用户写完 commit message
+之后触发，他可以拿到即将被提交的
+message。因此，我们可以用它来对用户提交的 commit message
+进行审查、编辑、处理等任何操作，任何原因无法通过的情况都会打断提交流程。</p></li>
+</ol>
+<h4 id="其他">其他</h4>
+<ol type="1">
+<li><p>pre-rebase 在任何 rebase 操作之前被触发，主要用于对 rebase
+进行检查、控制，例如不允许 rebase 任何已经 push 过的提交等。</p></li>
+<li><p>post-rewrite，post-checkout，post-merge 以上三个 post-xxx 的 hook
+分别会在1. 对 message 进行修改后 2. checkout 后 3. merge 后
+被触发。通常都用于做一些命令完成后的工作，例如设置环境，移动文件，清空目录等。
+## Any examples ?</p></li>
+<li><p>提交前静态检查</p></li>
+</ol>
+<p>git-hooks 最常用的场景应属提交前的代码静态检查了，由于 git-hooks
+本身类似于给 git
+命令增加了生命周期钩子，同时支持执行脚本，因此我们能够在 git-hooks
+里面触发各式各样的外部工具。</p>
+<p>以下以 checkstyle 为例，结合 gradle 来展示如何在执行 git commit
+之前自动进行 checkstyle。</p>
+<ul>
+<li><p>创建一个名为 git-hooks-demo 的 gradle 项目，执行
+<code>git init</code> 初始化为 git 项目</p></li>
+<li><p>在 gradle 中引入 checkstyle 插件 <figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">apply <span class="attr">plugin:</span> <span class="string">&#x27;checkstyle&#x27;</span></span><br><span class="line"></span><br><span class="line">checkstyle &#123;</span><br><span class="line">    toolVersion = <span class="string">&#x27;8.21&#x27;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">tasks.withType(Checkstyle).each &#123; checkstyleTask -&gt;</span><br><span class="line">    checkstyleTask.doLast &#123;</span><br><span class="line">        reports.all &#123; report -&gt;</span><br><span class="line">            <span class="keyword">def</span> outputFile = report.destination</span><br><span class="line">            <span class="keyword">if</span> (outputFile.exists() &amp;&amp; outputFile.text.contains(<span class="string">&quot;&lt;error &quot;</span>)) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> GradleException(<span class="string">&quot;There were checkstyle warnings! For more info check $outputFile&quot;</span>)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure> 以上定义了
+checkstyle 的 gradle 插件，并对其结果进行了处理， 一旦发现 error
+就抛异常中断流程。</p></li>
+<li><p>在代码目录下创建 git-hooks 目录，用于存放 hooks 文件。同时，在
+build.gradle 中增加一个 task 用于关联 git-hooks <figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">task installGitHooks() &#123;</span><br><span class="line">   	<span class="string">&quot;git config core.hooksPath ./git-hooks&quot;</span>.execute()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>为什么要这么做呢？ 根据上文，默认情况下 hooks 文件是存放于 .git/hooks
+下的，因此存在一个严重的问题，他不会随代码一同提交至远程仓库，因此我们采用改变
+hooks 文件目录的形式用于提交。</p></li>
+<li><p>在 git-hooks 目录下创建新文件：pre-commit <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/sh</span></span><br><span class="line">set -x</span><br><span class="line"></span><br><span class="line">./gradlew checkstyleMain</span><br><span class="line"></span><br><span class="line">RESULT=$?</span><br><span class="line">exit $RESULT</span><br></pre></td></tr></table></figure>
+pre-commit(注意没有任何后缀名)的内容即执行
+<code>./gradlew checkstyleMain</code> 之后exit，任何返回不为零的 exit
+将会打断提交的流程。</p></li>
+</ul>
+<p>试验一下，对当前代码进行提交，可得到如下结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">+ ./gradlew checkstyleMain</span><br><span class="line"></span><br><span class="line">... omit checkstyle error and warning ...</span><br><span class="line"></span><br><span class="line">FAILURE: Build failed with an exception.</span><br><span class="line"></span><br><span class="line">* Where:</span><br><span class="line">Build file &#x27;.../git-hooks-demo/build.gradle&#x27; line: 18</span><br><span class="line"></span><br><span class="line">* What went wrong:</span><br><span class="line">Execution failed for task &#x27;:checkstyleMain&#x27;.</span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">There were checkstyle warnings! For more info check .../git-hooks-demo/build/reports/checkstyle/main.xml</span></span><br><span class="line"></span><br><span class="line">* Try:</span><br><span class="line">Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.</span><br><span class="line"></span><br><span class="line">* Get more help at https://help.gradle.org</span><br><span class="line"></span><br><span class="line">BUILD FAILED in 1s</span><br><span class="line">2 actionable tasks: 2 executed</span><br><span class="line">+ RESULT=1</span><br><span class="line">+ exit 1</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>可见 checkstyle 对当前的代码进行检查后发现了错误，并由 pre-commit
+终止了此次提交。</p>
+<ol start="2" type="1">
+<li>Conventional Commit 检查</li>
+</ol>
+<p>前文<a
+href="https://lenshood.github.io/2019/04/21/conventional-commit-message/">Good
+Commit Message</a> 中提到了一种 commit message 的编写规范。</p>
+<p>规范固然好，然而如果能在每次提交之前，对已经写好的 message
+进行检查，并对不符合规范的地方进行提醒，则能够降低错误提交的概率，对新人也更为友好。</p>
+<p>我们拥有强大的 gradle，可以直接执行 groovy
+脚本，因此我们可以自己编写一个简单的 gradle task，结合 git-hooks 中的
+prepare-commit-msg，即可对 commit message 进行检查了。</p>
+<ul>
+<li><p>gradle task: <figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">task checkCommitMsgByConventionalCommit() &#123;</span><br><span class="line">    String[] types = [<span class="string">&quot;feat&quot;</span>, <span class="string">&quot;fix&quot;</span>, <span class="string">&quot;docs&quot;</span>, <span class="string">&quot;style&quot;</span>, <span class="string">&quot;refactor&quot;</span>,</span><br><span class="line">            <span class="string">&quot;test&quot;</span>, <span class="string">&quot;chore&quot;</span>, <span class="string">&quot;build&quot;</span>, <span class="string">&quot;ci&quot;</span>, <span class="string">&quot;perf&quot;</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment">// if no params then directly return</span></span><br><span class="line">    <span class="keyword">if</span> (!project.hasProperty(<span class="string">&quot;commitMsg&quot;</span>)) &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// check the three section: header, detail, footer</span></span><br><span class="line">    String[] msgArray = ((String)commitMsg).split(<span class="string">&#x27;\n\n&#x27;</span>)</span><br><span class="line">    <span class="keyword">if</span> (msgArray.length &gt; <span class="number">3</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> GradleException(<span class="string">&quot;[COMMIT MESSAGE CHECKER] \n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;Too many message sections! (Header, Detail, Footer allowed)&quot;</span> +</span><br><span class="line">                <span class="string">&quot;\nAbout conventional commit, see: https://www.conventionalcommits.org&quot;</span>)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// check header format</span></span><br><span class="line">    String header = msgArray[<span class="number">0</span>]</span><br><span class="line">    String[] headers = header.split(<span class="string">&quot;: &quot;</span>)</span><br><span class="line">    <span class="keyword">if</span> (headers.length != <span class="number">2</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> GradleException(<span class="string">&quot;[COMMIT MESSAGE CHECKER] \n&quot;</span> +</span><br><span class="line">                <span class="string">&quot;Wrong header format, which should be: &#123;type&#125;(&#123;scope&#125;): &#123;description&#125;&quot;</span> +</span><br><span class="line">                <span class="string">&quot;\nAbout conventional commit, see: https://www.conventionalcommits.org&quot;</span>)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// check type</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i=<span class="number">0</span>; i&lt;types.length; i++) &#123;</span><br><span class="line">        <span class="keyword">if</span> (headers[<span class="number">0</span>].startsWith(types[i])) &#123;</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (i == types.length - <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> GradleException(<span class="string">&quot;[COMMIT MESSAGE CHECKER] \n&quot;</span></span><br><span class="line">                    + <span class="string">&quot;Wrong type detected! &quot;</span></span><br><span class="line">                    + <span class="string">&quot;Allowed: feat, fix, docs, style, refactor, test, chore, build, ci, perf.&quot;</span></span><br><span class="line">                    + <span class="string">&quot;\nAbout conventional commit, see: https://www.conventionalcommits.org&quot;</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// check header length</span></span><br><span class="line">    <span class="keyword">if</span> (header.length() &gt; <span class="number">72</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> GradleException(<span class="string">&quot;[COMMIT MESSAGE CHECKER] \n&quot;</span> </span><br><span class="line">                + <span class="string">&quot;Too long header! Header length should be shorter than 72 characters.&quot;</span></span><br><span class="line">                + <span class="string">&quot;\nAbout conventional commit, see: https://www.conventionalcommits.org&quot;</span>)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></p></li>
+<li><p>prepare-commit-msg <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/bash</span></span><br><span class="line"></span><br><span class="line">COMMIT_MSG_FILE=$1</span><br><span class="line">COMMIT_SOURCE=$2</span><br><span class="line">SHA1=$3</span><br><span class="line"></span><br><span class="line">MSG=$(cat $COMMIT_MSG_FILE)</span><br><span class="line">./gradlew checkCommitMsgByConventionalCommit -PcommitMsg=&quot;$MSG&quot;</span><br><span class="line"></span><br><span class="line">RESULT=$?</span><br><span class="line">exit 1</span><br></pre></td></tr></table></figure></p></li>
+</ul>
+<p>因此，当执行 <code>git commit -m 'xxx'</code>
+时，如果出现检测不通过的情况，则提交会失败。 示例显示：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">FAILURE: Build failed with an exception.</span><br><span class="line"></span><br><span class="line">* Where:</span><br><span class="line">Build file &#x27;/Users/alexanderzhang/Documents/personal/code/java_project/git-hooks-demo/build.gradle&#x27; line: 45</span><br><span class="line"></span><br><span class="line">* What went wrong:</span><br><span class="line">A problem occurred evaluating root project &#x27;git-hooks&#x27;.</span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">[COMMIT MESSAGE CHECKER]</span> </span><br><span class="line">  Wrong header format, which should be: &#123;type&#125;(&#123;scope&#125;): &#123;description&#125;</span><br><span class="line">  About conventional commit, see: https://www.conventionalcommits.org</span><br><span class="line"></span><br><span class="line">* Try:</span><br><span class="line">Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.</span><br><span class="line"></span><br><span class="line">* Get more help at https://help.gradle.org</span><br><span class="line"></span><br><span class="line">BUILD FAILED in 0s</span><br></pre></td></tr></table></figure>
+<h2 id="reference">Reference</h2>
+<p>https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks
+https://githooks.com/</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2019/05/30/git-hooks/" title="Git Hooks">http://lenshood.github.io/2019/05/30/git-hooks/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/git/" rel="tag"># git</a>
+              <a href="/tags/hooks/" rel="tag"># hooks</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/05/23/translation-notes-on-reactive-programing-part-1/" rel="prev" title="(译文)响应式编程笔记： Part 1 响应式介绍">
+                  <i class="fa fa-angle-left"></i> (译文)响应式编程笔记： Part 1 响应式介绍
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/06/20/ieee754-float/" rel="next" title="关于浮点数与 IEEE 754">
+                  关于浮点数与 IEEE 754 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

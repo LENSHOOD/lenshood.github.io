@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本节课程主要学习的是 TiDB 的 planer 模块，planer 模块的主要功能是将 AST 转化为实际的执行计划，在这当中，包含了两个阶段的优化过程：逻辑优化、物理优化。优化过后的执行计划可以直接构造对应的 Executor 来执行（回忆 Executor 章节的火山模型）。  本文中涉及到的图片来源，都来自 PingCAP 官方网站。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiDB 学习课程 Lesson-6">
+<meta property="og:url" content="http://lenshood.github.io/2020/10/03/tidb-lesson-6/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本节课程主要学习的是 TiDB 的 planer 模块，planer 模块的主要功能是将 AST 转化为实际的执行计划，在这当中，包含了两个阶段的优化过程：逻辑优化、物理优化。优化过后的执行计划可以直接构造对应的 Executor 来执行（回忆 Executor 章节的火山模型）。  本文中涉及到的图片来源，都来自 PingCAP 官方网站。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/10/03/tidb-lesson-6/original-plan.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/10/03/tidb-lesson-6/logical-physical-operator.png">
+<meta property="article:published_time" content="2020-10-03T15:06:46.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.457Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="tidb">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/10/03/tidb-lesson-6/original-plan.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/10/03/tidb-lesson-6/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/10/03/tidb-lesson-6/","path":"2020/10/03/tidb-lesson-6/","title":"TiDB 学习课程 Lesson-6"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>TiDB 学习课程 Lesson-6 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#planer-%E6%A6%82%E8%A7%88"><span class="nav-number">1.</span> <span class="nav-text">Planer 概览</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92"><span class="nav-number">2.</span> <span class="nav-text">生成逻辑计划</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%BB%E8%BE%91%E4%BC%98%E5%8C%96"><span class="nav-number">2.1.</span> <span class="nav-text">逻辑优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%BB%E8%BE%91%E4%BC%98%E5%8C%96%E7%A7%8D%E7%B1%BB"><span class="nav-number">2.2.</span> <span class="nav-text">逻辑优化种类</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%97%E5%89%AA%E8%A3%81-column-pruner"><span class="nav-number">2.2.1.</span> <span class="nav-text">列剪裁 Column Pruner</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%81%9A%E5%90%88%E6%B6%88%E9%99%A4-aggregation-eliminator"><span class="nav-number">2.2.2.</span> <span class="nav-text">聚合消除 Aggregation
+Eliminator</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%93%E8%AF%8D%E4%B8%8B%E6%8E%A8-predicate-push-down"><span class="nav-number">2.2.3.</span> <span class="nav-text">谓词下推 Predicate Push Down</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E7%89%A9%E7%90%86%E8%AE%A1%E5%88%92"><span class="nav-number">3.</span> <span class="nav-text">生成物理计划</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%BB%E8%BE%91%E7%89%A9%E7%90%86%E7%AE%97%E5%AD%90%E8%BD%AC%E6%8D%A2"><span class="nav-number">3.1.</span> <span class="nav-text">逻辑&#x2F;物理算子转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%89%A9%E7%90%86%E4%BC%98%E5%8C%96"><span class="nav-number">3.2.</span> <span class="nav-text">物理优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF"><span class="nav-number">3.3.</span> <span class="nav-text">统计信息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#task"><span class="nav-number">3.4.</span> <span class="nav-text">Task</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/10/03/tidb-lesson-6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="TiDB 学习课程 Lesson-6 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TiDB 学习课程 Lesson-6
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-10-03 23:06:46" itemprop="dateCreated datePublished" datetime="2020-10-03T23:06:46+08:00">2020-10-03</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/TiDB/" itemprop="url" rel="index"><span itemprop="name">TiDB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>本节课程主要学习的是 TiDB 的 planer 模块，planer 模块的主要功能是将
+AST
+转化为实际的执行计划，在这当中，包含了两个阶段的优化过程：逻辑优化、物理优化。优化过后的执行计划可以直接构造对应的
+Executor 来执行（回忆 Executor 章节的火山模型）。</p>
+<blockquote>
+<p>本文中涉及到的图片来源，都来自 PingCAP 官方网站。</p>
+</blockquote>
+<span id="more"></span>
+<h2 id="planer-概览">Planer 概览</h2>
+<p>Planer 构造执行计划的入口在 <code>compiler.go</code> 的
+<code>Compile()</code> 函数，函数对传入的 <code>ast.StmtNode</code>
+进行一番预处理、优化过后，会生成一个 <code>ExecStmt</code>
+供下一步操作继续。</p>
+<p>有趣的是，在整个 planer 的操作中，所有的动作都采用 Visitor
+模式实现，通过访问 <code>ast.StmtNode</code> 来获取信息进行操作。</p>
+<p>在<code>ast.StmtNode</code> 中继承了 <code>ast.Node</code> ，在
+<code>ast.Node</code> 中定义了接受 <code>Visitor</code> 的入口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Accept(v Visitor) (node Node, ok <span class="type">bool</span>)</span><br></pre></td></tr></table></figure>
+<p>再反过来看看 <code>Visitor</code>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Visitor <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// Enter is called before children nodes are visited.</span></span><br><span class="line">	<span class="comment">// The returned node must be the same type as the input node n.</span></span><br><span class="line">	<span class="comment">// skipChildren returns true means children nodes should be skipped,</span></span><br><span class="line">	<span class="comment">// this is useful when work is done in Enter and there is no need to visit children.</span></span><br><span class="line">	Enter(n Node) (node Node, skipChildren <span class="type">bool</span>)</span><br><span class="line">	<span class="comment">// Leave is called after children nodes have been visited.</span></span><br><span class="line">	<span class="comment">// The returned node&#x27;s type can be different from the input node if it is a ExprNode,</span></span><br><span class="line">	<span class="comment">// Non-expression node must be the same type as the input node n.</span></span><br><span class="line">	<span class="comment">// ok returns false to stop visiting.</span></span><br><span class="line">	Leave(n Node) (node Node, ok <span class="type">bool</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>之所以这么做，是因 parser 根据不同语法生成的 AST
+有各种各样的形式，对于某种语法节点，可能会存在多种多样的操作（包括预处理、优化等），为了分离关注点而采用
+Visitor 模式来讲对同一组数据的不同处理进行划分。</p>
+<p>回到 <code>Compile()</code>，函数大致如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Compiler)</span></span> Compile(ctx context.Context, stmtNode ast.StmtNode) (*ExecStmt, <span class="type">error</span>) &#123;</span><br><span class="line">  ... ..</span><br><span class="line">	<span class="keyword">if</span> err := plannercore.Preprocess(c.Ctx, stmtNode, infoSchema); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line">	stmtNode = plannercore.TryAddExtraLimit(c.Ctx, stmtNode)</span><br><span class="line"></span><br><span class="line">	finalPlan, names, err := planner.Optimize(ctx, c.Ctx, stmtNode, infoSchema)</span><br><span class="line">	... ...</span><br><span class="line">	<span class="keyword">var</span> lowerPriority <span class="type">bool</span></span><br><span class="line">	<span class="keyword">if</span> c.Ctx.GetSessionVars().StmtCtx.Priority == mysql.NoPriority &#123;</span><br><span class="line">		lowerPriority = needLowerPriority(finalPlan)</span><br><span class="line">	&#125;</span><br><span class="line">	... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中：</p>
+<ol type="1">
+<li><code>Preprocess()</code> 主要对 AST
+中各种节点进行检查，校验等。</li>
+<li><code>TryAddExtraLimit()</code>在<a
+href="https://docs.pingcap.com/zh/tidb/stable/system-variables">系统变量</a>中<code>sql_select_limit</code>
+置位时添加对应的 <code>LIMIT</code> 语句。</li>
+<li><code>Optimize()</code>
+即生成执行计划，并进行逻辑优化和物理优化（亦是本文的重点）。</li>
+<li><code>needLowerPriority()</code>
+会统计预测查询结果行数大于某个门限时降低其执优先级。</li>
+</ol>
+<h2 id="生成逻辑计划">生成逻辑计划</h2>
+<p>生存逻辑计划的主要入口是 <code>PlanBuilder.Build()</code> 方法。</p>
+<p><code>Build()</code>方法实际上也只起分发的作用，根据<code>ast.Node</code>
+的类型，将之分发至不同的分支下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *PlanBuilder)</span></span> Build(ctx context.Context, node ast.Node) (Plan, <span class="type">error</span>) &#123;</span><br><span class="line">	b.optFlag |= flagPrunColumns</span><br><span class="line">	<span class="keyword">switch</span> x := node.(<span class="keyword">type</span>) &#123;</span><br><span class="line">	<span class="keyword">case</span> *ast.AdminStmt:</span><br><span class="line">		<span class="keyword">return</span> b.buildAdmin(ctx, x)</span><br><span class="line">	... ...</span><br><span class="line">	<span class="keyword">case</span> *ast.SelectStmt:</span><br><span class="line">		<span class="keyword">if</span> x.SelectIntoOpt != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> b.buildSelectInto(ctx, x)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> b.buildSelect(ctx, x)</span><br><span class="line">	... ...</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span>, ErrUnsupportedType.GenWithStack(<span class="string">&quot;Unsupported type %T&quot;</span>, node)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们以 <code>SelectStmt</code>为例，进入 <code>buildSelect()</code>
+方法后，我们能看到整个方法体非常长，主要原因是需要对整个 select
+语句的各个部分进行逻辑计划的转换，包括 join、group by、limit 等等。</p>
+<p>整个方法会返回一个
+<code>LogicalPlan</code>，里面包含了大量的信息：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> LogicalPlan <span class="keyword">interface</span> &#123;</span><br><span class="line">	Plan</span><br><span class="line"></span><br><span class="line">	<span class="comment">// HashCode encodes a LogicalPlan to fast compare whether a LogicalPlan equals to another.</span></span><br><span class="line">	<span class="comment">// We use a strict encode method here which ensures there is no conflict.</span></span><br><span class="line">	HashCode() []<span class="type">byte</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// PredicatePushDown pushes down the predicates in the where/on/having clauses as deeply as possible.</span></span><br><span class="line">	<span class="comment">// It will accept a predicate that is an expression slice, and return the expressions that can&#x27;t be pushed.</span></span><br><span class="line">	<span class="comment">// Because it might change the root if the having clause exists, we need to return a plan that represents a new root.</span></span><br><span class="line">	PredicatePushDown([]expression.Expression) ([]expression.Expression, LogicalPlan)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// PruneColumns prunes the unused columns.</span></span><br><span class="line">	PruneColumns([]*expression.Column) <span class="type">error</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// findBestTask converts the logical plan to the physical plan. It&#x27;s a new interface.</span></span><br><span class="line">	<span class="comment">// It is called recursively from the parent to the children to create the result physical plan.</span></span><br><span class="line">	<span class="comment">// Some logical plans will convert the children to the physical plans in different ways, and return the one</span></span><br><span class="line">	<span class="comment">// With the lowest cost and how many plans are found in this function.</span></span><br><span class="line">	<span class="comment">// planCounter is a counter for planner to force a plan.</span></span><br><span class="line">	<span class="comment">// If planCounter &gt; 0, the clock_th plan generated in this function will be returned.</span></span><br><span class="line">	<span class="comment">// If planCounter = 0, the plan generated in this function will not be considered.</span></span><br><span class="line">	<span class="comment">// If planCounter = -1, then we will not force plan.</span></span><br><span class="line">	findBestTask(prop *property.PhysicalProperty, planCounter *PlanCounterTp) (task, <span class="type">int64</span>, <span class="type">error</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// BuildKeyInfo will collect the information of unique keys into schema.</span></span><br><span class="line">	<span class="comment">// Because this method is also used in cascades planner, we cannot use</span></span><br><span class="line">	<span class="comment">// things like `p.schema` or `p.children` inside it. We should use the `selfSchema`</span></span><br><span class="line">	<span class="comment">// and `childSchema` instead.</span></span><br><span class="line">	BuildKeyInfo(selfSchema *expression.Schema, childSchema []*expression.Schema)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// pushDownTopN will push down the topN or limit operator during logical optimization.</span></span><br><span class="line">	pushDownTopN(topN *LogicalTopN) LogicalPlan</span><br><span class="line"></span><br><span class="line">	<span class="comment">// recursiveDeriveStats derives statistic info between plans.</span></span><br><span class="line">	recursiveDeriveStats(colGroups [][]*expression.Column) (*property.StatsInfo, <span class="type">error</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// DeriveStats derives statistic info for current plan node given child stats.</span></span><br><span class="line">	<span class="comment">// We need selfSchema, childSchema here because it makes this method can be used in</span></span><br><span class="line">	<span class="comment">// cascades planner, where LogicalPlan might not record its children or schema.</span></span><br><span class="line">	DeriveStats(childStats []*property.StatsInfo, selfSchema *expression.Schema, childSchema []*expression.Schema, colGroups [][]*expression.Column) (*property.StatsInfo, <span class="type">error</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ExtractColGroups extracts column groups from child operator whose DNVs are required by the current operator.</span></span><br><span class="line">	<span class="comment">// For example, if current operator is LogicalAggregation of `Group By a, b`, we indicate the child operators to maintain</span></span><br><span class="line">	<span class="comment">// and propagate the NDV info of column group (a, b), to improve the row count estimation of current LogicalAggregation.</span></span><br><span class="line">	<span class="comment">// The parameter colGroups are column groups required by upper operators, besides from the column groups derived from</span></span><br><span class="line">	<span class="comment">// current operator, we should pass down parent colGroups to child operator as many as possible.</span></span><br><span class="line">	ExtractColGroups(colGroups [][]*expression.Column) [][]*expression.Column</span><br><span class="line"></span><br><span class="line">	<span class="comment">// PreparePossibleProperties is only used for join and aggregation. Like group by a,b,c, all permutation of (a,b,c) is</span></span><br><span class="line">	<span class="comment">// valid, but the ordered indices in leaf plan is limited. So we can get all possible order properties by a pre-walking.</span></span><br><span class="line">	PreparePossibleProperties(schema *expression.Schema, childrenProperties ...[][]*expression.Column) [][]*expression.Column</span><br><span class="line"></span><br><span class="line">	<span class="comment">// exhaustPhysicalPlans generates all possible plans that can match the required property.</span></span><br><span class="line">	<span class="comment">// It will return:</span></span><br><span class="line">	<span class="comment">// 1. All possible plans that can match the required property.</span></span><br><span class="line">	<span class="comment">// 2. Whether the SQL hint can work. Return true if there is no hint.</span></span><br><span class="line">	exhaustPhysicalPlans(*property.PhysicalProperty) (physicalPlans []PhysicalPlan, hintCanWork <span class="type">bool</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ExtractCorrelatedCols extracts correlated columns inside the LogicalPlan.</span></span><br><span class="line">	ExtractCorrelatedCols() []*expression.CorrelatedColumn</span><br><span class="line"></span><br><span class="line">	<span class="comment">// MaxOneRow means whether this operator only returns max one row.</span></span><br><span class="line">	MaxOneRow() <span class="type">bool</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Get all the children.</span></span><br><span class="line">	Children() []LogicalPlan</span><br><span class="line"></span><br><span class="line">	<span class="comment">// SetChildren sets the children for the plan.</span></span><br><span class="line">	SetChildren(...LogicalPlan)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// SetChild sets the ith child for the plan.</span></span><br><span class="line">	SetChild(i <span class="type">int</span>, child LogicalPlan)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// rollBackTaskMap roll back all taskMap&#x27;s logs after TimeStamp TS.</span></span><br><span class="line">	rollBackTaskMap(TS <span class="type">uint64</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>实现了 <code>LogicalPlan</code>
+类型的结构有很多种，包括<code>LogicalJoin</code>、<code>LogicalAggregation</code>、<code>LogicalSelection</code>
+等等，这些都成为逻辑算子。最终返回的逻辑计划，实际上是一个嵌套结构，包含了层层计划的嵌套。</p>
+<p><code>Build()</code> 方法根据规则，将会把 AST
+生成为一个基础的、未经过优化的执行计划，以下述语句为例：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> b <span class="keyword">from</span> t1, t2 <span class="keyword">where</span> t1.c <span class="operator">=</span> t2.c <span class="keyword">and</span> t1.a <span class="operator">&gt;</span> <span class="number">5</span></span><br></pre></td></tr></table></figure>
+<p>经过<code>Build()</code>后会生成如下图的执行计划：</p>
+<img src="/2020/10/03/tidb-lesson-6/original-plan.png" class="">
+<p>其中，数据（DataSource）从 t1，t2 两张表中被获取，之后以
+<code>t1.c = t2.c</code> 作为条件进行 join，之后使用一个 selection
+来处理 <code>t1.a &gt; 5</code>
+的筛选，最终，对返回结果进行投影（Projection），将需要的列 b
+投影出来。</p>
+<h3 id="逻辑优化">逻辑优化</h3>
+<p>在得到了原始的执行计划后，接下来就会对原始的计划进行逐级优化，优化逻辑的入口是<code>plannercore.DoOptimize()</code>函数：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">DoOptimize</span><span class="params">(ctx context.Context, sctx sessionctx.Context, flag <span class="type">uint64</span>, logic LogicalPlan)</span></span> (PhysicalPlan, <span class="type">float64</span>, <span class="type">error</span>) &#123;</span><br><span class="line">	... ...</span><br><span class="line">	logic, err := logicalOptimize(ctx, flag, logic)</span><br><span class="line">	... ...</span><br><span class="line">	physical, cost, err := physicalOptimize(logic, &amp;planCounter)</span><br><span class="line">	... ...</span><br><span class="line">	finalPlan := postOptimize(sctx, physical)</span><br><span class="line">	<span class="keyword">return</span> finalPlan, cost, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，整个优化过程很明确：</p>
+<ol type="1">
+<li><code>logicalOptimize()</code> 进行逻辑优化</li>
+<li><code>physicalOptimize()</code>进行物理优化</li>
+<li><code>postOptimize()</code> 进行后优化</li>
+</ol>
+<p>最后生成<code>finalPlan</code>并返回。</p>
+<h3 id="逻辑优化种类">逻辑优化种类</h3>
+<p>我们在<code>logicalOptimize()</code>中发现，整个优化过程实际上就是将
+<code>logicalPlan</code>
+依次通过所有的逻辑优化器，各种逻辑优化器声明在<code>optimizer.go</code>
+中定义的一个变量 <code>optRuleList</code> 中：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> optRuleList = []logicalOptRule&#123;</span><br><span class="line">	&amp;gcSubstituter&#123;&#125;,</span><br><span class="line">	&amp;columnPruner&#123;&#125;,</span><br><span class="line">	&amp;buildKeySolver&#123;&#125;,</span><br><span class="line">	&amp;decorrelateSolver&#123;&#125;,</span><br><span class="line">	&amp;aggregationEliminator&#123;&#125;,</span><br><span class="line">	&amp;projectionEliminator&#123;&#125;,</span><br><span class="line">	&amp;maxMinEliminator&#123;&#125;,</span><br><span class="line">	&amp;ppdSolver&#123;&#125;,</span><br><span class="line">	&amp;outerJoinEliminator&#123;&#125;,</span><br><span class="line">	&amp;partitionProcessor&#123;&#125;,</span><br><span class="line">	&amp;aggregationPushDownSolver&#123;&#125;,</span><br><span class="line">	&amp;pushDownTopNOptimizer&#123;&#125;,</span><br><span class="line">	&amp;joinReOrderSolver&#123;&#125;,</span><br><span class="line">	&amp;columnPruner&#123;&#125;, <span class="comment">// column pruning again at last, note it will mess up the results of buildKeySolver</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>显然，每一行都是一种优化器，例如<code>gcSubstituter</code>用于将表达式替换为虚拟生成列，以便于使用索引。<code>columnPruner</code>用于对列进行剪裁，即去除用不到的列，避免将他们读取出来，以减小数据读取量。</p>
+<p>因此，每一种优化器，都是针对特定场景来进行优化，其手段或降低数据量，或减少计算量，最终目的都是为了提升性能。</p>
+<h4 id="列剪裁-column-pruner">列剪裁 Column Pruner</h4>
+<p>列剪裁主要是将算子中用不到的列去掉，以减少读取的总数据量，毕竟用不到的列，读取出来也毫无意义。</p>
+<p>比如：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> a <span class="keyword">from</span> t <span class="keyword">where</span> b <span class="operator">&gt;</span> <span class="number">5</span></span><br></pre></td></tr></table></figure>
+<p>假设表 t 共有 abcd 四个列，在上述语句中，只用到了展示列 a 与 筛选列
+b，因此 c d 根本没必要读取，因此从最根部的 DataSource 处就不需要 c d
+两列。</p>
+<p>前一节 <code>LogicalPlan</code> 的定义中，就定义了
+<code>PruneColumns([]*expression.Column) error</code> 方法，因此包括
+join、aggregation、datasource 在内的多种执行计划都实现了该方法。</p>
+<h4 id="聚合消除-aggregation-eliminator">聚合消除 Aggregation
+Eliminator</h4>
+<p>聚合消除能够在 <code>group by &#123;unique key&#125;</code>
+时将不需要的聚合计算消除掉，以减少计算量。那么，什么样的聚合可以消除掉呢？</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="built_in">min</span>(b) <span class="keyword">from</span> t <span class="keyword">group</span> <span class="keyword">by</span> a</span><br></pre></td></tr></table></figure>
+<p>在上述语句中，假如 a 列存在唯一键，那么上述语句实际上与：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> b <span class="keyword">from</span> t <span class="keyword">group</span> <span class="keyword">by</span> a</span><br></pre></td></tr></table></figure>
+<p>是等价的，因此<code>min()</code>操作毫无必要。</p>
+<p>类似的，<code>count()</code>、<code>sum()</code>、<code>avg()</code>
+也可以在 group by 唯一键时消除掉。</p>
+<h4 id="谓词下推-predicate-push-down">谓词下推 Predicate Push Down</h4>
+<p>谓词下推是一个非常常用也非常重要的优化形式，它的核心观点是，将可能的筛选条件，尽可能的下推至执行计划的叶子节点（即最先执行筛选），这样就能从源头减少数据量，从而减少后续所有操作的数据量。</p>
+<p>举例说明：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> t1, t2 <span class="keyword">where</span> t1.a <span class="operator">&gt;</span> <span class="number">3</span> <span class="keyword">and</span> t2.b <span class="operator">&gt;</span> <span class="number">5</span></span><br></pre></td></tr></table></figure>
+<p>原始的执行计划中，会先将 t1 t2 进行 join，之后对 join 的结果再进行
+<code>t2.b &gt; 5</code>的筛选，然而，如果我们能够先将
+<code>t2.b &gt; 5</code>作用在 DataSource 上，读取出的 t2
+本身就已经少了很多，这时再进行 join，数据量就会明显的减少。</p>
+<p>不过谓词下推也存在局限，谓词下推不能推过 MaxOneRow 和 Limit
+节点，毕竟先进行筛选，再 limit，和先 limit，再筛选是两个概念。</p>
+<h2 id="生成物理计划">生成物理计划</h2>
+<p>前半部分，我们介绍了生成逻辑计划以及对其进行逻辑优化，而实际上的执行计划，最终都是以物理计划来实施的。整个执行计划的生成、优化、执行过程可见下图：</p>
+
+<p>可见，一条 SQL
+语句从解析到执行，总共经历了两个阶段的执行计划生成，前文我们介绍的
+<code>LogicalPlan</code> 即生成了逻辑计划，逻辑计划是从逻辑角度对 SQL
+语句的执行进行梳理，并不能直接执行，想要转化为各种 <code>Executor</code>
+去执行真实的操作，中间嗨还要进一步转化，生成物理计划。</p>
+<p>另外我们能看到，在逻辑计划阶段，有一个 RBO，RBO 即 rule based
+optimize，就是前面我们讲到的逻辑优化，只不过更具体的说明这种优化方式是基于规则的优化，这里提到的规则，正式所谓
+”列剪裁“、”聚合消除“、”谓词下推“ 等等规则。</p>
+<p>而物理优化这边，Stats 指的是 statistic 即统计信息优化，CBO 指的是
+cost based
+optimize，基于代价的优化，通过这两个模块，期望能从多条可能的执行路径中找到代价最小的一条。</p>
+<h3 id="逻辑物理算子转换">逻辑/物理算子转换</h3>
+<p>前面我们知道逻辑计划中包含多种逻辑算子的嵌套，比如从 DataSource
+中获取数据，之后 Join，最后
+Selection。实际当中，真正的执行是通过物理算子转换为执行器的。</p>
+<p>每一种逻辑算子，都可以对应多种物理算子，不同的物理算子，会采用不同的数据处理策略，而他们实现的结果，都是对应的逻辑算子想要表述的结果。</p>
+<p>下图展示了几种常见的逻辑算子与物理算子的对应关系：</p>
+<img src="/2020/10/03/tidb-lesson-6/logical-physical-operator.png" class="">
+<p>正因为物理算子对逻辑算子是多对一的关系，那么到底选择哪个物理算子，就是物理优化的核心内容了。</p>
+<p>如下是 <code>PhysicaalPlan</code>的定义：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> PhysicalPlan <span class="keyword">interface</span> &#123;</span><br><span class="line">	Plan</span><br><span class="line"></span><br><span class="line">	<span class="comment">// attach2Task makes the current physical plan as the father of task&#x27;s physicalPlan and updates the cost of</span></span><br><span class="line">	<span class="comment">// current task. If the child&#x27;s task is cop task, some operator may close this task and return a new rootTask.</span></span><br><span class="line">	attach2Task(...task) task</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ToPB converts physical plan to tipb executor.</span></span><br><span class="line">	ToPB(ctx sessionctx.Context, storeType kv.StoreType) (*tipb.Executor, <span class="type">error</span>)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// getChildReqProps gets the required property by child index.</span></span><br><span class="line">	GetChildReqProps(idx <span class="type">int</span>) *property.PhysicalProperty</span><br><span class="line"></span><br><span class="line">	<span class="comment">// StatsCount returns the count of property.StatsInfo for this plan.</span></span><br><span class="line">	StatsCount() <span class="type">float64</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// ExtractCorrelatedCols extracts correlated columns inside the PhysicalPlan.</span></span><br><span class="line">	ExtractCorrelatedCols() []*expression.CorrelatedColumn</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Get all the children.</span></span><br><span class="line">	Children() []PhysicalPlan</span><br><span class="line"></span><br><span class="line">	<span class="comment">// SetChildren sets the children for the plan.</span></span><br><span class="line">	SetChildren(...PhysicalPlan)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// SetChild sets the ith child for the plan.</span></span><br><span class="line">	SetChild(i <span class="type">int</span>, child PhysicalPlan)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ResolveIndices resolves the indices for columns. After doing this, the columns can evaluate the rows by their indices.</span></span><br><span class="line">	ResolveIndices() <span class="type">error</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Stats returns the StatsInfo of the plan.</span></span><br><span class="line">	Stats() *property.StatsInfo</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ExplainNormalizedInfo returns operator normalized information for generating digest.</span></span><br><span class="line">	ExplainNormalizedInfo() <span class="type">string</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Clone clones this physical plan.</span></span><br><span class="line">	Clone() (PhysicalPlan, <span class="type">error</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="物理优化">物理优化</h3>
+<p>在进行物理优化时，会采用记忆化搜索的方法，从自顶向下搜索整颗逻辑计划树。</p>
+<p>我们由一个例子引入：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="built_in">sum</span>(s.a),<span class="built_in">count</span>(t.b) <span class="keyword">from</span> s <span class="keyword">join</span> t <span class="keyword">on</span> s.a <span class="operator">=</span> t.a <span class="keyword">and</span> s.c <span class="operator">&lt;</span> <span class="number">100</span> <span class="keyword">and</span> t.c <span class="operator">&gt;</span> <span class="number">10</span> <span class="keyword">group</span> <span class="keyword">by</span> s.a </span><br><span class="line"># 其中 a 是索引，b 也是索引</span><br></pre></td></tr></table></figure>
+<p>这样的一条 SQL 语句，生成的逻辑计划如下图所示（省略了最上层的
+Selection 算子）：</p>
+
+<p>对于这样一颗树，将其转换为物理计划的过程，会首先从树根部开始，即先对
+Agg 算子进行替换，在替换前，首先会初始化一个空的
+<code>PhysicalProperty</code>:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> PhysicalProperty <span class="keyword">struct</span> &#123;</span><br><span class="line">	Items []Item</span><br><span class="line"></span><br><span class="line">	<span class="comment">// TaskTp means the type of task that an operator requires.</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// It needs to be specified because two different tasks can&#x27;t be compared</span></span><br><span class="line">	<span class="comment">// with cost directly. e.g. If a copTask takes less cost than a rootTask,</span></span><br><span class="line">	<span class="comment">// we can&#x27;t sure that we must choose the former one. Because the copTask</span></span><br><span class="line">	<span class="comment">// must be finished and increase its cost in sometime, but we can&#x27;t make</span></span><br><span class="line">	<span class="comment">// sure the finishing time. So the best way to let the comparison fair is</span></span><br><span class="line">	<span class="comment">// to add TaskType to required property.</span></span><br><span class="line">	TaskTp TaskType</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ExpectedCnt means this operator may be closed after fetching ExpectedCnt</span></span><br><span class="line">	<span class="comment">// records.</span></span><br><span class="line">	ExpectedCnt <span class="type">float64</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// hashcode stores the hash code of a PhysicalProperty, will be lazily</span></span><br><span class="line">	<span class="comment">// calculated when function &quot;HashCode()&quot; being called.</span></span><br><span class="line">	hashcode []<span class="type">byte</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// whether need to enforce property.</span></span><br><span class="line">	Enforced <span class="type">bool</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>该 <code>PhysicalProperty</code>
+是用于存放每一个算子对接收到的下层返回数据的要求，比如希望有些算子是按某些列有序的方式返回数据，在每次选择下一层物理算子时，会根据该需求来考虑如何选择。</p>
+<p>对于 Agg 算子，我们可选的物理算子包括 <a
+href="https://pingcap.com/blog-cn/tidb-source-code-reading-22/">StreamAgg
+和 HashAgg</a>，其中 HashAgg 本身通过对聚合列的值进行 hash
+计算来做聚合，因此对下层数据没有任何要求，其
+<code>PhysicalProperty</code> 为空。而 StreamAgg
+要求被聚合列有序，它能够在执行完一个组的聚合后立即返回该组的数据，故其
+<code>PhysicalProperty</code> 会包含要求有序的列 <code>a</code>。</p>
+<p>接下来继续向下构建，此时物理计划树就分成了两支，一支为 StreamAgg
+路径，另一支为 HashAgg 路径。我们以 StreamAgg 分支为例：</p>
+<p>下一层是选择 join 算子，join 对应的物理算子有三个：<a
+href="https://pingcap.com/blog-cn/tidb-source-code-reading-9/">HashJoin</a>、<a
+href="https://pingcap.com/blog-cn/tidb-source-code-reading-11/">IndexJoin</a>、<a
+href="https://pingcap.com/blog-cn/tidb-source-code-reading-15/">SortMergeJoin</a>，SortMergeJoin
+要求 join 列有序，故 <code>PhysicalProperty</code>
+会增加<code>s.a</code> 和
+<code>t.a</code>，其他两种也以此类推。此时树又分出了三个分支，以
+SortMergeJoin 为例，下一层就是 DataSource 了，DataSource
+对应的逻辑算子有 IndexMergeScan、IndexScan、TableScan，由于 IndexMerge
+默认关闭，因此可能的分支有
+IndexScan(a)、IndexScan(b)、TableScan，但由于上层的
+<code>PhysicalProperty</code> 中要求包含有序 a 列，因此只有 IndexScan(a)
+满足需要。上述选择过程如下图展示：</p>
+
+<h3 id="统计信息">统计信息</h3>
+<p>统计信息能够帮助我们在选择物理计划时，根据统计数据来选择出最优的计划。</p>
+<p>统计信息结构：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> StatsInfo <span class="keyword">struct</span> &#123;</span><br><span class="line">	RowCount <span class="type">float64</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// Column.UniqueID -&gt; Cardinality</span></span><br><span class="line">	Cardinality <span class="keyword">map</span>[<span class="type">int64</span>]<span class="type">float64</span></span><br><span class="line"></span><br><span class="line">	HistColl *statistics.HistColl</span><br><span class="line">	<span class="comment">// StatsVersion indicates the statistics version of a table.</span></span><br><span class="line">	<span class="comment">// If the StatsInfo is calculated using the pseudo statistics on a table, StatsVersion will be PseudoVersion.</span></span><br><span class="line">	StatsVersion <span class="type">uint64</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// GroupNDVs stores the cardinality of column groups.</span></span><br><span class="line">	GroupNDVs []GroupNDV</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>RowCount 代表数据行数，每个表有一个值。Cardinality
+字段是用于表示每一列 distinct 数据行数，每个 column 一个。Cardinality
+一般通过统计数据得到，也就是统计信息中对应表上对应列的 DNV（the number
+of distinct value）的值。</p>
+<p>在进行物理计划生成之前，会先遍历更新逻辑计划中存储的统计信息，每种逻辑计划中都保存了统计信息，其中：</p>
+<ol type="1">
+<li>DataSource 是最底层的逻辑计划，其统计信息会被定期更新</li>
+<li>其他逻辑计划的统计信息从下层获取</li>
+</ol>
+<p>在进行物理计划选择时，会考虑对应逻辑计划的统计信息。</p>
+<h3 id="task">Task</h3>
+<p>代价评估时，物理计划会与代价一起被封装为 task，task 目前有 CopTask 和
+RootTask，其中 CopTask 会被下推至 kv store 执行，而 RootTask 会在 tidb
+以 go-routine 的形式执行。</p>
+<p>CopTask：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> copTask <span class="keyword">struct</span> &#123;</span><br><span class="line">	indexPlan PhysicalPlan</span><br><span class="line">	tablePlan PhysicalPlan</span><br><span class="line">	cst       <span class="type">float64</span></span><br><span class="line">	<span class="comment">// indexPlanFinished means we have finished index plan.</span></span><br><span class="line">	indexPlanFinished <span class="type">bool</span></span><br><span class="line">	<span class="comment">// keepOrder indicates if the plan scans data by order.</span></span><br><span class="line">	keepOrder <span class="type">bool</span></span><br><span class="line">	<span class="comment">// doubleReadNeedProj means an extra prune is needed because</span></span><br><span class="line">	<span class="comment">// in double read case, it may output one more column for handle(row id).</span></span><br><span class="line">	doubleReadNeedProj <span class="type">bool</span></span><br><span class="line"></span><br><span class="line">	extraHandleCol   *expression.Column</span><br><span class="line">	commonHandleCols []*expression.Column</span><br><span class="line">	<span class="comment">// tblColHists stores the original stats of DataSource, it is used to get</span></span><br><span class="line">	<span class="comment">// average row width when computing network cost.</span></span><br><span class="line">	tblColHists *statistics.HistColl</span><br><span class="line">	<span class="comment">// tblCols stores the original columns of DataSource before being pruned, it</span></span><br><span class="line">	<span class="comment">// is used to compute average row width when computing scan cost.</span></span><br><span class="line">	tblCols           []*expression.Column</span><br><span class="line">	idxMergePartPlans []PhysicalPlan</span><br><span class="line">	<span class="comment">// rootTaskConds stores select conditions containing virtual columns.</span></span><br><span class="line">	<span class="comment">// These conditions can&#x27;t push to TiKV, so we have to add a selection for rootTask</span></span><br><span class="line">	rootTaskConds []expression.Expression</span><br><span class="line"></span><br><span class="line">	<span class="comment">// For table partition.</span></span><br><span class="line">	partitionInfo PartitionInfo</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>RootTask：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> rootTask <span class="keyword">struct</span> &#123;</span><br><span class="line">	p   PhysicalPlan</span><br><span class="line">	cst <span class="type">float64</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/10/03/tidb-lesson-6/" title="TiDB 学习课程 Lesson-6">http://lenshood.github.io/2020/10/03/tidb-lesson-6/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/tidb/" rel="tag"># tidb</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/09/19/tidb-lesson-5/" rel="prev" title="TiDB 学习课程 Lesson-5">
+                  <i class="fa fa-angle-left"></i> TiDB 学习课程 Lesson-5
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/10/12/tidb-lesson-7/" rel="next" title="TiDB 学习课程 Lesson-7">
+                  TiDB 学习课程 Lesson-7 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

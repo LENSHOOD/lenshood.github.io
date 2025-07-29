@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文介绍了 Golang Runtime 中关于 goroutine 以及调度器的设计。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go Runtime 设计：计算资源调度">
+<meta property="og:url" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文介绍了 Golang Runtime 中关于 goroutine 以及调度器的设计。">
+<meta property="og:locale">
+<meta property="og:image" content="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/7.svg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/coroutine.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/g-m-p-sched.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/logical-sched.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/central.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/gmp.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/gmp-globrunq.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/gmp-steal.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/g.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/newproc.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/calling-convention.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/g0.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/g-exit.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/trigger.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/schedule.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/m.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/m-lifecycle.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/syscall.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/netpoller.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/timer.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/trig-preempt.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/03/09/go-runtime-compute/async-preempt.jpg">
+<meta property="article:published_time" content="2022-03-09T16:34:44.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.070Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="source">
+<meta property="article:tag" content="go">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/7.svg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2022/03/09/go-runtime-compute/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2022/03/09/go-runtime-compute/","path":"2022/03/09/go-runtime-compute/","title":"Go Runtime 设计：计算资源调度"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Go Runtime 设计：计算资源调度 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">true</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-goroutine"><span class="nav-number">1.</span> <span class="nav-text">1. 为什么需要 GoRoutine？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%9A%E5%B0%91%E4%B8%AA%E7%BA%BF%E7%A8%8B%E6%98%AF%E6%9C%80%E4%BC%98%E7%9A%84"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 多少个线程是最优的？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E8%B6%8A%E5%A4%9A%E8%B6%8A%E5%A5%BD%E5%90%97"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 线程越多越好吗？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%99%90%E5%88%B6%E6%9C%80%E5%A4%A7%E7%BA%BF%E7%A8%8B%E6%95%B0"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 限制最大线程数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8D%A2%E7%A7%8D%E6%80%9D%E8%B7%AF"><span class="nav-number">1.4.</span> <span class="nav-text">1.4 换种思路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#callback-hell"><span class="nav-number">1.5.</span> <span class="nav-text">1.5 Callback Hell</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%8F%E7%A8%8B"><span class="nav-number">1.6.</span> <span class="nav-text">1.6 协程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E7%BA%A7%E8%B0%83%E5%BA%A6%E5%99%A8"><span class="nav-number">1.7.</span> <span class="nav-text">1.7 用户级调度器</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF-g-p-m-%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.</span> <span class="nav-text">2. 什么是 G-P-M 模型？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E8%B0%83%E5%BA%A6%E7%90%86%E8%AE%BA"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 基本调度理论</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E4%B8%AD%E5%BC%8F%E8%B0%83%E5%BA%A6%E5%99%A8"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 集中式调度器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#p-%E6%9D%A5%E4%BA%86"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 P 来了</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E8%B0%83%E5%BA%A6"><span class="nav-number">3.</span> <span class="nav-text">3. 如何实现调度？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#g-%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 G 的生命周期</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA-g"><span class="nav-number">3.1.1.</span> <span class="nav-text">3.1.1 创建 G</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%87%E6%8D%A2-g"><span class="nav-number">3.1.2.</span> <span class="nav-text">3.1.2 切换 G</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%94%80%E6%AF%81-g"><span class="nav-number">3.1.3.</span> <span class="nav-text">3.1.3 销毁 G</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 调度</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E8%A7%A6%E5%8F%91%E7%82%B9"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 调度触发点</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E5%BE%AA%E7%8E%AF"><span class="nav-number">3.2.2.</span> <span class="nav-text">3.2.2 调度循环</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#m-%E4%B8%8E%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 M 与系统调用</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#m-%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">3.3.1.</span> <span class="nav-text">3.3.1 M 生命周期</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8"><span class="nav-number">3.3.2.</span> <span class="nav-text">3.3.2 系统调用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#net-poller"><span class="nav-number">3.3.3.</span> <span class="nav-text">3.3.3 Net Poller</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#timer"><span class="nav-number">3.3.4.</span> <span class="nav-text">3.3.4 Timer</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8A%A2%E5%8D%A0"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 抢占</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%A6%E5%8F%91"><span class="nav-number">3.4.1.</span> <span class="nav-text">3.4.1 触发</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%9E%E6%96%BD"><span class="nav-number">3.4.2.</span> <span class="nav-text">3.4.2 实施</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">4 总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">5.</span> <span class="nav-text">Reference</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8B%93%E5%B1%95%E9%98%85%E8%AF%BB"><span class="nav-number">6.</span> <span class="nav-text">拓展阅读</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2022/03/09/go-runtime-compute/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Go Runtime 设计：计算资源调度 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Go Runtime 设计：计算资源调度
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2022-03-10 00:34:44" itemprop="dateCreated datePublished" datetime="2022-03-10T00:34:44+08:00">2022-03-10</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Golang/" itemprop="url" rel="index"><span itemprop="name">Golang</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p><img src="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/8f7fbe7906dd4433a5719df73d3dde6f481b459f/goroutines/svg/7.svg" width="500;" /></p>
+<p>本文介绍了 Golang Runtime 中关于 goroutine 以及调度器的设计。</p>
+<span id="more"></span>
+<h2 id="为什么需要-goroutine">1. 为什么需要 GoRoutine？</h2>
+<h3 id="多少个线程是最优的">1.1 多少个线程是最优的？</h3>
+<p>我们知道，计算机执行一项任务，通常情况下需要由计算、存储、I/O
+等多个组件配合运转才能完成。由于 CPU
+与其他设备之间速度的巨大差异，我们更倾向于利用多任务同时运行的方式，来最大化的利用
+CPU 的计算能力，这也就是并发编程的意义所在。</p>
+<p>而由于多核处理器的广泛普及，在多个 CPU 核心上 ”并行的“ 进行多任务
+”并发“，是编写高效程序的必经之路。从程序执行层次的角度看，”并行“
+更倾向于在底层语境下，指代多个 CPU 核心能同时执行代码片段，而 ”并发“
+更倾向于在高层语境下，指代多个任务能同时在计算机上运行。</p>
+<p>OS
+通过调度机制帮我们实现了将用户层面的多任务并发，映射到硬件层面的多核心并行。从最大化资源利用的角度讲（暂时抛开任务执行公平性不谈），其映射机制，是对
+CPU 资源的一种
+“超卖”：任务可能处于执行和等待（包括阻塞）两种状态，执行状态下需要 CPU
+资源而等待状态下则可以出让 CPU
+资源给其他任务使用。根据任务类型的不同，通常可能分成 CPU 密集型任务与
+I/O 密集型任务。</p>
+<p>那么理论上，到底要同时执行多少个任务（线程数），才能最大化的利用计算资源呢？《Java
+并发编程实战》中给出了如下公式： <span class="math display">\[
+N_{threads}=N_{cpu}*U_{cpu}*(1+\frac{W}{C})
+\]</span> 其中： <span class="math display">\[
+N_{threads}=number\ of\ CPUs
+\]</span> <span class="math display">\[
+U_{cpu}=target\ CPU\ utilization,\ 0\leqslant U_{cpu} \leqslant 1
+\]</span> <span class="math display">\[
+\frac{W}{C}=ratio\ of\ wait\ time\ to\ compute\ time
+\]</span></p>
+<p>显然，基于资源最大化考虑，我们期望 <span
+class="math inline">\(U_{cpu} \to 1\)</span>。</p>
+<p>那么，对于计算密集型任务，随着计算占比的不断提高，其 <span
+class="math inline">\(\frac{W}{C} \to 0\)</span>，因此 <span
+class="math inline">\(N_{threads} \to N_{cpu}\)</span> ；而对于 I/O
+密集型任务，随着 I/O 等待占比的不断提高，其 <span
+class="math inline">\(\frac{W}{C} \to ∞\)</span> ，因此 <span
+class="math inline">\(N_{threads} \to ∞\)</span>。</p>
+<h3 id="线程越多越好吗">1.2 线程越多越好吗？</h3>
+<p>前面我们看到了，对于 I/O 占比较高的 I/O
+密集型任务，理论公式中倾向于创建更多的线程来填补 CPU
+的空闲，但这并不是零成本的。</p>
+<p>关于线程所带来的开销，Eli Bendersky 在他的博文 <a
+href="https://eli.thegreenplace.net/2018/measuring-context-switching-and-memory-overheads-for-linux-threads/">Measuring
+context switching and memory overheads for Linux threads</a>
+中做了一些测量：</p>
+<ul>
+<li><p>线程上下文切换与启动的开销： <img
+src="https://eli.thegreenplace.net/images/2018/plot-launch-switch.png" />
+可以看到在线程绑核切换下，上下文切换的开销每次大约 2us，线程启动开销大约
+5us。</p></li>
+<li><p>单个线程的内存开销：</p>
+<p>线程的内存开销主要体现在线程栈，他的<a
+href="https://github.com/eliben/code-for-blog/blob/master/2018/threadoverhead/threadspammer.c">代码示例</a>表明，创建
+10000 个线程，virtual memory 约为 80GiB（未实际分配），RSS 约为
+80MiB。</p></li>
+</ul>
+<p>Eli Bendersky
+的文章主要想表达的是现代操作系统的线程开销已经非常小了，很多时候我们并不需要采用事件驱动等方式来增加复杂度，目前的操作系统支持数万个线程绰绰有余。</p>
+<p>但假如我们想要数十万、上百万的线程呢？假如在不增加复杂度的前提下，能做到更低的开销呢？golang
+用 goroutine 给出了它的解答。</p>
+<p>在 Eli Bendersky
+的文章中，测试线程切换的用例是让两个线程通过一个管道往复传递数据，结果是：在一秒内，大概能来回传递
+40 万次。而后他又顺手用 go 重写了<a
+href="https://github.com/eliben/code-for-blog/blob/master/2018/threadoverhead/channel-msgpersec.go">测试代码</a>，得到的结果是：每秒
+280 万次。</p>
+<p>不论如何，无节制的创建新线程，最终一定会产生许多安全性问题，如过多的上下文切换，内存耗尽等等。</p>
+<blockquote>
+<p>实际上谈论线程切换的开销时，涉及到的点比较多，也很难给出绝对正确的设计决策。</p>
+<p>在 Google 的<a
+href="https://youtu.be/KXuZi9aeGTw">这个视频</a>中，开发人员提到了明确的测试数据：</p>
+<ol type="1">
+<li>线程切换的开销在 1~6 us 之间，其差异主要在于，若在同一个 CPU
+核心内切换，所花费的时间可以低至
+1us，而在不同核心之间切换的开销可能会达到 6us。设置了 CPU Affinity
+后的测试结果证明了这一点。</li>
+<li>然而我们不能简单的将所有线程绑核了事。毕竟虽然绑核可以提升性能，但当存在
+idle core 时，其他线程可能无法调度到该 core 上。</li>
+<li>进一步的数据显示，线程切换中，进入内核态的开销只有最多 50ns
+（通常我们认为在用户态和内核态之间切换十分耗时），大部分开销都是由于现代调度器复杂的调度决策导致在不同的
+core 之间发生线程调度。</li>
+</ol>
+</blockquote>
+<h3 id="限制最大线程数">1.3 限制最大线程数</h3>
+<p>既然我们不能容忍无限制创建线程，那么最直接想到的自然是设定一个线程数上限，当线程超限后，拒绝再创建新的线程。</p>
+<p>线程池是最通用的解决方案。</p>
+<p><img
+src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Thread_pool.svg/2880px-Thread_pool.svg.png" /></p>
+<p>池化是资源复用的常见方式，线程池可以最多持有 n
+个工作线程（当然根据工作负载的变化，n
+可以是动态的），同时持有一个任务队列。工作线程执行如下的循环：从队列获取任务
+-&gt; 执行任务 -&gt;
+再次从队列获取任务，因此如果没有空闲的工作线程，任务就必须在队列等待。</p>
+<p>线程池不仅能限制线程的最大数量，同时也能降低线程反复创建、销毁产生的开销。对于突发的大规模任务也能比较优雅的实现降级、削峰填谷等措施。</p>
+<p>不过，简单使用线程池，一个任务对应一个线程的这种同步并发编程模型没有改变。</p>
+<p>对于同步并发模式，显然有其固有的优势：</p>
+<ul>
+<li>程序清晰简单，易于实现</li>
+<li>线程本地变量易于分配和回收</li>
+</ul>
+<p>但除了可能创建过多线程产生的资源问题以外，还有额外的劣势：</p>
+<ul>
+<li>由于粒度较粗，任务内<em>嵌套的</em>可并行部分（如多个 I/O
+操作等），难以并行化。本质上是无法真正将 CPU 操作和 I/O 操作分开，CPU
+操作和 IO
+操作交替执行，会导致同一个线程被反复的换入换出产生许多切换开销</li>
+<li>此外，同一个线程在反复切换时，有可能调度到不同的 CPU 上，这种跨 CPU
+的切换开销大得多</li>
+</ul>
+<h3 id="换种思路">1.4 换种思路</h3>
+<p>对于 I/O 密集型的任务，执行过程中有很大一部时间都在等待，当 I/O
+返回时任务才能继续工作。也正是这种等待的特点，给了我们创建多线程来提高
+CPU 利用率的理由：阻塞等待中的线程不需要 CPU 时间。</p>
+<p>设想假如我们将这种机制反过来，线程不是阻塞等待被唤醒，而是主动询问所有正在等待的
+I/O，检查某个（或某些） I/O
+是不是返回了。如果返回了，就处理与之关联的任务，而如果没有返回，线程就继续检查下一个等待中的
+I/O，或者处理其他任务。</p>
+<p>与阻塞唤醒的被动式相比，询问的方式会更加主动。原先的 “执行任务 -&gt;
+I/O 阻塞 -&gt; 继续执行” 的流程，变成了 “执行任务 -&gt; 注册 I/O 事件
+-&gt; 回调任务” 。</p>
+<p>这种模式称之为事件驱动的并发编程模型，线程进行轮询（poll）的动作，称为事件循环。</p>
+<p><img
+src="https://miro.medium.com/max/1400/1*rWGbyCbcJTKI-m3ZEDhCaA.png" /></p>
+<p>从工作原理上我们就能发觉，事件驱动模型有如下的特点：</p>
+<ul>
+<li>不需要很多线程：与多线程通过阻塞出让 CPU 相比，主动切换任务继续使用
+CPU
+资源，实际上是绕过了系统调度器，在用户侧传递任务上下文，比在内核侧切换线程上下文的开销小得多</li>
+<li>需要通过回调函数来保持事件与任务的关联关系：通过事件回调来继续执行先前被中断的任务</li>
+<li>主线程不允许存在阻塞：
+<ul>
+<li>在多线程模型下对资源的阻塞等待式访问，需要全部替换成非阻塞式访问，否则一旦出现阻塞，将导致事件轮询线程无法继续轮询。</li>
+<li>对于阻塞 I/O 实际上还是需要引入线程池，但此时的 I/O 线程只负责 I/O
+操作，不再负责处理计算或协调逻辑</li>
+</ul></li>
+</ul>
+<h3 id="callback-hell">1.5 Callback Hell</h3>
+<p>在事件驱动模型里，将耗费时间的 I/O
+阻塞调用交给线程池进行异步化，在阻塞调用返回后，通过调用 callback
+函数来恢复执行任务逻辑。</p>
+<p>这种方式在简单的任务逻辑中运行的很好，然而当存在一个任务，其整个逻辑链条中包含了多个相互依赖的阻塞
+I/O，这时 callback 函数的注册链路会不断加深，最后形成难以理解的
+“Callback Hell” 。</p>
+<p><img
+src="https://miro.medium.com/max/1400/1*zxx4iQAG4HilOIQqDKpxJw.jpeg" /></p>
+<p>产生 Callback Hell 的本质是什么？需要通过参数传递上下文。</p>
+<p>注册回调函数时，将回调函数地址作为参数传递给事件注册器，是为了能够在合适的时机被调用。回调函数内访问的外部变量，是由编译器默默地通过闭包传递（不支持闭包的语言需要在堆上分配对象，并通过参数传递其地址）。</p>
+<p>因为没有外部协助，所以我们需要在应用代码中通过回调函数进行上下文传递，随着传递次数的增多，就导致了回调地狱。</p>
+<p>另外要注意的一点是，这里的
+“上下文传递”，如果不做特殊处理，会丢失一部分上下文。假如在 callback
+内抛出了错误，我们是无法追踪到这个 callback 是在哪里传入的：callerFunc
+传入 callback，而调用栈信息在 callerFunc 返回的那一刻就丢失了。</p>
+<h3 id="协程">1.6 协程</h3>
+<p>那么，假设：</p>
+<ol type="1">
+<li>如果能通过一些手段更优雅的维护任务的全部上下文，就不需要在参数中层层嵌套传递回调函数</li>
+<li>如果不需要嵌套回调函数，就能像写同步阻塞的多线程代码一样写事件驱动的异步代码，进而方便的实现任务间的交互协作</li>
+</ol>
+<p>基于上述讨论，我们自然会发现，只要想办法把完整的函数逻辑拆分成一个个小的异步任务，作为进行挂起/恢复（yield/resume）的最小单元，并且通过合理的手段维护任务上下文，确保挂起后能正确的找到恢复位置，我们就能实现任务间的切换和调度。</p>
+<p>这已经覆盖了系统调度器的绝大部分工作内容（除了抢占，事件循环类似于协作式调度），任务可以类比为线程，不同点在于任务之间切换是协作式的（等待资源时主动挂起，出让
+CPU），假如一个任务不主动出让 CPU，他就能永久的拥有该
+CPU。对于这种执行协作式任务的模型，我们可以称之为协程（co-routine）模型。</p>
+<img src="/2022/03/09/go-runtime-compute/coroutine.png" class="">
+<blockquote>
+<p>这里需要注意的是，协程模型的提出相比线程模型更早。线程通过抢占式调度解决了协程的协作式调度对资源使用的的非公平性。</p>
+</blockquote>
+<p>对于维护上下文的问题，协程模型的解决方式有两种：</p>
+<ul>
+<li>有栈式：通过保存、恢复现场，将协程的调用栈保存在协程结构内部</li>
+<li>无栈式：将协程之间的上下文保存在外部，常见的办法是有限状态机</li>
+</ul>
+<h3 id="用户级调度器">1.7 用户级调度器</h3>
+<p>前面讨论完后，我们发现通过事件驱动 + 异步 I/O +
+优雅切换上下文的办法，可以比较高效且友好的将应用逻辑中的 CPU 处理部分和
+I/O 处理部分分开来执行，同时还不降低代码逻辑的完整性。</p>
+<p>此时此刻，只剩下如下的两个问题未能解决：</p>
+<ol type="1">
+<li>饥饿问题：某些任务由于各种原因，长时间占据 CPU
+时间，导致其他任务饥饿，可能产生严重的不公平。</li>
+<li>线程管理问题：I/O
+线程池如何分配更合理；并行的任务之间，如何通信和处理数据竞争。</li>
+</ol>
+<p>对于问题
+1，需要引入抢占式调度，在合适的时机对任务触发抢占，强制该任务出让
+CPU。对于问题
+2，可以抽象线程管理层，向下管理系统线程，向上提供任务之间的并发原语。</p>
+<p>最终，我们就能得到一个构建在操作系统线程之上的用户级调度器。</p>
+<p>它：</p>
+<ul>
+<li>将任务作为调度基本单元</li>
+<li>支持并发的任务协作与抢占，妥善处理数据竞争</li>
+<li>向任务屏蔽阻塞的系统调用</li>
+<li>能够基于任务编写同步风格的代码</li>
+</ul>
+<p>以上就是 golang 调度器的大致特性，golang 中的任务正是 goroutine。</p>
+<img src="/2022/03/09/go-runtime-compute/g-m-p-sched.jpg" class="">
+<p>由于引入了完整的调度器抽象，golang 便有能力将 goroutine 与 channel
+结合，实现 CSP
+并发模型，将任务之间的通信和数据竞争转化为对象所有权的传递，优雅的解决了并发通信的问题（<em>Do
+not communicate by sharing memory. Instead, share memory by
+communicating.</em>）。</p>
+<h2 id="什么是-g-p-m-模型">2. 什么是 G-P-M 模型？</h2>
+<h3 id="基本调度理论">2.1 基本调度理论</h3>
+<p><a
+href="https://en.wikipedia.org/wiki/Scheduling_(computing)">调度</a>，就是分配<em>资源（resource）</em>用以执行<em>任务（task）</em>的动作。</p>
+<p>这里的资源，可以是计算资源如
+CPU，存储资源如内存空间，网络资源如带宽、端口等。任务是基于资源所执行的动作，它依赖资源并通过操作资源来产生价值。</p>
+<p><strong>调度目标</strong></p>
+<p>根据不同的资源、任务以及业务目标，调度器的设计目标是多样的：</p>
+<ul>
+<li>最大化吞吐量：效率优先，目的是让任务能尽可能充足的利用资源，而不是把资源花费在调度或等待上。</li>
+<li>最小化等待时间：体验优先，目的是让尽可能多的任务开始执行，效率和任务的实际完成时间次要考虑。</li>
+<li>最小化延迟和响应时间：体验优先，目的是尽可能让每一个任务都等待相对较少的时间，且能相对较快的执行。</li>
+<li>最大化公平：公平优先，目的是结合任务的任务优先级，以及单位资源的负载率，尽可能公平的将资源和任务匹配。</li>
+</ul>
+<p>显然，上述目标之间非但不相辅相成，反而很可能相互掣肘（比如最大吞吐和最小延迟），因此选定调度器的设计目标必须结合实际的业务目标。</p>
+<p><strong>调度原理</strong></p>
+<p>之所以需要调度，是基于这种假设：资源通常是有限的，而需要执行的任务比资源多得多。假如任务比资源还少，那么就没有调度的必要了。</p>
+<p>因此调度器的工作原理就是根据当下任务、资源的状态，基于特定的调度策略，做出调度决策：<strong>接下来哪些
+task 将会拥有哪些资源。</strong></p>
+<p>我们可以得出，调度器在逻辑层面的样子：</p>
+<img src="/2022/03/09/go-runtime-compute/logical-sched.png" class="">
+<p><strong>映射到 Go</strong></p>
+<p>上述调度器原理，如果映射到 Go，显然 goroutine 是 task，操作系统线程是
+resource。因此调度过程就是将选中的 goroutine 放到选中的线程上执行。</p>
+<p>此外还需要考虑几个细节问题：</p>
+<ol type="1">
+<li>如何组织待执行的 goroutine ?
+<ul>
+<li>平衡查找树：提高查找效率，适用于经常需要取出特定的 goroutine</li>
+<li>堆：用堆来实现优先级队列，适用于 goroutine 区分优先级的场景</li>
+<li>链表：链表实现的普通队列，适用于每一个 goroutine 都是相对平等的</li>
+</ul></li>
+<li>如何组织线程资源？
+<ul>
+<li>无界线程池：可能会经常创建或销毁大量线程，类似于 1：1
+的映射关系，不适用 M:N 的场景</li>
+<li>有界线程池，容量等于 CPU 核数，绑核：线程与 CPU 核数
+1：1，可以最大限度降低操作系统的线程切换，但假如 goroutine
+触发系统调用，会阻塞整个线程</li>
+<li>有界线程池，灵活调整容量：根据 goroutine
+数量灵活调整线程数，对于执行 goroutine 的线程保持最多与 CPU
+核数一致，当进行系统调用时创建新线程，这样不会阻塞其他
+goroutine，但线程管理更复杂</li>
+</ul></li>
+<li>何时触发切换？
+<ul>
+<li>系统调用：系统调用会阻塞线程，因此当有任务执行系统调用时，触发切换，并将系统调用的执行放到专门的线程中</li>
+<li>协作：多个 goroutine
+间协作，类似前面提到的相互抛球，在一方等待时触发切换</li>
+<li>抢占：为了避免单个 goroutine 占据过多的 CPU
+时间，需要定期扫描，将执行时间过久的 goroutine 换出</li>
+<li>主动触发：将触发调度权交给 goroutine，业务上可以选择主动放弃
+CPU</li>
+</ul></li>
+<li>如何实现切换？
+<ul>
+<li>保存上下文：保存 PC、SP 以及其他通用寄存器，保存 goroutine
+私有栈</li>
+<li>恢复上下文：恢复待换入的 goroutine 的 PC、SP
+以及通用寄存器，和其私有栈</li>
+</ul></li>
+</ol>
+<h3 id="集中式调度器">2.2 集中式调度器</h3>
+<p>基于前文所述，我们应该很容易的就能想象出一个 go 调度器的雏形（g 指代
+goroutine，m 指代 os 线程，下同）：</p>
+<img src="/2022/03/09/go-runtime-compute/central.jpg" class="">
+<p>显然，在 go
+语言演进的初期，其调度器也是类似这个样子的。其特点有：</p>
+<ol type="1">
+<li>所有 goroutine 都进入一个全局队列，用 g 表示</li>
+<li>线程分为执行 goroutine、执行 Syscall、空闲三种，用 m 表示</li>
+<li>在 m 上执行调度逻辑，触发调度，从全局队列中获取新 g，替换 curg</li>
+</ol>
+<p>这种调度方式很直接的反映了调度器需要做的事情：把任务（g）分配到资源（m）上。我们也称这种方式为集中式调度。</p>
+<p>如果看 runtime/proc.go 的代码，在文件顶部注释中，引用了 go 调度器的<a
+href="https://golang.org/s/go11sched">设计文档</a>，在设计文档中提到了上述集中式调度器存在的问题：</p>
+<ol type="1">
+<li>由于中心化存储所有状态，多线程调度时需要抢锁，需要锁保护的操作包括creation、completion、rescheduling
+等，文中的测算数据是有大约 14% 的开销花在了对 futex 的锁竞争上</li>
+<li>由于调度决策导致的同一个 g 在多个 m
+之间往复执行（handoff），可能产生额外的延迟和开销（回顾 1.2
+节的多核线程切换开销）</li>
+<li>在 g 运行过程中的栈、小对象等等，都会存放在 m.mcache
+缓存中，每当创建新的 m 时都会分配 mcache，但当 m 在执行 syscall
+的时候，并不需要 mcache。在某些情况下执行 g 的 m 与其他 m 的比例可能高达
+1：100，这导致：
+<ul>
+<li>没用的 mcache 产生额外的资源消耗</li>
+<li>当 g 切换到不同的 m 上时，在 mcache 上加载关联的栈、对象等，会降低
+data locality</li>
+</ul></li>
+<li>由于系统调用导致 g 频繁的在不同的 m 上切换，产生大量开销</li>
+</ol>
+<blockquote>
+<p>在抢锁问题上，我们可以用 lock-free 的方式降低开销吗？</p>
+<p>不能。lock-free 的优势在于利用对内存位置的 atomic
+操作来显著降低抢锁动作的开销，但这是建立在竞争不激烈的前提下。如果竞争本来就很激烈，所有线程一股脑的去执行
+atomic 操作，效率可能反而不如排队，因为大量无效的抢锁动作也会耗费
+CPU。</p>
+</blockquote>
+<h3 id="p-来了">2.3 P 来了</h3>
+<p>根据前面提到的影响性能的场景，我们期望能做出如下的改变：</p>
+<ul>
+<li>尽量减少调度器抢锁，改善调度等待</li>
+<li>尽量降低同一个 g 在不同 m 之间切换的概率，提升 data locality</li>
+<li>尽量剥离非 m 必须的属性（如 mcache），降低资源浪费</li>
+</ul>
+<p>为了达成上述目标，Dmitry Vyukov 在他的<a
+href="https://golang.org/s/go11sched">设计文档</a>里，引入了 p
+的概念。</p>
+<p>P 代表 processor，从 go 调度器的角度看，可以理解为逻辑处理器。即将
+m、syscall、I/O 等等概念屏蔽到 p 以下，逻辑上只有 g，g 只在 p
+上运行，类比线程在 CPU 上运行。</p>
+<p>在 m 的层面，除了原本的 m 执行 g 不变以外，要求 m 想要执行
+g，必须先和某一个 p 绑定，g 相关的状态、上下文、对象等等都保存在 p
+内。</p>
+<p>如此可以引出完整的 G-M-P 模型图：</p>
+<img src="/2022/03/09/go-runtime-compute/gmp.png" class="">
+<p>p 的数量默认与 CPU 核数保持一致，每个 p 里面都保存有一个自己的私有 g
+队列，当 m 要执行 g 时，需要先绑定 p，并且从 p 的私有队列中获取 g。</p>
+<p>这样一来，前面的目标悉数实现：</p>
+<ul>
+<li>每一个 g 在需要被调度时，m 都会尝试在绑定的 p
+上调度，调度参与方只有单线程 m、 p 的私有队列，不需要加锁（实际上由于 p
+可能会在 m 之间传递，还是需要用 cas 操作队列，但争抢概率大大降低）</li>
+<li>当 m 与 p 绑定后，调度所依赖的数据和操作大都在当前 m 上（p
+的私有队列甚至是一个 ring），这可以有效利用 CPU
+的缓存、预取等优化手段</li>
+<li>原本的 mcache，现在放在了 p 处，这样数据随 p 移动，与 m
+彻底脱钩了</li>
+</ul>
+<p>那么这里有一个新问题：g 都保存在 p
+的本地队列中，由于调度不均衡，导致有的 p 空闲，有的 p
+负担过重怎么办？</p>
+<p>引入全局队列。</p>
+<p>当出现某个 p 的私有队列空/满，导致无法取出/存入 g
+时，将从全局队列中批量取/存一部分
+g。全局队列用链表实现，无界，一般不会塞满。此外，因为通常 p
+不会从全局队列中拿 g，为了保证一定的公平性（不至于全局队列中的 g
+饥饿），每经过一定的调度次数后，就会强制从全局队列获取一个 g（实际是 61
+次，为什么选 61？请见文末拓展阅读）。</p>
+<img src="/2022/03/09/go-runtime-compute/gmp-globrunq.png" class="">
+<p>假如全局队列也空了呢？</p>
+<p>工作窃取。（这里省略了一些检查 gc、定时器、netpoll
+等等动作，通常工作窃取是最后的选择）</p>
+<p>从其他 p 的队列尾部，窃取一半的工作，转移到当前 p。</p>
+<img src="/2022/03/09/go-runtime-compute/gmp-steal.png" class="">
+<p>要是实在没有任务了呢？就只能让当前 m 陷入睡眠，p 进入 idle
+队列，共同等待新任务到来。</p>
+<h2 id="如何实现调度">3. 如何实现调度？</h2>
+<h3 id="g-的生命周期">3.1 G 的生命周期</h3>
+<img src="/2022/03/09/go-runtime-compute/g.jpg" class="">
+<p>上图表示了一个 g 里面包含相对关键的内容，主要有三部分：</p>
+<ul>
+<li>stack：golang 实现的 goroutine
+是有栈的，也就是说一个任务的私有上下文都会保存在 g 的 stack
+中。同时，golang 通过栈的扩缩容，实现了初始栈很小（大约
+2KiB），同时确保随着代码执行栈能逐步的扩张而不会产生栈溢出（除非超过
+64bit 平台下最大栈容量 1GB）</li>
+<li>gobuf：可以看到里面包含有 sp、pc、ret 等等，显然 gobuf 是为了保存在
+g 被换出前的代码执行位置以及相关上下文；此外，ctxt 保存的是 DX
+寄存器的值，用于存储闭包中对外部对象的引用。</li>
+<li>status：当前 g 的状态，用于表示当前的 g 处于什么样的过程中。</li>
+</ul>
+<h4 id="创建-g">3.1.1 创建 G</h4>
+<p>最常见的：<code>go func()</code> 会在编译期被翻译为调用
+<code>runtime.newproc()</code>，g
+实际执行的函数会通过指针形式的参数传递到 newproc 函数中。</p>
+<img src="/2022/03/09/go-runtime-compute/newproc.jpg" class="">
+<p>可见 g 结构可能从 free list 中获取，也可能在 free list
+为空的时候申请新的，当有了新的 g （即 newg） 后，由于和当前 g （即
+curg）分属不同的栈，因此要把在 curg 存储的 fn 参数复制到 newg
+的栈内。</p>
+<p>之后，对 newg 的 sp、pc、status 等进行初始化后，将 newg 塞入当前 p
+的私有队列中。</p>
+<p>注意这里对 sp 的初始化比较有趣：先是给 sp 写入了 goexit
+函数的地址，之后又对 sp 减 8，这是为什么？</p>
+<p>在聊 sp 存 goexit 地址之前，我们需要先看一看，go
+函数调用中，栈结构是怎么分配的：</p>
+<p>由一个简单的函数调用过程，得到汇编代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">  p, q := cal(<span class="number">123</span>, <span class="number">456</span>)</span><br><span class="line">  <span class="built_in">print</span>(p+q)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">cal</span><span class="params">(x, y <span class="type">int</span>)</span></span> (sum <span class="type">int</span>, z <span class="type">int</span>) &#123;</span><br><span class="line">  m := x + y</span><br><span class="line">  n := m*<span class="number">2</span></span><br><span class="line">  <span class="built_in">print</span>(m + n)</span><br><span class="line">  <span class="keyword">return</span> m, n</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">print</span><span class="params">(p <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">  fmt.Println(p)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">## main()</span><br><span class="line">TEXT	&quot;&quot;.main(SB), ABIInternal, $40-0</span><br><span class="line">## ... ...</span><br><span class="line">SUBQ	$40, SP            # SP-40，申请 40 bytes 栈空间</span><br><span class="line">MOVQ	BP, 32(SP)         # 保存原 BP 到栈底（SP+32）</span><br><span class="line">LEAQ	32(SP), BP         # 新 BP 设置为当前栈底 （SP+32）</span><br><span class="line"> ## ... ...</span><br><span class="line">MOVQ	$123, (SP)         # 栈顶 SP 写入入参 x=123</span><br><span class="line">MOVQ	$456, 8(SP)        # SP+8 写入入参 y=456</span><br><span class="line">## ... ...</span><br><span class="line">CALL	&quot;&quot;.cal(SB)         # 调用 cal()，会自动将 cal 的返回位置存入 SP-8，并设置新 SP=SP-8</span><br><span class="line">MOVQ	16(SP), AX         # SP+16 存放 cal 的返回值 1：p，存入 AX</span><br><span class="line">ADDQ	24(SP), AX         # SP+24 存放 cal 的返回值 2：q，这里将 q 与 AX 之和存入 AX，即 p+q</span><br><span class="line">MOVQ	AX, (SP)           # p+q 存入栈底 SP</span><br><span class="line">CALL	&quot;&quot;.print(SB)       # 调用 print()</span><br><span class="line">MOVQ	32(SP), BP         # 恢复原 BP</span><br><span class="line">ADDQ	$40, SP            # 释放栈空间</span><br><span class="line">RET</span><br><span class="line">## ... ...</span><br><span class="line"></span><br><span class="line">## cal()</span><br><span class="line">TEXT	&quot;&quot;.cal(SB), ABIInternal, $24-32</span><br><span class="line">## ... ...</span><br><span class="line">SUBQ	$24, SP            # SP-24，申请 24 bytes 栈空间</span><br><span class="line">MOVQ	BP, 16(SP)         # 保存main BP 到栈底（SP+16）</span><br><span class="line">LEAQ	16(SP), BP         # 新 BP 设置为当前栈底 （SP+16）</span><br><span class="line">## ... ...</span><br><span class="line">MOVQ	&quot;&quot;.x+32(SP), AX    # 入参 x，存入 AX，此时 SP 已经在 CALL 处被 -8，因此是 SP+32（SP+24+8）</span><br><span class="line">MOVQ	&quot;&quot;.y+40(SP), CX    # 入参 y，存入 CX</span><br><span class="line">ADDQ	CX, AX             # x+y，存入 AX</span><br><span class="line">MOVQ	AX, &quot;&quot;.m+8(SP)     # AX 存入 SP+8，即局部变量 m</span><br><span class="line">LEAQ	(AX)(AX*2), CX     # AX + AX*2，存入 CX，即 m+n</span><br><span class="line">MOVQ	CX, (SP)           # CX 存入 SP，局部变量 n 被优化掉，直接将 m+n 作为 print() 的入参</span><br><span class="line">## ... ...</span><br><span class="line">CALL	&quot;&quot;.print(SB)       # 调用 print()</span><br><span class="line">MOVQ	&quot;&quot;.m+8(SP), AX     # 取出 m 存入 AX</span><br><span class="line">MOVQ	AX, &quot;&quot;.sum+48(SP)  # AX 存入返回值 1：sum</span><br><span class="line">SHLQ	$1, AX             # AX 左移一位，即 n = m*2</span><br><span class="line">MOVQ	AX, &quot;&quot;.z+56(SP)    # AX 存入返回值 2：z</span><br><span class="line">MOVQ	16(SP), BP         # 恢复main BP</span><br><span class="line">ADDQ	$24, SP            # 回收 24 bytes 栈空间</span><br><span class="line">RET</span><br><span class="line">## ... ...</span><br><span class="line"></span><br><span class="line">## 省略 print()</span><br></pre></td></tr></table></figure>
+<p>可以看到，在 go 中，参数和返回值都通过栈传递（从 1.17 开始 amd64
+平台已经转为寄存器传递，见：<a
+href="https://github.com/golang/go/issues/40724">issue#40724</a>）。</p>
+<p>因此我们能绘制出上面汇编代码所反映出的栈结构来：</p>
+<img src="/2022/03/09/go-runtime-compute/calling-convention.jpg" class="">
+<p>可见函数的入参和返回值是由调用方预留的，函数的局部变量放在自己的栈内，而同时也会给调用的其他函数预留参数和返回值。这里函数自己的栈空间，称为函数的栈帧。此外，CALL
+指令会将<strong>调用方的返回地址存入 SP-8</strong>，并自动设置
+SP=SP-8，而只有当函数栈帧大于零时（需要用到栈空间，才需要自己的
+BP），才会保存调用者的 BP。</p>
+<p>通用表示如下图（<a
+href="https://chai2010.cn/advanced-go-programming-book/ch3-asm/ch3-06-func-again.html">图源</a>）：</p>
+<p><img
+src="https://chai2010.cn/advanced-go-programming-book/images/ch3-13-func-stack-frame-layout-01.ditaa.png" /></p>
+<p>上面提到，CALL 会自动保存返回地址，这里就对应了为什么创建 g 时，将
+SP-8 = goexit。</p>
+<p>原因是，给 SP-8 存入 goexit，会让 fn 返回后，由 CPU 直接跳转到
+goexit，执行 g
+的退出动作，包括释放空间等，并在退出的最后一步调用调度函数，重新进入调度。这种做法十分巧妙，不需要为
+fn 插入额外的跳转逻辑。</p>
+<h4 id="切换-g">3.1.2 切换 G</h4>
+<p>g
+可能会在执行过程中被换出，那么整个换出、换入的动作，需要执行什么操作呢？为了尽可能的减少切换成本，go
+将切换的过程组织的十分简练，归纳起来流程如下：</p>
+<ol type="1">
+<li>将待换出 curg 的 status 从 <code>running</code> 改为
+<code>runnable</code>（如果是从 goexit 调度的，则状态改为 dead），并将
+curg 的 pc、sp、bp 等寄存器保存入 <code>curg.shed</code>（即 gobuf
+）</li>
+<li>待换入 newg 的 status 从 <code>runnable</code> 改为
+<code>running</code>，并将 newg 的 pc、sp、bp 等寄存器从 gobuf
+中取出，恢复回寄存器</li>
+<li>PC 已经指向 newg 的恢复位置，下一条指令就开始执行
+newg，完成切换</li>
+</ol>
+<p>不过这里仍存在一个小问题：从 g 的视角看，g 在自己的的运行函数 fn
+中，并不知道自己的 gobuf、stack、status 等等属性，这些对 g
+本身来讲是透明的。那么，前面流程中改状态、保存、恢复寄存器是谁来干的呢？</p>
+<p>答案是 g0。</p>
+<p>g0 本身也是一个 g，他拥有 g 所拥有的所有属性，唯独是他没有自己的
+fn，g0 的工作，就是在上帝视角执行调度相关逻辑。</p>
+<p>在执行这些调度逻辑时，其各种函数调用所需要的栈空间就都从 g0
+的栈中分配，g0
+的栈比较特殊，它不支持扩缩容，而是在创建的时候就限定了其栈空间是8
+KiB，这个空间确保所有调度相关的逻辑都够用而不会产生溢出。正因为在特殊的栈上执行特殊的工作，因此
+g0 的栈也称为系统栈（systemstack，同样的 gsignal 的栈也叫系统栈）。</p>
+<p>所以实际上的 g 切换过程为：</p>
+<img src="/2022/03/09/go-runtime-compute/g0.jpg" class="">
+<h4 id="销毁-g">3.1.3 销毁 G</h4>
+<p>当一个 g 执行完毕后，如前文所述，会通过 ret addr 跳转到 goexit
+函数。</p>
+<p>goexit 函数是用 go 汇编写的一个包装函数，实际上最终是切换到 g0 后调用
+<code>runtime.goexit0()</code>。</p>
+<p>销毁一个 g，主要流程如下：</p>
+<img src="/2022/03/09/go-runtime-compute/g-exit.jpg" class="">
+<p>主要工作是改变状态、清理标志位等属性、释放栈空间，将该 deadg 放入
+free list 队列，待下次 <code>newproc()</code>
+时复用，最后重新执行调度。</p>
+<h3 id="调度">3.2 调度</h3>
+<h4 id="调度触发点">3.2.1 调度触发点</h4>
+<p>经过前文的描述，我们已经知道，goroutine
+的调度，不是由专门的线程全程进行调度的。实际上在需要调度的时候，是由各种条件而触发，在
+m 执行 g 的间隙进行调度（当然在 sysmon
+中的抢占式调度除外，详见后文）。</p>
+<p>首先，所有的调度意图，最终都会通过在系统栈上调用
+<code>schedule()</code> 函数实现。那么，调度触发点都有哪些呢？</p>
+<img src="/2022/03/09/go-runtime-compute/trigger.jpg" class="">
+<p>上述触发点从设计上讲是十分合理的，比如：</p>
+<ul>
+<li>创建了新的 m 后，自然需要触发调度来将 g 调度到新的 m 上</li>
+<li>在 g 之间存在依赖和等待时（比如等锁，等 channel，等
+gc，等网络），也需要放弃当前执行，触发调度</li>
+<li>g 执行结束了，通过触发调度出让 m 资源</li>
+<li>从阻塞的系统调用返回时，应该触发调度，恢复执行</li>
+<li>抢占</li>
+</ul>
+<h4 id="调度循环">3.2.2 调度循环</h4>
+<p>在触发了调度之后，就正式进入调度循环。</p>
+<p>调度循环的唯一目的就是找到一个合适的 g，并将之切换到 m 上执行。</p>
+<p>调度循环流程如下：</p>
+<img src="/2022/03/09/go-runtime-compute/schedule.jpg" class="">
+<p>在整个流程中，任一环节拿到了 g，就直接返回并切换。</p>
+<p>首先会检查是否需要执行 gc 标记，之后分别从本地队列、全局队列、net
+poller 处检查，还没有就尝试任务窃取，如果任务窃取也偷不到任何
+g，则休眠，等待被唤醒（在调度过程中、创建新的 g、抢占、netpoll
+等很多时机都会尝试唤醒）。</p>
+<h3 id="m-与系统调用">3.3 M 与系统调用</h3>
+<h4 id="m-生命周期">3.3.1 M 生命周期</h4>
+<img src="/2022/03/09/go-runtime-compute/m.jpg" class="">
+<p>从 m 的结构来看，m 上可以运行 g、g0、gsignal，也可以脱离 g 运行
+start_fn。在前面提到的调度流程中，当 m 在执行 <code>schedule()</code>
+时，如果找不到 g，m 的状态会被设置为 spining，代表此时的 m
+正在自旋寻找任务。而经过一系列动作后，还是无任务可做，那么 m 就会被
+block，等待有任务的时候再被唤醒。</p>
+<p>golang 为了支持多平台，在线程、内存、网络等操作上都抽取了抽象函数，对
+m 的操作也一样。m 与 os 线程一一绑定，其整个生命周期的动作如下：</p>
+<img src="/2022/03/09/go-runtime-compute/m-lifecycle.jpg" class="">
+<p>可以看到，对 m
+的操作是通过<code>clone()</code>、<code>futex()</code>等等系统调用操作
+os 线程实现的。有趣的是，在目前的 golang 版本中，只有当进程退出时 os
+线程才会被释放（通过<code>exit()</code>系统调用）。其他时刻，不论有多少个
+m 在休眠，都不会将其对应的 os 线程关掉，相关讨论可见 <a
+href="https://github.com/golang/go/issues/14592">#issue14592</a>。</p>
+<h4 id="系统调用">3.3.2 系统调用</h4>
+<p>goroutine
+在执行用户代码的过程中，必定会遇到需要操作系统协助的相关动作，以最简单的文件操作为例：如<code>open()</code>、<code>read()</code>、<code>write()</code>
+等的基本操作，都需要操作系统的支持。</p>
+<p>golang
+将这些系统调用操作，都进行了封装和整理，当尝试执行系统调用时，会进行一系列的处理：</p>
+<img src="/2022/03/09/go-runtime-compute/syscall.jpg" class="">
+<p>如图所示，在执行 syscall 之前，保存当前 g，并通过
+<code>handoffp()</code> 将 g 所在的 p 换出到其他 m 上执行（这一步是通过
+<code>sysmon</code> 间接完成的）。之后原先的 m
+开始正式执行系统调用，在执行完毕后，将原 g
+恢复，入队（无论是插入某个空闲的
+p，还是直接插入全局队列），之后再次调度。最后原先的 m
+会休眠，等待被唤醒。</p>
+<h4 id="net-poller">3.3.3 Net Poller</h4>
+<p>为了能高效的处理网络事件，各类操作系统都会采用一些方法，如 linux
+下通过内核事件轮询实现的 epoll，其他类似的有 kqueue、IOCP 等。</p>
+<p>golang 通过 net poller 将不同 os 对处理网络事件的动作进行了抽象：</p>
+<img src="/2022/03/09/go-runtime-compute/netpoller.jpg" class="">
+<p>以 linux 系统为例，进行网络动作时会初始化
+epoll（只做一次），之后每当需要等待网络 I/O 时，就会将携带着 g
+的事件注册到 epoll，之后 g 阻塞换出（gopark），直到调用
+<code>epoll_wait()</code> 得到了 ready 的 fd 后，取出关联的
+g，将其放入调度队列等待调度。</p>
+<p>对 <code>epoll_wait()</code>
+的调用不是由专门的线程做的，而是在调度过程中、sysmon、退出 STW
+等等很多地方都会尝试检查，一旦发现有 ready 的
+g，就将之放入调度队列。</p>
+<h4 id="timer">3.3.4 Timer</h4>
+<p>我们经常使用 <code>time.Sleep()</code> 来让 g
+休眠一段时间，并在时间到了之后醒来。显然，获取时间也需要涉及到系统调用，那么完整的休眠、唤醒的流程是怎样的？</p>
+<img src="/2022/03/09/go-runtime-compute/timer.jpg" class="">
+<p>整个流程十分简单，调用 <code>time.Sleep()</code> 的 g
+会创建一个设定了唤醒时间的 timer，并将自身与之绑定，之后将这个 timer
+注册到 p 上，然后进入休眠。在每一次调度的时候，调度逻辑都会检查 p
+上所有的 timer，如果超过了唤醒时间，就将绑定的 g
+唤醒，放入调度队列。整个流程里只有获取系统时间的部分，需要与系统交互。</p>
+<p>正因为是在每一次调度的时候才会检查
+timer，那么就存在一个问题，如果当前系统没有调度需求，那么只有当超过一定时间强制抢占时才会真正检查
+timer，所以可以得出 <code>time.Sleep()</code>
+的实际休眠时间是不会太准确的。</p>
+<h3 id="抢占">3.4 抢占</h3>
+<h4 id="触发">3.4.1 触发</h4>
+<p>在前面所述的绝大多数场景下，g
+之间的调度都是协作式（cooperative）的，比如等锁时换出，系统调用时换出等等。然而很多时候我们需要从外部抢占
+goroutine，为了解决：</p>
+<ul>
+<li><p>某一个 g 可能会持续运行，导致其他 g 饥饿，或是难以切换到 g0
+去执行一些底层工作</p></li>
+<li><p>当需要 STW 时，通常是等待所有的 g 执行到某个 safe point
+后暂停。在实现抢占之前是通过编译器在函数调用前插入检查逻辑实现的，在某些特殊情况下这可能导致长时间的等待</p></li>
+</ul>
+<p>因此，golang 通过如下触发抢占的手段解决上述问题：</p>
+<ol type="1">
+<li>sysmon 线程：前面提到了，sysmon 不依赖 g，直接绑定在 m
+上执行。类似守护线程定期执行一些维护工作，当它发现某个 g
+执行时间过久时，就会触发抢占信号</li>
+<li>GC：当 gc 要扫描 g 的栈时，就会触发抢占，让当前 g 暂停配合扫描</li>
+<li>STW：在 stw 时抢占所有 g</li>
+</ol>
+<img src="/2022/03/09/go-runtime-compute/trig-preempt.jpg" class="">
+<p>如上图所示，触发抢占后，会尝试进行两个动作，一是将被抢占 g 的
+<code>preempt</code> 标志置为
+true，触发同步抢占，相关抢占逻辑会检查该状态判断是否实施抢占；二是发出抢占信号
+<code>sigPreempt</code>，这是基于操作系统信号实现的异步抢占逻辑。</p>
+<h4 id="实施">3.4.2 实施</h4>
+<p>抢占分两种：</p>
+<ol type="1">
+<li>直接将当前 g 换出，加入全局队列后执行调度</li>
+<li>将当前 g 休眠，直接执行调度，并在之后唤醒。这种抢占方式主要用于 GC
+栈扫描。休眠再唤醒的方式可以更准确的控制 g。</li>
+</ol>
+<p><strong>同步抢占</strong></p>
+<p>同步抢占的逻辑比较简单，主要在栈伸缩、gc 标记等处检查
+<code>preempt</code> 标记（栈伸缩时是通过 <code>stackguard0</code>
+标记），如果为 true 则实施抢占。</p>
+<p><strong>异步抢占</strong></p>
+<p>异步抢占通过信号机制实现。整个抢占流程如图所示：</p>
+<img src="/2022/03/09/go-runtime-compute/async-preempt.jpg" class="">
+<p>抢占信号发出后，系统内核会将对应的线程信号表置位，当下一次该线程被系统调度器调度时，会处理
+pending
+的信号。由于这个过程不是同步的，因此称之为异步抢占（由图可见，在做信号处理时，用到了
+m 中保存的 gsignal 用作系统栈）。</p>
+<p>在多数情况下，同步抢占通过函数调用时对抢占标志的检查就可以完成，但异步抢占可以解决某些极端场景，如某个
+g 执行了 <code>for &#123;&#125;</code> ，如果没有通过内核发送的信号机制，仅仅靠 go
+scheduler，是无法打断死循环流程的。</p>
+<h2 id="总结">4 总结</h2>
+<p>本文主要介绍了 golang 中 goroutine、调度器等的实现，用来解释 golang
+runtime 是如何分配和调度计算资源的。</p>
+<p>首先通过介绍 I/O 密集型并发编程中遇到的问题与挑战，来描述 golang
+为什么要构造一个用户级调度器；</p>
+<p>其次简要讨论了分布式调度器对集中式调度器的性能改善；</p>
+<p>最后解释了 golang 是如何实现 goroutine 的调度的。</p>
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li>《Java 并发编程实战》§8.2 设置线程池大小</li>
+<li><a
+href="https://eli.thegreenplace.net/2018/measuring-context-switching-and-memory-overheads-for-linux-threads/">Measuring
+context switching and memory overheads for Linux threads</a></li>
+<li><a href="https://youtu.be/KXuZi9aeGTw">User-level threads.......
+with threads. - Paul Turner - Google</a></li>
+<li><a
+href="https://eli.thegreenplace.net/2017/concurrent-servers-part-2-threads/">Concurrent
+Servers: Part 2 - Threads</a></li>
+<li><a
+href="https://eli.thegreenplace.net/2017/concurrent-servers-part-3-event-driven/">Concurrent
+Servers: Part 3 - Event-driven</a></li>
+<li><a
+href="https://eli.thegreenplace.net/2018/concurrent-servers-part-6-callbacks-promises-and-asyncawait/">Concurrent
+Servers: Part 6 - Callbacks, Promises and async/await</a></li>
+<li><a href="https://draveness.me/golang">《Go 语言设计与实现》 §6.5
+调度器</a></li>
+<li><a
+href="https://chai2010.cn/advanced-go-programming-book/ch3-asm/readme.html">《Go语言高级编程》§3
+Go汇编语言</a></li>
+<li><a href="https://github.com/golang/go">Go Source Code</a></li>
+</ol>
+<h2 id="拓展阅读">拓展阅读</h2>
+<p><a
+href="https://2019.hydraconf.com/2019/talks/7336ginp0kke7n4yxxjvld/">Go
+scheduler: Implementing language with lightweight concurrency</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2022/03/09/go-runtime-compute/" title="Go Runtime 设计：计算资源调度">http://lenshood.github.io/2022/03/09/go-runtime-compute/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/source/" rel="tag"># source</a>
+              <a href="/tags/go/" rel="tag"># go</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/02/07/golang-boot/" rel="prev" title="Go Runtime 代码随笔">
+                  <i class="fa fa-angle-left"></i> Go Runtime 代码随笔
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/04/06/go-runtime-storage/" rel="next" title="Go Runtime 设计：存储资源管理">
+                  Go Runtime 设计：存储资源管理 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

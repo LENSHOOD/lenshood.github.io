@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文是我在读完 DDIA 后的总结和评价感想。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="（WIP）读 DDIA 书评与总结">
+<meta property="og:url" content="http://lenshood.github.io/2022/12/29/ddia-note/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文是我在读完 DDIA 后的总结和评价感想。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2022/12/29/ddia-note/header.jpg">
+<meta property="article:published_time" content="2022-12-29T15:40:31.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.049Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="ddia">
+<meta property="article:tag" content="book review">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2022/12/29/ddia-note/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2022/12/29/ddia-note/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2022/12/29/ddia-note/","path":"2022/12/29/ddia-note/","title":"（WIP）读 DDIA 书评与总结"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>（WIP）读 DDIA 书评与总结 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">总体架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E7%B3%BB%E7%BB%9F%E5%9F%BA%E7%A1%80"><span class="nav-number">2.</span> <span class="nav-text">数据系统基础</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%80%E7%AB%A0%E5%8F%AF%E9%9D%A0%E5%8F%AF%E6%89%A9%E5%B1%95%E4%B8%8E%E5%8F%AF%E7%BB%B4%E6%8A%A4%E7%9A%84%E5%BA%94%E7%94%A8%E7%B3%BB%E7%BB%9F"><span class="nav-number">2.1.</span> <span class="nav-text">第一章：可靠，可扩展与可维护的应用系统</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E9%9D%A0%E6%80%A7-reliability"><span class="nav-number">2.1.1.</span> <span class="nav-text">可靠性 Reliability</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E6%89%A9%E5%B1%95%E6%80%A7-scalability"><span class="nav-number">2.1.2.</span> <span class="nav-text">可扩展性 Scalability</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E7%BB%B4%E6%8A%A4%E6%80%A7-maintainability"><span class="nav-number">2.1.3.</span> <span class="nav-text">可维护性 Maintainability</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%BA%8C%E7%AB%A0%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B%E4%B8%8E%E6%9F%A5%E8%AF%A2%E8%AF%AD%E8%A8%80"><span class="nav-number">2.2.</span> <span class="nav-text">第二章：数据模型与查询语言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%89%E7%AB%A0-%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8%E4%B8%8E%E6%A3%80%E7%B4%A2"><span class="nav-number">2.3.</span> <span class="nav-text">第三章： 数据存储与检索</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%A4%E7%A7%8D%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E4%B8%9A%E5%8A%A1"><span class="nav-number">2.3.1.</span> <span class="nav-text">两种数据处理业务：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#lsm-tree-%E5%AF%B9%E6%AF%94-b-tree"><span class="nav-number">2.3.2.</span> <span class="nav-text">LSM-Tree 对比 B-Tree</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E4%BB%93%E5%BA%93"><span class="nav-number">2.3.3.</span> <span class="nav-text">数据仓库</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%97%E5%BC%8F%E5%AD%98%E5%82%A8"><span class="nav-number">2.3.4.</span> <span class="nav-text">列式存储</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E5%9B%9B%E7%AB%A0%E6%95%B0%E6%8D%AE%E7%BC%96%E7%A0%81%E4%B8%8E%E6%BC%94%E5%8C%96"><span class="nav-number">2.4.</span> <span class="nav-text">第四章：数据编码与演化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%AF%AD%E8%A8%80%E7%89%B9%E5%AE%9A%E6%A0%BC%E5%BC%8F"><span class="nav-number">2.4.1.</span> <span class="nav-text">语言特定格式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%96%87%E6%9C%AC%E6%A0%BC%E5%BC%8F%E7%BC%96%E7%A0%81"><span class="nav-number">2.4.2.</span> <span class="nav-text">文本格式编码</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E%E6%A8%A1%E5%BC%8Fschema%E7%9A%84%E4%BA%8C%E8%BF%9B%E5%88%B6%E7%BC%96%E7%A0%81"><span class="nav-number">2.4.3.</span> <span class="nav-text">基于模式（Schema）的二进制编码</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E9%97%B4%E6%95%B0%E6%8D%AE%E6%B5%81%E5%8A%A8%E6%96%B9%E5%BC%8F"><span class="nav-number">2.4.4.</span> <span class="nav-text">进程间数据流动方式</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E6%95%B0%E6%8D%AE%E7%B3%BB%E7%BB%9F"><span class="nav-number">3.</span> <span class="nav-text">分布式数据系统</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%BA%94%E7%AB%A0%E6%95%B0%E6%8D%AE%E5%A4%8D%E5%88%B6"><span class="nav-number">3.1.</span> <span class="nav-text">第五章：数据复制</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6"><span class="nav-number">3.1.1.</span> <span class="nav-text">主从复制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A4%8D%E5%88%B6%E6%BB%9E%E5%90%8E"><span class="nav-number">3.1.2.</span> <span class="nav-text">复制滞后</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A4%9A%E4%B8%BB%E5%A4%8D%E5%88%B6"><span class="nav-number">3.1.3.</span> <span class="nav-text">多主复制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%97%A0%E4%B8%BB%E5%A4%8D%E5%88%B6"><span class="nav-number">3.1.4.</span> <span class="nav-text">无主复制</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B4%BE%E7%94%9F%E6%95%B0%E6%8D%AE"><span class="nav-number">4.</span> <span class="nav-text">派生数据</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2022/12/29/ddia-note/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="（WIP）读 DDIA 书评与总结 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          （WIP）读 DDIA 书评与总结
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2022-12-29 23:40:31" itemprop="dateCreated datePublished" datetime="2022-12-29T23:40:31+08:00">2022-12-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Others/" itemprop="url" rel="index"><span itemprop="name">Others</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2022/12/29/ddia-note/header.jpg" class="" width="500">
+<p>本文是我在读完 DDIA 后的总结和评价感想。</p>
+<span id="more"></span>
+<p>DDIA，22
+年初我其实就已经看完了，一直拖到了年底才想到做一些总结，虽迟但到。</p>
+<p>在刚刚读完的时候，对这本书整体上的感觉，从知识的角度看，在许多细分的知识点上让我知其然且知其所以然。一些知识点早就听说过，也大概知其原理，但一方面是了解的程度不够深，另一方面这些知识之间很孤立，无法与其他知识形成关联。</p>
+<p>因此个人认为 DDIA
+所能带给读者的，的确书如其名，是包含了<em>数据密集型应用系统</em>
+设计的方方面面，且能帮助读者对 <em>数据密集型应用系统</em>
+相关知识形成体系化的概念和理解。</p>
+<h2 id="总体架构">总体架构</h2>
+<h2 id="数据系统基础">数据系统基础</h2>
+<p>第一部分，主要讨论的是数据系统的基础。</p>
+<p>这包括了数据系统作为应用软件系统的一种，需要满足可靠性、可扩展性与可维护性的目标。</p>
+<p>其次，数据系统提供的服务便是对数据进行管理，因此采用何种模型来表达数据，怎样对这种数据模型进行查询也是重要的一环。</p>
+<p>数据最终都会被存储在内存或是磁盘上，如何高效的存储，兼顾查询，是数据系统需要关注的重点。</p>
+<p>最后，介绍了在数据被写入系统之前，以及查询之后的形态是怎样的？</p>
+<h3
+id="第一章可靠可扩展与可维护的应用系统">第一章：可靠，可扩展与可维护的应用系统</h3>
+<p>不论是数据系统（data
+system）还是其他软件系统，在整个生命周期中都会面临三个问题：可靠性、可扩展性、可维护性。这三大问题都属于软件的跨功能需求（CFR）。能很好的解决这三大问题是成熟软件系统的必要条件。</p>
+<h4 id="可靠性-reliability">可靠性 Reliability</h4>
+<p>简单描述为在遇到故障时仍然可用的能力，亦可称之为容错性（fault-tolerant）或是韧性（resilient）。</p>
+<p>对于复杂的大型系统，故障（fault）难以避免，对于容错来说，就是系统能够容忍一部分错误，从而防止系统失效（faillure）。失效便意味着系统不可用了（unavailable）。</p>
+<p>软件需要通过可靠性设计来获得容错性或韧性，可以通过故障测试来验证系统的可靠性，如混沌测试（chaos
+test）。另外，不同的功能优先级不同，因此对故障的容错办法也不同，根据实际情况选择以达到最大投产比。</p>
+<h4 id="可扩展性-scalability">可扩展性 Scalability</h4>
+<p>软件的可扩展性描述为，当负载增加时，增加系统资源来满足可接受的系统性能。</p>
+<p>负载（load）：用参数来描述可以是用户量，请求数等指标。</p>
+<p>性能（performance）与资源（resource）：性能参数可包括响应时间，吞吐量等，通常用百分位指标来描述如
+P90、P95、P99</p>
+<p>可扩展性的要求，可细化为</p>
+<ul>
+<li>在资源不变的前提下，当负载上升时，性能如何变化</li>
+<li>若要求性能稳定，那么如何提供资源来应对负载的变化</li>
+</ul>
+<p>对于可扩展性设计，可采取水平扩展（horizontal）和垂直扩展（vertical）的方案。简单来说就是水平扩展加机器，垂直扩展升级机器。</p>
+<h4 id="可维护性-maintainability">可维护性 Maintainability</h4>
+<p>可维护性意味着对软件在整个生命周期内的持续投入。</p>
+<p>可以说软件系统在发布之后就已经是遗留系统（legacy
+system）了。随着时间的推移，可维护性差的软件，可能会变成没人愿意维护的遗留系统，糟糕的设计会导致软件变成大泥球（big
+mud ball）</p>
+<p>可维护性细分为三种能力：</p>
+<p><strong>可运维：</strong></p>
+<p>可运维性要求软件系统可观测、可迁移、可理解。</p>
+<p>可观测代表对系统运行状态的洞察能力，可迁移代表易于对系统操作的能力，可理解代表系统知识的整理、归档等等。</p>
+<p><strong>简单：</strong></p>
+<p>在复杂的需求下还能保持简单的软件，其核心要义在于设计合理的抽象（abstraction）。</p>
+<p>通过抽象解决问题分层，在同一抽象层通过合理的边界，构建高内聚低耦合的软件架构。</p>
+<p><strong>可演化性：</strong></p>
+<p>软件在不断的演进，可演化性要求不论是人员的更迭，或是特性的增减，系统都支持持续的演进而不是停滞不前。</p>
+<p>可演化性不仅针对软件本身，也对团队提出了要求，研发效能高的团队，演进的更快、更好。</p>
+<p>软件本身良好的设计也是可演化的前提，设计良好则易于修改。</p>
+<h3 id="第二章数据模型与查询语言">第二章：数据模型与查询语言</h3>
+<p>数据模型是数据系统表现数据的逻辑形态，从数据对象的角度看，数据模型保存了数据对象的<strong>自身属性</strong>以及与其他数据对象之间的<strong>关联关系</strong>。</p>
+<p>有三种数据模型，基于数据对象的自身属性和关联关系，分别从不同的关注点来表示数据：</p>
+<ol type="1">
+<li>文档模型：更关注数据对象的自身属性
+<ul>
+<li>结构简单，易于理解</li>
+<li>底层存储更紧凑，空间局部性好</li>
+<li>弱模式要求，同一个数据对象不要求模式完全一致</li>
+<li>不易处理多对一，多对多的关系，数据间的 join
+可能会依赖应用层逻辑</li>
+</ul></li>
+<li>图模型：更关注数据对象间的关系
+<ul>
+<li>专门用于处理复杂的多对多关系</li>
+<li>通过节点和边描述数据</li>
+</ul></li>
+<li>关系模型：折中的数据模型
+<ul>
+<li>通过 table 的形式描述数据</li>
+<li>能设计出严格符合数据规范化的数据模型</li>
+<li>通过查询优化器代理了上层应用的 join 动作</li>
+</ul></li>
+</ol>
+<p>针对不同的数据模型，也存在多种查询语言。</p>
+<p>查询语言可分为命令式和声明式的。对于数据库系统而言，大多数查询语言都是声明式的，因为声明式语言的抽象层次更高，对细节的描述更少。命令式语言更贴近代码，由代码来控制如何进行数据的写入和查询。</p>
+<h3 id="第三章-数据存储与检索">第三章： 数据存储与检索</h3>
+<h4 id="两种数据处理业务">两种数据处理业务：</h4>
+<ol type="1">
+<li>OLTP：在线事务处理
+<ul>
+<li>面向用户，为了快速响应，每次查询只涉及少量数据</li>
+<li>应用程序基于 key 来做查询，查询瓶颈在磁盘寻道时间</li>
+</ul></li>
+<li>OLAP：在线分析处理
+<ul>
+<li>查询请求数量很少，但每个查询都可能需要在短时间内扫描数百万条记录</li>
+<li>范围检索，磁盘带宽是瓶颈</li>
+</ul></li>
+</ol>
+<p>数据结构是数据库的核心，实际存储的数据结构可能与数据模型大相径庭。</p>
+<p>索引是由原始数据派生出的数据结构，索引用于更高效的查询数据，两种常见的索引数据结构：</p>
+<p>B-Tree（<a
+href="https://lenshood.github.io/2021/07/05/bpt-lsmt/">详细</a>），LSM-Tree（<a
+href="https://lenshood.github.io/2021/07/18/bpt-lsmt-2/">详细</a>）。</p>
+<h4 id="lsm-tree-对比-b-tree">LSM-Tree 对比 B-Tree</h4>
+<ol type="1">
+<li>写入吞吐量高
+<ul>
+<li>LSM-Tree 相较于 B-Tree 在合理的配置下有较低的写放大（<a
+href="https://tikv.org/deep-dive/key-value-engine/b-tree-vs-lsm/">详细</a>）</li>
+<li>LSM-Tree 的顺序磁盘写入，速度更快</li>
+<li>LSM-Tree 数据文件可压缩，碎片更少</li>
+</ul></li>
+<li>压缩工作影响读写业务
+<ul>
+<li>磁盘并发资源有限，后台压缩可能导致读写等待</li>
+<li>磁盘带宽资源有限，后台压缩会占用大量带宽</li>
+</ul></li>
+</ol>
+<h4 id="数据仓库">数据仓库</h4>
+<p>单独的数据库，包含的数据通常是 OLTP
+数据库的副本，供分析人员进行分析。</p>
+<p>分析型业务下数据模型通常采用事实表+维度表的形式：</p>
+<ul>
+<li>事实表：每一行代表发生的一个事件，事件包含于所有维度相关的 id</li>
+<li>维度表：记录不同维度的数据，通过 id 与事实表关联</li>
+</ul>
+<p>事实表+维度表构成”星形模型“，对维度表的进一步规范化后，可得到”雪花模型“。</p>
+<h4 id="列式存储">列式存储</h4>
+<p>基于分析性业务的数据模型，通常一次分析可能只关注事实表中有限的几列，因此其他成百上千的列并没有分析价值。</p>
+<p>因此通过列式存储，每一列单独存储后，分析时只加载特定列的数据即可。</p>
+<p>此外，列式存储中，每一列存放的数据都高度相似，因此压缩比很高，节约磁盘空间。</p>
+<h3 id="第四章数据编码与演化">第四章：数据编码与演化</h3>
+<p>程序之间通过网络或磁盘等手段传输数据时，需要将内存中的数据结构通过某种形式进行编码后作为字节序列进行传输。</p>
+<p>解决数据编码问题需要考虑的问题有很多，包括编码效率，空间占用，可读性以及版本兼容等等。</p>
+<h4 id="语言特定格式">语言特定格式</h4>
+<p>编程语言原生支持的数据编码格式，如 Java 的 Serializable，Ruby 的
+Marshal 等等。</p>
+<p>语言特定格式最大的优势在于简单，开箱即用。但在效率、兼容性与可读性上都不佳。由于是特定的编程语言所提供的编码形式，因此异构的程序之间通常无法识别。</p>
+<h4 id="文本格式编码">文本格式编码</h4>
+<p>类似于 JSON、XML
+等文本格式的编码方案，由于符合人类可读的格式，因此理解起来很简单，使用也简单。它们不与任何一种语言强绑定，因此也能作为通用的数据传输编码。</p>
+<p>文本编码格式，在处理数字时可能遇到挑战，如 JSON
+的数字精度问题。此外，文本编码格式，在需要传输二进制数据时也比较困难，通常需要采用类似Base64
+编码的办法将二进制数据编码为文本后再传输。</p>
+<h4 id="基于模式schema的二进制编码">基于模式（Schema）的二进制编码</h4>
+<p>Thrift 和 Protocol buffers
+是两种基于模式的编码格式。基于模式代表在编码前需要指定具体的模式信息（包含数据结构中的字段及其类型）。</p>
+<p>模式的优点在于，数据结构中的字段名和类型可以被更紧凑的编码，并且易于支持向前或向后兼容（向前兼容只能添加字段而不能删除，旧版本程序可简单忽略新增字段，而向后兼容只能添加可选字段以防校验失败）。</p>
+<p>但基于模式也会导致数据必须解码后才支持人类可读。</p>
+<h4 id="进程间数据流动方式">进程间数据流动方式</h4>
+<ul>
+<li>通过数据库：数据提供方将数据写入数据库，数据使用方从数据库中读取</li>
+<li>RPC 和 REST API：客户端和服务端分别对请求和响应进行编解码</li>
+<li>异步消息：发送方编码，接收方解码</li>
+</ul>
+<h2 id="分布式数据系统">分布式数据系统</h2>
+<h3 id="第五章数据复制">第五章：数据复制</h3>
+<p>在分布式系统中，通过节点间的数据复制，可以实现：</p>
+<ul>
+<li>降低延迟：用户从距离自己更近的节点上获取数据</li>
+<li>提升可靠性：数据有多份副本，因此部分节点失效不影响整体服务</li>
+<li>提升吞吐量：多个节点可以同时提供服务</li>
+</ul>
+<h4 id="主从复制">主从复制</h4>
+<p>主从复制型分布式系统，节点（副本）以一主多从的形态分布，从副本只负责服务读请求，所有写请求都需要由主副本服务，主副本的数据经由网络复制到从副本。</p>
+<ol type="1">
+<li><p>同步复制 / 异步复制</p>
+<p>同步与异步复制的主要区别在于是否在复制完成后才向用户响应成功。</p>
+<p>异步复制主要存在的问题是滞后。即由于网络延迟等原因，有的从副本先拿到数据，有的滞后很久。会产生一定时间段内的不一致。因此异步复制的数据可以称为“最终一致性”。</p>
+<p>同步复制通常并不现实，因为任意节点失效会导致整个系统不可写，也会导致用户等待时间过久。</p>
+<p>只要求同步复制到一部分从副本的方式，称为半同步，是一种折中的方法。</p></li>
+<li><p>新加入从节点</p>
+<p>如果要新加入从节点，则涉及到大量的数据同步问题。可选的办法是：</p>
+<p>定期生成数据快照，在节点加入前先应用该快照。之后基于快照所在时间点，复制之后的数据（形象的称为“追赶”）。</p></li>
+<li><p>节点失效</p>
+<ul>
+<li>从节点失效：由于多副本，少量从节点失效一般不会影响整体服务，只要在恢复后根据数据进行“追赶”即可。</li>
+<li>主节点失效：
+<ul>
+<li>选举一个从节点提升为主节点：需要使用到一些选举算法</li>
+<li>数据一致性：晋升的从节点不一定持有最新的数据，可能造成数据丢失</li>
+<li>脑裂：原主节点恢复后仍旧认为自己是主节点，需要使其自主降级</li>
+<li>确认失效：如果无法准确判断主节点失效，就容易发生脑裂</li>
+</ul></li>
+</ul></li>
+<li><p>复制日志</p>
+<ul>
+<li>基于语句：在主节点上执行的语句，复制到从节点执行。简单，但难以处理非确定性语句（如时间戳，自增主键，触发器等等）</li>
+<li>基于 WAL：从 WAL
+中获取数据并复制，更底层、更快，但难以支持异构系统。</li>
+<li>基于逻辑行：以逻辑行的数据进行复制，可以与底层存储引擎解耦</li>
+<li>基于触发器：允许应用层通过触发器逻辑来控制具体复制哪些数据</li>
+</ul></li>
+</ol>
+<h4 id="复制滞后">复制滞后</h4>
+<p>最终一致性的异步数据复制，由于可能的滞后性，会导致用户在从节点上读取到旧的数据，从而产生如下问题：</p>
+<ol type="1">
+<li><p>写后读：</p>
+<p>当用户完成数据写入并响应成功后，立即读取该数据，如果数据来自某个滞后从节点，就会产生写入成功但读不到的问题。</p>
+<ul>
+<li>可能会被修改的数据，只从主节点读取（例如用户 Profile
+只能自己修改，因此自己的 Profile 只从主节点读）</li>
+<li>可以在读取时包含一个已知最新的时间戳，如果节点自身的数据不够新，则代理给其他节点处理</li>
+</ul></li>
+<li><p>单调读：</p>
+<p>两次读取分别被路由到了不同的节点，新一次读的节点其数据比上一次的旧，用户看来数据似乎消失了。</p>
+<ul>
+<li>可以通过用户 ID 来修正路由策略，使同一用户的请求都落在同一节点</li>
+</ul></li>
+<li><p>前缀一致读：</p>
+<p>用户在不同的节点先后读到的数据，实际顺序相反，从而破坏了因果性。</p>
+<ul>
+<li>需要在节点之间维护某些数据的因果性，例如”Happens-before 关系“</li>
+</ul></li>
+</ol>
+<h4 id="多主复制">多主复制</h4>
+<p>在相距较远的数据中心之间，由于只有一个主节点，跨数据中心的数据同步与数据访问延迟高，同时如果数据中心之间网络故障，会导致只有从节点的数据中心服务瘫痪。</p>
+<p>在每个数据中心都设置一个主节点可以缓解上述问题。但又引入了主节点之间的数据冲突问题。</p>
+<ol type="1">
+<li>冲突检测：
+<ul>
+<li>同步的处理冲突，如果数据同步发现了冲突，则返回错误。但这就失去了多主的优势。</li>
+<li>异步的处理冲突，当发现时请求已经成功返回，为时已晚</li>
+</ul></li>
+<li>避免冲突：由于冲突解决不易，最好能避免冲突，例如将用户绑定在某个数据中心上避免在多个中心产生修改。</li>
+<li>冲突状态收敛：
+<ul>
+<li>根据时间戳或 ID，谁大谁赢：会产生数据丢失</li>
+<li>值合并：如同时写入了 B 和 C，则数据呈现为 “B / C”</li>
+<li>应用层解决：发生冲突后告知应用层</li>
+</ul></li>
+</ol>
+<h4 id="无主复制">无主复制</h4>
+<p>与有主复制的形式不同，无主复制模式下，并没有某一个主节点，任意节点皆可接收写请求，而复制的过程由客户端控制，向多个节点发送。</p>
+<ol type="1">
+<li><p>节点失效：</p>
+<p>在无主模式下，节点失效并不需要做故障转移。向正常节点的写入成功返回即可认为写入成功，当故障节点恢复后，由于存在数据滞后，因此：</p>
+<ul>
+<li>读取数据时需要并发从多节点读取数据，以防恰好读到刚刚恢复的节点导致读到旧数据</li>
+<li>故障恢复的节点需要考虑“赶上”进度，这有两种方法：
+<ul>
+<li>读修复：客户端读多节点发现不一致后，帮助旧节点追赶数据。此方法下不一致的时间依赖读取频率。</li>
+<li>反熵：通过后台程序扫描节点间的不一致并尝试解决。此方法下后台程序不能保证写入顺序。</li>
+</ul></li>
+</ul>
+<p>设置读写 quorum 来保证能读到新值，在 n 个副本下，写入 quorum 为
+w，读取 quorum 为 r，当 w+r&gt;n
+时，一定能读取到新值，因为写入节点和读取节点之间一定有重合。</p></li>
+<li><p>如下情况 quorum 不一定能保证读到新值：</p>
+<ul>
+<li>在 sloppy quorum （即为了提高可用性，在写入节点数不满足 w
+时，仍然记录数据并在之后同步）下，写入和读取节点没有重合</li>
+<li>对写入冲突选择按时间戳丢弃，如果时间戳存在偏差，可能丢弃好值</li>
+<li>读和写同时发生时</li>
+<li>由于写入未能达到 w
+而失败时，写入成功的节点，数据并不会回滚，因此可能读到错误的新值</li>
+<li>若节点失效后，追赶的过程中新值被旧值覆盖，则拥有新值的节点数量低于
+w</li>
+</ul>
+<p>正因为上述可能的情况，读写 quorum
+并不能确保“复制滞后”中的写后读、单调读、前缀一致读。如果需要更强的保证，则涉及事务和共识的问题。</p></li>
+<li><p>检测并发写：</p>
+<p>在发生并发写后，Last write
+wins，最后写入者获胜的方案一定会丢弃一部分数据。在部分场景如缓存系统中是可以的，但若不可接受数据丢失时，则无法使用。</p>
+<ul>
+<li>Happens-before 关系与并发：对于两操作 A 和 B，若 B 在操作时知道
+A，或是依赖 A，则不是并发，否则属于并发关系</li>
+<li>通过版本确定并发关系：服务端在写入后返回所有客户端基于冲突主键的写入数据以及一个版本号，客户端下一次操作时合并所有数据，并携带版本号，实现在服务端汇集所有数据而不丢失。客户端合并操作可依赖如
+CRDT 等自动合并的数据结构。</li>
+<li>版本矢量：对每一个副本的每一种冲突主键都设定唯一版本号</li>
+</ul></li>
+</ol>
+<h2 id="派生数据">派生数据</h2>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2022/12/29/ddia-note/" title="（WIP）读 DDIA 书评与总结">http://lenshood.github.io/2022/12/29/ddia-note/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/ddia/" rel="tag"># ddia</a>
+              <a href="/tags/book-review/" rel="tag"># book review</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/12/17/observability-capability/" rel="prev" title="从成熟度模型看可观测性能力建设">
+                  <i class="fa fa-angle-left"></i> 从成熟度模型看可观测性能力建设
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/01/01/2022-summary/" rel="next" title="Summary of 2022">
+                  Summary of 2022 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="随着智能汽车的不断发展，智能座舱在性能与可靠性上暴露出体验不佳，投诉渐多的问题，本文从工程化方法的角度简述了如何构建智能座舱软件的评估框架，以及如何持续改进性能和可靠性。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="智能座舱软件性能与可靠性的评估和改进">
+<meta property="og:url" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="随着智能汽车的不断发展，智能座舱在性能与可靠性上暴露出体验不佳，投诉渐多的问题，本文从工程化方法的角度简述了如何构建智能座舱软件的评估框架，以及如何持续改进性能和可靠性。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/header.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/6.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/7.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/8.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/9.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/10.png">
+<meta property="og:image" content="https://www.suse.com/c/wp-content/uploads/2020/12/aspice-process-reference-model-groups-edit.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/11.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/12.png">
+<meta property="article:published_time" content="2023-12-12T15:47:09.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.146Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="performance engineering">
+<meta property="article:tag" content="reliability engineering">
+<meta property="article:tag" content="software quality">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/header.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/","path":"2023/12/12/improve-perf-reliability-car-software/","title":"智能座舱软件性能与可靠性的评估和改进"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>智能座舱软件性能与可靠性的评估和改进 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%99%BA%E8%83%BD%E5%BA%A7%E8%88%B1%E8%BD%AF%E4%BB%B6%E6%80%A7%E8%83%BD%E5%92%8C%E5%8F%AF%E9%9D%A0%E6%80%A7%E8%A1%A8%E7%8E%B0%E4%B8%8D%E4%BD%B3"><span class="nav-number">1.</span> <span class="nav-text">1.
+智能座舱软件性能和可靠性表现不佳</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E5%92%8C%E5%8F%AF%E9%9D%A0%E6%80%A7%E7%9A%84%E8%AF%84%E4%BC%B0%E6%A1%86%E6%9E%B6"><span class="nav-number">2.</span> <span class="nav-text">2. 性能和可靠性的评估框架</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84%E7%89%B9%E6%80%A7%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.1.</span> <span class="nav-text">2.1. 软件架构特性模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%9A%E8%BF%87%E6%8C%87%E6%A0%87%E4%BD%93%E7%B3%BB%E8%AF%84%E4%BC%B0%E6%9E%B6%E6%9E%84%E7%89%B9%E6%80%A7"><span class="nav-number">2.2.</span> <span class="nav-text">2.2. 通过指标体系评估架构特性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%BB%E6%89%BE%E6%8C%87%E6%A0%87%E5%85%83%E7%B4%A0%E7%9A%84%E6%95%B0%E6%8D%AE%E6%9D%A5%E6%BA%90"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 寻找指标元素的数据来源</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8C%81%E7%BB%AD%E6%94%B9%E8%BF%9B%E6%80%A7%E8%83%BD%E5%92%8C%E5%8F%AF%E9%9D%A0%E6%80%A7%E7%9A%84%E5%B7%A5%E7%A8%8B%E5%8C%96%E6%96%B9%E6%B3%95"><span class="nav-number">3.</span> <span class="nav-text">3.
+持续改进性能和可靠性的工程化方法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9E%B6%E6%9E%84%E5%BB%BA%E6%A8%A1%E6%8C%87%E5%AF%BC%E7%A0%94%E5%8F%91"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 架构建模指导研发</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%82%E5%BA%94%E5%BA%A6%E5%87%BD%E6%95%B0%E6%8C%81%E7%BB%AD%E7%9C%8B%E6%8A%A4"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 适应度函数持续看护</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E8%A7%82%E6%B5%8B%E5%B7%A5%E5%85%B7%E9%9B%86%E5%B8%AE%E5%8A%A9%E5%88%86%E6%9E%90"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 可观测工具集帮助分析</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">5.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="智能座舱软件性能与可靠性的评估和改进 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          智能座舱软件性能与可靠性的评估和改进
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2023-12-12 23:47:09" itemprop="dateCreated datePublished" datetime="2023-12-12T23:47:09+08:00">2023-12-12</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Performance-Engineering/" itemprop="url" rel="index"><span itemprop="name">Performance Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2023/12/12/improve-perf-reliability-car-software/header.png" class="" width="500">
+<p>随着智能汽车的不断发展，智能座舱在性能与可靠性上暴露出体验不佳，投诉渐多的问题，本文从工程化方法的角度简述了如何构建智能座舱软件的评估框架，以及如何持续改进性能和可靠性。</p>
+<span id="more"></span>
+<h2 id="智能座舱软件性能和可靠性表现不佳">1.
+智能座舱软件性能和可靠性表现不佳</h2>
+<p>据毕马威发布的<a
+href="https://kpmg.com/cn/zh/home/insights/2023/04/focus-on-the-second-half-of-electrification-smart-cabin-white-paper.html">《2023智能座舱白皮书-聚焦电动化下半场》</a>中的数据，中国汽车智能座舱市场规模呈逐年扩大之势，2022
+到 2026 的 5 年复合增长率超过
+17%，预示着这一领域的蓬勃发展。伴随着这一趋势的是智能座舱软件功能日益丰富，整体智能化程度显著提升。</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/1.png" class="" width="500">
+<p>尽管市场规模预测会逐年扩大，但随之而来的是消费者对智能座舱软件的相关投诉占比显著。同时，这一现象主要聚焦在智能座舱软件的操作体验度、性能和可靠性方面，揭示出智能化功能不断增加所带来的挑战。</p>
+<p>根据<a href="https://www.12365auto.com/">车质网</a> 2023
+年四个季度的汽车投诉分析报告汇总，智能座舱（车机）涉及的质量问题占比很高，其中
+Q1~Q4 的投诉故障点 TOP20
+中与车机相关的部分（影音系统故障，导航问题，车载互联故障，行车安全辅助系统故障等）分别占据总投诉的
+15.89%，10.99%，10.56% 和 9.56%。</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/2.png" class="">
+<p>进一步查阅具体投诉单，会发现包括死机、黑屏、卡顿、响应慢等的问题非常普遍，这些问题严重影响了用户的驾乘体验，也降低了用户对品牌的信心和认同。</p>
+<p>结合智能座舱软件的发展趋势和用户投诉问题后，可以发现性能和可靠性是除了操作易用性以外，最为关键的使用体验影响因素。这两个关键因素不仅直接关系到用户的满意度，也在很大程度上决定了智能座舱软件在市场中的竞争力。</p>
+<p>性能的提升是确保智能座舱软件流畅运行的基石。随着功能的不断增加，软件需要更高效的处理器和优化的算法，以保证用户操作的即时响应和系统的高度流畅性。</p>
+<p>可靠性是确保用户在各种使用场景下都能够信赖智能座舱软件的关键。用户期望在驾驶过程中不会受到智能座舱软件出现故障而产生的干扰，系统应该稳定运行，避免出现崩溃或死机等问题。</p>
+<p>后文我们将结合软件研发的最佳实践和智能座舱领域软件的自身特点，探讨评估和改进其性能和可靠性的方法。</p>
+<h2 id="性能和可靠性的评估框架">2. 性能和可靠性的评估框架</h2>
+<p>“If you can't measure it, you can't improve it.”</p>
+<p>智能座舱软件系统本身是一种软件，其研发过程也会遵循软件的架构设计、开发落地和质量验证的常见流程。因此在讨论如何改进之前，我们首先应当明确：如何正确评估软件系统的性能和可靠性？</p>
+<h3 id="软件架构特性模型">2.1. 软件架构特性模型</h3>
+<p>Mark Richards 和 Neal Ford 在<a
+href="https://book.douban.com/subject/35487561/">《软件架构：架构模式、特征及实践指南》</a>中曾这样描述
+“架构特性”：</p>
+<blockquote>
+<p>架构师可能会与他人合作确定领域或业务需求，但架构师的一个关键职责是定义、发现和分析软件所必须的、与领域无关的事情：架构特性。</p>
+</blockquote>
+<p>架构特性（Architecture
+Characteristics）是架构师在设计软件时需要考虑的与领域或业务需求无关的软件特性，如可审计性、性能、安全性、可伸缩性、可靠性等等。在很多时候我们也会称之为非功能性需求（Nonfunctional
+Requirements）或质量属性（Quality Attributes）。</p>
+<p>显然，对于关键的软件架构特性，需要在架构设计之初就纳入整体考量，并且在软件研发的流程中持续进行关注。那么在研发软件系统的时候，都有哪些关键架构特性需要考虑呢？</p>
+<p><a href="https://www.iso.org/standard/35733.html">ISO/IEC
+25010:2011</a> 是由国际标准化组织推行的一套标准（现已更新至 2023
+版本），它隶属于 ISO
+系统与软件质量需求和评估（SQuaRE）体系，定义了一组系统和软件质量模型。该质量模型被广泛应用于描述和评估软件质量，可以很好的指导我们对软件关键架构特征进行建模。</p>
+<p>ISO 25010
+描述的质量模型如下（图中着重标明了与性能和可靠性相关的部分）：</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/3.png" class="">
+<p>ISO 25010
+对软件架构特性（标准原文中称为“质量属性”）进行了划分，涵盖了众多方面，如功能性、可靠性、性能效率、可维护性、可移植性等。每个架构特性都定义了与之相关的关键方面，特性下还包括多个子特性，更细致地描述了特性的具体维度。可见该质量模型提供了一个全面且通用的框架，以便更好地理解和评估软件的质量。</p>
+<p>对于性能特性，该模型划分了三种子特性：时间特性，资源利用性，容量；而对于可靠性特性，模型划分了四种子特性：成熟性，可用性，容错性和易恢复性。</p>
+<p>当然，任何一种软件都有其自身的特点和运行环境，能够满足上述模型中所有架构特性的软件固然优秀，但成本势必高昂，正如对于一套只有
+3
+个用户的内部系统，设计弹性伸缩来满足可用性是毫无必要的。显然在智能座舱软件的领域，以用户体验来评估性能和可靠性特性，比用吞吐量和弹性伸缩比来评估更符合智能座舱软件的设计目标。</p>
+<h3 id="通过指标体系评估架构特性">2.2. 通过指标体系评估架构特性</h3>
+<p>分析前面的软件质量模型，我们会发现该模型主要定义了软件的架构特性“应当表现为什么样子”，但没有讲明“需要怎么评估”才能判断已经达成了架构特性的要求。质量模型中的特性和子特性是对架构特性的定性描述，而如何对架构特性进行定量评估未能提及。</p>
+<p>事实上，SQuaRE 也提供了对质量模型的评估框架（详见 <a
+href="https://www.iso.org/standard/72117.html">ISO/IEC
+25020:2019</a>）：</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/4.png" class="" width="400">
+<p>以上评估框架本质上就是采用一组权重不同的指标集来评估一项架构特性（子特性），指标可以由一些指标元素计算得出，而指标元素可通过一些实施在软件研发活动中的测量方法测量而得。</p>
+<p>在软件行业，许多评估指标都能够跨业务领域达成共识，如响应时间、吞吐量、RTO、RPO、MTTR
+等等，企业在建立自己业务领域的指标体系时可以直接采纳。</p>
+<p>如下就是一些相对通用的软件性能和可靠性指标示例，这些指标对绝大多数的软件都适用：</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/5.png" class="">
+<img src="/2023/12/12/improve-perf-reliability-car-software/6.png" class="">
+<p>当然，由于功能领域和运行环境的不同，用于评估架构特性的指标体系势必会存在一定的差异。</p>
+<p>首先，不同的业务场景对评估指标的权重设置会存在区别，例如对智能座舱系统和软件的性能效率评估，由于关系到用户驾乘体验，时间特性至关重要，而对提供互联网服务的
+Web 应用，为了向更多用户提供服务，容量特性就是其需要关注的重点。</p>
+<p>其次，特定的领域会有其独特的性能指标，这些差异性指标需要从实际业务中提炼。例如
+UI
+界面流畅度无法简单的用响应时间来评估，而是需要通过帧率、丢帧数等指标来综合判断。</p>
+<h3 id="寻找指标元素的数据来源">2.3 寻找指标元素的数据来源</h3>
+<p>在建立了指标体系之后，接下来面临的问题就是如何寻找合理的指标元素来计算指标值。</p>
+<p>同样的，有非常多通用的指标元素可以直接采纳，例如圈复杂度，模块耦合度，CPU
+使用率，内存使用率，事务执行时间，并发度等等。但指标元素相比指标本身而言，与业务领域相关度更高，更需要结合领域知识来寻找合适的指标元素。</p>
+<p><strong>GQM 方法是一种有效的寻找和建立指标元素的分析法：</strong></p>
+<p>GQM 即“Goal - Question - Metrics”，可译为“目标 - 问题 - 指标”
+，是一种历史悠久的分析方法，<a
+href="https://ieeexplore.ieee.org/document/5010301">由 Victor Basili 和
+David Weiss 在 1984 年提出</a>。</p>
+<p>本质上 GQM
+是通过树形分析结构，层层递进。首先以如何实现目标为前提，对目标进行提问，之后将每个问题拆解为多个能支撑解决该问题的指标元素，最后评选出最合适的指标元素。</p>
+<p>如下我们以“帮助寻找智能座舱软件的性能和可靠性特征的评估指标元素”为例，分别基于“评估智能座舱主屏操作流畅度”和“计算智能座舱系统与应用的故障率和可用性”为目标，建立
+GQM 分析树：</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/7.png" class="" width="800">
+<img src="/2023/12/12/improve-perf-reliability-car-software/8.png" class="" width="800">
+<p>在分析之初，为了扩展思路，可以先不考虑指标元素的价值和获取难度，尽可能多的识别可能的指标元素，之后再分析每一个指标元素的价值和获取的难易程度，并据此对其进行优先级排序，筛选最适合的指标元素。这一过程可遵循如下优先级原则：</p>
+<ul>
+<li>能支撑越多问题的指标元素越靠前</li>
+<li>越容易收集和计算的指标元素越靠前</li>
+</ul>
+<p>基于 GQM
+方法，我们能够对抽象的指标进行拆解，得到更为清晰的指标计算公式和采集数据点，至此一个完整的评估框架就搭建完成了。</p>
+<h2 id="持续改进性能和可靠性的工程化方法">3.
+持续改进性能和可靠性的工程化方法</h2>
+<p>基于前文引入的评估框架，我们已经掌握了一定的分析方法，明确了改善智能座舱软件性能和可靠性的方向。</p>
+<p>评估的下一步就是改进，本节将要讨论如何以工程化的方法，对智能座舱软件的性能和可靠性架构特性进行持续改进，从而确保随着软件的迭代，其性能和可靠性不仅不会劣化，而是会长期、稳步地提升。</p>
+<h3 id="架构建模指导研发">3.1 架构建模指导研发</h3>
+<p>建模是在设计阶段对业务领域和架构特征进行分析的有效实践。以往许多组织在进行软件架构设计时，注重业务领域建模，轻视架构特性建模，经常会导致诸如安全性、可靠性、性能等的设计考量严重后置，等软件发布之后再被生产问题倒逼改进。</p>
+<p>事实上早期的架构特性建模不仅可以指导后续研发过程中的代码开发，也天然能转化为白盒测试来验证代码是否符合设计要求。</p>
+<p>对于性能建模，可以通过识别软件架构的性能关注点（如下图展示的例子），以及预定义性能指标来形成性能模型。关于性能建模，笔者曾在<a
+href="https://mp.weixin.qq.com/s/6y0HqQ5d_7EAZNmZL0wNuw">《性能工程实践》</a>中有过更详细的介绍。</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/9.png" class="" width="500">
+<p>对于可靠性建模，得益于汽车生产制造领域已有很多成熟的建模方法，软件领域也可直接参考和剪裁。典型的有<a
+href="https://en.wikipedia.org/wiki/Fault_tree_analysis">故障树分析（FTA）</a>、<a
+href="https://en.wikipedia.org/wiki/Failure_mode_and_effects_analysis">故障模式和影响分析（FMEA）</a>等建模方法（下图取自描述
+FMEA 程序的国家标准 <a
+href="https://openstd.samr.gov.cn/bzgk/gb/newGbInfo?hcno=72487561F0A0B469A6C105FBD3652545">GB/T
+7826-2012</a>）。</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/10.png" class="">
+<p>为了避免建立的模型只在架构评审会议上有效，而实际落地的时候完全没有遵循架构设计，很有必要基于模型构建对应的适应度函数，以确保架构不会慢慢腐化，下一小节将介绍架构适应度函数。</p>
+<h3 id="适应度函数持续看护">3.2 适应度函数持续看护</h3>
+<p>有了指标体系，我们可以定量的对智能座舱软件的性能和可靠性进行分析和评估。然而，如果评估的过程过于复杂、冗长且难以快速进行，那么随着时间的推移，对这些架构特性的评估就会成为团队沉重的负担，这意味着评估活动的次数会越来越少，反馈越来越慢，难以持续，最终停滞下来。</p>
+<p>“一切可以被自动化的事情，都应该被自动化。”</p>
+<p>在评估软件功能是否满足要求时，我们会构建大量的自动化测试，这样就能形成一张软件特性安全网，持续的保障软件符合要求。而对于架构特性的评估，传统的做法更像是
+“运动式” 评估：</p>
+<p>在研发侧，定期拉起专门的性能或可靠性测试团队，手握指标体系，从黑盒角度测试并评估是否满足指标要求，产出测试报告；在设计侧，定期安排各类架构讨论会、评审会来评估设计本身以及软件是否正确的按设计落地，产出大量文档。</p>
+<p><a href="https://en.wikipedia.org/wiki/Automotive_SPICE">ASPICE</a>
+是一个典型的案例，由于流程和文档的复杂性，以及对每个研发阶段的严格要求，导致设计和测试很容易停留在上一个较早的快照版本状态，永远都跟不上软件变化的速度。</p>
+<p><img src="https://www.suse.com/c/wp-content/uploads/2020/12/aspice-process-reference-model-groups-edit.png" style="zoom:50%;" /></p>
+<p>在 Neal Ford、Patrick Kua 和 Rebecca Parsons 合著的<a
+href="https://book.douban.com/subject/34793521/">《演进式架构》</a>一书中，将适应度函数定义为“用于总结预期设计的解决方案与实现设定目标接近程度的目标函数”。引出适应度函数，就是要通过工程化的手段实现对架构的评估也能自动化、常态化。</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/11.png" class="" width="500">
+<p>当我们的指标和模型被转换为一个个适应度函数，它们就能够绑定在研发流水线上，从而实现对架构特性的自动化评估。</p>
+<p>有了自动化作为前提，接下来就可以采用架构看护来驱动持续改进。</p>
+<p>基于已经建立的各类适应度函数，在每日构建、迭代测试以及集成测试等流程中，适应度函数产生的执行结果能够形成一组完整的性能和可靠性评估报告。取上一版本的评估结果作为基线，与最新版本的评估结果进行对比，就能对软件在性能和可靠性上的表现实现细致的看护，从而判断新版本哪些部分进行了优化，哪些部分发生了劣化，一目了然。</p>
+<h3 id="可观测工具集帮助分析">3.3 可观测工具集帮助分析</h3>
+<p>至此我们已经拥有了一些手段来支持持续的性能和可靠性评估，但评估本质上是为了暴露问题，之后的分析和优化才是持续改进的难点。</p>
+<p>暴露了问题之后，往往需要以最快的速度开展优化，而对于业务型组织而言，团队绝大多数时间都在业务领域工作，对性能和可靠性一类的问题分析和优化能力不足，通常此时组织就会寻找或聘请技术专家来帮助改进。但技术专家作为稀缺资源，面对多种多样的问题，往往捉襟见肘。</p>
+<p>因此，期望实现持续改进的组织，建立工程化的分析和优化手段来提升效率必不可少，这里首当其中的就是构建可观测工具集。在前面提到的评估框架中，指标的作用主要是为了指示当前状态如何，指标可以评估优劣，但不能帮助分析问题根因。分析软件问题需要能复现系统运行时发生了什么，组件是如何交互的，产生了哪些数据，而这些信息都需要通过可观测工具来抓取和记录。</p>
+<p>下图是<a
+href="https://mp.weixin.qq.com/s/6y0HqQ5d_7EAZNmZL0wNuw">《性能工程实践》</a>中提到的
+“启发式自助分析流”，它来自于一套能够对系统形成深入洞察的可观测工具集。</p>
+<img src="/2023/12/12/improve-perf-reliability-car-software/12.png" class="">
+<p>拥有了这样的工具集之后，当评估发现某些指标出现劣化，就能基于一些基本信息迅速关联出系统运行时的上下文和观测记录，从而快速分析和定位问题，快速实施优化。</p>
+<h2 id="总结">总结</h2>
+<p>智能汽车市场前景广阔，发展迅速，随着竞争的深入，智能座舱的极致体验一定会成为各汽车厂商的一大目标。</p>
+<p>本文主要从软件研发和交付的角度，结合软件领域的优秀实践和探索，讨论了智能座舱软件在性能和可靠性方面的持续评估方法和持续改进方法。</p>
+<p>随着越来越多的外部投资和跨领域人才涌入智能汽车领域，相信未来在相关产业中定能不断地创造巨大的价值。</p>
+<h2 id="reference">Reference</h2>
+<ul>
+<li><a
+href="https://kpmg.com/cn/zh/home/insights/2023/04/focus-on-the-second-half-of-electrification-smart-cabin-white-paper.html">《2023智能座舱白皮书-聚焦电动化下半场》，毕马威</a></li>
+<li><a
+href="https://www.12365auto.com/dcbg/20230407/501767-all.shtml#p2">《2023年一季度汽车投诉分析报告》，车质网</a></li>
+<li><a
+href="https://www.12365auto.com/dcbg/20230706/507909-all.shtml#p2">《2023年二季度汽车投诉分析报告》，车质网</a></li>
+<li><a
+href="https://www.12365auto.com/dcbg/20231010/514044-all.shtml#p2">《2023年三季度汽车投诉分析报告》，车质网</a></li>
+<li><a
+href="https://book.douban.com/subject/35487561/">《软件架构：架构模式、特征及实践指南》，Mark
+Richards / Neal Ford</a></li>
+<li><a href="https://www.iso.org/standard/35733.html">SQuaRE
+系统与软件质量模型：ISO/IEC 25010:2011，国际标准</a></li>
+<li><a href="https://www.iso.org/standard/72117.html">SQuaRE
+质量测量框架：ISO/IEC 25020:2019，国际标准</a></li>
+<li><a href="https://ieeexplore.ieee.org/document/5010301">GQM
+分析法，Victor Basili 和 David Weiss</a></li>
+<li><a
+href="https://mp.weixin.qq.com/s/6y0HqQ5d_7EAZNmZL0wNuw">《性能工程实践》</a></li>
+<li><a
+href="https://en.wikipedia.org/wiki/Fault_tree_analysis">故障树分析（FTA）</a></li>
+<li><a
+href="https://en.wikipedia.org/wiki/Failure_mode_and_effects_analysis">故障模式和影响分析（FMEA）</a></li>
+<li><a
+href="https://en.wikipedia.org/wiki/Automotive_SPICE">ASPICE</a></li>
+<li><a
+href="https://book.douban.com/subject/34793521/">《演进式架构》，Neal
+Ford / Patrick Kua / Rebecca Parsons</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/" title="智能座舱软件性能与可靠性的评估和改进">http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/performance-engineering/" rel="tag"># performance engineering</a>
+              <a href="/tags/reliability-engineering/" rel="tag"># reliability engineering</a>
+              <a href="/tags/software-quality/" rel="tag"># software quality</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/07/13/performance-engineering-practice/" rel="prev" title="性能工程实践">
+                  <i class="fa fa-angle-left"></i> 性能工程实践
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/01/10/perf-llm/" rel="next" title="【翻译】性能改善代码编辑的研究">
+                  【翻译】性能改善代码编辑的研究 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

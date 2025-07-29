@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="作为一名程序员，总有一些时候，会对自己所做的重复性的工作感到厌倦，也会羡慕明星项目做得热火朝天 star 数蹭蹭上涨。而读代码，则是缓解焦虑的良方。 每当读懂软件的精彩设计，赞叹优美整洁的代码，甚至发现藏在注释中的彩蛋时，都好像在不同的时空与作者产生了交叉，畅快地聊了会儿天。 读代码很有趣，但要读通读懂也很费功夫。本文是我在日常读代码中积累的一点心得，分享出来，希望能与大家产生共鸣。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="我是怎么读代码的">
+<meta property="og:url" content="http://lenshood.github.io/2022/05/22/how-i-read-code/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="作为一名程序员，总有一些时候，会对自己所做的重复性的工作感到厌倦，也会羡慕明星项目做得热火朝天 star 数蹭蹭上涨。而读代码，则是缓解焦虑的良方。 每当读懂软件的精彩设计，赞叹优美整洁的代码，甚至发现藏在注释中的彩蛋时，都好像在不同的时空与作者产生了交叉，畅快地聊了会儿天。 读代码很有趣，但要读通读懂也很费功夫。本文是我在日常读代码中积累的一点心得，分享出来，希望能与大家产生共鸣。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/tidb-user-manual.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/tidb-dev-guide.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/go-generic-proposal.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/etcd.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/run-kubelet.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/kubelet-dir.png">
+<meta property="og:image" content="https://lenshood.github.io/2021/07/05/bpt-lsmt/7.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/ring.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/go-runtime-content.jpg">
+<meta property="article:published_time" content="2022-05-22T09:05:12.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.103Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="source code">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2022/05/22/how-i-read-code/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2022/05/22/how-i-read-code/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2022/05/22/how-i-read-code/","path":"2022/05/22/how-i-read-code/","title":"我是怎么读代码的"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>我是怎么读代码的 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%BB%E6%89%BE%E4%B8%80%E4%BD%8D%E5%A5%BD%E8%80%81%E5%B8%88"><span class="nav-number">1.</span> <span class="nav-text">1. 寻找一位好老师</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%B4%E8%B6%A3%E4%BD%BF%E7%84%B6"><span class="nav-number">1.0.1.</span> <span class="nav-text">兴趣使然</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%BB%8F%E5%85%B8%E4%B8%94%E8%A2%AB%E5%A4%A7%E9%87%8F%E4%BD%BF%E7%94%A8"><span class="nav-number">1.0.2.</span> <span class="nav-text">经典且被大量使用</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%90%88%E9%80%82%E7%9A%84%E8%A7%84%E6%A8%A1"><span class="nav-number">1.0.3.</span> <span class="nav-text">合适的规模</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%88%E7%9C%8B%E6%96%87%E6%A1%A3"><span class="nav-number">2.</span> <span class="nav-text">2. 先看文档</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E4%BA%86%E8%A7%A3%E6%A6%82%E8%A7%88"><span class="nav-number">2.0.1.</span> <span class="nav-text">了解概览</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%9E%B6%E6%9E%84%E5%92%8C%E6%A8%A1%E5%9D%97"><span class="nav-number">2.0.2.</span> <span class="nav-text">架构和模块</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E7%9A%84%E5%89%8D%E7%BD%AE%E7%9F%A5%E8%AF%86"><span class="nav-number">2.0.3.</span> <span class="nav-text">其他的前置知识</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%8D%E8%AF%BB%E4%BB%A3%E7%A0%81"><span class="nav-number">3.</span> <span class="nav-text">3. 再读代码</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E4%BB%8E%E5%85%A5%E5%8F%A3%E5%BC%80%E5%A7%8B"><span class="nav-number">3.0.1.</span> <span class="nav-text">从入口开始</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%8A%93%E4%BD%8F%E4%B8%BB%E7%BA%BF%E4%BB%8E%E6%8A%BD%E8%B1%A1%E5%88%B0%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.0.2.</span> <span class="nav-text">抓住主线，从抽象到实现</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E4%B8%80%E8%BE%B9%E9%98%85%E8%AF%BB%E4%B8%80%E8%BE%B9%E8%AE%B0%E5%BD%95"><span class="nav-number">3.0.3.</span> <span class="nav-text">一边阅读一边记录</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BF%85%E8%A6%81%E6%97%B6%E5%80%9F%E5%8A%A9-debug"><span class="nav-number">3.0.4.</span> <span class="nav-text">必要时借助 debug</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%99%E7%AF%87%E6%96%87%E7%AB%A0%E8%AE%B2%E8%AE%B2%E6%95%B4%E4%B8%AA%E8%AE%BE%E8%AE%A1"><span class="nav-number">4.</span> <span class="nav-text">4. 写篇文章讲讲整个设计</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%95%B4%E7%90%86%E5%A4%A7%E7%BA%B2"><span class="nav-number">4.0.1.</span> <span class="nav-text">整理大纲</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%8F%8F%E8%BF%B0%E8%AE%BE%E8%AE%A1%E5%8E%9F%E7%90%86%E9%80%9A%E8%BF%87%E7%94%BB%E5%9B%BE%E5%B8%AE%E5%8A%A9%E5%88%86%E6%9E%90%E8%AE%BE%E8%AE%A1%E6%84%8F%E5%9B%BE"><span class="nav-number">4.0.2.</span> <span class="nav-text">描述设计原理，通过画图帮助分析设计意图</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%83%B3%E4%B8%80%E6%83%B3%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E8%BF%99%E4%B9%88%E8%AE%BE%E8%AE%A1%E5%A5%BD%E5%A4%84%E5%9C%A8%E5%93%AA%E9%87%8C"><span class="nav-number">4.0.3.</span> <span class="nav-text">想一想，为什么要这么设计，好处在哪里？</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%B2%E4%B8%AA-session%E6%94%B6%E8%8E%B7-extra-bonus"><span class="nav-number">5.</span> <span class="nav-text">5. 讲个 session，收获 Extra
+Bonus</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%A2%B3%E7%90%86%E8%A6%81%E7%82%B9%E9%80%BB%E8%BE%91%E8%87%AA%E6%B4%BD"><span class="nav-number">5.0.1.</span> <span class="nav-text">梳理要点，逻辑自洽</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8E%BB%E7%B2%97%E5%8F%96%E7%B2%BE%E9%94%BB%E7%82%BC%E8%A1%A8%E8%BE%BE"><span class="nav-number">5.0.2.</span> <span class="nav-text">去粗取精，锻炼表达</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%8F%A3%E6%91%A9%E5%90%AC%E4%BC%97%E6%84%9F%E5%85%B4%E8%B6%A3%E7%9A%84%E6%96%B9%E5%90%91"><span class="nav-number">5.0.3.</span> <span class="nav-text">揣摩听众感兴趣的方向</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%93%E8%AF%AD"><span class="nav-number">6.</span> <span class="nav-text">6. 结语</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2022/05/22/how-i-read-code/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="我是怎么读代码的 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          我是怎么读代码的
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2022-05-22 17:05:12" itemprop="dateCreated datePublished" datetime="2022-05-22T17:05:12+08:00">2022-05-22</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2022/05/22/how-i-read-code/header.jpg" class="" width="500">
+<p>作为一名程序员，总有一些时候，会对自己所做的重复性的工作感到厌倦，也会羡慕明星项目做得热火朝天
+star 数蹭蹭上涨。而读代码，则是缓解焦虑的良方。</p>
+<p>每当读懂软件的精彩设计，赞叹优美整洁的代码，甚至发现藏在注释中的彩蛋时，都好像在不同的时空与作者产生了交叉，畅快地聊了会儿天。</p>
+<p>读代码很有趣，但要读通读懂也很费功夫。本文是我在日常读代码中积累的一点心得，分享出来，希望能与大家产生共鸣。</p>
+<span id="more"></span>
+<h3 id="寻找一位好老师">1. 寻找一位好老师</h3>
+<p>优秀的项目就像一位好老师，我们可以从它身上全方位的学到各种领域的知识。</p>
+<p>不过在开始读代码之前，
+最大的问题就是：<strong>怎么样才能找到合适的代码项目</strong>？</p>
+<p>star 数高的项目更优秀吗？从某些角度讲的确是的，但是在 <a
+href="https://gitstar-ranking.com/repositories">gitstar-ranking</a> 上，
+4k 个 star 的 repo 只能排到第 5000 名，而至少有 50k 个 star
+才有可能排进前一百。光看 star 数，这项目太多了根本选不出来啊。</p>
+<p>在我看来，抓住如下的几个方向，一般就能筛选到合适的项目了：</p>
+<h5 id="兴趣使然">兴趣使然</h5>
+<p>首先就是一定要选自己感兴趣领域的项目。</p>
+<p>不少代码片段都是比较枯燥而难以阅读的（比如飞一般的位操作，为提升性能而莫名其妙的语句，或是包含了大量隐含知识等等），只有自己感兴趣，才会有读下去的意愿和动力，才能在其中发现乐趣。</p>
+<p>有时候我们开始读代码的契机就单纯只是在工作当中用到了，想要进一步了解其原理和设计，这是一个不错的起点。想必很多同学第一次看源码都是因为一层层追到了
+Spring 的 class 里面去了吧。</p>
+<p>有的时候可能就是觉得某项技术很神奇，像魔法一样，越是猜不透，就越想了解它是怎么施法的。</p>
+<p>总之一旦有了兴趣，就会很想进一步去了解它。不过，如果读到一半又失去了兴趣，也请大胆的放弃它。失去了这一片草丛，还有整个树林等着我们去探索。</p>
+<h5 id="经典且被大量使用">经典且被大量使用</h5>
+<p>经典的、拥有大量用户的项目，经历了时间的考验，不断地迭代，通常在设计上都有很多出众之处。</p>
+<p>经典项目的维护者一般都是非常资深的工程师，并且也都会有大公司赞助，确保了代码的高质量。这类项目在阅读的过程中能学到很多知识，包括架构抽象、性能优化、工程化等等。</p>
+<p>比较常见的典型的项目有如：<a
+href="https://github.com/golang/go">Go</a>、<a
+href="https://github.com/kubernetes/kubernetes">K8S</a>、<a
+href="https://dev.mysql.com/downloads/mysql/">MySQL</a> 等等。</p>
+<h5 id="合适的规模">合适的规模</h5>
+<p>代码量太过庞大的项目，有时虽然很出名，但难免令人生畏。实际上可以找到很多行数不多，但依然精彩的代码库。</p>
+<p>首先就是各种语言的标准库，比如 Java 的 Stream、Lock
+的实现等等。另外也有不少开源的小而美项目，比如 <a
+href="https://github.com/go-redis/redis">redis</a>、<a
+href="https://github.com/google/leveldb">leveldb</a>
+等。甚至，许多经典大学课程里面的 Lab 也隐藏着优秀的代码，比如 <a
+href="https://pdos.csail.mit.edu/6.828/2020/xv6.html">xv6</a>。</p>
+<p>总之，这一类代码可能几天或几周就能大致看完主干，特别适合学习设计思想。</p>
+<h3 id="先看文档">2. 先看文档</h3>
+<p>选定了项目，我们就差不多能对它有一些浅尝辄止的了解了。</p>
+<p>这时候，先不要直接 clone
+代码。代码完整地包含了所有知识，但也将细节毫无保留地暴露出来，直接进到代码里面很容易迷失方向。</p>
+<p>对于事物的理解，从全局到部分，从抽象到细节才是一个比较容易让人接受的过程。</p>
+<p>成熟的项目通常会有比较详尽的文档，文档一般分两类：给用户看的使用文档，和给贡献者看的开发文档。</p>
+<h5 id="了解概览">了解概览</h5>
+<p>通过阅读使用文档我们能快速地了解到项目创立的目的、解决了哪些问题，以及从用户的视角看该软件是什么样子的。除了看
+overview，我也会大致的关注配置，通过必填配置可以进一步了解软件的依赖和外部特性。</p>
+<p>以 TiDB 为例，它的<a
+href="https://docs.pingcap.com/tidb/stable/overview">使用文档</a>截图如下：</p>
+<img src="/2022/05/22/how-i-read-code/tidb-user-manual.jpg" class="">
+<p>从左侧边栏能了解到使用文档的结构包括了简介、部署、配置、参考等等部分。这些部分都是使用者最关心的内容。</p>
+<h5 id="架构和模块">架构和模块</h5>
+<p>优秀的开发文档一定会包括整个软件的架构模型，和关键模块的设计。</p>
+<p>通过阅读架构图和高层设计，软件的原理以及解决问题的思路一目了然。对于有一定经验的读者甚至可能看到架构设计后就已经大概知道软件的工作流程了。</p>
+<img src="/2022/05/22/how-i-read-code/tidb-dev-guide.jpg" class="">
+<p>上图是 TiDB <a
+href="https://pingcap.github.io/tidb-dev-guide/understand-tidb/introduction.html">开发文档</a>截图，我们发现它不仅包含了架构设计，还事无巨细的告诉读者如何启动代码、怎样贡献、详细的设计流程等等。</p>
+<p>除了架构设计，比较完善的开发文档也会包含关键模块的信息。关键模块可能会包含核心逻辑的设计和数据结构，以及边界处的契约和交互方式等等。</p>
+<p>对于 Go 语言这种持续演进的开源编程语言，甚至专门建立了一个 <a
+href="https://github.com/golang/proposal">Proposal
+仓库</a>来追踪各种提案的设计、讨论、代码以及发布的情况，比如等了 10
+年的泛型提案：</p>
+<img src="/2022/05/22/how-i-read-code/go-generic-proposal.png" class="">
+<p>搞明白了架构模型和关键模块，真正打开源码时就能将包、文件名、接口等等包含的知识与整体结构相互映射，在脑中形成一张完整的图。</p>
+<h5 id="其他的前置知识">其他的前置知识</h5>
+<p>有时候文档的作者还会加上不少前置知识，比如基于什么样的算法，受到了哪些知识的启发甚至是实现了哪篇论文的思想等等。</p>
+<p>这些前置知识，对我们的理解会大有帮助。我们可以通过学习这些知识来进一步了解软件的细节设计。</p>
+<img src="/2022/05/22/how-i-read-code/etcd.jpg" class="">
+<p>上图是 <a href="https://github.com/etcd-io/etcd">etcd 的 github
+页面</a>，在显眼位置标明了它采用 Raft 共识算法，并链接到 <a
+href="https://raft.github.io/">Raft 算法的主页</a>，如果我们没了解过
+Raft，直接去读 etcd
+的代码，很可能就对里面的选举、日志复制等概念一知半解，这就好像在看没有字幕的外文电影，精彩程度大打折扣了。</p>
+<h3 id="再读代码">3. 再读代码</h3>
+<p>看完了文档，就可以开始看代码了。为了防止在代码中迷失方向，我们可以遵循几条原则来阅读：</p>
+<h5 id="从入口开始">从入口开始</h5>
+<p>虽说通过架构模型以及包和文件划分的关系，我们能大致确定哪些代码是核心代码，但从入口处开始看会更符合大脑的思考方式。</p>
+<p>因为入口代码的工作一般是先对各种模块进行初始化，然后调起主线程或者启动主服务，这种明确顺序的简单工作让我们不会一开始就遇到困难，循序渐进的过程更容易让大脑产生奖励。</p>
+<img src="/2022/05/22/how-i-read-code/run-kubelet.png" class="">
+<p>如图所示是 kubelet <a
+href="https://github.com/kubernetes/kubernetes/blob/c6970e64528ba78b74bf77b86f9b78b7b61bd0cd/cmd/kubelet/app/server.go#L1080">启动入口</a>简化后的主线逻辑，非常清晰。以此为起点下沉下去，就可以分三路去细看配置详情、创建
+kubelet 的详情，以及启动的详情。</p>
+<h5 id="抓住主线从抽象到实现">抓住主线，从抽象到实现</h5>
+<p>主线就是从输入是怎么样一步步产生输出的。在这一过程中，会涉及到多个模块，每一个模块又有自己的输入和输出。</p>
+<p>当我们顺着函数调用、数据传输方向一步步向下时，随着抽象层次的不断降低，涉及到越来越多的细节，这个时候应该及时折返，不要一路看到底，很容易迷失在里面。</p>
+<p>良好的设计会有合理的抽象，根据不同的开发语言，我们可以通过查看包、接口、特性、公有方法列表、头文件等等来快速获取抽象信息，逐步地拼接出程序主线。搞清楚了主线，再逐步将抽象展开，阅读具体实现代码。</p>
+<p>仍以 kubelet 为例，kubelet
+作为负责整个节点运转的核心，工作多且杂，</p>
+<img src="/2022/05/22/how-i-read-code/kubelet-dir.png" class="" width="300">
+<p>但看它的代码分包结构，非常清楚的将不同功能点划分到不同目录下，结合初始化逻辑，再进一步深入到每个功能目录内，又可以发现
+kubelet 的模块设计遵循的是多个 manager
+围绕着一个核心共同协作的模型。好的抽象，就像一颗洋葱一样，层层分明。</p>
+<h5 id="一边阅读一边记录">一边阅读一边记录</h5>
+<p>初识一个项目，对结构和流程把握的不会太清楚，因此一边读一边写写画画是很重要的。</p>
+<p>有的时候跳转次数比较多，前面看过的东西后面就忘记了，所以对关键路径，记录具体的函数名、模块名，能帮助我们快速回溯到入口。</p>
+<p>也有的时候遇到了需要拓展的知识盲区，为了不打断主线思路，可以先记录下来，找其他时间再学习。</p>
+<p>另外，遇到不直观的、难以形成概念的代码表达，翻来覆去的看也看不懂，这个时候就需要画个图来帮助理解了。</p>
+<p>一个典型的例子就是在学习 B+Tree
+的分裂、合并、上移下移的时候，全看代码特别不直观，想要理解这类内容画图定有奇效：</p>
+<img src="https://lenshood.github.io/2021/07/05/bpt-lsmt/7.jpg" class="" width="500">
+<h5 id="必要时借助-debug">必要时借助 debug</h5>
+<p>有一些代码为了正确性、性能等考虑，其表述可能会让人百思不得其解。人类的思维方式是偏向顺序的，用软件开发做类比就是，我们更容易理解
+happy path，而忽视分支细节。</p>
+<p>当横竖想不通这代码为什么要这么写的时候，实际运行一遍，加断点 debug
+一下可能就会发现真实的原因了。</p>
+<p>一个有趣的例子是：在环形队列中，判断队列是否为空需要看头指针和尾指针是不是已经重合，下图的代码来自一个无锁环形队列的判空实现。</p>
+<img src="/2022/05/22/how-i-read-code/ring.png" class="">
+<p>道理上讲，环形队列入队 <code>tail++</code>，出队
+<code>head++</code>，先有入队，才会有出队，所以 <code>tail</code> 一定比
+<code>head</code> 大。那为什么上面代码里，除了判断
+<code>tail - head == 0</code> 以外，还一定要加上当
+<code>tail &lt; head</code> 时也认为空呢，这根本不可能发生啊？</p>
+<p>实际的原因是，由于该环形队列是无锁的， <code>tail</code> 和
+<code>head</code>
+之间不保证任何同步，那么就可能由于调度因素，导致不同线程读到不同时刻的值，结果
+<code>tail &lt; head</code> 就真的产生了。</p>
+<p>想要搞清楚这种场景，最好的办法就是真正执行几百万次测试，通过条件断点让代码在发生
+<code>tail &lt; head</code> 时停住，再观察内存中的值来解释。</p>
+<h3 id="写篇文章讲讲整个设计">4. 写篇文章讲讲整个设计</h3>
+<p>代码看个七七八八，差不多就对设计和实现都有一定的认识了。这时候心里多少会有点冲动想要把获得的知识讲出来。那么最好就是写篇文章，写文章可以对知识进行梳理，在写的过程中也会不断加深印象。随着文章的撰写，作者的设计意图亦会越来越清晰，对软件的理解也会越来越深刻。</p>
+<h5 id="整理大纲">整理大纲</h5>
+<p>写文章，目录最关键。一篇文章是不是有逻辑性，结构是不是清晰，全都在大纲的设计上。</p>
+<p>既然我们的内容是讲软件的设计与实现，那么文章的大纲就可以按 why - what
+- how
+来展开：先告诉读者为什么要设计该软件，它解决了哪些问题。之后讲述软件的架构模型、关键模块以及主线流程。最后详细的讲解具体实现。</p>
+<p>在写文章之初，我们的知识还不够深入和整体，可以先写 what 和 how
+的部分，加深理解之后，就能明白设计的 why 了。</p>
+<p>以我写的一篇介绍 <a
+href="https://lenshood.github.io/2022/03/09/go-runtime-compute/">Go 语言
+Runtime 计算模型设计的文章</a>目录为例：</p>
+<img src="/2022/05/22/how-i-read-code/go-runtime-content.jpg" class="" width="300">
+<p>可见大致就是按照<code>设计意图和目标 -&gt; 核心概念解释 -&gt; 具体实现 -&gt; 总结拓展</code>
+这样的顺序来设计的整体文章结构。这种结构清晰、简单明了的目录结构很适合用在技术文章上。</p>
+<h5
+id="描述设计原理通过画图帮助分析设计意图">描述设计原理，通过画图帮助分析设计意图</h5>
+<p>在介绍原理和实现的时候，相比于贴代码，更好的方式是通过画图来表达。代码的确能体现全部的设计细节，但代码更重要的任务是作为知识和硬件指令之间的桥梁。相反，如果我们用图表的形式表达设计意图，就会对人类更友好，更容易阅读、理解和学习。画图本身也是一种加深理解，去粗取精的过程。</p>
+<p>下图是我读了 leveldb 之后时候画的 <a
+href="https://lenshood.github.io/2021/07/18/bpt-lsmt-2/#%E5%AD%98%E5%82%A8%E6%9E%B6%E6%9E%84">leveldb
+存储架构图</a>：</p>
+<p><img
+src="https://lenshood.github.io/2021/07/18/bpt-lsmt-2/13.png" /></p>
+<p>作为存储引擎，LSM tree 的实现是 leveldb 的核心，leveldb
+本身源码已经很清晰、简洁，但如果通过上面这样一张图来讲述其 LSM tree
+的具体设计，一定会比贴代码要易懂地多。</p>
+<h5
+id="想一想为什么要这么设计好处在哪里">想一想，为什么要这么设计，好处在哪里？</h5>
+<p>当我们能用图表和文字来表达出软件的完整设计后，我们对代码的理解已经比较透彻，甚至，让我们自己来照着写一个新的也不是不可能了。</p>
+<p>这个时候，就应该进一步的思考，如果是我自己来解决问题，我会怎么做？我能比原作者做得更好吗（通常不能）？</p>
+<p>在思考为什么这么设计的时候，如果相关领域知识不充足，就会驱使我们去查找很多参考资料，了解和借鉴别人看问题的角度。找资料的过程总有惊喜，如果能读到一些非常深入浅出的文章，而后就会怀着敬佩之情，收藏、关注作者的博客，想想如果不是因为读了某段代码，还真无缘遇到这些精彩的文章和优秀的作者。</p>
+<p>我在读 Go 语言内存管理代码的时候，一开始搞懂了 tcmalloc
+的原理和实现，但对其所谓线程缓存、无锁分配等等卖点理解不深刻。直到回过头去读了
+CSAPP 动态内存分配的章节，又结合 ptmalloc、jemalloc
+的设计，相互对比理解，这才更清晰的认识了 tcmalloc 的设计决策。</p>
+<p>经过这一阶段的思考并结合其他人的理解之后，我们就能清楚地意识到，软件所面临问题的限制条件是什么，作者这样设计的好处有哪些。把这部分写完，添加到文章的最开始，就比较完美了。</p>
+<blockquote>
+<p>这一节讲了一点关于写文章的内容，对于技术写作，非常推荐 thoughtworks
+洞见团队出品的 <a
+href="https://insights.thoughtworks.cn/technical-writing-book/">《技术写作手册》</a>。</p>
+</blockquote>
+<h3 id="讲个-session收获-extra-bonus">5. 讲个 session，收获 Extra
+Bonus</h3>
+<p>如果还有精力和兴致，那不如把文章的内容提取出来做个 session
+讲给大家，额外的付出能收获额外的奖赏。</p>
+<p>有过做讲师经历的同学肯定会知道，给别人讲东西，收获最大的不是听众，而是讲师本人。想要输出一小时的
+session，所花费的准备时间可能要十个小时。我们需要花费数倍于讲解的时间来完善素材，理清思路，准备问题，甚至还包括思考可能会涉及到的拓展内容。做这些工作在提升我们
+session 质量的同时，无形中也不断地强化了我们对相关知识的认知。</p>
+<h5 id="梳理要点逻辑自洽">梳理要点，逻辑自洽</h5>
+<p>一个 session
+成功的基础在于能不能逻辑自洽。而逻辑自洽的前提就是关键要点必须清晰，并且前后可以呼应。</p>
+<p>上一节提到的文章，正好就是 session
+材料的源泉，因此我会反复的遍历整篇文章，期望从中抽取所需的内容。这个过程经常伴随着不断地发现文章的内容缺失、逻辑不通之处，这时文章就得到了进一步的改善。所以经常发现，当整个
+slide 完整的顺下来后，不仅成就感爆棚，文章也丰满了，理解还更深刻了。</p>
+<h5 id="去粗取精锻炼表达">去粗取精，锻炼表达</h5>
+<p>相比写文章，讲 session
+要我们进一步的去除细节，只保留最核心的思想，这本身是对抽象能力的一种锻炼。</p>
+<p>另外，自己了解清楚，和能给别人讲清楚是完全不同的两种概念。如何能把核心知识讲给听众，并且能让听众更容易的听懂，需要仔细地思考语言的表达。每一次成功的
+session 都是对自己表达能力的一次提升。</p>
+<p>表达上最常见的问题就是照着文字念。我个人喜欢通过减少 slide
+中文字的数量，来倒逼自己提升表达的逻辑性与连贯性。可以尝试思考，如果内容只是一张图，那么要怎么讲清楚这张图，用这种办法训练表达能力。</p>
+<h5 id="揣摩听众感兴趣的方向">揣摩听众感兴趣的方向</h5>
+<p>考虑听众的感受也很重要，如果讲的内容大家不感兴趣，不爱听，或是晦涩难懂，跟不上节奏，就容易导致整个
+session 反响寥寥，大家会觉得来听你的 session 浪费了自己的时间。</p>
+<p>所以不仅要能讲清楚，还要揣摩听众感兴趣的方向。合理的设置内容，去除枯燥乏味而非关键性的东西，并且调整讲解的顺序，把易懂的、精彩的部分穿插放置，这样就可以不断地激发听众的兴趣。</p>
+<p>最后，线下组织的效果要比线上视频讲解好得多。在线下听众的注意力集中，互动效果好，演讲者也更容易通过听众的表情、神态来判断是否需要调整内容和速度。如果条件限制一定要做视频
+session，那么可能需要经常停顿下来问些问题，或是主动的寻求反馈。</p>
+<h3 id="结语">6. 结语</h3>
+<p>本文是我日常读代码的一点经验，总结下来，就是要</p>
+<ul>
+<li>仔细地选择学习的项目</li>
+<li>先通过文档了解全景，再逐步深入代码</li>
+<li>找对抽象和边界，能帮助我们建立思考模型</li>
+<li>写篇文章讲述代码的设计，是深入理解代码的好办法</li>
+<li>自己学会了还不够，能清楚地讲给别人才是真正的掌握</li>
+</ul>
+<p>最后祝愿所有读者都能从代码中获得最大的乐趣。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2022/05/22/how-i-read-code/" title="我是怎么读代码的">http://lenshood.github.io/2022/05/22/how-i-read-code/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/source-code/" rel="tag"># source code</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/04/06/go-runtime-storage/" rel="prev" title="Go Runtime 设计：存储资源管理">
+                  <i class="fa fa-angle-left"></i> Go Runtime 设计：存储资源管理
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/07/16/build-analysis-and-implement-pipeline/" rel="next" title="构建分析设计与落地交付的迭代式工作流">
+                  构建分析设计与落地交付的迭代式工作流 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

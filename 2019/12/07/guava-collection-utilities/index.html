@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="集合工具类 任何体验过 JDK 集合框架的人都了解且喜爱java.util.Collections中的工具。 Guava 在这方面提供了更多工具：应用于所有集合的静态方法。 而且这些是 Guava 最流行也最成熟的部分。 与特定 interface 相关联的方法以相对直观的规则来分组：    Interface JDK or Guava? Corresponding Guava utility c">
+<meta property="og:type" content="article">
+<meta property="og:title" content="（Guava 译文系列）集合工具类">
+<meta property="og:url" content="http://lenshood.github.io/2019/12/07/guava-collection-utilities/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="集合工具类 任何体验过 JDK 集合框架的人都了解且喜爱java.util.Collections中的工具。 Guava 在这方面提供了更多工具：应用于所有集合的静态方法。 而且这些是 Guava 最流行也最成熟的部分。 与特定 interface 相关联的方法以相对直观的规则来分组：    Interface JDK or Guava? Corresponding Guava utility c">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-12-07T15:16:30.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.102Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="guava">
+<meta property="article:tag" content="translation">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2019/12/07/guava-collection-utilities/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2019/12/07/guava-collection-utilities/","path":"2019/12/07/guava-collection-utilities/","title":"（Guava 译文系列）集合工具类"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>（Guava 译文系列）集合工具类 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%9B%86%E5%90%88%E5%B7%A5%E5%85%B7%E7%B1%BB"><span class="nav-number">1.</span> <span class="nav-text">集合工具类</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E6%9E%84%E9%80%A0%E5%99%A8"><span class="nav-number">1.1.</span> <span class="nav-text">静态构造器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#iterables"><span class="nav-number">1.2.</span> <span class="nav-text">Iterables</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%9A%E7%94%A8"><span class="nav-number">1.2.1.</span> <span class="nav-text">通用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB-collection"><span class="nav-number">1.2.2.</span> <span class="nav-text">类 collection</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#fluentiterable"><span class="nav-number">1.2.3.</span> <span class="nav-text">FluentIterable</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lists"><span class="nav-number">1.2.4.</span> <span class="nav-text">Lists</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E5%B7%A5%E5%8E%82"><span class="nav-number">1.2.5.</span> <span class="nav-text">静态工厂</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sets"><span class="nav-number">1.3.</span> <span class="nav-text">Sets</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E5%90%88%E8%AE%BA%E6%93%8D%E4%BD%9C"><span class="nav-number">1.3.1.</span> <span class="nav-text">集合论操作</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E9%9B%86%E5%90%88%E5%B7%A5%E5%85%B7"><span class="nav-number">1.3.2.</span> <span class="nav-text">其他集合工具</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E5%B7%A5%E5%8E%82-1"><span class="nav-number">1.3.3.</span> <span class="nav-text">静态工厂</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#maps"><span class="nav-number">1.4.</span> <span class="nav-text">Maps</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#uniqueindex"><span class="nav-number">1.4.1.</span> <span class="nav-text">uniqueIndex</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#difference"><span class="nav-number">1.4.2.</span> <span class="nav-text">difference</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#bimap-utilities"><span class="nav-number">1.4.3.</span> <span class="nav-text">BiMap utilities</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9D%99%E6%80%81%E5%B7%A5%E5%8E%82-2"><span class="nav-number">1.4.3.1.</span> <span class="nav-text">静态工厂</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#multisets"><span class="nav-number">1.5.</span> <span class="nav-text">Multisets</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#multimaps"><span class="nav-number">1.6.</span> <span class="nav-text">Multimaps</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#index"><span class="nav-number">1.6.1.</span> <span class="nav-text">index</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#invertfrom"><span class="nav-number">1.6.2.</span> <span class="nav-text">invertFrom</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#formap"><span class="nav-number">1.6.3.</span> <span class="nav-text">forMap</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#wrappers"><span class="nav-number">1.6.4.</span> <span class="nav-text">Wrappers</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tables"><span class="nav-number">1.7.</span> <span class="nav-text">Tables</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#customtable"><span class="nav-number">1.7.1.</span> <span class="nav-text">customTable</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#transpose"><span class="nav-number">1.7.2.</span> <span class="nav-text">transpose</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#wrappers-1"><span class="nav-number">1.7.3.</span> <span class="nav-text">Wrappers</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2019/12/07/guava-collection-utilities/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="（Guava 译文系列）集合工具类 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          （Guava 译文系列）集合工具类
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2019-12-07 23:16:30" itemprop="dateCreated datePublished" datetime="2019-12-07T23:16:30+08:00">2019-12-07</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Guava/" itemprop="url" rel="index"><span itemprop="name">Guava</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="集合工具类">集合工具类</h1>
+<p>任何体验过 JDK 集合框架的人都了解且喜爱<a
+href="http://docs.oracle.com/javase/7/docs/api/java/util/Collections.html"><code>java.util.Collections</code></a>中的工具。
+Guava 在这方面提供了更多工具：应用于所有集合的静态方法。 而且这些是
+Guava 最流行也最成熟的部分。</p>
+<p>与特定 interface 相关联的方法以相对直观的规则来分组：</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Interface</th>
+<th style="text-align: left;">JDK or Guava?</th>
+<th style="text-align: left;">Corresponding Guava utility class</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>Collection</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Collections2.html"><code>Collections2</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>List</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html"><code>Lists</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Set</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html"><code>Sets</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>SortedSet</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html"><code>Sets</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Map</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html"><code>Maps</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>SortedMap</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html"><code>Maps</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>Queue</code></td>
+<td style="text-align: left;">JDK</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Queues.html"><code>Queues</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="NewCollectionTypesExplained#Multiset"><code>Multiset</code></a></td>
+<td style="text-align: left;">Guava</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html"><code>Multisets</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="NewCollectionTypesExplained#Multimap"><code>Multimap</code></a></td>
+<td style="text-align: left;">Guava</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html"><code>Multimaps</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="NewCollectionTypesExplained#BiMap"><code>BiMap</code></a></td>
+<td style="text-align: left;">Guava</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html"><code>Maps</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="NewCollectionTypesExplained#Table"><code>Table</code></a></td>
+<td style="text-align: left;">Guava</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Tables.html"><code>Tables</code></a></td>
+</tr>
+</tbody>
+</table>
+<p><strong><em>在寻找变换、过滤等工具吗? 它们在我们的功能性语法下的 <a
+href="FunctionalExplained">functional</a> 文章里.</em></strong></p>
+<span id="more"></span>
+<h2 id="静态构造器">静态构造器</h2>
+<p>在 JDK7 以前，构造新的泛型集合需要难看的重复代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">List&lt;TypeThatsTooLongForItsOwnGood&gt; list = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;TypeThatsTooLongForItsOwnGood&gt;();</span><br></pre></td></tr></table></figure>
+<p>我们应该都同意这挺难看。Guava
+提供了在右边推断使用的泛型的静态方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">List&lt;TypeThatsTooLongForItsOwnGood&gt; list = Lists.newArrayList();</span><br><span class="line">Map&lt;KeyType, LongishValueType&gt; map = Maps.newLinkedHashMap();</span><br></pre></td></tr></table></figure>
+<p>诚然，JDK7 的钻石操作符减少了一些麻烦：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">List&lt;TypeThatsTooLongForItsOwnGood&gt; list = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br></pre></td></tr></table></figure>
+<p>但是 Guava
+走的更远。通过工厂模式方法，我们能方便的在初始化集合时设置初始元素。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Set&lt;Type&gt; copySet = Sets.newHashSet(elements);</span><br><span class="line">List&lt;String&gt; theseElements = Lists.newArrayList(<span class="string">&quot;alpha&quot;</span>, <span class="string">&quot;beta&quot;</span>, <span class="string">&quot;gamma&quot;</span>);</span><br></pre></td></tr></table></figure>
+<p>此外，通过对工厂方法命名的能力（Effective Java
+第一条），我们能提升初始化指定大小集合的代码可读性：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">List&lt;Type&gt; exactly100 = Lists.newArrayListWithCapacity(<span class="number">100</span>);</span><br><span class="line">List&lt;Type&gt; approx100 = Lists.newArrayListWithExpectedSize(<span class="number">100</span>);</span><br><span class="line">Set&lt;Type&gt; approx100Set = Sets.newHashSetWithExpectedSize(<span class="number">100</span>);</span><br></pre></td></tr></table></figure>
+<p>下面列出了提供的准确的静态工厂方法及其对应的工具类。</p>
+<p><em>注意：</em> Guava
+提供的新集合类型并未暴露原始构造器，或在工具类内提供初始化方法。相反，他们直接暴露了静态工厂方法，例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Multiset&lt;String&gt; multiset = HashMultiset.create();</span><br></pre></td></tr></table></figure>
+<h2 id="iterables">Iterables</h2>
+<p>任何可能的情况下，Guava 都更倾向于提供接受 <code>Iterable</code>
+而不是 <code>Collection</code> 的工具。在 Google，
+遇到某个并不存储在内存中的 “集合”
+的情况并不少见，它的数据可能是从数据库，其他数据中心等处聚集而来的，因此实际上在并没有获取到所有元素的情况下，它并不能支持类似<code>size()</code>
+等的操作。</p>
+<p>因此，很多你期望支持所有 collections 的操作，都能在<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html"><code>Iterables</code></a>里面找到。此外，大多<code>Iterables</code>
+方法都在 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterators.html"><code>Iterators</code></a>
+中有对应的版本来接受一个 iterator。</p>
+<p><code>Iterables</code>
+类中绝大多数的操作都是“懒操作”：除非绝对必要时才会提前准备迭代。返回<code>Iterables</code>的方法全都都返回懒计算的视图，而不会显式的在内存中构建
+collection。</p>
+<p>截止至 Guava 12，<code>Iterables</code> 通过一个包装了
+<code>Iterable</code>且提供流式运算符的类 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/FluentIterable.html"><code>FluentIterable</code></a>
+来辅助。</p>
+<p>以下是被选出的最常用的工具，尽管在<code>Iterables</code>中许多更函数式的方法会在<a
+href="FunctionalExplained">Guava 函数式语法</a>中详述。</p>
+<h3 id="通用">通用</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 69%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">See Also</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#concat-java.lang.Iterable-"><code>concat(Iterable&lt;Iterable&gt;)</code></a></td>
+<td style="text-align: left;">返回懒视图的多个 iterable 的连接。</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#concat-java.lang.Iterable...-"><code>concat(Iterable...)</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#frequency-java.lang.Iterable-java.lang.Object-"><code>frequency(Iterable, Object)</code></a></td>
+<td style="text-align: left;">返回一个对象在 iterable
+中出现的次数。</td>
+<td style="text-align: left;">Compare
+<code>Collections.frequency(Collection, Object)</code>; see <a
+href="NewCollectionTypesExplained#Multiset"><code>Multiset</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#partition-java.lang.Iterable-int-"><code>partition(Iterable, int)</code></a></td>
+<td style="text-align: left;">返回将 iterable
+划分为指定块的不可变视图。</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#partition-java.util.List-int-"><code>Lists.partition(List, int)</code></a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#paddedPartition-java.lang.Iterable-int-"><code>paddedPartition(Iterable, int)</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#getFirst-java.lang.Iterable-T-"><code>getFirst(Iterable, T default)</code></a></td>
+<td style="text-align: left;">返回 iterable
+中的第一个元素，或当为空时返回默认值。</td>
+<td style="text-align: left;">Compare
+<code>Iterable.iterator().next()</code>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/FluentIterable.html#first--"><code>FluentIterable.first()</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#getLast-java.lang.Iterable-"><code>getLast(Iterable)</code></a></td>
+<td style="text-align: left;">返回 iterable
+中的最后一个元素，或当为空时快速失败并抛出
+<code>NoSuchElementException</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#getLast-java.lang.Iterable-T-"><code>getLast(Iterable, T default)</code></a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/FluentIterable.html#last--"><code>FluentIterable.last()</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#elementsEqual-java.lang.Iterable-java.lang.Iterable-"><code>elementsEqual(Iterable, Iterable)</code></a></td>
+<td style="text-align: left;">当两个 iterable
+中的元素和顺序都一致时，返回 true。</td>
+<td style="text-align: left;">Compare
+<code>List.equals(Object)</code></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#unmodifiableIterable-java.lang.Iterable-"><code>unmodifiableIterable(Iterable)</code></a></td>
+<td style="text-align: left;">返回给定 iterable 的一个不可变视图。</td>
+<td style="text-align: left;">Compare
+<code>Collections.unmodifiableCollection(Collection)</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#limit-java.lang.Iterable-int-"><code>limit(Iterable, int)</code></a></td>
+<td style="text-align: left;">返回一个 <code>Iterable</code>
+并包含指定大小的元素。</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/FluentIterable.html#limit-int-"><code>FluentIterable.limit(int)</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#getOnlyElement-java.lang.Iterable-"><code>getOnlyElement(Iterable)</code></a></td>
+<td style="text-align: left;">返回 <code>Iterable</code> 中的唯一元素.
+当为空或存在多个元素时快速失败。</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#getOnlyElement-java.lang.Iterable-T-"><code>getOnlyElement(Iterable, T default)</code></a></td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Iterable&lt;Integer&gt; concatenated = Iterables.concat(</span><br><span class="line">  Ints.asList(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>),</span><br><span class="line">  Ints.asList(<span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>));</span><br><span class="line"><span class="comment">// concatenated has elements 1, 2, 3, 4, 5, 6</span></span><br><span class="line"></span><br><span class="line"><span class="type">String</span> <span class="variable">lastAdded</span> <span class="operator">=</span> Iterables.getLast(myLinkedHashSet);</span><br><span class="line"></span><br><span class="line"><span class="type">String</span> <span class="variable">theElement</span> <span class="operator">=</span> Iterables.getOnlyElement(thisSetIsDefinitelyASingleton);</span><br><span class="line">  <span class="comment">// if this set isn&#x27;t a singleton, something is wrong!</span></span><br></pre></td></tr></table></figure>
+<h3 id="类-collection">类 collection</h3>
+<p>通常，collection 在其他 collection 上支持此类操作，但 iterable
+不支持。</p>
+<p><em>当输入是一个 collection 时，每一个操作都交给对应的
+<code>Collection</code> 接口方法委托。</em> 例如，如果
+<code>Iterables.size</code> 传递给了
+<code>Collection</code>，那么它实际上会调用 <code>Collection.size</code>
+而不是遍历整个 iterator。</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 47%" />
+<col style="width: 29%" />
+<col style="width: 23%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Analogous <code>Collection</code>
+method</th>
+<th style="text-align: left;"><code>FluentIterable</code>
+equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#addAll-java.util.Collection-java.lang.Iterable-"><code>addAll(Collection addTo, Iterable toAdd)</code></a></td>
+<td
+style="text-align: left;"><code>Collection.addAll(Collection)</code></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#contains-java.lang.Iterable-java.lang.Object-"><code>contains(Iterable, Object)</code></a></td>
+<td
+style="text-align: left;"><code>Collection.contains(Object)</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#contains-java.lang.Object-"><code>FluentIterable.contains(Object)</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#removeAll-java.lang.Iterable-java.util.Collection-"><code>removeAll(Iterable removeFrom, Collection toRemove)</code></a></td>
+<td
+style="text-align: left;"><code>Collection.removeAll(Collection)</code></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#retainAll-java.lang.Iterable-java.util.Collection-"><code>retainAll(Iterable removeFrom, Collection toRetain)</code></a></td>
+<td
+style="text-align: left;"><code>Collection.retainAll(Collection)</code></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#size-java.lang.Iterable-"><code>size(Iterable)</code></a></td>
+<td style="text-align: left;"><code>Collection.size()</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#size--"><code>FluentIterable.size()</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#toArray-java.lang.Iterable-java.lang.Class-"><code>toArray(Iterable, Class)</code></a></td>
+<td style="text-align: left;"><code>Collection.toArray(T[])</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#toArray-java.lang.Class-"><code>FluentIterable.toArray(Class)</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#isEmpty-java.lang.Iterable-"><code>isEmpty(Iterable)</code></a></td>
+<td style="text-align: left;"><code>Collection.isEmpty()</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#isEmpty--"><code>FluentIterable.isEmpty()</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#get-java.lang.Iterable-int-"><code>get(Iterable, int)</code></a></td>
+<td style="text-align: left;"><code>List.get(int)</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#get-int-"><code>FluentIterable.get(int)</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Iterables.html#toString-java.lang.Iterable-"><code>toString(Iterable)</code></a></td>
+<td style="text-align: left;"><code>Collection.toString()</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#toString--"><code>FluentIterable.toString()</code></a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="fluentiterable">FluentIterable</h3>
+<p>除了上述方法和<a
+href="FunctionalExplained">函数式语法</a>，<code>FluentIterable</code>
+包含一些方便的方法来复制为一个不可变集合：</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Result Type</th>
+<th style="text-align: left;">Method</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>ImmutableList</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#toImmutableList--"><code>toImmutableList()</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>ImmutableSet</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#toImmutableSet--"><code>toImmutableSet()</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>ImmutableSortedSet</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/12.0/api/docs/com/google/common/collect/FluentIterable.html#toImmutableSortedSet-java.util.Comparator-"><code>toImmutableSortedSet(Comparator)</code></a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="lists">Lists</h3>
+<p>除了静态构造器方法和函数式编程方法，<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html"><code>Lists</code></a>提供了大量针对<code>List</code>对象的值工具方法。</p>
+<table>
+<colgroup>
+<col style="width: 68%" />
+<col style="width: 31%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#partition-java.util.List-int-"><code>partition(List, int)</code></a></td>
+<td
+style="text-align: left;">返回底层列表的视图，该视图被分成指定大小的块。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#reverse-java.util.List-"><code>reverse(List)</code></a></td>
+<td style="text-align: left;">返回指定列表的反转. <em>注意</em>:
+如果给定列表是不可变的, 考虑使用 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableList.html#reverse--"><code>ImmutableList.reverse()</code></a>
+来代替.</td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">List&lt;Integer&gt; countUp = Ints.asList(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>);</span><br><span class="line">List&lt;Integer&gt; countDown = Lists.reverse(theList); <span class="comment">// &#123;5, 4, 3, 2, 1&#125;</span></span><br><span class="line"></span><br><span class="line">List&lt;List&lt;Integer&gt;&gt; parts = Lists.partition(countUp, <span class="number">2</span>); <span class="comment">// &#123;&#123;1, 2&#125;, &#123;3, 4&#125;, &#123;5&#125;&#125;</span></span><br></pre></td></tr></table></figure>
+<h3 id="静态工厂">静态工厂</h3>
+<p><code>Lists</code> 提供了下述静态工厂方法:</p>
+<table>
+<colgroup>
+<col style="width: 60%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Implementation</th>
+<th style="text-align: left;">Factories</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>ArrayList</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newArrayList--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newArrayList-E...-">with
+elements</a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newArrayList-java.lang.Iterable-">from
+<code>Iterable</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newArrayListWithCapacity-int-">with
+exact capacity</a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newArrayListWithExpectedSize-int-">with
+expected size</a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newArrayList-java.util.Iterator-">from
+<code>Iterator</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>LinkedList</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newLinkedList--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Lists.html#newLinkedList-java.lang.Iterable-">from
+<code>Iterable</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="sets">Sets</h2>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html"><code>Sets</code></a>
+类包含了许多厉害的方法.</p>
+<h3 id="集合论操作">集合论操作</h3>
+<p>我们提供了大量集合论操作, 作为参数集合上的视图实现. 这些返回<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.SetView.html"><code>SetView</code></a>的方法可以用于:</p>
+<ul>
+<li>直接用作 <code>Set</code>，因为他实现了 <code>Set</code> 接口</li>
+<li>通过<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.SetView.html#copyInto-S-"><code>copyInto(Set)</code></a>将他复制为另一个可变集合</li>
+<li>通过 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.SetView.html#immutableCopy--"><code>immutableCopy()</code></a>
+创建一个不可变副本</li>
+</ul>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#union-java.util.Set-java.util.Set-"><code>union(Set, Set)</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#intersection-java.util.Set-java.util.Set-"><code>intersection(Set, Set)</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#difference-java.util.Set-java.util.Set-"><code>difference(Set, Set)</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#symmetricDifference-java.util.Set-java.util.Set-"><code>symmetricDifference(Set, Set)</code></a></td>
+</tr>
+</tbody>
+</table>
+<p>例如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Set&lt;String&gt; wordsWithPrimeLength = ImmutableSet.of(<span class="string">&quot;one&quot;</span>, <span class="string">&quot;two&quot;</span>, <span class="string">&quot;three&quot;</span>, <span class="string">&quot;six&quot;</span>, <span class="string">&quot;seven&quot;</span>, <span class="string">&quot;eight&quot;</span>);</span><br><span class="line">Set&lt;String&gt; primes = ImmutableSet.of(<span class="string">&quot;two&quot;</span>, <span class="string">&quot;three&quot;</span>, <span class="string">&quot;five&quot;</span>, <span class="string">&quot;seven&quot;</span>);</span><br><span class="line"></span><br><span class="line">SetView&lt;String&gt; intersection = Sets.intersection(primes, wordsWithPrimeLength); <span class="comment">// contains &quot;two&quot;, &quot;three&quot;, &quot;seven&quot;</span></span><br><span class="line"><span class="comment">// I can use intersection as a Set directly, but copying it can be more efficient if I use it a lot.</span></span><br><span class="line"><span class="keyword">return</span> intersection.immutableCopy();</span><br></pre></td></tr></table></figure>
+<h3 id="其他集合工具">其他集合工具</h3>
+<table>
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 69%" />
+<col style="width: 6%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">See Also</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#cartesianProduct-java.util.List-"><code>cartesianProduct(List&lt;Set&gt;)</code></a></td>
+<td
+style="text-align: left;">返回从每个集合中取一个元素可以得到的每个可能的列表.</td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#cartesianProduct-java.util.Set...-"><code>cartesianProduct(Set...)</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#powerSet-java.util.Set-"><code>powerSet(Set)</code></a></td>
+<td style="text-align: left;">返回指定集合的子集集合.</td>
+<td style="text-align: left;"></td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Set&lt;String&gt; animals = ImmutableSet.of(<span class="string">&quot;gerbil&quot;</span>, <span class="string">&quot;hamster&quot;</span>);</span><br><span class="line">Set&lt;String&gt; fruits = ImmutableSet.of(<span class="string">&quot;apple&quot;</span>, <span class="string">&quot;orange&quot;</span>, <span class="string">&quot;banana&quot;</span>);</span><br><span class="line"></span><br><span class="line">Set&lt;List&lt;String&gt;&gt; product = Sets.cartesianProduct(animals, fruits);</span><br><span class="line"><span class="comment">// &#123;&#123;&quot;gerbil&quot;, &quot;apple&quot;&#125;, &#123;&quot;gerbil&quot;, &quot;orange&quot;&#125;, &#123;&quot;gerbil&quot;, &quot;banana&quot;&#125;,</span></span><br><span class="line"><span class="comment">//  &#123;&quot;hamster&quot;, &quot;apple&quot;&#125;, &#123;&quot;hamster&quot;, &quot;orange&quot;&#125;, &#123;&quot;hamster&quot;, &quot;banana&quot;&#125;&#125;</span></span><br><span class="line"></span><br><span class="line">Set&lt;Set&lt;String&gt;&gt; animalSets = Sets.powerSet(animals);</span><br><span class="line"><span class="comment">// &#123;&#123;&#125;, &#123;&quot;gerbil&quot;&#125;, &#123;&quot;hamster&quot;&#125;, &#123;&quot;gerbil&quot;, &quot;hamster&quot;&#125;&#125;</span></span><br></pre></td></tr></table></figure>
+<h3 id="静态工厂-1">静态工厂</h3>
+<p><code>Sets</code> 提供了以下静态工厂方法:</p>
+<table>
+<colgroup>
+<col style="width: 62%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Implementation</th>
+<th style="text-align: left;">Factories</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>HashSet</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newHashSet--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newHashSet-E...-">with
+elements</a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newHashSet-java.lang.Iterable-">from
+<code>Iterable</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newHashSetWithExpectedSize-int-">with
+expected size</a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newHashSet-java.util.Iterator-">from
+<code>Iterator</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>LinkedHashSet</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newLinkedHashSet--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newLinkedHashSet-java.lang.Iterable-">from
+<code>Iterable</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newLinkedHashSetWithExpectedSize-int-">with
+expected size</a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>TreeSet</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newTreeSet--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newTreeSet-java.util.Comparator-">with
+<code>Comparator</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Sets.html#newTreeSet-java.lang.Iterable-">from
+<code>Iterable</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="maps">Maps</h2>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html"><code>Maps</code></a>
+包含了许多有用的工具，值得我们单独讨论.</p>
+<h3 id="uniqueindex"><code>uniqueIndex</code></h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#uniqueIndex-java.lang.Iterable-com.google.common.base.Function-"><code>Maps.uniqueIndex(Iterable, Function)</code></a>
+处理了一种常见的情况：存在许多对象，每一个都有一些自己特定的属性,
+期望基于这些属性来查找这些对象.</p>
+<p>比如说我们有很多字符串，我们知道他们有独一无二的长度，我们期望查找特定长度的字符串。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ImmutableMap&lt;Integer, String&gt; stringsByIndex = Maps.uniqueIndex(strings, <span class="keyword">new</span> <span class="title class_">Function</span>&lt;String, Integer&gt; () &#123;</span><br><span class="line">    <span class="keyword">public</span> Integer <span class="title function_">apply</span><span class="params">(String string)</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> string.length();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br></pre></td></tr></table></figure>
+<p>假如索引<em>不</em>唯一, 可以参见 <code>Multimaps.index</code>.</p>
+<h3 id="difference"><code>difference</code></h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#difference-java.util.Map-java.util.Map-"><code>Maps.difference(Map, Map)</code></a>
+允许你比较两个 Map 之间的不同. 他返回一个 <code>MapDifference</code>
+对象, 他把文氏图分解为:</p>
+<table>
+<colgroup>
+<col style="width: 68%" />
+<col style="width: 31%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MapDifference.html#entriesInCommon--"><code>entriesInCommon()</code></a></td>
+<td style="text-align: left;">在两个 map 中都存在的 entries, key 和
+value 都匹配.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MapDifference.html#entriesDiffering--"><code>entriesDiffering()</code></a></td>
+<td style="text-align: left;">相同 key 但不同 value 的 entries. 在该 map
+中的值属于 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MapDifference.ValueDifference.html"><code>MapDifference.ValueDifference</code></a>
+类型, 能让你查找左值和右值.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MapDifference.html#entriesOnlyOnLeft--"><code>entriesOnlyOnLeft()</code></a></td>
+<td style="text-align: left;">返回 key 在左边 map 出现，但未出现在右边
+map 的 entries。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/MapDifference.html#entriesOnlyOnRight--"><code>entriesOnlyOnRight()</code></a></td>
+<td style="text-align: left;">返回 key 在右边 map 出现，但未出现在左边
+map 的 entries。</td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Map&lt;String, Integer&gt; left = ImmutableMap.of(<span class="string">&quot;a&quot;</span>, <span class="number">1</span>, <span class="string">&quot;b&quot;</span>, <span class="number">2</span>, <span class="string">&quot;c&quot;</span>, <span class="number">3</span>);</span><br><span class="line">Map&lt;String, Integer&gt; right = ImmutableMap.of(<span class="string">&quot;b&quot;</span>, <span class="number">2</span>, <span class="string">&quot;c&quot;</span>, <span class="number">4</span>, <span class="string">&quot;d&quot;</span>, <span class="number">5</span>);</span><br><span class="line">MapDifference&lt;String, Integer&gt; diff = Maps.difference(left, right);</span><br><span class="line"></span><br><span class="line">diff.entriesInCommon(); <span class="comment">// &#123;&quot;b&quot; =&gt; 2&#125;</span></span><br><span class="line">diff.entriesDiffering(); <span class="comment">// &#123;&quot;c&quot; =&gt; (3, 4)&#125;</span></span><br><span class="line">diff.entriesOnlyOnLeft(); <span class="comment">// &#123;&quot;a&quot; =&gt; 1&#125;</span></span><br><span class="line">diff.entriesOnlyOnRight(); <span class="comment">// &#123;&quot;d&quot; =&gt; 5&#125;</span></span><br></pre></td></tr></table></figure>
+<h3 id="bimap-utilities"><code>BiMap</code> utilities</h3>
+<p>Guava <code>BiMap</code> 的工具基于 <code>Maps</code>, 因此
+<code>BiMap</code> 也同样是一个 <code>Map</code>.</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><code>BiMap</code> utility</th>
+<th style="text-align: left;">Corresponding <code>Map</code>
+utility</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#synchronizedBiMap-com.google.common.collect.BiMap-"><code>synchronizedBiMap(BiMap)</code></a></td>
+<td
+style="text-align: left;"><code>Collections.synchronizedMap(Map)</code></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#unmodifiableBiMap-com.google.common.collect.BiMap-"><code>unmodifiableBiMap(BiMap)</code></a></td>
+<td
+style="text-align: left;"><code>Collections.unmodifiableMap(Map)</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="静态工厂-2">静态工厂</h4>
+<p><code>Maps</code> 提供了如下静态工厂方法.</p>
+<table>
+<colgroup>
+<col style="width: 65%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Implementation</th>
+<th style="text-align: left;">Factories</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>HashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newHashMap--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newHashMap-java.util.Map-">from
+<code>Map</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newHashMapWithExpectedSize-int-">with
+expected size</a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>LinkedHashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newLinkedHashMap--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newLinkedHashMap-java.util.Map-">from
+<code>Map</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>TreeMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newTreeMap--">basic</a>,
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newTreeMap-java.util.Comparator-">from
+<code>Comparator</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newTreeMap-java.util.SortedMap-">from
+<code>SortedMap</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>EnumMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newEnumMap-java.lang.Class-">from
+<code>Class</code></a>, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newEnumMap-java.util.Map-">from
+<code>Map</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>ConcurrentMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newConcurrentMap--">basic</a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>IdentityHashMap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Maps.html#newIdentityHashMap--">basic</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="multisets">Multisets</h2>
+<p>标准<code>Collection</code>操作，例如<code>containsAll</code>，忽略了
+multiset 中的元素计数，只关心元素是否存在于 multiset。<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html"><code>Multisets</code></a>
+提供了大量考虑到 multiset 中元素多样性的操作。</p>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 52%" />
+<col style="width: 17%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Explanation</th>
+<th style="text-align: left;">Difference from <code>Collection</code>
+method</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#containsOccurrences-com.google.common.collect.Multiset-com.google.common.collect.Multiset-"><code>containsOccurrences(Multiset sup, Multiset sub)</code></a></td>
+<td style="text-align: left;">返回 <code>true</code> 假如对于所有
+<code>o</code>， <code>sub.count(o) &lt;= super.count(o)</code>.</td>
+<td style="text-align: left;"><code>Collection.containsAll</code>
+忽略了数量, 只测试元素是否被包含.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#removeOccurrences-com.google.common.collect.Multiset-com.google.common.collect.Multiset-"><code>removeOccurrences(Multiset removeFrom, Multiset toRemove)</code></a></td>
+<td style="text-align: left;">将 <code>removeFrom</code>
+中出现的元素，在 <code>toRemove</code> 中移除.</td>
+<td style="text-align: left;"><code>Collection.removeAll</code> 移除
+<code>toRemove</code> 中的所有元素，哪怕只出现了一次.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#retainOccurrences-com.google.common.collect.Multiset-com.google.common.collect.Multiset-"><code>retainOccurrences(Multiset removeFrom, Multiset toRetain)</code></a></td>
+<td style="text-align: left;">确保对所有的<code>o</code>，
+<code>removeFrom.count(o) &lt;= toRetain.count(o)</code>.</td>
+<td style="text-align: left;"><code>Collection.retainAll</code> 保留
+<code>toRetain</code> 中出现的所有元素，哪怕只出现了一次.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#intersection-com.google.common.collect.Multiset-com.google.common.collect.Multiset-"><code>intersection(Multiset, Multiset)</code></a></td>
+<td style="text-align: left;">返回两个 multisets 中交叉的部分;
+<code>retainOccurrences</code> 的一个无副作用替代品.</td>
+<td style="text-align: left;">没有类似对比.</td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Multiset&lt;String&gt; multiset1 = HashMultiset.create();</span><br><span class="line">multiset1.add(<span class="string">&quot;a&quot;</span>, <span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">Multiset&lt;String&gt; multiset2 = HashMultiset.create();</span><br><span class="line">multiset2.add(<span class="string">&quot;a&quot;</span>, <span class="number">5</span>);</span><br><span class="line"></span><br><span class="line">multiset1.containsAll(multiset2); <span class="comment">// returns true: all unique elements are contained,</span></span><br><span class="line">  <span class="comment">// even though multiset1.count(&quot;a&quot;) == 2 &lt; multiset2.count(&quot;a&quot;) == 5</span></span><br><span class="line">Multisets.containsOccurrences(multiset1, multiset2); <span class="comment">// returns false</span></span><br><span class="line"></span><br><span class="line">multiset2.removeOccurrences(multiset1); <span class="comment">// multiset2 now contains 3 occurrences of &quot;a&quot;</span></span><br><span class="line"></span><br><span class="line">multiset2.removeAll(multiset1); <span class="comment">// removes all occurrences of &quot;a&quot; from multiset2, even though multiset1.count(&quot;a&quot;) == 2</span></span><br><span class="line">multiset2.isEmpty(); <span class="comment">// returns true</span></span><br></pre></td></tr></table></figure>
+<p>其他的 <code>Multisets</code> 工具包括:</p>
+<table>
+<colgroup>
+<col style="width: 80%" />
+<col style="width: 19%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#copyHighestCountFirst-com.google.common.collect.Multiset-"><code>copyHighestCountFirst(Multiset)</code></a></td>
+<td style="text-align: left;">返回 multiset
+的一个不可变副本，按照元素出现频率降序迭代。</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#unmodifiableMultiset-com.google.common.collect.Multiset-"><code>unmodifiableMultiset(Multiset)</code></a></td>
+<td style="text-align: left;">返回 multiset 的一个不可变视图。</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multisets.html#unmodifiableSortedMultiset-com.google.common.collect.SortedMultiset-"><code>unmodifiableSortedMultiset(SortedMultiset)</code></a></td>
+<td style="text-align: left;">返回有序 multiset 的一个不可变视图。</td>
+</tr>
+</tbody>
+</table>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Multiset&lt;String&gt; multiset = HashMultiset.create();</span><br><span class="line">multiset.add(<span class="string">&quot;a&quot;</span>, <span class="number">3</span>);</span><br><span class="line">multiset.add(<span class="string">&quot;b&quot;</span>, <span class="number">5</span>);</span><br><span class="line">multiset.add(<span class="string">&quot;c&quot;</span>, <span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">ImmutableMultiset&lt;String&gt; highestCountFirst = Multisets.copyHighestCountFirst(multiset);</span><br><span class="line"></span><br><span class="line"><span class="comment">// highestCountFirst, like its entrySet and elementSet, iterates over the elements in order &#123;&quot;b&quot;, &quot;a&quot;, &quot;c&quot;&#125;</span></span><br></pre></td></tr></table></figure>
+<h2 id="multimaps">Multimaps</h2>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html"><code>Multimaps</code></a>
+提供了大量通用工具操作，值得我们一一讨论.</p>
+<h3 id="index"><code>index</code></h3>
+<p><code>Maps.uniqueIndex</code>的表亲, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#index-java.lang.Iterable-com.google.common.base.Function-"><code>Multimaps.index(Iterable, Function)</code></a>
+回答了你想要从所有对象中查找某些特定的共有而不是排他的属性的问题。</p>
+<p>比方说我们想要通过字符串长度来对其进行分组。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">ImmutableSet&lt;String&gt; digits = ImmutableSet.of(</span><br><span class="line">    <span class="string">&quot;zero&quot;</span>, <span class="string">&quot;one&quot;</span>, <span class="string">&quot;two&quot;</span>, <span class="string">&quot;three&quot;</span>, <span class="string">&quot;four&quot;</span>,</span><br><span class="line">    <span class="string">&quot;five&quot;</span>, <span class="string">&quot;six&quot;</span>, <span class="string">&quot;seven&quot;</span>, <span class="string">&quot;eight&quot;</span>, <span class="string">&quot;nine&quot;</span>);</span><br><span class="line">Function&lt;String, Integer&gt; lengthFunction = <span class="keyword">new</span> <span class="title class_">Function</span>&lt;String, Integer&gt;() &#123;</span><br><span class="line">  <span class="keyword">public</span> Integer <span class="title function_">apply</span><span class="params">(String string)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> string.length();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line">ImmutableListMultimap&lt;Integer, String&gt; digitsByLength = Multimaps.index(digits, lengthFunction);</span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * digitsByLength maps:</span></span><br><span class="line"><span class="comment"> *  3 =&gt; &#123;&quot;one&quot;, &quot;two&quot;, &quot;six&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  4 =&gt; &#123;&quot;zero&quot;, &quot;four&quot;, &quot;five&quot;, &quot;nine&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  5 =&gt; &#123;&quot;three&quot;, &quot;seven&quot;, &quot;eight&quot;&#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+<h3 id="invertfrom"><code>invertFrom</code></h3>
+<p>由于 <code>Multimap</code> 可以将多个 key 映射至单个 value,
+也可以将一个 key 映射至 多个 value, 那么转置一个 <code>Multimap</code>
+就变得很有用处。 Guava 提供了 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#invertFrom-com.google.common.collect.Multimap-M-"><code>invertFrom(Multimap toInvert, Multimap dest)</code></a>
+让你来做这件事，而不是帮你选择一个实现。</p>
+<p><em>注意:</em> 如果你是用的是 <code>ImmutableMultimap</code>,
+考虑替换为 <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableMultimap.html#inverse--"><code>ImmutableMultimap.inverse()</code></a>。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">ArrayListMultimap&lt;String, Integer&gt; multimap = ArrayListMultimap.create();</span><br><span class="line">multimap.putAll(<span class="string">&quot;b&quot;</span>, Ints.asList(<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>));</span><br><span class="line">multimap.putAll(<span class="string">&quot;a&quot;</span>, Ints.asList(<span class="number">4</span>, <span class="number">2</span>, <span class="number">1</span>));</span><br><span class="line">multimap.putAll(<span class="string">&quot;c&quot;</span>, Ints.asList(<span class="number">2</span>, <span class="number">5</span>, <span class="number">3</span>));</span><br><span class="line"></span><br><span class="line">TreeMultimap&lt;Integer, String&gt; inverse = Multimaps.invertFrom(multimap, TreeMultimap.&lt;String, Integer&gt; create());</span><br><span class="line"><span class="comment">// note that we choose the implementation, so if we use a TreeMultimap, we get results in order</span></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * inverse maps:</span></span><br><span class="line"><span class="comment"> *  1 =&gt; &#123;&quot;a&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  2 =&gt; &#123;&quot;a&quot;, &quot;b&quot;, &quot;c&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  3 =&gt; &#123;&quot;c&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  4 =&gt; &#123;&quot;a&quot;, &quot;b&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  5 =&gt; &#123;&quot;c&quot;&#125;</span></span><br><span class="line"><span class="comment"> *  6 =&gt; &#123;&quot;b&quot;&#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+<h3 id="formap"><code>forMap</code></h3>
+<p>想在<code>Map</code>上使用<code>Multimap</code>的方法？<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#forMap-java.util.Map-"><code>forMap(Map)</code></a>
+将 <code>Map</code> 展示为 <code>SetMultimap</code> 视图. 这非常有用,
+比如, 与 <code>Multimaps.invertFrom</code>结合在一起。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Map&lt;String, Integer&gt; map = ImmutableMap.of(<span class="string">&quot;a&quot;</span>, <span class="number">1</span>, <span class="string">&quot;b&quot;</span>, <span class="number">1</span>, <span class="string">&quot;c&quot;</span>, <span class="number">2</span>);</span><br><span class="line">SetMultimap&lt;String, Integer&gt; multimap = Multimaps.forMap(map);</span><br><span class="line"><span class="comment">// multimap maps [&quot;a&quot; =&gt; &#123;1&#125;, &quot;b&quot; =&gt; &#123;1&#125;, &quot;c&quot; =&gt; &#123;2&#125;]</span></span><br><span class="line">Multimap&lt;Integer, String&gt; inverse = Multimaps.invertFrom(multimap, HashMultimap.&lt;Integer, String&gt; create());</span><br><span class="line"><span class="comment">// inverse maps [1 =&gt; &#123;&quot;a&quot;, &quot;b&quot;&#125;, 2 =&gt; &#123;&quot;c&quot;&#125;]</span></span><br></pre></td></tr></table></figure>
+<h3 id="wrappers">Wrappers</h3>
+<p><code>Multimaps</code> 提供了传统的包装方法, 以及 <code>Map</code>
+和<code>Collection</code>实现的定制化 <code>Multimap</code> 工具。</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 36%" />
+<col style="width: 36%" />
+<col style="width: 6%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Multimap type</th>
+<th style="text-align: left;">Unmodifiable</th>
+<th style="text-align: left;">Synchronized</th>
+<th style="text-align: left;">Custom</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>Multimap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#unmodifiableMultimap-com.google.common.collect.Multimap-"><code>unmodifiableMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#synchronizedMultimap-com.google.common.collect.Multimap-"><code>synchronizedMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newMultimap-java.util.Map-com.google.common.base.Supplier-"><code>newMultimap</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>ListMultimap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#unmodifiableListMultimap-com.google.common.collect.ListMultimap-"><code>unmodifiableListMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#synchronizedListMultimap-com.google.common.collect.ListMultimap-"><code>synchronizedListMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newListMultimap-java.util.Map-com.google.common.base.Supplier-"><code>newListMultimap</code></a></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>SetMultimap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#unmodifiableSetMultimap-com.google.common.collect.SetMultimap-"><code>unmodifiableSetMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#synchronizedSetMultimap-com.google.common.collect.SetMultimap-"><code>synchronizedSetMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newSetMultimap-java.util.Map-com.google.common.base.Supplier-"><code>newSetMultimap</code></a></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>SortedSetMultimap</code></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#unmodifiableSortedSetMultimap-com.google.common.collect.SortedSetMultimap-"><code>unmodifiableSortedSetMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#synchronizedSortedSetMultimap-com.google.common.collect.SortedSetMultimap-"><code>synchronizedSortedSetMultimap</code></a></td>
+<td style="text-align: left;"><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Multimaps.html#newSortedSetMultimap-java.util.Map-com.google.common.base.Supplier-"><code>newSortedSetMultimap</code></a></td>
+</tr>
+</tbody>
+</table>
+<p>定制的 <code>Multimap</code> 实现让你能选定某个特定实现作用于返回的
+<code>Multimap</code> 上. 请注意:</p>
+<ul>
+<li>multimap 假设完全拥有通过工厂方法创建的 map 和 list。
+这些对象不应该被手动更新, 他们在被提供时应该为空,
+且他们并不应该被作为软引用、弱引用、幻象引用。</li>
+<li><strong>不做保证</strong>
+在你修改<code>Multimap</code>后，<code>Map</code> 也应该一同改变。</li>
+<li>multimap 在并发修改时并不是线程安全的, 即使构建 map
+和其实例的工厂方法确保他们线程安全，即使并发读操作能正常工作。如需必要，使
+<code>synchronized</code> 包装器来绕过它。</li>
+<li>假如map, 工厂, 工厂创建的 list, 以及 multimap 的内容都可序列化时，该
+multimap 可被序列化。</li>
+<li><code>Multimap.get(key)</code>返回的集合与<code>Supplier</code>返回的集合类型<em>不同</em>，但如果
+supplier 返回<code>RandomAccess</code>
+list，<code>Multimap.get(key)</code>返回的list 也将是random
+access。</li>
+</ul>
+<p>注意定制的<code>Multimap</code> 方法接受一个 <code>Supplier</code>
+参数来创建全新的 collection。
+下面是一个例子展示一个基于<code>TreeMap</code>的<code>ListMultimap</code>
+映射为<code>LinkedList</code>。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">ListMultimap&lt;String, Integer&gt; myMultimap = Multimaps.newListMultimap(</span><br><span class="line">  Maps.&lt;String, Collection&lt;Integer&gt;&gt;newTreeMap(),</span><br><span class="line">  <span class="keyword">new</span> <span class="title class_">Supplier</span>&lt;LinkedList&lt;Integer&gt;&gt;() &#123;</span><br><span class="line">    <span class="keyword">public</span> LinkedList&lt;Integer&gt; <span class="title function_">get</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Lists.newLinkedList();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br></pre></td></tr></table></figure>
+<h2 id="tables">Tables</h2>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Tables.html"><code>Tables</code></a>
+类提供了一些趁手的工具.</p>
+<h3 id="customtable"><code>customTable</code></h3>
+<p>与<code>Multimaps.newXXXMultimap(Map, Supplier)</code> 工具相比, <a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Tables.html#newCustomTable-java.util.Map-com.google.common.base.Supplier-"><code>Tables.newCustomTable(Map, Supplier&lt;Map&gt;)</code></a>
+允许你指定一个 <code>Table</code> 实现， 使用任意的行列映射。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// use LinkedHashMaps instead of HashMaps</span></span><br><span class="line">Table&lt;String, Character, Integer&gt; table = Tables.newCustomTable(</span><br><span class="line">  Maps.&lt;String, Map&lt;Character, Integer&gt;&gt;newLinkedHashMap(),</span><br><span class="line">  <span class="keyword">new</span> <span class="title class_">Supplier</span>&lt;Map&lt;Character, Integer&gt;&gt; () &#123;</span><br><span class="line">    <span class="keyword">public</span> Map&lt;Character, Integer&gt; <span class="title function_">get</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Maps.newLinkedHashMap();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br></pre></td></tr></table></figure>
+<h3 id="transpose"><code>transpose</code></h3>
+<p><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Tables.html#transpose-com.google.common.collect.Table-"><code>transpose(Table&lt;R, C, V&gt;)</code></a>
+方法允许你将<code>Table&lt;C, R, V&gt;</code> 展示为
+<code>Table&lt;R, C, V&gt;</code>视图。</p>
+<h3 id="wrappers-1">Wrappers</h3>
+<p>我们提供了你熟悉且喜爱的不可变包装器. 但你可以考虑在大多数情况下使用
+<a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/ImmutableTable.html"><code>ImmutableTable</code></a>。</p>
+<ul>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Tables.html#unmodifiableTable-com.google.common.collect.Table-"><code>unmodifiableTable</code></a></li>
+<li><a
+href="http://google.github.io/guava/releases/snapshot/api/docs/com/google/common/collect/Tables.html#unmodifiableRowSortedTable-com.google.common.collect.RowSortedTable-"><code>unmodifiableRowSortedTable</code></a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2019/12/07/guava-collection-utilities/" title="（Guava 译文系列）集合工具类">http://lenshood.github.io/2019/12/07/guava-collection-utilities/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/guava/" rel="tag"># guava</a>
+              <a href="/tags/translation/" rel="tag"># translation</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/11/15/guava-new-collection/" rel="prev" title="（Guava 译文系列）新集合类型">
+                  <i class="fa fa-angle-left"></i> （Guava 译文系列）新集合类型
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/12/21/guava-cache/" rel="next" title="（Guava 译文系列）缓存">
+                  （Guava 译文系列）缓存 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

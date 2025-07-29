@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文介绍了企业在构建平台工程能力时如何通过可扩展的软件栈架构来满足多样的场景与诉求。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="构建可扩展的平台工程软件栈架构">
+<meta property="og:url" content="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文介绍了企业在构建平台工程能力时如何通过可扩展的软件栈架构来满足多样的场景与诉求。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/arch.jpg">
+<meta property="og:image" content="https://github.com/oam-dev/spec/blob/master/assets/overview.png?raw=true">
+<meta property="og:image" content="https://www.lenshood.dev/2022/12/06/multi-runtime/7.png">
+<meta property="og:image" content="https://camo.githubusercontent.com/3c9f24e500b84bc31c744c623573b11e00247f49364fe7bc673e03faa56ee631/68747470733a2f2f7374617469632e6b75626576656c612e6e65742f696d616765732f312e362f776f726b666c6f772d617263682e706e67">
+<meta property="og:image" content="https://docs.crossplane.io/media/composition-how-it-works.svg">
+<meta property="og:image" content="https://opentelemetry.io/img/otel_diagram.png">
+<meta property="og:image" content="https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/sched-chain.jpg">
+<meta property="og:image" content="https://cluster-api.sigs.k8s.io/images/management-cluster.svg">
+<meta property="article:published_time" content="2023-05-09T14:08:49.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.038Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="multi-runtime">
+<meta property="article:tag" content="platform engineering">
+<meta property="article:tag" content="multi-cluster">
+<meta property="article:tag" content="multi-cloud">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/","path":"2023/05/09/build-extendable-platform-engineering-software-stack/","title":"构建可扩展的平台工程软件栈架构"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>构建可扩展的平台工程软件栈架构 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B9%B3%E5%8F%B0%E5%B7%A5%E7%A8%8B%E7%9A%84%E8%AF%89%E6%B1%82%E5%92%8C%E6%BC%94%E8%BF%9B"><span class="nav-number">1.</span> <span class="nav-text">平台工程的诉求和演进</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E5%B9%B3%E5%8F%B0%E5%B7%A5%E7%A8%8B%E8%BD%AF%E4%BB%B6%E6%A0%88%E6%9E%B6%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">可扩展的平台工程软件栈架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E8%83%BD%E5%8A%9B%E6%8A%BD%E8%B1%A1%E5%B1%82"><span class="nav-number">2.1.</span> <span class="nav-text">可扩展的能力抽象层</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BB%9F%E4%B8%80%E5%BA%94%E7%94%A8%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.1.1.</span> <span class="nav-text">统一应用模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E8%83%BD%E5%8A%9B%E6%8A%BD%E8%B1%A1"><span class="nav-number">2.1.2.</span> <span class="nav-text">分布式能力抽象</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84-devops-%E7%BB%84%E4%BB%B6%E5%B1%82"><span class="nav-number">2.2.</span> <span class="nav-text">可扩展的 DevOps 组件层</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#cicd"><span class="nav-number">2.2.1.</span> <span class="nav-text">CI&#x2F;CD</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86-iac"><span class="nav-number">2.2.2.</span> <span class="nav-text">资源管理 + IaC</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7"><span class="nav-number">2.2.3.</span> <span class="nav-text">可观测性</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E8%B5%84%E6%BA%90%E7%BC%96%E6%8E%92%E5%B1%82"><span class="nav-number">2.3.</span> <span class="nav-text">可扩展的资源编排层</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BA%94%E7%94%A8%E7%81%B5%E6%B4%BB%E8%B0%83%E5%BA%A6"><span class="nav-number">2.3.1.</span> <span class="nav-text">应用灵活调度</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%A0%87%E5%87%86%E8%B5%84%E6%BA%90%E6%8A%BD%E8%B1%A1"><span class="nav-number">2.3.2.</span> <span class="nav-text">标准资源抽象</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E5%8A%A8%E6%80%81%E6%89%A9%E7%BC%A9"><span class="nav-number">2.3.3.</span> <span class="nav-text">基础设施动态扩缩</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="构建可扩展的平台工程软件栈架构 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          构建可扩展的平台工程软件栈架构
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2023-05-09 22:08:49" itemprop="dateCreated datePublished" datetime="2023-05-09T22:08:49+08:00">2023-05-09</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2023/05/09/build-extendable-platform-engineering-software-stack/header.jpg" class="" width="500">
+<p>本文介绍了企业在构建平台工程能力时如何通过可扩展的软件栈架构来满足多样的场景与诉求。</p>
+<span id="more"></span>
+<h2 id="平台工程的诉求和演进">平台工程的诉求和演进</h2>
+<p><a
+href="https://platformengineering.org/blog/what-is-platform-engineering">平台工程（Platform
+Engineering）</a>是一种设计构建工具链和工作流的工程实践。企业通过设立小规模的<a
+href="https://www.thoughtworks.com/zh-cn/radar/techniques/platform-engineering-product-teams">平台工程团队</a>，建设
+IDP 内部开发者平台（Internal Developer Platforms）使研发团队在 DevOps
+实践上更易于达成 <a
+href="https://cloud.google.com/blog/products/devops-sre/using-the-four-keys-to-measure-your-devops-performance">DORA
+Metrics</a> 所描绘的高效能团队要求。</p>
+<p>实际上，很多人在了解到平台工程这一概念后，都会心生疑惑：“平台工程是个新概念吗，听着耳熟啊？”，“这不就是我们公司的
+xxx 平台吗？（这里的 xxx 平台可能是 <strong>研发管理平台</strong> /
+<strong>DevOps 平台</strong> / <strong>开发者平台</strong> /
+<strong>一站式运维平台</strong> 等等”。</p>
+<p>的确，至少在笔者所经历过的雇主、客户中，就接触过不下五个类似的平台，虽然它们的名称代号各不相同，但至少都会提供包括代码仓、CI/CD
+流水线、配置中心、资源管理等基础能力，业务研发团队基于此实现了一定程度的交付自动化。</p>
+<p>那有了这些基础能力，是否意味着企业的 IDP 就建成了呢？并不是。</p>
+<p>平台工程是为了让企业更易于触及高成熟度的 DevOps
+实践而诞生的，许多企业没有精力和人才来构建整个 DevOps
+体系（工具、流程、文化以及组织变革），就只好先从便宜收效快的地方入手：从运维团队抽调几个人，搭一套开源方案就能凑合用。但这些零散的工具和脚本除了提供一定程度的自动化能力外，并不能真正让研发人员从
+DevOps 的工作中解放出来（<a
+href="https://mp.weixin.qq.com/s/ZLIdcZOAAKHRl2KvRsxkGA"><em>“扯淡的DevOps，我们开发者根本不想做运维！”</em></a>）。</p>
+<p>我们观察到，有能力通过构建平台实现高 DevOps
+成熟度的企业，的确都是大型企业居多，它们为此投入了可观的资源。这类企业通过在内部搭建完善的平台、工具甚至基础设施，推行全公司一致的研发流程和团队管理实践，构建复杂的指标体系来评估研发团队并与绩效挂钩，自上而下的推动
+DevOps 能力提升。</p>
+<p>然而绝大多数企业都无法承受如此规模的投入，那么平台工程实践只能是大企业的专利吗？</p>
+<p>在这篇 <a
+href="https://platformengineering.org/blog/what-is-platform-engineering"><em>What
+Is Platform Engineering</em></a> 中提到，只要组织规模达到 20~30
+人，就可以开始关注 IDP
+了。这一观点引发了我们的思考：投入受限下的平台工程建设，期望得到怎样的收效呢？</p>
+<p>小型企业对平台能力的主要考量点在于<strong>基本可用</strong> +
+<strong>成本最低</strong>，尽量使用便宜甚至免费的服务是明智的选择。因此小企业更容易接受
+SaaS 解决方案，例如 <a href="https://github.com/pricing">Github
+Pro</a>、<a href="https://coding.net/">Coding</a>
+等。这一阶段平台的主要工作就是通过集成 SaaS
+服务来满足业务需求，同时设计抽象层来避免过度绑定。</p>
+<p>而当企业达到一定规模且处于高速发展期时，就会更关注<strong>软件交付以及平台工程能力扩展的速度</strong>。毕竟高速发展的业务需要平台支撑其快速试错和占领市场，也要求平台能更快的扩展新功能以匹配业务的发展。这一阶段平台设计的重点是提高响应能力，完善扩展性。</p>
+<p>最后，对于大规模企业，它们更倾向要求<strong>合规、稳定和降本增效</strong>。为了支撑这些需求，平台在使用上要简明易用，上手门槛低，并且故障率低；在应用调度上需要支持跨云、跨区；而在资源的使用上要求减少浪费，节约成本。这阶段的建设目标更多体现在对用户体验的提升，和对基础设施的掌控力。</p>
+<p>据此可见，平台工程能力建设的诉求，在企业的不同规模、不同发展时期下都不同。那么企业在设计内部开发者平台的整体架构时，如何才能满足不同的诉求呢？下文将介绍基于标准分层抽象而构建的模块化软件栈架构设计，其能够释放平台的可扩展性和可演进性。</p>
+<h2 id="可扩展的平台工程软件栈架构">可扩展的平台工程软件栈架构</h2>
+<p>软件栈（或称<a
+href="https://en.wikipedia.org/wiki/Solution_stack">解决方案栈</a>）是通过一组软件子系统来构建完整的平台，在该平台之上可以运行特定的应用程序。这种基于抽象分层的栈模式在软件工程中十分常见。</p>
+<p>在构建平台工程能力过程中，将企业需要自研的部分尽可能收敛和内聚，通过设计标准抽象层，并借助开源社区的力量，设计分层、可扩展、组件化的软件栈架构，以充分应对平台建设过程中在成本和功能上多变的场景化诉求。</p>
+<p>基于上述思想，设计自上而下的抽象层，在层内组合多种开源组件，即可构建可扩展的平台架构，如下图所示：</p>
+<img src="/2023/05/09/build-extendable-platform-engineering-software-stack/arch.jpg" class="">
+<p>以下将分别介绍每一层的职责和扩展能力。</p>
+<h3 id="可扩展的能力抽象层">可扩展的能力抽象层</h3>
+<p>作为平台架构的最上层，能力抽象层最核心的目标是通过提供合理的抽象与接口，让应用在开发态和运行态都能更关注于业务本身，而将运维能力侧和公共组件侧的需求尽可能代理出去。通过能力抽象层提供的各种抽象能力，应用研发团队只需要对应用所需公共能力和运维的需求进行定义，之后可放心的将配置和实施的工作交给平台，从而节省大量原先需要做的
+DevOps 工作和时间。</p>
+<p>因此，能力抽象层的设计，在应用运维需求侧，考虑构建标准化可扩展的应用运维模型，而在公共能力的需求侧，考虑构建通用的公共能力抽象。</p>
+<h4 id="统一应用模型">统一应用模型</h4>
+<p>通常意义上，应用在 Day2 阶段的持续时间要远大于 Day0 和
+Day1，这也就导致了交付和运维的工作是繁杂和冗长的。软件部署早已不是把包丢到服务器上然后启动进程就完事，还包括配置管理、服务拓扑、副本扩缩、流量分发、监控、审计、成本优化等各种要求。</p>
+<p>通过定义一套标准的应用交付模型，可以将应用开发团队和平台团队的关注点进行分离，由开发者定义特定应用在交付和运行中的需求，由平台团队来实现这些需求。</p>
+<p><a
+href="https://github.com/oam-dev/spec/blob/master/README.md">OAM（Open
+Application Model）</a>就是这样的一种模型标准。</p>
+<p><img src="https://github.com/oam-dev/spec/blob/master/assets/overview.png?raw=true" style="zoom: 50%;" /></p>
+<p>平台团队提供 <code>ComponentDefinition</code>
+来描述不同应用的部署模型，如 "通过 K8s Deployment
+部署的无状态后端服务"，"直接推送 CDN 的静态前端页面"
+等。应用开发者只需挑选某个 <code>Component</code>
+来描述应用，并设置一些属性参数，如镜像名、ENV、端口号等等即可。</p>
+<p>同时，平台团队还提供了对 <code>Traits</code> 和 <code>Scopes</code>
+的定义，这允许开发者为他们的应用添加运维特征如动态扩缩，灰度发布，负载均衡等，以及分组特征如安全组，AZ等。</p>
+<p>因此，开发者只需要将应用模型以类似 <code>yaml</code>
+的形式维护在代码仓内，随着 <a
+href="https://www.weave.works/blog/what-is-gitops-really">GitOps</a>
+流程，应用就会顺滑的交付上线。</p>
+<p>通过 OAM
+的抽象隔离，对应用团队提出的各种运维诉求，平台团队可以灵活的采用各种手段来实现，实现方案也能灵活的替换和扩展。</p>
+<blockquote>
+<p><a href="%5Bkubevela.io%5D(https://kubevela.io/)">KubeVela</a>
+实现并扩展了 OAM</p>
+</blockquote>
+<h4 id="分布式能力抽象">分布式能力抽象</h4>
+<p>在成规模的服务化体系中，应用可能依赖了越来越多的中间件以及三方服务，它们提供了应用实现业务目标所需要的各种分布式能力。然而，传统的
+SDK
+集成方式让这些分布式能力变成了一个个的孤岛，难以统一治理，导致维护困难、升级困难，降低了整体的研发效率。</p>
+<p>平台可以将各种分布式能力进行归类和抽象，为应用提供统一的分布式能力抽象层，因而应用只需要通过抽象层调用标准化能力，由平台团队维护实际的能力实现组件。</p>
+<p><a
+href="https://www.lenshood.dev/2022/12/06/multi-runtime/">多运行时架构</a>就是基于上述思想提出的解决方案：</p>
+<p>在多运行时架构的理念中，将各种分布式能力归纳为 4
+个部分：生命周期、网络、状态以及绑定。传统场景下，这四大能力是由各类基础设施和中间件来提供的。</p>
+<p><img src="https://www.lenshood.dev/2022/12/06/multi-runtime/7.png" style="zoom:50%;" /></p>
+<p>通过<code>Mircologic + Mecha</code>，即微业务与所谓“机甲”相组合的方式，将业务对分布式能力的需求全部交给
+Mecha 运行时来代理，而真实提供分布式能力的组件，通过 Mecha
+与业务应用隔离。</p>
+<p>平台通过为每一个业务应用提供 Mecha
+运行时，隔离了需求与实现，因此能够方便的对各种中间件进行维护和扩展。</p>
+<blockquote>
+<p>多运行时架构的实现方案有 <a href="https://dapr.io/">Dapr</a>、<a
+href="https://mosn.io/layotto/#/zh/README">Layotto</a> 等</p>
+</blockquote>
+<h3 id="可扩展的-devops-组件层">可扩展的 DevOps 组件层</h3>
+<p>得益于能力抽象层对应用需求的抽象，在 DevOps
+组件层，平台团队可以放心大胆的提供和尝试各类工具和实践。同时，在丰富的
+DevOps
+组件生态中，也形成了许多标准化协议和流程，让各类组件本身也能灵活扩展。</p>
+<p>云原生不仅让应用获得了高度灵活的资源利用和弹性能力，也为基础设施侧组件提供了标准化的运行环境和管理方法，因此
+DevOps 组件层提供的组件也默认采用云原生的方案。</p>
+<h4 id="cicd">CI/CD</h4>
+<p>DevOps 组件层所提供的最基本能力应该就是 CI/CD Pipeline 了。通过
+Pipeline 来拉取 Repo
+中的代码，并一步步的执行编译、检查、测试、部署、发布，这可能是企业尝试
+DevOps 工具的第一步。</p>
+<p>CI/CD Pipeline 的运行，本质上是执行了一个
+DAG，各个阶段具体做的事情只是挂载在 DAG 节点上的细节。因此大多数的 CI/CD
+工具都实现了 Workflow Engine。</p>
+<p>可以基于 DAG 来定义标准的 Pipeline
+抽象，在不同的抽象工作节点上执行编译、检查、运行测试、打包等任务，具体的工作节点实现可自定义方案。</p>
+<p>上一节提到的实现了 OAM 的 KubeVela，就基于 OAM 模型扩展了 Workflow
+的定义，通过 Workflow，可以将 Pipeline 的部分直接集成在 OAM
+模型当中，KubeVela 对 CI/CD Pipeline 的抽象称为 <a
+href="https://kubevela.io/docs/tutorials/s2i">Unified Declarative
+CI/CD</a>。</p>
+<p><img src="https://camo.githubusercontent.com/3c9f24e500b84bc31c744c623573b11e00247f49364fe7bc673e03faa56ee631/68747470733a2f2f7374617469632e6b75626576656c612e6e65742f696d616765732f312e362f776f726b666c6f772d617263682e706e67" style="zoom: 50%;" /></p>
+<h4 id="资源管理-iac">资源管理 + IaC</h4>
+<p>业务应用通常会依赖大量 PaaS
+中间件服务，通过公共能力抽象，应用开发者不必关心具体中间件的实现和维护。但对于平台团队而言，大多数
+PaaS 服务都是非 K8s 环境的，企业可能会维护大量 IaC
+脚本来实现对资源的自动化操作，但想要将它们纳入云原生环境下统一管理仍需要可观的人力付出，尤其是在跨云场景下更加复杂。</p>
+<p><a href="https://www.crossplane.io/">Crossplane</a>
+正是为了解决这一问题而诞生。</p>
+<p><img src="https://docs.crossplane.io/media/composition-how-it-works.svg" style="zoom: 50%;" /></p>
+<p>Crossplane 通过 <code>Provider</code> 实现对具体 PaaS
+资源的操作，在其<a
+href="https://marketplace.upbound.io/">官方市场</a>中已经有数十家 CSP
+开发的 Providers。Crossplane
+允许用户自定义资源，并通过标准的控制器模式来完成对资源的管理。因此，通过
+Crossplane 可以声明式的管理 PaaS 资源。</p>
+<p>实际的资源申请场景中，Crossplane 借鉴了 K8s <code>PV</code> 与
+<code>PVC</code>
+的概念，资源提供方通过创建资源定义来发布可用的资源，而资源使用方通过构建
+<code>Claim</code> 来发出对资源的请求。最后，通过 Crossplane
+控制器就能完成这一需求匹配过程。</p>
+<p>通过类似 Crossplane 的技术，可以将各种孤立的 PaaS
+中间件与企业平台结合起来，并实现代码化、自动化管理。</p>
+<h4 id="可观测性">可观测性</h4>
+<p>完善的系统可观测能力可以帮助开发者获得对系统运行状态的深入洞察，并从容应对线上问题。可观测能力的成熟度，会直接影响研发效率和服务质量评价。Metrics、Logs
+和 Tracing
+是最常见的可观测能力，分别采集和分析系统的指标、日志以及链路追踪。通过对这三类数据的整合，开发者能够从统计维度、程序执行维度和用户请求维度对应用进行综合分析。</p>
+<p>在 <a href="https://opentelemetry.io/">OpenTelemetry</a>
+出现以前，上述三种不同类的观测数据各自存在特定的探针、数据格式以及标准，导致系统的设计选择绑定了几种方案而难以替换和扩展，阻碍了新技术的引入。</p>
+<p>OpenTelemetry（简称 otel）
+作为可观测性系统前后端之间的抽象层，整合了一套标准数据模型，使得数据探针和数据处理系统不再相互依赖。除了各种开源方案对
+otel 的支持外，包括 AWS、Azure 和 GCP 在内的许多 CSP 都在其产品内支持了
+otel 标准。因此引入 otel 能够极大的增强在可观测性能力上的扩展性。</p>
+<p><img src="https://opentelemetry.io/img/otel_diagram.png" style="zoom:67%;" /></p>
+<h3 id="可扩展的资源编排层">可扩展的资源编排层</h3>
+<p>根据 <a
+href="https://github.com/cncf/toc/blob/main/DEFINITION.md">CNCF
+对云原生的定义</a>，云原生应用可以在云上自由的弹性扩展。从这一点看，理想的云原生基础设施，应该能为应用提供无限的资源和难以察觉的扩缩速度。虽然理想情况难以实现，但平台有义务提供标准化的生命周期管理与资源编排能力，以便上层用户可以自由的按需使用资源，而不需要考虑资源的管理细节。</p>
+<p>K8s
+作为云原生的事实标准，显然非常适合作为资源编排层的技术实现。然而，现代化应用的发展趋势，对平台提出了更多变的场景化诉求，如跨区域高可用、租户强隔离、地区法律合规、精确控制成本等。这就要求资源编排层能支持差异化基础设施的灵活扩展，叠加精准的编排调度能力，为上层用户提供匹配其诉求的抽象资源。</p>
+<p>事实上，单一基础设施下的 K8s
+容器集群难以满足上述诉求，而多集群管理技术是一种可行的解决方案。通过 K8s
+多集群管理技术，资源编排层能够提供三大能力：应用灵活调度、标准资源抽象、基础设施动态扩缩。</p>
+<h4 id="应用灵活调度">应用灵活调度</h4>
+<p>多集群本质上是为了让应用运行在更合适的位置。为了高可用、成本控制、合规性等目的，业务应用可能需要被动态调度到不同的
+K8s 集群上。实施调度的关键是调度策略。</p>
+<p>通过调度策略，我们期望能解决 “什么样的应用” 需要被调度到 “哪类集群”
+的问题。显然，应用有其自身独特的属性集，集群也一样。从属性集的角度看，调度策略问题就可以转化为应用与集群属性集之间的最优匹配问题。</p>
+<p><img src="https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/sched-chain.jpg" style="zoom:50%;" /></p>
+<p>进行调度决策时，待调度应用与待选集群的属性集依次通过过滤型决策器和打分型决策器，最终找到一组分数最高的集群，调度完成。而下达调度决策的前提，是多集群控制面能准确的获悉集群中的各种状态，因此状态数据的收集也至关重要。</p>
+<blockquote>
+<p><a href="https://karmada.io/zh/">Karmada</a>
+是一种多集群解决方案，它实现了动态调度</p>
+</blockquote>
+<h4 id="标准资源抽象">标准资源抽象</h4>
+<p>K8s 社区一方面鼓励各类定制发型版以保持社区生态的健康发展，另一方面
+CNCF 也提出了 <a
+href="https://www.cncf.io/certification/software-conformance/">K8s一致性认证</a>
+用来确保所有发行版在 API
+层面与公版兼容，从而一定程度上达成在认证发行版之间灵活切换的能力。然而，但即使是一致性认证的存在，企业在选择扩展
+K8s 时也仍然会面临多集群之间版本一致性、版本升级的困难。</p>
+<p>针对上述问题，资源抽象层需要向上提供稳定的资源抽象，向下应对多版本和非标准
+API。对此有两种解决方案：</p>
+<ol type="1">
+<li><p>在底层对集群版本进行限制和管理，确保任意基础设施上构建的 K8s
+都保持同一版本。该方式主要适用于对基础设施拥有足够的选择空间的场景。</p>
+<p><a href="https://gardener.cloud/">Gardener</a> 是 SAP 开源的 K8s
+集群生命周期管理方案，在设计概念上，Gardener 能够确保由其管理的 K8s
+集群具有完全相同的版本、配置和行为，这简化了应用的多云迁移。Gardener
+还提供了<a
+href="https://k8s-testgrid.appspot.com/conformance-all">一个页面</a>专门介绍其不同版本的标准化K8s
+集群与不同云提供商的兼容情况。</p>
+<p><img
+src="https://gardener.cloud/__resources/gardener-architecture-overview_2bd462.png" /></p></li>
+<li><p>提供对非标准资源 API 的标准化收敛，通过在 Proxy 层嵌入各类
+<code>Converter</code> 插件，将非标准 API
+映射为标准抽象。该方式更适合于部分企业可能因特殊需要而只能选择某些
+“魔改” 版本（显然无法通过一致性测试）的场景。</p></li>
+</ol>
+<h4 id="基础设施动态扩缩">基础设施动态扩缩</h4>
+<p>为了更好的满足资源编排层的扩展需求，通过实现集群动态扩缩，可以获得类似
+“集群即资源” 的能力。然而不论是基于云虚拟机自建 K8s，还是直接使用 CSP
+定制化的代管集群，在各种基础设施上构建 K8s
+都涉及到许多适配性工作。如果由平台团队来实施这些适配，不仅工作量大，扩展性也很弱。在软件工程领域，解决此类问题的最佳方式就是定义标准化接口，并由供应商来实现（例如
+Linux 的 VFS）。</p>
+<p>如今的确存在这种标准化接口。<a
+href="https://github.com/kubernetes-sigs/cluster-api">ClusterAPI（简称
+CAPI）</a> 是 K8s “Cluster Lifecycle SIG” 发起的项目，CAPI
+尝试通过定义标准基础设施 API 来统一集群生命周期管理，各类 CSP
+自行提供实现了标准 API 的 <code>Provider</code>
+来支持自动化操作集群资源，由于其官方背景，目前已有<a
+href="https://cluster-api.sigs.k8s.io/reference/providers.html">数十种
+<code>Provider</code></a> 可供选择（不仅包含 aws 等公有云，还包含了
+OpenStack，OCI 等其他方案）。</p>
+<p>CAPI 的价值不仅在于对各种 CSP
+的全面适配，更重要的是通过它能够实现集群的自动化创建和销毁，也就实现了<strong>集群即资源</strong>，从而能极大的提升资源编排层的扩展性。</p>
+<p><img src="https://cluster-api.sigs.k8s.io/images/management-cluster.svg" alt="CAPI 架构" style="zoom:67%;" /></p>
+<h2 id="总结">总结</h2>
+<p>本文首先讨论了企业在建设平台工程能力过程中存在差异化的场景和诉求，基于这一原因，我们期望通过构建可扩展的软件栈架构，使企业能够尽可能的借助开源社区的力量，在成本可控的前提下建设自己的内部平台。</p>
+<p>可扩展的前提是足够的抽象，通过划分三个抽象层，我们能够在应用能力诉求、DevOps
+组件、资源编排调度这三个维度上分别实现灵活可扩展。叠加云原生生态中的丰富开源方案，组合起来，就构成了完整的软件栈。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/" title="构建可扩展的平台工程软件栈架构">http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/multi-runtime/" rel="tag"># multi-runtime</a>
+              <a href="/tags/platform-engineering/" rel="tag"># platform engineering</a>
+              <a href="/tags/multi-cluster/" rel="tag"># multi-cluster</a>
+              <a href="/tags/multi-cloud/" rel="tag"># multi-cloud</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/03/26/k8s-multi-cluster-2/" rel="prev" title="理解 K8s 多集群（下）：解决方案对比与演进趋势">
+                  <i class="fa fa-angle-left"></i> 理解 K8s 多集群（下）：解决方案对比与演进趋势
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/06/11/how-to-insert-data-faster/" rel="next" title="如何让数据库插入速度提升200倍">
+                  如何让数据库插入速度提升200倍 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

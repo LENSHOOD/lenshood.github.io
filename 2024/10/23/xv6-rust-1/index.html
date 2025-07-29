@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Xv6 is one of the best operating systems for teaching. It’s a great way to learn about how an OS works with basic functions and few lines of code. Originally, xv6 was written in C, which is awesome f">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x01&#x2F; - Getting Started is the Hardest Part">
+<meta property="og:url" content="http://lenshood.github.io/2024/10/23/xv6-rust-1/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Xv6 is one of the best operating systems for teaching. It’s a great way to learn about how an OS works with basic functions and few lines of code. Originally, xv6 was written in C, which is awesome f">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2024/10/23/xv6-rust-1/header.jpg">
+<meta property="article:published_time" content="2024-10-23T14:27:59.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.492Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2024/10/23/xv6-rust-1/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2024/10/23/xv6-rust-1/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2024/10/23/xv6-rust-1/","path":"2024/10/23/xv6-rust-1/","title":"/Xv6 Rust 0x01/ - Getting Started is the Hardest Part"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x01/ - Getting Started is the Hardest Part | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#rust-on-risc-v"><span class="nav-number">1.</span> <span class="nav-text">1. Rust on risc-v</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#setup-risc-v-platform-based-on-qemu"><span class="nav-number">2.</span> <span class="nav-text">2. Setup risc-v platform
+based on QEMU</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#debugger-is-our-closest-friend"><span class="nav-number">3.</span> <span class="nav-text">3. Debugger is our closest
+friend</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#things-are-getting-complicated"><span class="nav-number">4.</span> <span class="nav-text">4. Things are getting
+complicated</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#what-the-xv6-is-all-about"><span class="nav-number">5.</span> <span class="nav-text">5. What the xv6 is all about?</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2024/10/23/xv6-rust-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="&#x2F;Xv6 Rust 0x01&#x2F; - Getting Started is the Hardest Part | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x01/ - Getting Started is the Hardest Part
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2024-10-23 22:27:59" itemprop="dateCreated datePublished" datetime="2024-10-23T22:27:59+08:00">2024-10-23</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2024/10/23/xv6-rust-1/header.jpg" class="" width="500">
+<p><a href="https://github.com/mit-pdos/xv6-public">Xv6</a> is one of
+the best operating systems for teaching. It’s a great way to learn about
+how an OS works with basic functions and few lines of code.</p>
+<p>Originally, xv6 was written in C, which is awesome for students to
+get hands-on experience with such a classic programming language. But
+now that Rust is gaining traction—especially since rust-for-linux is
+becoming a part of the main line Linux—wouldn’t it be fun to run xv6
+using Rust?</p>
+<p>As a perfect way to kill time, I have migrated most of xv6 from C to
+Rust. You can check it out <a
+href="https://github.com/LENSHOOD/xv6-rust">here</a>. During this
+migration process, I encountered many sorts of issues and tricky stuff,
+nothing brings me more satisfaction than successfully resolving a
+problem!</p>
+<p>Therefore, I believe it would be cool for me to share my experiences
+through a series of articles detailing how I did this, complete with a
+more structured approach and clear procedures.</p>
+<p>All right, let's get started...</p>
+<span id="more"></span>
+<h2 id="rust-on-risc-v">1. Rust on risc-v</h2>
+<p>In some previous versions of the xv6, it running on x86 arch,
+however, currently the xv6 has fully migrated to the risc-v arch.</p>
+<p>As we are going to port the xv6 to rust, at the very first, we better
+take a look about how to run rust on risc-v.</p>
+<blockquote>
+<p>Please note that in these series of articles, I will assume the
+reader has basic knowledge about rust, and knows how to setup the local
+environment such as rustup, cargo, and IDE.</p>
+<p>In the following articles, I will use my local machine as the demo
+env, and that includes:</p>
+<ul>
+<li>MBP 2019, Intel</li>
+<li>cargo 1.75.0-nightly (b4d18d4bd 2023-10-31), some features rely on
+nightly build</li>
+<li>rustup 1.26.0 (5af9b9484 2023-04-05)</li>
+<li>CLion 2024.1, (I didn't choose RustRover, because after giving it a
+try I found it still not stable)</li>
+</ul>
+</blockquote>
+<p>Here we go! Let's create a new rust project, and name it
+"xv6-rust-sample".</p>
+<p>Now, there is one and only one <code>main.rs</code> file lies in the
+<code>src/</code> directory, leave it for a sec, we don't need that file
+right now.</p>
+<p>Remember, we are going to run rust code on risc-v arch, before any
+coding, we should deal with the toolchain in the first place, after all
+I bet our code cannot run correctly when it has been compiled as x86
+right?</p>
+<p>To choose the correct toolchain, let's create a
+<code>.cargo/config.toml</code> in the project root, which is the cargo
+configuration file of our project, we could set our building target
+here.</p>
+<p>Add these two lines to the configuration file:</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[build]</span></span><br><span class="line"><span class="attr">target</span> = <span class="string">&quot;riscv64gc-unknown-none-elf&quot;</span></span><br></pre></td></tr></table></figure>
+<p>This will tell our rust toolchain that in this project, we would like
+to have a risc-v program as the output.</p>
+<p>So far so good.</p>
+<p>In the next step, we go back to the <code>main.rs</code>, and there
+is only one very simple function:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;Hello, world!&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>However, if you type and execute <code>cargo run</code> with
+confidence, then you would probably get this:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">error[E0463]: can&#x27;t find crate for `std`</span><br><span class="line">  |</span><br><span class="line">  = note: the `riscv64gc-unknown-none-elf` target may not support the standard library</span><br><span class="line">  = note: `std` is required by `xv6_rust_sample` because it does not declare `#![no_std]`</span><br><span class="line">  = help: consider building the standard library from source with `cargo build -Zbuild-std`</span><br></pre></td></tr></table></figure>
+<p>Surprise! You have met the first issue in our journey, risc-v
+toolchain doesn't support the <code>std</code> lib!</p>
+<p>Follow the error hints, we better add the <code>#![no_std]</code> to
+our code. And our second challenge is just right behind:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">error: cannot find macro `println` in this scope</span><br><span class="line"><span class="meta prompt_"> --&gt; </span><span class="language-bash">src/main.rs:2:5</span></span><br><span class="line">  |</span><br><span class="line">2 |     println!(&quot;Hello, world!&quot;);</span><br><span class="line">  |     ^^^^^^^</span><br></pre></td></tr></table></figure>
+<p>No <code>std</code>, no <code>println!()</code>. WTF?</p>
+<p>Unfortunately, yes. Actually we will take one whole chapter to
+implement <code>printf!()</code> macro in the next article, which also
+means, we are not gonna have it today.</p>
+<p>It's a bit awkward for us to not be able to print a simple "hello
+world", then we can only take one step back, change to this:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#![no_std]</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">i</span> = <span class="number">999</span>;</span><br><span class="line">    i = i + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Hopefully, at least we can check the value of <code>i</code> in
+debugger, and if the value is equal to 1000, then it can prove we
+successfully run rust code on risc-v as well.</p>
+<p>Here, the third monster shows up:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">error: `#[panic_handler]` function required, but not found</span><br></pre></td></tr></table></figure>
+<p>In the toolchain of risc-v, it doesn't even have its builtin panic
+handler!</p>
+<p>Fine, let's build one to it:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[panic_handler]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">panic</span>(info: &amp;core::panic::PanicInfo) <span class="punctuation">-&gt;</span> ! &#123;</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">&quot;wfi&quot;</span>) &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>In the above code, there is some weird stuff. What is "wfi"? (at
+least I can assure you it's not wifi)</p>
+<p>As defined in the <a
+href="https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf">RISC-V
+ISA specification</a> section 3.2.3: "The Wait for Interrupt instruction
+(WFI) provides a hint to the implementation that the current hart can be
+stalled until an interrupt might need servicing', FYI, the word "hart"
+means hardware thread.</p>
+<p>Essentially, we put a "wfi" into a loop, which means if any panic
+happens, instead of reporting some error, we just let the cpu stall.
+Besides, the macro <code>core::arch::asm!()</code> is a wrapper that
+will let us easily run assembly in rust code, since there is no
+<code>std</code> lib here, we can only import standard libraries from
+the <code>core</code> lib (not surprisingly, it doesn't contain a
+<code>println!()</code>), for more details about <code>core</code>,
+check <a href="https://doc.rust-lang.org/core/#">here</a>.</p>
+<p>All right, after adding the panic handler, and re-run
+<code>cargo run</code>, we will get our final issue:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">error: requires `start` lang_item</span><br></pre></td></tr></table></figure>
+<p><a
+href="https://doc.rust-lang.org/beta/unstable-book/language-features/lang-items.html"><code>lang_item</code></a>
+is a set of items, defined by compiler, to implement special features
+for the language, for example memory management, exception management,
+etc., the above error is like a "side effect" of
+<code>no_std</code>.</p>
+<p>Generally the <code>std</code> lib by default takes care of all of
+the special cases related to <code>lang_item</code>, once we set
+<code>no_std</code>, many language items need to be provided by
+ourselves.</p>
+<p>The <code>start</code> language item defines the entry point of the
+program. Since <code>std</code> did a great job to link the program
+entry to <code>main()</code>, so just like the above case, no std, no
+main.</p>
+<p>To solve the issue, we should add the <code>#![no_main]</code> to our
+code, that will let the compiler realize we will define our own program
+entry, hence the compiler will no longer report above error then.</p>
+<p>Up to now, maybe we could try running the code to see if everything
+goes well? After all, in many cases of rust, pass compile means pass
+everything.</p>
+<p>Let's recap the current code:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#![no_std]</span></span><br><span class="line"><span class="meta">#![no_main]</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">i</span> = <span class="number">999</span>;</span><br><span class="line">    i = i + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[panic_handler]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">panic</span>(info: &amp;core::panic::PanicInfo) <span class="punctuation">-&gt;</span> ! &#123;</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">&quot;wfi&quot;</span>) &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>We run it, then we'll get:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample: target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample: cannot execute binary file</span><br></pre></td></tr></table></figure>
+<p>Basically, that means we run the binary in a wrong arch. As we are
+aware, the target binary we would like to have is a program that can be
+run on risc-v platform, not our x86 platform.</p>
+<p>In simple terms, we need a risc-v env to run the binary. And in such
+circumstances, virtual machine is a great choice for us.</p>
+<h2 id="setup-risc-v-platform-based-on-qemu">2. Setup risc-v platform
+based on QEMU</h2>
+<p>We have successfully compiled the example rust code with risc-v
+target. Now we need to have a virtual machine to simulate the risc-v
+environment, of course you can do it on real hardware like Raspberry PI,
+but virtual machine can help us setup the target platform in a second,
+that would incredibly save time in the initial stages of
+development.</p>
+<p>Here, we choose QEMU because it's very easy to use, open soured and
+could integrate to rust seamlessly.</p>
+<p>It's quite simple to setup the QEMU with rust integration, we only
+need to add two lines in the previous
+<code>.cargo/config.toml</code>:</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[build]</span></span><br><span class="line"><span class="attr">target</span> = <span class="string">&quot;riscv64gc-unknown-none-elf&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">### The following lines are newly added</span></span><br><span class="line"><span class="section">[target.riscv64gc-unknown-none-elf]</span></span><br><span class="line"><span class="attr">runner</span> = <span class="string">&quot;qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel &quot;</span></span><br></pre></td></tr></table></figure>
+<p>I'm not gonna describe much detail of QEMU in this article, please
+check <a
+href="https://www.qemu.org/docs/master/system/invocation.html#hxtool-0">here</a>
+to see the usage of QEMU if you needed.</p>
+<p>In short, in the above lines, we set the "runner" of target
+"riscv64gc-unknown-none-elf" as a command line that can bring up QEMU.
+You may already noticed, the QEMU binary we execute is
+"qemu-system-riscv64", which means there are many different binaries
+that are for other platforms.</p>
+<p>Once we set the <a
+href="https://doc.rust-lang.org/cargo/reference/config.html#targettriplerunner">runner</a>
+for some target, then every time we execute cargo
+<code>cargo run</code>, the target file of our program will be passed as
+an argument to the command we put into "runner" field. That also why we
+put the <code>-kernel</code> param of QEMU in the end.</p>
+<p>All set, let's give it a try!</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Finished dev [unoptimized + debuginfo] target(s) in 0.99s</span><br><span class="line">     Running `qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`</span><br></pre></td></tr></table></figure>
+<p>It went very well, no "cannot execute binary file" error ever again,
+and the QEMU seems running.</p>
+<p>Because we can't output anything, the only way to verify the
+correctness of our program is run as debug mode, and check the value of
+"i" in memory.</p>
+<h2 id="debugger-is-our-closest-friend">3. Debugger is our closest
+friend</h2>
+<p>No matter now or later, the debugger is always a super important
+helper to us. Without a debugger, we cannot learn the current program
+status easily, and can only use the logger to print context with many
+restrictions.</p>
+<p>I'm using the GDB as the debugger in the next series of articles, but
+you can also choose other debuggers like lldb or rust-gdb, they are
+quite the same.</p>
+<p>So, how to introduce gdb into our project?</p>
+<p>Step 1, we need to let QEMU be able to accept a GDB connection,
+additionally, pause QEMU to wait for a gdb connection. That requires us
+to add two params: <code>-s -S</code>in to the runner command:</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[target.riscv64gc-unknown-none-elf]</span></span><br><span class="line"><span class="attr">runner</span> = <span class="string">&quot;qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel &quot;</span></span><br></pre></td></tr></table></figure>
+<p>The <code>-s</code> is a shorthand for <code>-gdb tcp::1234</code>,
+which means to listen the GDB connection on tcp port 1234.</p>
+<p>The <code>-S</code> ask QEMU not start to run until a GDB connection
+comes in.</p>
+<p>Step 2, run GDB in remote debug mode. I use Clion as my local IDE, so
+I can simply create a remote debug in the "Run/Debug Configuration",
+with the remote args as <code>localhost:1234</code>, and choose the
+symbol file to
+<code>target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample</code>.</p>
+<p>After completing the above two steps, when we run
+<code>cargo run</code> again, set a breakpoint in the first line of
+<code>main()</code>, and click debug on Clion, we should see the
+<code>Debugger connected to localhost:1234</code> in the debug tab. And
+if we stop the debugger, QEMU will stop too, and shows:
+<code>qemu-system-riscv64: QEMU: Terminated via GDBstub</code>.</p>
+<p>But nothing happens except the debugger connected. Why?</p>
+<p>Actually, we haven't completed our program when we added
+<code>#![no_main]</code> in the previous content.
+<code>#![no_main]</code> only tells rust compiler "you don't need to
+worry about the program entry anymore, we the developer will take care
+of that". But in fact we didn't do anything related to the program entry
+at all!</p>
+<p>Hence, right now we need to let QEMU understand where to start
+running our code. And that requires a <a
+href="https://sourceware.org/binutils/docs/ld/Scripts.html">linker
+script</a> <code>.ld</code>, just like this:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">/* entry.ld */</span><br><span class="line">OUTPUT_ARCH( &quot;riscv&quot; )</span><br><span class="line">ENTRY( main )</span><br><span class="line"></span><br><span class="line">SECTIONS</span><br><span class="line">&#123;</span><br><span class="line">  . = 0x80000000;</span><br><span class="line"></span><br><span class="line">  .text : &#123;</span><br><span class="line">    *(.text*)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  .rodata : &#123;</span><br><span class="line">    *(.rodata*)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  .data : &#123;</span><br><span class="line">    *(.data*)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  .bss : &#123;</span><br><span class="line">    *(.bss*)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>So linker script is basically define the memory layout of the output
+binary, and since the rust risc-v cross toolchain will generate the
+target file as ELF format, we defined the layout as ELF style.</p>
+<p>The above <code>ld</code> file is quite simple, the four sections are
+basic ELF sections and nothing special here. The only fields we need to
+put our eyes on are the fields on top.</p>
+<p><code>OUTPUT_ARCH( "riscv" )</code> indicates the target file is for
+the risc-v platform. And <code>ENTRY( main )</code> points out our
+program entry is a symbol called <code>main</code>, which is our main
+function indeed.</p>
+<p>The <code>. = 0x80000000</code> stands for putting the entry onto the
+address 0x80000000, so that our binary will start from that. QEMU
+supports many different hardware architectures, particularly in risc-v,
+the RAM address starts from 0x80000000. We can execute a very simple
+command to prove that:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">qemu-system-riscv64 -monitor stdio</span></span><br><span class="line">QEMU 9.1.0 monitor - type &#x27;help&#x27; for more information</span><br><span class="line">(qemu) info mtree</span><br><span class="line">address-space: cpu-memory-0</span><br><span class="line">address-space: memory</span><br><span class="line">  0000000000000000-ffffffffffffffff (prio 0, i/o): system</span><br><span class="line">    0000000000001000-000000000000ffff (prio 0, rom): riscv.spike.mrom</span><br><span class="line">    0000000001000000-000000000100000f (prio 1, i/o): riscv.htif.uart</span><br><span class="line">    0000000002000000-0000000002003fff (prio 0, i/o): riscv.aclint.swi</span><br><span class="line">    0000000002004000-000000000200bfff (prio 0, i/o): riscv.aclint.mtimer</span><br><span class="line">    0000000080000000-0000000087ffffff (prio 0, ram): riscv.spike.ram</span><br><span class="line"></span><br><span class="line">address-space: I/O</span><br><span class="line">  0000000000000000-000000000000ffff (prio 0, i/o): io</span><br></pre></td></tr></table></figure>
+<p>We start a risc-v virtual machine with <code>-monitor stdio</code>,
+that would not just run a VM instance, but also bring us into an
+interactive interface, we can check the current memory regions by
+<code>info mtree</code>, apparently the RAM begins at
+<code>0000000080000000</code>.</p>
+<p>Now we have our <code>ld</code> file, but we still need to activate
+the script in our program, which need to modify the
+<code>.cargo/config.toml</code>:</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[build]</span></span><br><span class="line"><span class="attr">target</span> = <span class="string">&quot;riscv64gc-unknown-none-elf&quot;</span></span><br><span class="line"><span class="comment">### The following line is newly added</span></span><br><span class="line"><span class="attr">rustflags</span> = [<span class="string">&#x27;-Clink-arg=-Tsrc/entry.ld&#x27;</span>]</span><br><span class="line"></span><br><span class="line"><span class="section">[target.riscv64gc-unknown-none-elf]</span></span><br><span class="line"><span class="attr">runner</span> = <span class="string">&quot;qemu-system-riscv64 -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel &quot;</span></span><br></pre></td></tr></table></figure>
+<p>And one another step is, let the entry symbol be recognized.
+Generally, rust would mangle most of the symbols, to make sure all
+symbols have their own unique name. But as we have set the
+<code>ENTRY( main )</code>, we need to let the <code>main</code> stays
+"main", not other mangled names. To achieve that, we have to change the
+function signature of <code>main()</code> like this:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p><code>#[no_mangle]</code> force the compiler not mangle this
+function, and <code>extern "C"</code> is a declaration of FFI, to export
+the function with C ABI.</p>
+<p>After all of the above modifications, I'm sure the program can stop
+at the first line of main if there is a breakpoint.</p>
+<h2 id="things-are-getting-complicated">4. Things are getting
+complicated</h2>
+<p>In the previous chapter, I ensured the program could be stopped at
+the first line, but I bet you have tried, the debugger can no longer
+step over to the second line. And if you pause the program through gdb,
+the current memory address turns out to be 0x0. Something's wrong
+here.</p>
+<p>There is a CSR called <code>mstatus</code> in risc-v to indicate any
+event that caused the trap, we could check the value of
+<code>mcause</code> to investigate why our program is in a failure.</p>
+<p>Execut <code>info all-registers</code> in gdb, will show value of all
+registers:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">(gdb) info all-registers</span><br><span class="line">zero           0x0	0</span><br><span class="line">ra             0x0	0x0</span><br><span class="line">sp             0xfffffffffffffff0	0xfffffffffffffff0</span><br><span class="line">gp             0x0	0x0</span><br><span class="line">tp             0x0	0x0</span><br><span class="line"></span><br><span class="line">... ...</span><br><span class="line"></span><br><span class="line">mscratch       0x0	0</span><br><span class="line">mepc           0x0	0</span><br><span class="line">mcause         0x1	1</span><br><span class="line">mtval          0x0	0</span><br><span class="line"></span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>The <code>mcause</code> shows value of <code>0x1</code>, refer to the
+risc-v document(<a
+href="https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view">Table
+14. Machine cause register (mcause) values after trap.</a>),
+<code>0x1</code> means "Instruction access fault".</p>
+<p>But how can it be? It won't be insufficient access permission, after
+all we haven't set any privileged level, so our program is running on
+the machine mode, which is the highest privileged mode, we can literally
+do everything.</p>
+<p>If we move one step forward, decompile the program with obj-dump, and
+see the assembly code here:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">0000000080000000 &lt;main&gt;:</span><br><span class="line">    80000000:   1141                    addi    sp,sp,-16</span><br><span class="line">    80000002:   3e700513                li      a0,999</span><br><span class="line">    80000006:   c62a                    sw      a0,12(sp)</span><br><span class="line">    80000008:   45b2                    lw      a1,12(sp)</span><br><span class="line">    8000000a:   0015851b                addiw   a0,a1,1</span><br><span class="line">    8000000e:   e02a                    sd      a0,0(sp)</span><br><span class="line">    80000010:   00b54763                blt     a0,a1,8000001e &lt;.Lpcrel_hi0&gt;</span><br><span class="line">    80000014:   a009                    j       80000016 &lt;main+0x16&gt;</span><br><span class="line">    80000016:   6502                    ld      a0,0(sp)</span><br><span class="line">    80000018:   c62a                    sw      a0,12(sp)</span><br><span class="line">    8000001a:   0141                    addi    sp,sp,16</span><br><span class="line">    8000001c:   8082                    ret</span><br></pre></td></tr></table></figure>
+<p>Yes, the stack pointer! <code>sp</code> is initially zero, so that
+after line 80000000, the <code>sp</code> will be set to
+<code>0x0 - 0x10 = 0xfffffffffffffff0</code>(we are on the 64-bit
+platform).</p>
+<p>Unfortunately, at line 80000006, the value of a0 will be saved to
+<code>sp + 12</code>, which is <code>0xfffffffffffffffc</code>, but
+obviously this address is illegal. If you remember, we only create a VM
+with 128MiB memory, which means the available physical address range is
+<code>0x80000000 ~ 0x88000000</code>.</p>
+<p>To make it correct, let's set the <code>sp</code> in the first
+place:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#![no_std]</span></span><br><span class="line"><span class="meta">#![no_main]</span></span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">main</span>() &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">&quot;la sp, 0x80001000&quot;</span>) &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">i</span> = <span class="number">999</span>;</span><br><span class="line">    i = i + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>We add one line of asm to set the <code>sp</code> equals to
+<code>0x80001000</code>, since our program is quite simple and will not
+grow to even <code>0x800000ff</code>, so our code section is safe and
+has no chance to be overridden.</p>
+<p>Finally, the program can be run correctly, and if you like, add a
+<code>panic!()</code> at the end of the program, otherwise when
+<code>main()</code> is return, the program will fail again because we
+didn't tell it what to do next after <code>main()</code> returned.</p>
+<h2 id="what-the-xv6-is-all-about">5. What the xv6 is all about?</h2>
+<p>After all the above sections, now we can get back to talking more
+about xv6.</p>
+<p>Quote from the name of the xv6 book, <em>xv6: a simple, Unix-like
+teaching operating system</em>. Yes, xv6 was inspired by Unix v6, and
+since the Unix needs to run on specific hardware like PDP-11, and with
+many low-level details, in 2006, MIT decided to modeled on Unix v6,
+rewrite it by ANSI C, with multiprocessor support been added, at last
+created xv6.</p>
+<p>As we mentioned at the beginning of this article, the xv6 was running
+on x86 at first, but then they ported it to risc-v. That's why we
+provide this entire article to discuss how to run rust on risc-v
+platform, with the knowledge in this article, I believe we could get our
+local environment ready to go, and get to know some basic low-level
+information about risc-v instructions, linker script and ASM in
+rust.</p>
+<p>Basically, although it does not contain many lines of code, xv6 is
+still a full functional operating system, it has virtualized CPU and
+memory as process and virtual memory, it supports concurrency, and
+contains an Unix-like file system to implement persistent. It has user
+space and kernel space, with a group of system calls (but not compliant
+with POSIX for clarity and simplicity). Like Unix, xv6 remains macro
+kernel concept, so it has only one kernel binary.</p>
+<p>In the next articles, we will take a close look at the detailed
+components design of xv6, and then try to port each one of the
+components to rust...</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2024/10/23/xv6-rust-1/" title="&#x2F;Xv6 Rust 0x01&#x2F; - Getting Started is the Hardest Part">http://lenshood.github.io/2024/10/23/xv6-rust-1/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/04/29/translation-of-the-sdv/" rel="prev" title="（翻译）软件定义汽车">
+                  <i class="fa fa-angle-left"></i> （翻译）软件定义汽车
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/11/01/xv6-rust-2/" rel="next" title="&#x2F;Xv6 Rust 0x02&#x2F; - printf!(&quot;Hello xv6-rust!&quot;)">
+                  /Xv6 Rust 0x02/ - printf!("Hello xv6-rust!") <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

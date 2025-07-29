@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="面向开发者的软件，相比普通用户仅在限定的场景下使用外，还可能会被集成、扩展、二次开发等等，因此在代码或设计层面也应该尽可能考虑如何对开发者更友好。 本文从：  Least Surprise Guide, Not Blame Keep It Simple, Stupid  三个不同的角度，结合实际案例，尝试阐述和讨论哪些设计是对开发者友好的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="浅谈对开发者友好的（developer-friendly）软件设计">
+<meta property="og:url" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="面向开发者的软件，相比普通用户仅在限定的场景下使用外，还可能会被集成、扩展、二次开发等等，因此在代码或设计层面也应该尽可能考虑如何对开发者更友好。 本文从：  Least Surprise Guide, Not Blame Keep It Simple, Stupid  三个不同的角度，结合实际案例，尝试阐述和讨论哪些设计是对开发者友好的。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/8.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/6.jpeg">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-4.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-5.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-6.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-7.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/5.jpeg">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-8.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-9.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/7.jpeg">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-0.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-1.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-2.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/code-3.png">
+<meta property="article:published_time" content="2021-11-07T09:00:01.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.057Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="user interface">
+<meta property="article:tag" content="developer-friendly">
+<meta property="article:tag" content="software design">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/8.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/","path":"2021/11/07/designing-developer-friendly-software/","title":"浅谈对开发者友好的（developer-friendly）软件设计"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>浅谈对开发者友好的（developer-friendly）软件设计 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#least-surprise%E6%9C%80%E5%B0%8F%E6%83%8A%E5%90%93%E5%8E%9F%E5%88%99"><span class="nav-number">1.</span> <span class="nav-text">Least
+Surprise（最小惊吓原则）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8D%95%E4%B8%80%E6%8E%A7%E5%88%B6%E6%9D%A5%E6%BA%90"><span class="nav-number">1.0.1.</span> <span class="nav-text">1 | 单一控制来源</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%97%A0%E4%BA%8C%E4%B9%89%E6%80%A7"><span class="nav-number">1.0.2.</span> <span class="nav-text">2 | 无二义性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%81%B5%E5%BE%AA%E6%83%AF%E4%BE%8B"><span class="nav-number">1.0.3.</span> <span class="nav-text">3 | 遵循惯例</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#guide-not-blame%E5%88%AB%E6%80%AA%E7%94%A8%E6%88%B7%E5%B0%9D%E8%AF%95%E5%BC%95%E5%AF%BC"><span class="nav-number">2.</span> <span class="nav-text">Guide, Not
+Blame（别怪用户，尝试引导）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8A%A5%E9%94%99%E4%BA%86%E7%84%B6%E5%90%8E%E5%91%A2"><span class="nav-number">2.0.1.</span> <span class="nav-text">1 | 报错了，然后呢？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B8%AE%E5%8A%A9%E7%94%A8%E6%88%B7%E8%AF%86%E5%88%AB%E8%80%8C%E9%9D%9E%E8%AE%B0%E5%BF%86"><span class="nav-number">2.0.2.</span> <span class="nav-text">2 | 帮助用户识别而非记忆</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%A4%E4%BA%92%E5%BC%8F%E6%96%87%E6%A1%A3"><span class="nav-number">2.0.3.</span> <span class="nav-text">3 | 交互式文档</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#keep-it-simple-stupid%E5%B0%BD%E9%87%8F%E4%BF%9D%E6%8C%81%E7%AE%80%E5%8D%95"><span class="nav-number">3.</span> <span class="nav-text">Keep It Simple,
+Stupid（尽量保持简单）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%80%90%E5%BF%83%E4%B8%8E%E5%A5%BD%E5%A5%87%E5%BF%83%E6%88%90%E5%8F%8D%E6%AF%94"><span class="nav-number">3.0.1.</span> <span class="nav-text">1 | 耐心与好奇心成反比</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AE%80%E6%B4%81%E5%B0%B1%E6%98%AF%E7%BE%8E"><span class="nav-number">3.0.2.</span> <span class="nav-text">2 | 简洁就是美</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BA%A6%E5%AE%9A%E5%A4%A7%E4%BA%8E%E9%85%8D%E7%BD%AE"><span class="nav-number">3.0.3.</span> <span class="nav-text">3 | 约定大于配置</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#functional-options"><span class="nav-number">3.0.3.1.</span> <span class="nav-text">Functional Options</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%8D%E4%BB%85%E5%A5%BD%E7%94%A8%E8%BF%98%E5%85%8D%E8%B4%B9"><span class="nav-number">3.0.4.</span> <span class="nav-text">4 | 不仅好用，还免费</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B3%E6%B3%A8%E7%BB%93%E6%9E%9C%E4%B8%8D%E5%85%B3%E6%B3%A8%E8%BF%87%E7%A8%8B"><span class="nav-number">3.0.5.</span> <span class="nav-text">5 | 关注结果，不关注过程</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%93%E8%AF%AD"><span class="nav-number">4.</span> <span class="nav-text">结语</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">5.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="浅谈对开发者友好的（developer-friendly）软件设计 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          浅谈对开发者友好的（developer-friendly）软件设计
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-11-07 17:00:01" itemprop="dateCreated datePublished" datetime="2021-11-07T17:00:01+08:00">2021-11-07</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2021/11/07/designing-developer-friendly-software/8.png" class="" width="200" height="200">
+<p>面向开发者的软件，相比普通用户仅在限定的场景下使用外，还可能会被集成、扩展、二次开发等等，因此在代码或设计层面也应该尽可能考虑如何对开发者更友好。</p>
+<p>本文从：</p>
+<ul>
+<li>Least Surprise</li>
+<li>Guide, Not Blame</li>
+<li>Keep It Simple, Stupid</li>
+</ul>
+<p>三个不同的角度，结合实际案例，尝试阐述和讨论哪些设计是对开发者友好的。</p>
+<span id="more"></span>
+<h2 id="least-surprise最小惊吓原则">Least
+Surprise<em>（最小惊吓原则）</em></h2>
+<p>不要惊吓用户！</p>
+<img src="/2021/11/07/designing-developer-friendly-software/6.jpeg" class="">
+<p>通常在某个特定的领域，人们会在领域上下文内形成一系列的惯例和常识，比如：</p>
+<ul>
+<li>走路撞到墙，头会痛，但墙通常不会塌</li>
+<li>在网页上填完表单按下提交按钮，页面会跳转</li>
+<li>在命令后面追加 <code>--help</code> 通常会返回该命令的使用方法</li>
+</ul>
+<p>因此，我们的软件所表现出的行为，应该尽量满足在其领域内具有一致性、显而易见、可预测。</p>
+<h4 id="单一控制来源">1 | 单一控制来源</h4>
+<p>作为用户，通常期望软件能提供来源清晰，行为一致的配置，而如果有很多种不同的方式都能达到类似的配置效果，用户就会感到困惑，不知道应该用哪一个。</p>
+<p>Spring
+框架在发展了很多年后，由于其出色的灵活性设计，反过来也导致了一定程度的理解困难。</p>
+<p>比如 Spring Security 中想要配置自定义的认证时，可以：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-4.png" class="">
+<p>上面这三种方式都可以满足认证的要求，包括官方文档在内的诸多资料都会尝试使用其中的一种或两种方式来配置认证，如果用户对其设计原理不甚了解（比如刚刚上手），看到这么多种不同的配置方法，就很容易会产生不解与慌乱。</p>
+<h4 id="无二义性">2 | 无二义性</h4>
+<p>某些情况下，用户在使用我们的软件时必须要对某些配置进行设定。从用户的角度看，对于配置项，用户期望的是最好能一眼就看出来该配置的内涵是什么，假如配置项存在二义性，就会让用户摸不着头脑。</p>
+<p>这里引用一个<a
+href="https://mp.weixin.qq.com/s/WEO1y8vg21CXlix8wO28hw">讨论 TiDB
+可交互性文章</a>中的例子：</p>
+<p>在 TiDB 5.0 版本中引入了一个配置开关：</p>
+<p><code>tidb_allow_mpp = ON|OFF (default=ON)</code></p>
+<p>这个开关项的本意是如果设置为 OFF，则禁止优化器使用 TiFlash
+来执行查询，而假如设置为 ON，那么优化器会根据实际情况自行选择是否使用
+TiFlash 。</p>
+<p>所以虽然配置的是 ON，但其实到底有没有用
+TiFlash，还得看优化器的判断。<em>”就像是房间里控制灯光的开关，关掉时灯一定不会亮，而打开后灯却不一定会亮“</em>。这种二义性开关的存在，容易让用户误解、会错意。</p>
+<p>面对上述问题，文中给出的修改建议是，改为：</p>
+<p><code>tidb_allow_mpp = ON|OFF|AUTO</code></p>
+<p>多了的这个 AUTO 确实能让用户一目了然。</p>
+<h4 id="遵循惯例">3 | 遵循惯例</h4>
+<p>有很多设计上的、语言层面的或是领域内的惯例和规范，通常软件开发者们都会默认去遵循这些惯例和规范。</p>
+<p>这里引用重构 2 中查询和修改分离的例子：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-5.png" class="">
+<p>某些时候方法命名甚至直接省略了后面，变成
+<code>getTotalOutstanding()</code>。</p>
+<p>通常遇到以 <code>getXXX</code>
+开头的函数，用户大都会默认该函数具有幂等性，假如使用后发现调用动作竟然产生了某些副作用（比如这里是每调用一次都会发送一次账单），就会让用户费解。（Rust
+很棒的一点就是当发现 <code>get_xxx(&amp;mut self)</code>
+这种方法定义时会自动高亮警告 ）</p>
+<p>另有一例：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-6.png" class="" width="496" height="318">
+<p>通常类似上述的 “移动” 操作，都是 from 在前，to
+在后，而如果我们的函数是反的，to 在前，from 在后，那就是在坑用户了。</p>
+<p>不过，考虑到上述操作的两个参数同属于 string
+类型，我们就没办法限制用户一定会按照先 from 后 to
+的形式传参（也许用户钟爱 intel 汇编语法？），那么更好的方式可能是：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-7.png" class="" width="530" height="246">
+<h2 id="guide-not-blame别怪用户尝试引导">Guide, Not
+Blame<em>（别怪用户，尝试引导）</em></h2>
+<p>RTFM，是老人对新人的谆谆教诲？还是软件作者对伸手党的有声控诉？</p>
+<img src="/2021/11/07/designing-developer-friendly-software/5.jpeg" class="">
+<p>每当我们看到用户报告的错误显示 <code>Http Code 400</code>
+时是否都一阵窃喜？</p>
+<img src="/2021/11/07/designing-developer-friendly-software/4.png" class="">
+<p>“用户错误” 是用户自己的问题，与开发者无关，是这样吗？</p>
+<h4 id="报错了然后呢">1 | 报错了，然后呢？</h4>
+<p>当用户执行了误操作后，我们的软件理应将详细的错误信息反馈给用户，但除此之外，能做的还有很多：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-8.png" class="" width="698" height="336">
+<p>上面展示的是 Rust 编译器的编译报错，从上到下分别是：</p>
+<ol type="1">
+<li>告诉我们错误原因是 “缺少生命周期标志”，错误码是 E0106</li>
+<li>指出是 “linear_probe_hash_table.rs” 文件的第 17:26 个字符出错</li>
+<li>又用箭头指明了代码错误的位置</li>
+<li>“help” 部分告诉我们 “可以考虑使用 `<code>a</code>
+符号”，最后用波浪线给出了改正后的效果</li>
+</ol>
+<p>有人说写 Rust 是 “compiler-driven
+development”，从编译器这种保姆级的报错信息来看，确实所言不虚。</p>
+<h4 id="帮助用户识别而非记忆">2 | 帮助用户识别而非记忆</h4>
+<p>在一些较复杂、步骤较多的配置操作后，最终执行前用户心里可能没底，我们的软件应该帮用户检查并识别问题（即类似
+dry-run 的能力），从而降低错误发生的概率。</p>
+<p>我们知道 Terraform 的工作流是
+<code>Write -&gt; Plan -&gt; Apply</code>。</p>
+<p>在编写完成 tf 文件（Write）之后，执行操作（Apply）之前，有一个
+<code>Plan</code>
+阶段，就是用于告知客户接下来将要执行操作的执行计划，以及可能产生的影响。</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-9.png" class="">
+<p><code>Plan</code>
+会根据当前资源的状态和用户期望状态作对比，给出执行计划，而不会对系统产生任何实质影响。假如用户发现执行计划中与其预期不符，就可以回过头去重新修正。</p>
+<h4 id="交互式文档">3 | 交互式文档</h4>
+<p>虽然用户最开始可能只会花 30
+秒来浏览文档，但真正到深入使用我们的软件时，看文档是必须的。</p>
+<p>传统的文档看起来不仅枯燥，而且由于缺少反馈，用户很难记住文档要传达的知识。</p>
+<img src="/2021/11/07/designing-developer-friendly-software/3.png" class="">
+<p>上图展示的是 Arthas 提供的交互式文档（学习课程），通过在线的
+”playground + 引导用户完成任务”
+的形式，加强反馈，按阶段给予奖励，可以很好的提升体验。</p>
+<h2 id="keep-it-simple-stupid尽量保持简单">Keep It Simple,
+Stupid<em>（尽量保持简单）</em></h2>
+<p>用户想要我们的软件易用，易懂，易扩展。</p>
+<p>开发者就需要从 API、设计、协作等多个方面确保简单，而简单很难。</p>
+<img src="/2021/11/07/designing-developer-friendly-software/7.jpeg" class="" width="400" height="300">
+<h4 id="耐心与好奇心成反比">1 | 耐心与好奇心成反比</h4>
+<p>当我们尝试使用一种新的包、工具等等时，首先面临的就是如何引用、安装的问题。</p>
+<p>我们会去主页看 README，但人的耐心通常很有限...</p>
+<p>下图是 Prometheus 的 Get Started 页面：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/1.png" class="" width="439" height="463">
+<p>它不仅存在大段的文字，甚至还有配置文件，这潜在的给用户施加了不小的心理负担。</p>
+<p>如果用户想要尝试，可能要专门找半小时空闲，鼓起勇气、正襟危坐，这才开始依照文档试验。</p>
+<p>再来看看 rustup 的 Home 页：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/2.png" class="" width="490" height="381">
+<p>相比起来，一眼就能看到深色背景的命令，30 秒就可以在 shell
+里面执行，那么任何人都可以近乎零负担的在本地快速搭建 rust 环境。</p>
+<p>README 或者 Home
+页是通常是用户第一次接触我们的软件的地方，怎么样抓住用户的好奇心的确需要仔细研究。</p>
+<h4 id="简洁就是美">2 | 简洁就是美</h4>
+<p>简洁之美，体现在如何优雅的解决问题。</p>
+<p>Golang 中启动一个 go-routine 的操作可谓极致简洁：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-0.png" class="" width="218" height="174">
+<p>不需要 import 任何包，没有其他与之相关的 key word
+要理解和记忆，甚至连对 go-routine 本身的引用都不给返回（怎么管理
+go-routine
+是另一个故事了）。正是这种简单易用的设计，使程序员想要启动一个
+go-routine 时毫无负担。</p>
+<h4 id="约定大于配置">3 | 约定大于配置</h4>
+<p>将环境、配置，以约定默认的方式自动设置，这样就减少使用者在最开始需要做出决定的数量，也就降低了上手难度和用户的心理负担。</p>
+<p>Ruby on Rails
+相对较早的实践了这一概念，并在其框架内应用了大量约定，来降低初学者的使用门槛以及提升专家的生产效率。</p>
+<p>Spring Boot 甚至完全就是为了方便用户使用 Spring
+框架而创造的。通过一系列的自动化配置、条件配置等方法，让用户只需要非常少量的配置（甚至零配置）就可以
+“Just Run”。</p>
+<p>而对于不同的使用场景下用户可能会选择不同的自定义配置项，这时候如何优雅的让用户只关心自己想要的配置呢？</p>
+<h5 id="functional-options">Functional Options</h5>
+<p>当构建某个实体需要许多必选、可选的参数时，传统的两种办法：</p>
+<ul>
+<li>全部作为传入函数，或每种参数写一个包装函数</li>
+<li>传入一个配置类（或结构）</li>
+</ul>
+<p>上述方法都存在一些<a
+href="https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis">问题</a>，更好的办法是以可变参数的形式进行配置。以创建
+grpc server 为例：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-1.png" class="">
+<p>不同的用户对配置的关注点可能不同，上述代码既设置了超时时间、消息大小、拦截器等等，又不用关心其他的配置。</p>
+<p>这样的设计能够方便使用者灵活的选择想要的或是自定义的配置项。</p>
+<h4 id="不仅好用还免费">4 | 不仅好用，还免费</h4>
+<blockquote>
+<p><em>What you don’t use, you don’t pay for. And further: What you do
+use, you couldn’t hand code any better.</em></p>
+</blockquote>
+<p>以上是 Bjarne Stroustrup 对 C++ 零成本抽象原则的描述。</p>
+<p>符合零成本抽象原则的功能和特性，不会产生任何的全局开销（不使用就没有开销），任何比该功能抽象级别更低层的手写代码其性能也不会更好。</p>
+<p>其实对用户而言，付出一定的成本来提升使用体验通常也是值得的，比如用泛型让代码实现更优雅，而成本可能是<a
+href="https://research.swtch.com/generic">代码膨胀或运行时开销</a>。</p>
+<p>然而，对于实现了零成本抽象的功能，不仅提升用户体验，还不额外引入任何成本。</p>
+<p>显然功能既要好用又要免费，在其设计上就会十分的困难，但带来的价值也是巨大的。</p>
+<p>Rust 通过引入 Ownership 和 Borrowing
+的概念让自动内存管理完全在编译期完成，免去了手动申请释放内存的成本，也免去了运行时
+GC 的成本。这一特性让 Rust 迅速受到了用户的追捧和簇拥。</p>
+<h4 id="关注结果不关注过程">5 | 关注结果，不关注过程</h4>
+<p>如果允许用户直接描述 ta
+想要的结果，那么用户就不必指定具体的工作过程了。</p>
+<p>以下代码描述的是用 java 语言来实现 word count：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-2.png" class="" width="580" height="336">
+<p>先将单词映射为 (word, count) - pair，之后对相同的 word
+进行聚合，最后得到结果。</p>
+<p>这是过程式的办法。</p>
+<p>而如果用 SQL 这种声明式的实现，见下图：</p>
+<img src="/2021/11/07/designing-developer-friendly-software/code-3.png" class="" width="378" height="246">
+<p>SQL
+语言只描述了用户想要的结果，至于获取这一结果中所要经历的过程，用户无需过问，也不关心。</p>
+<p>另外，在 K8S 的声明式 API
+设计中，除了能灵活的描述结果状态以外，还能保证操作的幂等性，这就让用户体验非常好。</p>
+<p>显然，声明式 API 的抽象层次要比过程式 API 更高，但这也意味着声明式
+API 更难实现。常见的声明式 API
+的实现大都基于解决特定领域的问题，并不具备图灵完备性。</p>
+<h2 id="结语">结语</h2>
+<p>本文主要讨论了构建开发者友好的软件需要包含的三点要素，并通过一些事例佐证了这些要素本身的必要性。</p>
+<p>综上来看，我们认为对开发者体验友好的软件：</p>
+<ul>
+<li>首先，应该遵循一些常识和领域内的惯例，从而避免在使用中让用户产生困惑。</li>
+<li>其次，应该尽量引导用户做出正确的操作，同时降低试错成本改善学习体验。</li>
+<li>最后，应该在设计和交互上尽量保持简单，做到易用、易懂、易扩展。</li>
+</ul>
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li><a
+href="https://docs.spring.io/spring-security/site/docs/current/reference/html5/#servlet-authentication">Spring
+Security - Authentication</a></li>
+<li><a
+href="https://mp.weixin.qq.com/s/WEO1y8vg21CXlix8wO28hw">做出让人爱不释手的基础软件：可观测性和可交互性</a></li>
+<li><a
+href="https://refactoring.com/catalog/separateQueryFromModifier.html">Refactor
+- Separate Query from Modifier</a></li>
+<li><a href="https://www.terraform.io/">Terraform</a></li>
+<li><a
+href="https://arthas.aliyun.com/doc/arthas-tutorials.html?language=cn">Arthas
+在线教程</a></li>
+<li><a
+href="https://prometheus.io/docs/introduction/first_steps/">Prometheus -
+First Step</a></li>
+<li><a href="https://rustup.rs/">Rustup</a></li>
+<li><a
+href="https://golang.org/doc/effective_go#goroutines">Goroutines</a></li>
+<li><a
+href="https://isocpp.org/wiki/faq/big-picture#zero-overhead-principle">What
+is the zero-overhead principle?</a></li>
+<li><a
+href="https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis">Functional
+Options</a></li>
+<li><a
+href="https://kubernetes.io/docs/reference/kubernetes-api/">Kubernetes
+API</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/" title="浅谈对开发者友好的（developer-friendly）软件设计">http://lenshood.github.io/2021/11/07/designing-developer-friendly-software/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/user-interface/" rel="tag"># user interface</a>
+              <a href="/tags/developer-friendly/" rel="tag"># developer-friendly</a>
+              <a href="/tags/software-design/" rel="tag"># software design</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2021/09/13/raft-paper/" rel="prev" title="（译文）一种易于理解的共识算法的研究（In Search of an Understandable Consensus Algorithm）">
+                  <i class="fa fa-angle-left"></i> （译文）一种易于理解的共识算法的研究（In Search of an Understandable Consensus Algorithm）
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/01/01/2021-summary/" rel="next" title="Summary of 2021">
+                  Summary of 2021 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

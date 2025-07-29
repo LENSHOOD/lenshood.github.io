@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素 理解 K8s 多集群（下）：解决方案对比与演进趋势  本文（分上下两部分）介绍了 K8s 多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s 多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。 本篇是上半部分，主要讨论 K8s 多集群的目的、实现多集群所面临的核心问题以及方案。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素">
+<meta property="og:url" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素 理解 K8s 多集群（下）：解决方案对比与演进趋势  本文（分上下两部分）介绍了 K8s 多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s 多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。 本篇是上半部分，主要讨论 K8s 多集群的目的、实现多集群所面临的核心问题以及方案。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/deploy-arch-independent-control.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/deploy-arch-hybrid.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/network-gateway.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/network-overlay.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/service-discovery.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/logical-sched.png">
+<meta property="og:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/sched-chain.jpg">
+<meta property="article:published_time" content="2023-03-09T12:33:21.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.223Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="multi-cluster">
+<meta property="article:tag" content="multi-cloud">
+<meta property="article:tag" content="k8s">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/","path":"2023/03/09/k8s-multi-cluster-1/","title":"理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-k8s-%E5%A4%9A%E9%9B%86%E7%BE%A4"><span class="nav-number">1.</span> <span class="nav-text">1. 为什么需要 K8s 多集群？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%A8-k8s-%E4%B9%8B%E5%89%8D%E8%BF%98%E5%AD%98%E5%9C%A8%E5%A4%9A%E9%9B%86%E7%BE%A4%E5%90%97"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 在 K8s
+之前，还存在多集群吗？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%9A%E9%9B%86%E7%BE%A4%E7%9A%84%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 多集群的应用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0-k8s-%E5%A4%9A%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%9A%84%E6%A0%B8%E5%BF%83%E8%A6%81%E7%B4%A0"><span class="nav-number">2.</span> <span class="nav-text">2. 实现 K8s
+多集群管理的核心要素</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%9A%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 多集群部署模型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8E%A7%E5%88%B6%E9%9D%A2%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.1.1.</span> <span class="nav-text">控制面模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.1.2.</span> <span class="nav-text">网络模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0%E4%B8%8E%E6%B2%BB%E7%90%86"><span class="nav-number">2.1.3.</span> <span class="nav-text">服务发现与治理</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B7%A8%E9%9B%86%E7%BE%A4%E5%BA%94%E7%94%A8%E8%B0%83%E5%BA%A6"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 跨集群应用调度</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E7%AD%96%E7%95%A5"><span class="nav-number">2.2.1.</span> <span class="nav-text">调度策略</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BA%94%E7%94%A8%E6%A8%A1%E5%9E%8B%E6%89%A9%E5%B1%95"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 应用模型扩展</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%84%E6%A0%BC%E6%89%A9%E5%B1%95%E4%B8%8E%E7%8A%B6%E6%80%81%E6%89%A9%E5%B1%95"><span class="nav-number">2.3.1.</span> <span class="nav-text">规格扩展与状态扩展</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%89%8D%E5%90%91%E5%85%BC%E5%AE%B9%E6%80%A7"><span class="nav-number">2.3.2.</span> <span class="nav-text">前向兼容性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E8%B5%84%E6%BA%90%E5%AF%B9%E8%B1%A1"><span class="nav-number">2.3.3.</span> <span class="nav-text">自定义资源对象</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E7%BE%A4%E5%8D%B3%E8%B5%84%E6%BA%90"><span class="nav-number">2.4.</span> <span class="nav-text">2.4 集群即资源</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9B%86%E7%BE%A4%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">2.4.1.</span> <span class="nav-text">集群生命周期</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9B%86%E7%BE%A4%E8%B5%84%E6%BA%90%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.4.2.</span> <span class="nav-text">集群资源模型</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">3. 小结</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2023-03-09 20:33:21" itemprop="dateCreated datePublished" datetime="2023-03-09T20:33:21+08:00">2023-03-09</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Kubernetes/" itemprop="url" rel="index"><span itemprop="name">Kubernetes</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2023/03/09/k8s-multi-cluster-1/header.jpg" class="" width="500">
+<blockquote>
+<p><a
+href="https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/">理解 K8s
+多集群（上）：构建成熟可扩展云平台的核心要素</a></p>
+<p><a
+href="https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/">理解 K8s
+多集群（下）：解决方案对比与演进趋势</a></p>
+</blockquote>
+<p>本文（分上下两部分）介绍了 K8s
+多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s
+多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。</p>
+<p>本篇是上半部分，主要讨论 K8s
+多集群的目的、实现多集群所面临的核心问题以及方案。</p>
+<span id="more"></span>
+<h2 id="为什么需要-k8s-多集群">1. 为什么需要 K8s 多集群？</h2>
+<p>在探讨为什么需要 K8s 多集群之前，我们首先定义一下什么是 K8s
+多集群：</p>
+<p>所谓 K8s 多集群，顾名思义就是多个 K8s
+集群。企业或组织可能根据自身的需求，例如为了满足隔离性、可用性、合规性或使用成本等，将其应用程序运行在任意一个或多个集群中。此外，在更加成熟的
+K8s
+多集群中，应用程序实际运行的集群能够动态配置，不同集群间的应用程序也应该支持相互访问。</p>
+<p>定义讲完，我们会发现，多集群的概念是被 K8s 限定的，那么问题来了：</p>
+<h3 id="在-k8s-之前还存在多集群吗">1.1 在 K8s
+之前，还存在多集群吗？</h3>
+<p>不论 K8s
+是否存在，对应用的隔离性、可用性、合规性或使用成本等需求是持续存在的，因此我们总能听到企业购买或构建的所谓云管平台或称多云管理平台（示例架构如下图）。云管平台正是为了满足企业对应用部署的复杂需求，对接各种不同公/私有云的
+API，并尝试对云资源进行抽象，进而尝试将应用运行所需的环境与真实云资源解耦。</p>
+<p><img
+src="http://cds.chinadaily.com.cn/dams/capital/image/202205/31/6295b81ae4b013b65bf3ff36.jpg" /></p>
+<p>然而，由于各种云提供商的 API 都不尽相同，云管平台的主要工作更多的是做
+API 集成，并且每多一种云，就需要多进行一次集成（Terraform Provider
+的出现极大的缓解了这一问题）。与此同时，随着企业逐步习惯在云管平台上交付应用，也就逐步依赖了云管平台的供应商。</p>
+<p><strong>K8s 简化了多云适配</strong></p>
+<p>回到现在。在 K8s
+为云原生应用提供了统一交付体验的同时，也很大程度上消除了云管平台集成 API
+的苦力活。如果企业没有太过复杂的动态调度需求，只需要在每个云上部署一套
+K8s，应用就很容易通过原有的流水线在不同云的 K8s 上进行交付。</p>
+<p>因此，<strong>K8s
+多集群的一个主要应用场景就是：多云适配。</strong></p>
+<h3 id="多集群的应用场景">1.2 多集群的应用场景</h3>
+<p>虽然不同企业面临的问题不同，对应用交付的需求也不同，但总体来看可能存在以下几种多集群的常见应用场景：</p>
+<p><strong>隔离性</strong>：在多租户隔离，开发/测试/生产环境隔离，地区合规性隔离等场景下，相互隔离的应用需要部署在相互隔离的
+K8s 集群中。</p>
+<p><strong>高可用与故障转移</strong>：为了保证应用的高可用性，当主集群出现严重故障时，集群上运行的应用能够迁移至备用集群。集群之间可以互为主备，并通过接入不同的云厂商来降低风险。</p>
+<p><strong>单集群规模</strong>：在某些大规模场景下，单集群节点数逐步到达上限，集群控制面性能成为瓶颈，将大集群拆分为小集群可以缓解集群性能问题。</p>
+<p><strong>弹性突发</strong>：将集群也视为弹性资源，在非业务高峰期，应用运行在成本更低的私有云上，一旦出现业务高峰，私有云资源不足时，可以快速在公有云创建集群并调度应用副本，高峰过后再销毁。</p>
+<p><strong>地理亲和性</strong>：顾名思义，应用部署在多个集群上，而不同集群处于不同的地理位置，这样就能将用户请求根据实际发出的位置，路由到距离最近的应用上。</p>
+<p>总结上述场景，落地 K8s
+多集群，不外乎是通过赋予业务应用更灵活的弹性，而实现业务的安全性、高可用性与可迁移性，若能叠加集群本身的弹性，则可以真正做到云原生的所谓
+“无限资源”。</p>
+<h2 id="实现-k8s-多集群管理的核心要素">2. 实现 K8s
+多集群管理的核心要素</h2>
+<p>上一节介绍了企业对 K8s 多集群（后文简称
+“多集群”）需求的现实性，假如企业已经决定开始尝试采纳多集群技术，那么势必会面临多集群的管理问题。</p>
+<p>对于多集群的管理，存在哪些问题需要解决呢？这一节我们就来探讨实现多集群管理的核心要素：</p>
+<ul>
+<li>多集群部署模型
+<ul>
+<li>控制面模型：多集群管理控制面所处的位置。</li>
+<li>网络模型：集群间如何交互，以及底层的网络连通性设计。</li>
+<li>服务注册与发现：集群 A 的应用，依赖集群 B
+的服务，这需要实现跨集群的服务注册与发现。</li>
+</ul></li>
+<li>跨集群应用调度
+<ul>
+<li>多集群的各种使用场景，本质上都是考虑如何将应用部署在合适的集群上。</li>
+<li>跨集群应用调度，需要基于某些调度策略，对应用属性与集群属性进行匹配，以期找到最佳的匹配关系。</li>
+</ul></li>
+<li>应用模型扩展
+<ul>
+<li>多集群环境下的应用，其模型需要在规格与状态上进行扩展，将多集群特有的信息加入其中。</li>
+<li>需要考虑与单集群应用模型的前向兼容性，以及自定义资源在多集群环境下的扩展。</li>
+</ul></li>
+<li>集群即资源
+<ul>
+<li>为了实现更高程度的自动化调度，集群本身也可作为资源来弹性扩缩。需要构建集群生命周期管理的模块，负责集群的创建与删除，并管理集群的加入、逐出。</li>
+<li>集群内的资源状态是集群扩缩的前提，通过定义集群资源状态模型，来汇报资源总量以及碎片情况。</li>
+</ul></li>
+</ul>
+<h3 id="多集群部署模型">2.1 多集群部署模型</h3>
+<p>企业落地多集群之前，最先要考虑的就是：多集群的部署架构在整体上是什么样子？</p>
+<h4 id="控制面模型">控制面模型</h4>
+<p>想要对多集群进行管理，需要有特定的管理软件来负责集群的加入/逐出，状态管理以及应用调度等，这种管理软件，我们可以称之为多集群的控制面。相应的，实际运行应用的
+K8s 集群，我们称之为多集群的数据面。</p>
+<p>控制面与数据面是逻辑上的概念，在实际的部署层面看，可以有如下两种情形：</p>
+<ol type="1">
+<li>控制面独占集群资源</li>
+</ol>
+<img src="/2023/03/09/k8s-multi-cluster-1/deploy-arch-independent-control.jpg" class="">
+<p>如图所示，多集群管理控制面组件，独占整个集群作为
+“控制集群”，可以存在多个控制集群以确保控制面高可用。数据面则包含了数个
+“工作集群”，每个工作集群内只运行实际的业务应用，所有的多集群管理决策，都在控制集群进行，实际的操作则通过控制集群连接到工作集群来进行。</p>
+<p>这种部署架构下，控制面与数据面物理隔离，相互之间影响很小，但控制集群也占用了相对较多的资源，这种架构适用于复杂的，对隔离性、稳定性要求高的大型多集群。</p>
+<ol start="2" type="1">
+<li>控制面与数据面共享集群资源</li>
+</ol>
+<img src="/2023/03/09/k8s-multi-cluster-1/deploy-arch-hybrid.jpg" class="">
+<p>上图所表述的是另一种部署架构，集群之间不区分控制集群还是工作集群，都视为通用集群。控制面组件与业务应用都部署在同一个通用集群内，控制面组件之间通过选举机制来决定主从，主控制面在某个通用集群上发出对所有通用集群的管理决策。</p>
+<p>这种部署架构下，控制面与数据面之间存在相互影响的可能，但总体资源成本更低。这种架构适用于小型多集群。</p>
+<h4 id="网络模型">网络模型</h4>
+<p>实际的场景下，多个集群不论是基于相同的还是不同的云提供商，集群与集群之间通常都存在网络隔离，各自在各自的子网内工作。那么在多集群协作的过程中，网络连通性就成为一大需要解决的问题。</p>
+<p>集群之间的网络到底是连通还是隔断，与使用场景高度相关。如果是租户隔离场景，不同租户的集群资源之间网络隔离比逻辑隔离更安全，而在高可用或是弹性突发等场景下，由于业务应用之间存在东西向网络访问，就必须要确保不论应用运行在哪里，互相都能访问通。另外，多集群控制面必须要能和所有集群连通，否则根本无法实施管理决策。</p>
+<p>集群之间的互联互通一般可以通过如下两种方式来实现：</p>
+<ol type="1">
+<li><p>网关路由</p>
+<img src="/2023/03/09/k8s-multi-cluster-1/network-gateway.jpg" class="">
+<p>如图所示，网关路由的形态很简单，首先通过在集群中安装网关来打通集群内外，之后任何涉及对其他集群的访问，网关都应当了解访问目的集群的地址（网关地址），并路由数据包至目的集群。通过控制面设置合理的路由策略就可以满足细粒度的隔离场景。</p>
+<p>网关路由的模型非常类似于 <a
+href="https://istio.io/latest/docs/ops/deployment/deployment-models/#multiple-networks">Istio
+的多网络模型</a>，跨集群业务应用间的网络活动被网关转发代理实现通信，由于跨集群网络其
+IP
+地址可能存在重复，因此需要通过合理的服务发现和治理机制确保服务名的唯一性。另外，由于服务可能会被暴露在公网，安全性也是非常重要的一个考量点，例如
+Istio 的多网络模型中跨网通信要求必须通过 Istio Proxy 并建立 <a
+href="https://en.wikipedia.org/wiki/Mutual_authentication">mTLS</a>
+连接。</p></li>
+<li><p>Overlay 网络</p>
+<img src="/2023/03/09/k8s-multi-cluster-1/network-overlay.jpg" class="">
+<p>如图所示，多集群间的节点，虽然处于不同的云、不同的
+VPC，但都被接入在同一个 Overlay 网络内，以实现网络直连。</p>
+<p>我们知道很多 CNI 插件的工作原理就是在集群内构建 Overlay
+网络，如果能对单集群的 Overlay
+网络进行扩展，使得多个集群之间共享同一个子网，也就实现了集群间整体的互联互通。通过创建不同的子网，还可满足不同的隔离要求。</p>
+<p>Overlay
+网络的本质是隧道技术，通常是在三层网络上构建隧道传输二层网络包来实现虚拟网络。Overlay
+网络的优势在于它构建的虚拟扁平网络让上层通信不再依赖复杂的路由策略，但类似
+<a href="https://en.wikipedia.org/wiki/Virtual_Extensible_LAN">VxLan</a>
+的技术，只对网络数据包进行了再封装，并没有任何安全性可言，因此当用于公网间建立隧道的时候会采用加密协议传输，如
+<a href="https://en.wikipedia.org/wiki/IPsec">IPSec</a>，<a
+href="https://www.wireguard.com/">WireGuard</a> 等。</p></li>
+</ol>
+<h4 id="服务发现与治理">服务发现与治理</h4>
+<p>当实现了跨集群网络连通后，就需要考虑在应用层面的服务发现与治理问题。在单集群场景下，K8s
+通过 DNS + Service
+实现了对应用地址的解析和应用访问的治理，因此在多集群场景，最简单直接的方式就是扩展现有的
+DNS + Service 模式。</p>
+<p>考虑到不同集群内运行的应用是动态变化的，因此假设<code>cluster-0</code>
+中的 <code>app-0</code> 创建了 <code>svc-0</code> ，该 Service 会被
+<code>cluster-1</code> 中的应用 <code>app-1</code>
+所依赖，那么多集群管理软件就应当及时的将 <code>cluter-0.svc-0</code>
+的信息同步到<code>cluster-1</code> 从而让 <code>app-1</code> 能访问
+<code>app-0</code> 。</p>
+<p><a
+href="https://github.com/kubernetes/enhancements/blob/master/keps/sig-multicluster/1645-multi-cluster-services-api/README.md">Multi-Cluster
+Services API</a> 是 K8s “Multicluster SIG（多集群特别兴趣小组）”
+发起的一项标准，它将单集群的 Service
+概念扩展到多集群，以实现跨集群的服务发现治理，Multi-Cluster Services API
+定义了 “集群组 ClusterSet” 的概念，并定义了如下的两种 CRD
+来描述跨集群服务（以下假设集群组中存在两个集群 <code>cluster-0</code> 和
+<code>cluster-1</code>）：</p>
+<img src="/2023/03/09/k8s-multi-cluster-1/service-discovery.jpg" class="">
+<ul>
+<li>ServiceExport：若<code>cluster-0</code>中的 Service
+<code>svc-0</code> 期望被暴露给集群组，则在<code>cluster-0</code>
+中创建一个与 <code>svc-0</code> 同名的
+ServiceExport，这代表<code>svc-0</code>变成了一个
+“集群组服务（Clusterset Service）”，在集群组内的所有集群中公开。</li>
+<li>ServiceImport：多集群管理软件应当及时发现上述创建的
+ServiceExport，进而在集群组所有集群中创建
+ServiceImport（包括<code>svc-0</code>
+所在的<code>cluster-0</code>），这代表一个集群组服务被导入到当前集群。与此同时，多集群管理软件还应在
+<code>cluster-1</code> 中创建名为 <code>svc-0</code> 的 Service
+并创建绑定实际<code>clustrer-0.svc-0</code> 地址的 EndpointSlice。</li>
+</ul>
+<p>因此，<code>cluster-1</code> 中的应用能够直接通过访问
+<code>cluster-1.svc-0</code> 来访问到 <code>cluster-0.svc-0</code>
+实现了对外部集群服务的访问。</p>
+<p>上述方案通过 ServiceExport 和 ServiceImport 的概念，实现了对单集群
+DNS + Service 的多集群扩展。</p>
+<h3 id="跨集群应用调度">2.2 跨集群应用调度</h3>
+<p>多集群本质上是为了让应用运行在更合适的位置。应用到底运行在哪里，要考虑的决策点可以有很多，例如高可用、成本、合规性、地理位置等等。因此多集群管理的另一大需要解决的问题就是，跨集群应用该如何灵活的进行调度。</p>
+<p>实现跨集群调度的方式有很多，最简单的，可以将不同应用需要运行的位置提前划定好，那么随着
+CI/CD
+流水线的发布，应用自然而然就部署好了。当然这种调度策略属于一种全静态的人工调度，能用但不够灵活。</p>
+<p>就像 K8s
+一样，自动化且灵活的调度，依赖运行在集群内的调度器组件，多集群管理也需要考虑设计自动化的调度器。</p>
+<p>如下图所示，不同领域的调度器，其调度模型实际上是高度一致的：</p>
+<img src="/2023/03/09/k8s-multi-cluster-1/logical-sched.png" class="">
+<p>调度的过程就是根据<strong>规则</strong>为<strong>任务</strong>分配<strong>资源</strong>。这里涉及到三个概念：任务，资源，规则。在多集群管理的语境下，任务就是应用，资源就是集群，而规则是一系列能够影响调度器决策的调度策略。应用与集群属于
+K8s 的既有概念，因此设计跨集群应用调度器，调度策略是核心。</p>
+<h4 id="调度策略">调度策略</h4>
+<p>通过调度策略，我们期望能解决 ”什么样的应用” 需要被调度到 “哪类集群”
+的问题。显然，应用有其自身独特的属性集，集群也一样。从属性集的角度看，调度策略问题就可以转化为应用与集群属性集之间的最优匹配问题。</p>
+<img src="/2023/03/09/k8s-multi-cluster-1/sched-chain.jpg" class="">
+<p>举例说明，应用的属性集可能包括：命名空间、资源依赖、副本数、镜像名、租户归属、应用亲和性/反亲和性、最小资源需求等等，集群的属性集可能包括
+AZ、地区（Region）、节点数、已分配 Pod
+数、资源总量/余量、污点（Taint）等等。</p>
+<p>基于上述属性集的的匹配策略可能包括：</p>
+<ul>
+<li>应用的命名空间必须与集群一致</li>
+<li>应用需要与亲和性应用绑定在同一个集群</li>
+<li>有污点的集群不接受新应用</li>
+<li>如有多个集群都满足要求，则平均分配总副本数</li>
+<li>部署偏好尽可能平衡集群间的资源</li>
+<li>高优先级的应用可以抢占低优先级的应用</li>
+<li>应用如果依赖其他资源（例如 Secrets、Volume
+等），需要先调度依赖的资源，之后再调度应用本身</li>
+</ul>
+<p>借鉴 K8s
+的调度实现模型，上述每一种匹配策略都可作为一种决策器，通过检查它所关注的属性来做出调度决策。而决策器又可分为过滤型和打分型，过滤型决策器给出成功或失败的决策结果，打分型决策器给出分数。</p>
+<p>进行调度决策时，待调度应用与待选集群的属性集依次通过所有过滤型决策器和打分型决策器，最终找到一个（或一组，考虑多副本高可用）分数最高的集群，调度完成。</p>
+<h3 id="应用模型扩展">2.3 应用模型扩展</h3>
+<p>传统单集群场景下，应用的定义通常会直接使用 K8s 的原生 API（例如通过
+helm 定义的应用包），也正因为 K8s 原生 API 的通用性，从侧面造就了 K8s
+成为事实上的行业标准。通过前面两小节，我们了解到在多集群的场景下，对控制与调度以及互联互通都提出了更高的要求。同样的，为了满足多集群管理的需求，传统
+K8s 应用的模型也需要进行扩展。</p>
+<p>扩展的应用模型设计，有如下三点考量：</p>
+<h4 id="规格扩展与状态扩展">规格扩展与状态扩展</h4>
+<p>应用规格扩展的是应用本身的属性。</p>
+<p>根据前文我们了解到，应用调度策略会将与跨集群相关的应用属性纳入决策，典型的例子就包括应用与应用/地域之间的亲和性或反亲和性，以及不同关键等级的应用对资源成本的优先级等等。而在跨集群网络连通性上，应用是否依赖跨集群的其他应用，以及应用自身是否暴露给其他集群等等，也是重要的扩展属性。</p>
+<p>规格的扩展可分为两类：限制（constrains）和提示（hints）。</p>
+<ul>
+<li>限制（constrains）：代表了应用对跨集群管理的强制性要求，如亲和性/反亲和性，最小副本数，污点容忍性（Taints
+Tolerations）等等</li>
+<li>提示（hints）：代表了对多集群管理决策与动作的非强制性提示，如优先级，副本分配偏好，资源需求等等</li>
+</ul>
+<p>状态扩展主要扩展的是应用在多个集群上的状态。这包括应用实际在每个集群上的副本数，运行健康状况，曾经被调度的历史等等。</p>
+<h4 id="前向兼容性">前向兼容性</h4>
+<p>在应用多集群之前，企业通常已经在单集群上拥有了成规模的稳定业务，因此在设计多集群应用模型时，一个重要的考量点就是如何更简单的兼容并迁移原有业务。</p>
+<p>假如多集群的应用模型相比传统 K8s API
+是破坏性的，这将导致需要修改现存的应用定义才能过渡到多集群下，这种对稳定业务的迁移流程，其成本和风险都是较大的。</p>
+<p>因此，多集群应用模型的设计，应该尽量避免修改原有的应用定义，前文提到的规格与状态扩展，都通过独立的
+API 进行管理，并通过合理的 Selector 与原始应用进行绑定。</p>
+<h4 id="自定义资源对象">自定义资源对象</h4>
+<p>现代的 K8s
+集群中通常都会运行着大量自定义资源对象来实现各种基础设施层的功能。多集群中对自定义资源对象的模型扩展，可以考虑如下两点要求：</p>
+<ol type="1">
+<li>自定义资源对象的调度分发应该与原生资源对象保持一致
+<ul>
+<li>CRD 被注册后，可以根据策略自动分发到其他集群</li>
+<li>CR 可以被多集群管理软件识别，并按需进行调度</li>
+</ul></li>
+<li>由于自定义资源对象灵活的结构，需要有方法获取到自定义资源对象的规格和状态来实施调度
+<ul>
+<li>通过 “惯例” 获取 CR
+的规格与状态（如资源要求，副本数，健康度等）</li>
+<li>通过用户扩展插件更精准的获取 CR 的规格和状态</li>
+</ul></li>
+</ol>
+<h3 id="集群即资源">2.4 集群即资源</h3>
+<p>K8s
+为应用层提供了标准的容器编排调度能力，而在基础设施层提供了对节点资源的纳管能力，因此随着应用层需求的波动，节点资源也可以灵活的弹性扩缩。</p>
+<p>成熟的多集群管理环境，弹性扩缩的不只是节点，集群本身也可以作为一种资源进行灵活的扩缩容。结合前面提到的多集群调度、网络连通和应用资源模型，一旦拥有了集群即资源能力，不论是在业务拓展、合法合规还是成本优化等场景，都可以快速的完成多集群部署与回收，集群即资源是复杂多集群调度的自动化基础。</p>
+<h4 id="集群生命周期">集群生命周期</h4>
+<p>既然集群也作为一种资源，那么集群的生命周期也就可以基于 K8s 风格的 API
+来进行操作和管理。</p>
+<p>例如定义了一个类型为 <code>WorkerCluster</code>
+的资源对象以代表一个集群资源（见如下代码段），其中定义了该集群的属性，例如云厂商名，控制面节点数，数据面节点数等等。这时集群即资源的相关控制器就应该基于该描述在对应的云厂商中创建出一个集群。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">multi-cluster.demo.io/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">WorkerCluster</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">demo-worker-cluster</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">cloudProvider:</span> <span class="string">&quot;aws&quot;</span><span class="string">,</span></span><br><span class="line">  <span class="attr">controlPlaneNodes:</span> <span class="number">3</span><span class="string">,</span></span><br><span class="line">  <span class="attr">dataPlaneNodes:</span> <span class="number">20</span><span class="string">,</span></span><br><span class="line">  <span class="string">...</span> <span class="string">...</span></span><br></pre></td></tr></table></figure>
+<p>而当上述资源描述发生变化（如对数据面节点进行了扩容）时，实际的集群也应该发生变化。显然，如果上述资源被删除，那么对应的集群也就需要被销毁掉。</p>
+<p>通过上述例子我们可以发现，对集群生命周期的管理，仍旧存在整合不同云提供商的困难：不同云提供商、以及各种私有云方案，其基础设施的操作
+API 都不同，并且除了 K8s 自管方案，公有云都存在代管方案，如 AKS，GKE
+等，创建集群时也需要区分。</p>
+<p><a
+href="https://github.com/kubernetes-sigs/cluster-api">ClusterAPI</a> 是
+K8s “Cluster Lifecycle SIG（集群生命周期特别兴趣小组）”
+发起的项目，Cluster API 尝试通过定义标准基础设施 API
+来统一集群生命周期管理，各类云厂商自行提供实现了标准 API 的 “Provider”
+来支持自动化操作集群资源，由于其官方背景，目前已有<a
+href="https://cluster-api.sigs.k8s.io/reference/providers.html">数十种
+Provider</a> 可供选择（不仅包含 aws 等公有云，还包含了 OpenStack，OCI
+等其他方案）。</p>
+<p>也许未来 Cluster API 可能会成为集群声明周期管理的标准。</p>
+<h4 id="集群资源模型">集群资源模型</h4>
+<p>对集群进行扩缩容的前提是调度器能够准确的获悉集群当前的资源分配情况，不同的集群可能拥有完全不同的资源，其分配偏好差异也很大（例如云上集群与边缘集群），因此需要一种通用的模型来描述集群自身的资源，从而指导调度决策。</p>
+<p>资源模型中除了传统的 cpu、memory 外，需要支持多样的自定义资源，如
+gpu，storage，ip
+配额等等，另外资源模型不能只考虑上报资源汇总，还需考虑可能存在的资源碎片问题。</p>
+<p>如下是一种可能的资源模型定义：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">multi-cluster.demo.io/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">WorkerCluster</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">demo-worker-cluster</span></span><br><span class="line"><span class="string">...</span> <span class="string">...</span></span><br><span class="line"><span class="attr">status:</span></span><br><span class="line">	<span class="attr">resource:</span></span><br><span class="line">    <span class="attr">total:</span></span><br><span class="line">      <span class="attr">cpu:</span> <span class="string">&quot;20&quot;</span></span><br><span class="line">      <span class="attr">memory:</span> <span class="string">&quot;100GiB&quot;</span></span><br><span class="line">      <span class="attr">gpu:</span> <span class="string">&quot;10&quot;</span></span><br><span class="line">      <span class="attr">ipPool:</span> <span class="string">&quot;127&quot;</span></span><br><span class="line">    <span class="attr">available:</span></span><br><span class="line">      <span class="attr">cpu:</span> <span class="string">&quot;3.5&quot;</span></span><br><span class="line">      <span class="attr">memory:</span> <span class="string">&quot;1200m&quot;</span></span><br><span class="line">      <span class="attr">gpu:</span> <span class="string">&quot;2&quot;</span></span><br><span class="line">      <span class="attr">ipPool:</span> <span class="string">&quot;10&quot;</span></span><br><span class="line">    <span class="attr">continous:</span></span><br><span class="line">      <span class="attr">cpu:</span> <span class="string">&quot;2&quot;</span></span><br><span class="line">      <span class="attr">memory:</span> <span class="string">&quot;550m&quot;</span></span><br><span class="line">      <span class="attr">gpu:</span> <span class="string">&quot;1&quot;</span></span><br><span class="line">      <span class="attr">ipPool:</span> <span class="string">&quot;10&quot;</span></span><br></pre></td></tr></table></figure>
+<p>可以看到，集群资源状态被分成了三类：总数（total），可用数（available），连续可用数（continuous）。其中连续可用数代表资源可分配的最大粒度。对超过最大粒度的资源需求，虽然总可用数能满足需求，但由于资源碎片的原因，实际上已经无法进行调度了。通过这种划分方式，多集群管理软件就能够根据实际的资源情况更精确的下发调度策略，或是对集群资源进行扩缩容。</p>
+<h2 id="小结">3. 小结</h2>
+<p>通过前面的内容，我们了解到：</p>
+<ul>
+<li>企业出于隔离性、可用性、合规性等多种原因，会考虑将应用部署在不同的云上，但由于云提供商之间整合成本高，因此多云管理的成本和复杂性都不低。</li>
+<li>随着 K8s 逐渐成为云原生的事实标准，基于 K8s
+的多集群方案极大降低了多云管理在云资源整合上的成本，因此企业在构建 K8s
+多集群方案时，可以更多的从应用需求的角度进行考量。</li>
+</ul>
+<p>要更好的使用 K8s
+多集群，多集群的管理必不可少，实现多集群管理，其核心要素涉及多集群的部署模型、跨集群应用调度、应用模型的扩展和集群即资源等。</p>
+<p>下一篇，我们将通过介绍实际的案例来探究目前开源方案是怎么解决多集群核心问题的，另外也会讨论目前多集群管理遇到的新问题以及可能的演进趋势。</p>
+<blockquote>
+<p><a
+href="https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/">理解 K8s
+多集群（上）：构建成熟可扩展云平台的核心要素</a></p>
+<p><a
+href="https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/">理解 K8s
+多集群（下）：解决方案对比与演进趋势</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/" title="理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素">http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/multi-cluster/" rel="tag"># multi-cluster</a>
+              <a href="/tags/multi-cloud/" rel="tag"># multi-cloud</a>
+              <a href="/tags/k8s/" rel="tag"># k8s</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/01/01/2022-summary/" rel="prev" title="Summary of 2022">
+                  <i class="fa fa-angle-left"></i> Summary of 2022
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/03/26/k8s-multi-cluster-2/" rel="next" title="理解 K8s 多集群（下）：解决方案对比与演进趋势">
+                  理解 K8s 多集群（下）：解决方案对比与演进趋势 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

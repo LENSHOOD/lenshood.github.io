@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Recently there&#39;s a friend ask a question in a tech group chat, he said that:  In the implementation of CopyOnWriteArrayList.add(E e), why the writer assign the final field lock to a local variable ?">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Why Assign Final Field to Local Variable?">
+<meta property="og:url" content="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Recently there&#39;s a friend ask a question in a tech group chat, he said that:  In the implementation of CopyOnWriteArrayList.add(E e), why the writer assign the final field lock to a local variable ?">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/pic-1.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/pic-2.png">
+<meta property="article:published_time" content="2021-06-21T13:48:13.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.490Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="performance optimization">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/pic-1.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/","path":"2021/06/21/why-assign-final-to-local-variable/","title":"Why Assign Final Field to Local Variable?"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Why Assign Final Field to Local Variable? | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#its-useless"><span class="nav-number">1.</span> <span class="nav-text">It&#39;s useless?</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lets-find-out"><span class="nav-number">2.</span> <span class="nav-text">Let&#39;s Find Out</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#get-asm-from-jit"><span class="nav-number">3.</span> <span class="nav-text">Get ASM from JIT</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#install-hsdis-to-macos-for-jdk-15"><span class="nav-number">3.0.1.</span> <span class="nav-text">Install hsdis to
+MacOS (for JDK-15)</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#get-asm"><span class="nav-number">3.0.2.</span> <span class="nav-text">Get ASM</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#so-the-performance-indeed-better"><span class="nav-number">4.</span> <span class="nav-text">So the Performance indeed
+better</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#conclusion"><span class="nav-number">5.</span> <span class="nav-text">Conclusion</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number"></span> <span class="nav-text">Reference</span></a></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Why Assign Final Field to Local Variable? | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Why Assign Final Field to Local Variable?
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-06-21 21:48:13" itemprop="dateCreated datePublished" datetime="2021-06-21T21:48:13+08:00">2021-06-21</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>Recently there's a friend ask a question in a tech group chat, he
+said that:</p>
+<blockquote>
+<p>In the implementation of <code>CopyOnWriteArrayList.add(E e)</code>,
+why the writer assign the final field <code>lock</code> to a local
+variable ?</p>
+</blockquote>
+<p>Then he posted a picture like this:</p>
+<img src="/2021/06/21/why-assign-final-to-local-variable/pic-1.png" class="">
+<p>When I open my local JDK source and get
+<code>CopyOnWriteArrayList.add(E e)</code>, I found that the
+implementation of <code>add(E e)</code> in my version of JDK (jdk-15)
+has already refactored to just use <code>synchronized</code> key word
+(since now the performance is better than <code>ReentrantLock</code>)
+.</p>
+<p>Actually the picture's version of
+<code>CopyOnWriteArrayList.add(E e)</code> is contained in JDK 1.8, so I
+switch my jdk version, and found the code, then I fell into
+thought...</p>
+<span id="more"></span>
+<h3 id="its-useless">It's useless?</h3>
+<p>Why Doug Lea(the code writer) did like that? It make no sense!</p>
+<ol type="1">
+<li>The <code>lock</code> field is defined as <code>final</code>, no one
+can change it</li>
+<li>Won't it be optimized by compiler?</li>
+</ol>
+<p>After some Google, there's one guy said at <a
+href="https://stackoverflow.com/questions/2785964/in-arrayblockingqueue-why-copy-final-member-field-into-local-final-variable">StackOverflow</a>:</p>
+<img src="/2021/06/21/why-assign-final-to-local-variable/pic-2.png" class="">
+<p>And open the <a
+href="http://mail.openjdk.java.net/pipermail/core-libs-dev/2010-May/004165.html">thread</a>,
+we can see it says it's an "extreme optimization" and can make the
+compiler to "produces the smallest bytecode".</p>
+<p>WOW, That's amazing! I never thought that would come!</p>
+<p>So now I wander: it that real?</p>
+<h3 id="lets-find-out">Let's Find Out</h3>
+<p>According to the content of that thread post, the optimization is act
+on bytecode even machine code. So I wrote such simplified test code to
+simulate the circumstance:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> lenshood.demo;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.locks.Lock;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.locks.ReentrantLock;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">FinalTest</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">Lock</span> <span class="variable">fLock</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ReentrantLock</span>();</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> i;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">useLocal</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">Lock</span> <span class="variable">lLock</span> <span class="operator">=</span> <span class="built_in">this</span>.fLock;</span><br><span class="line"></span><br><span class="line">        lLock.lock();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            i++;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            lLock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">useField</span><span class="params">()</span> &#123;</span><br><span class="line">        fLock.lock();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            i++;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            fLock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">FinalTest</span> <span class="variable">finalTest</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FinalTest</span>();</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">10_000_000</span>; i++) &#123;</span><br><span class="line">            finalTest.useLocal();</span><br><span class="line">            finalTest.useField();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        System.out.println(finalTest.i);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>There's two different methods to demonstrate the two coding style of
+use local variable or directly use final field.</p>
+<p>And let's see the bytecode of the two methods:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">### useLocal()</span><br><span class="line"> 0 aload_0</span><br><span class="line">##############</span><br><span class="line"> 1 getfield #10 &lt;lenshood/demo/FinalTest.fLock&gt;</span><br><span class="line">############## </span><br><span class="line"> 4 astore_1</span><br><span class="line"> 5 aload_1</span><br><span class="line"> 6 invokeinterface #16 &lt;java/util/concurrent/locks/Lock.lock&gt; count 1</span><br><span class="line">11 aload_0</span><br><span class="line">12 dup</span><br><span class="line">13 getfield #21 &lt;lenshood/demo/FinalTest.i&gt;</span><br><span class="line">16 iconst_1</span><br><span class="line">17 iadd</span><br><span class="line">18 putfield #21 &lt;lenshood/demo/FinalTest.i&gt;</span><br><span class="line">21 aload_1</span><br><span class="line">22 invokeinterface #25 &lt;java/util/concurrent/locks/Lock.unlock&gt; count 1</span><br><span class="line">27 goto 39 (+12)</span><br><span class="line">30 astore_2</span><br><span class="line">31 aload_1</span><br><span class="line">32 invokeinterface #25 &lt;java/util/concurrent/locks/Lock.unlock&gt; count 1</span><br><span class="line">37 aload_2</span><br><span class="line">38 athrow</span><br><span class="line">39 return</span><br><span class="line"></span><br><span class="line">-------------------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line">### useField()</span><br><span class="line"> 0 aload_0</span><br><span class="line">##############</span><br><span class="line"> 1 getfield #10 &lt;zxh/demo/FinalTest.fLock&gt;</span><br><span class="line">##############</span><br><span class="line"> 4 invokeinterface #16 &lt;java/util/concurrent/locks/Lock.lock&gt; count 1</span><br><span class="line"> 9 aload_0</span><br><span class="line">10 dup</span><br><span class="line">11 getfield #21 &lt;zxh/demo/FinalTest.i&gt;</span><br><span class="line">14 iconst_1</span><br><span class="line">15 iadd</span><br><span class="line">16 putfield #21 &lt;zxh/demo/FinalTest.i&gt;</span><br><span class="line">19 aload_0</span><br><span class="line">##############</span><br><span class="line">20 getfield #10 &lt;zxh/demo/FinalTest.fLock&gt;</span><br><span class="line">##############</span><br><span class="line">23 invokeinterface #25 &lt;java/util/concurrent/locks/Lock.unlock&gt; count 1</span><br><span class="line">28 goto 43 (+15)</span><br><span class="line">31 astore_1</span><br><span class="line">32 aload_0</span><br><span class="line">33 getfield #10 &lt;zxh/demo/FinalTest.fLock&gt;</span><br><span class="line">36 invokeinterface #25 &lt;java/util/concurrent/locks/Lock.unlock&gt; count 1</span><br><span class="line">41 aload_1</span><br><span class="line">42 athrow</span><br><span class="line">43 return</span><br></pre></td></tr></table></figure>
+<p>Compare the two copy of bytecodes, it's obvious to find that:</p>
+<ol type="1">
+<li>In the <code>useLocal()</code>, there's one "getfield" and one
+"astore_1" + two "aload_1" to assign/load local variables from final
+field "fLock".</li>
+<li>In the <code>useField()</code>, there's two "getfield".</li>
+</ol>
+<p>Hence, we found the bytecodes do have difference, but why
+<code>1*getfiled + 1*astore + 2*aload</code> is better than
+<code>2*getfield</code> ?</p>
+<p>Here is some possible hypotheses:</p>
+<ul>
+<li>Local variable can store at registers, but field can only get from
+memory, which is slower</li>
+<li>Final field has the semantics of <code>happens-before</code>, and
+JVM may insert load barriers before get final field</li>
+</ul>
+<p>But how to prove them? We better go deeper: pass through bytecode and
+go to asm!</p>
+<h3 id="get-asm-from-jit">Get ASM from JIT</h3>
+<p>Firstly we may need to install a plugin for HotSpot VM to do
+disassembling.</p>
+<p><code>hsdis</code> is contained in the jdk source code, we can find
+it from openjdk at GitHub.</p>
+<p>To jdk-15, the <code>hsdis</code> is located in:
+<code>src/utils/hsdis</code></p>
+<h5 id="install-hsdis-to-macos-for-jdk-15">Install <code>hsdis</code> to
+MacOS (for JDK-15)</h5>
+<ol type="1">
+<li><code>binutils</code> is needed:
+<ul>
+<li>Download <code>binutils</code> from:
+https://www.gnu.org/software/binutils/</li>
+<li><code>tar -xvf binutils-xxx.tar.bz2</code></li>
+</ul></li>
+<li>Get <code>hsdis</code> source, then build it
+<ul>
+<li>Assume we're in the <code>hsdis</code> dir, put
+<code>binutils</code> we just downloaded in it.</li>
+<li><code>make BINUTILS=binutils-xxx ARCH=amd64</code></li>
+</ul></li>
+<li>Put plugin into jdk
+<ul>
+<li><code>sudo cp build/macosx-amd64/hsdis-amd64.dylib $JAVA_HOME/lib/server</code></li>
+</ul></li>
+</ol>
+<h5 id="get-asm">Get ASM</h5>
+<ol type="1">
+<li><code>javac FinalTest.java</code></li>
+<li><code>java -Xbatch -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:+PrintAssembly</code></li>
+</ol>
+<p>Then we can get ASM code output to shell, select the section related
+to our methods:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">############ useLocal() ############</span><br><span class="line">[Entry Point]</span><br><span class="line">  # &#123;method&#125; &#123;0x000000011c4003f0&#125; &#x27;useLocal&#x27; &#x27;()V&#x27; in &#x27;FinalTest&#x27;</span><br><span class="line">  #           [sp+0x40]  (sp of caller)</span><br><span class="line">  </span><br><span class="line">  … …</span><br><span class="line"></span><br><span class="line">  0x0000000117530070:   mov    0x10(%rsi),%r11d             ;*getfield fLock &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useLocal@1 (line 9)</span><br><span class="line">  0x0000000117530074:   mov    0x8(%r12,%r11,8),%r10d       ; implicit exception: dispatches to 0x0000000117530330</span><br><span class="line">  0x0000000117530079:   nopl   0x0(%rax)</span><br><span class="line">  0x0000000117530080:   cmp    $0x3446b,%r10d               ;   &#123;metadata(&#x27;java/util/concurrent/locks/ReentrantLock&#x27;)&#125;</span><br><span class="line">  0x0000000117530087:   jne    0x00000001175302a0</span><br><span class="line">  0x000000011753008d:   lea    (%r12,%r11,8),%rbx           ;*invokeinterface lock &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useLocal@6 (line 11)</span><br><span class="line">  0x0000000117530091:   mov    0xc(%rbx),%r14d              ;*getfield sync &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - java.util.concurrent.locks.ReentrantLock::lock@1 (line 322)</span><br><span class="line">                                                            ; - FinalTest::useLocal@6 (line 11)</span><br><span class="line">  … …</span><br><span class="line"></span><br><span class="line">  0x0000000117530110:   incl   0xc(%r10)                    ;*putfield i &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useLocal@18 (line 13)</span><br><span class="line">  0x0000000117530114:   mov    0xc(%rbx),%ebx               ;*getfield sync &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - java.util.concurrent.locks.ReentrantLock::unlock@1 (line 494)</span><br><span class="line">                                                            ; - FinalTest::useLocal@22 (line 15)</span><br><span class="line">  … …</span><br><span class="line">  </span><br></pre></td></tr></table></figure>
+<p>In the ASM of <code>useLocal()</code>, we can simply find it first
+get the final field <code>fLock</code> and put it to <code>r11</code>
+register as a local variable (<code>0x0000000117530070</code>), after
+that, when find the <code>ReentrantLock</code> instant fron dynamic
+table ( 0x000000011753008d ), the code directly use <code>r11</code> to
+get the address.</p>
+<p>Down to <code>0x0000000117530110</code> we know it's the
+<code>i++</code> operation, and then at the next address
+<code>0x0000000117530114</code> -- when do <code>unlock()</code> -- the
+<code>sync</code> field (inner field in <code>ReentrantLock</code>) are
+just addressing from <code>rbx</code>, which contained calculated result
+from <code>r11</code> (0x000000011753008d).</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">############ useFeild() ############</span><br><span class="line">[Entry Point]</span><br><span class="line">  # &#123;method&#125; &#123;0x000000011c4004e0&#125; &#x27;useField&#x27; &#x27;()V&#x27; in &#x27;FinalTest&#x27;</span><br><span class="line">  #           [sp+0x40]  (sp of caller)</span><br><span class="line"></span><br><span class="line">  … …</span><br><span class="line"></span><br><span class="line">  0x000000011752f5ef:   mov    0x10(%rsi),%r10d             ;*getfield fLock &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useField@1 (line 20)</span><br><span class="line">  0x000000011752f5f3:   mov    0x8(%r12,%r10,8),%r8d        ; implicit exception: dispatches to 0x000000011752f8d0</span><br><span class="line">  0x000000011752f5f8:   nopl   0x0(%rax,%rax,1)</span><br><span class="line">  0x000000011752f600:   cmp    $0x3446b,%r8d                ;   &#123;metadata(&#x27;java/util/concurrent/locks/ReentrantLock&#x27;)&#125;</span><br><span class="line">  0x000000011752f607:   jne    0x000000011752f834</span><br><span class="line">  0x000000011752f60d:   shl    $0x3,%r10                    ;*invokeinterface lock &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useField@4 (line 20)</span><br><span class="line">  0x000000011752f611:   mov    0xc(%r10),%r13d              ;*getfield sync &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - java.util.concurrent.locks.ReentrantLock::lock@1 (line 322)</span><br><span class="line">                                                            ; - FinalTest::useField@4 (line 20)</span><br><span class="line">  </span><br><span class="line">  … …</span><br><span class="line"></span><br><span class="line">  0x000000011752f68c:   incl   0xc(%rbx)                    ;*putfield i &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useField@16 (line 22)</span><br><span class="line">  0x000000011752f68f:   mov    0x10(%rbx),%ebp              ;*getfield fLock &#123;reexecute=0 rethrow=0 return_oop=0&#125;</span><br><span class="line">                                                            ; - FinalTest::useField@20 (line 24)</span><br></pre></td></tr></table></figure>
+<p>The <code>useField()</code> is even simplier, at
+<code>0x000000011752f5ef</code> and <code>0x000000011752f68f</code>, it
+just read <code>fLock</code> twice from memory.</p>
+<h3 id="so-the-performance-indeed-better">So the Performance indeed
+better</h3>
+<p>Go back to our two hypotheses: 1. Register: yes, it use register to
+hold local variable and avoid twice load from memory(cache) 2. Load
+barrier: there's no explicit barriers we can find, however, due to the
+<a href="https://www.asrivas.me/blog/memory-barriers-on-x86/">strong
+memory model of x86</a>(<a
+href="https://www.cl.cam.ac.uk/~pes20/weakmemory/cacm.pdf">TSO</a>),
+<code>mov</code> already implied the LoadLoad barrier semantics.</p>
+<h3 id="conclusion">Conclusion</h3>
+<p>After our study, now we can explain why assign a final field to local
+variable can get better performance, we can also know that why it's an
+"extreme optimization".</p>
+<p>Hence, put this optimization to everywhere maybe not a good idea, but
+the spirit of pursue the ultimate performance it's really admirable.</p>
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li><a
+href="https://stackoverflow.com/questions/2785964/in-arrayblockingqueue-why-copy-final-member-field-into-local-final-variable">In
+ArrayBlockingQueue, why copy final member field into local final
+variable?</a></li>
+<li><a
+href="http://mail.openjdk.java.net/pipermail/core-libs-dev/2010-May/004165.html">Performance
+of locally copied members ?</a></li>
+<li><a
+href="https://www.beyondjava.net/show-assembly-code-generated-jvm">How
+to Show the Assembly Code Generated by the JVM</a></li>
+<li><a
+href="https://www.morling.dev/blog/building-hsdis-for-openjdk-15/">Building
+hsdis for OpenJDK 15</a></li>
+<li><a href="https://www.asrivas.me/blog/memory-barriers-on-x86/">Memory
+Barriers on x86</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/" title="Why Assign Final Field to Local Variable?">http://lenshood.github.io/2021/06/21/why-assign-final-to-local-variable/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/performance-optimization/" rel="tag"># performance optimization</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2021/04/19/lock-free-ring-buffer/" rel="prev" title="一个简单的 Lock Free Ring Buffer，有多简单？">
+                  <i class="fa fa-angle-left"></i> 一个简单的 Lock Free Ring Buffer，有多简单？
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021/07/05/bpt-lsmt/" rel="next" title="对比 B+ Tree 文件组织 &#x2F; LSM Tree 文件组织（第一篇：B+ Tree）">
+                  对比 B+ Tree 文件组织 / LSM Tree 文件组织（第一篇：B+ Tree） <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

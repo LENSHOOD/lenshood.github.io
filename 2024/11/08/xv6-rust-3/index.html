@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="We have learnt how to setup risc-v in rust, and also initialized risc-v to be able to print format strings, in this chapter we are taking the first look of the OS kernel, and will try to figure out t">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x03&#x2F; - Memory Virtualization">
+<meta property="og:url" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="We have learnt how to setup risc-v in rust, and also initialized risc-v to be able to print format strings, in this chapter we are taking the first look of the OS kernel, and will try to figure out t">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/6.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/7.png">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/8.png">
+<meta property="article:published_time" content="2024-11-08T15:29:43.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.501Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2024/11/08/xv6-rust-3/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2024/11/08/xv6-rust-3/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2024/11/08/xv6-rust-3/","path":"2024/11/08/xv6-rust-3/","title":"/Xv6 Rust 0x03/ - Memory Virtualization"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x03/ - Memory Virtualization | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#overview-of-physical-memory"><span class="nav-number">1.</span> <span class="nav-text">1. Overview of physical memory</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#memory-allocator"><span class="nav-number">2.</span> <span class="nav-text">2. Memory allocator</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#virtual-memory"><span class="nav-number">3.</span> <span class="nav-text">3. Virtual Memory</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#initialize-kernel-virtual-memory"><span class="nav-number">4.</span> <span class="nav-text">4. Initialize kernel virtual
+memory</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2024/11/08/xv6-rust-3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="&#x2F;Xv6 Rust 0x03&#x2F; - Memory Virtualization | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x03/ - Memory Virtualization
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2024-11-08 23:29:43" itemprop="dateCreated datePublished" datetime="2024-11-08T23:29:43+08:00">2024-11-08</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2024/11/08/xv6-rust-3/header.jpg" class="" width="500">
+<p>We have learnt how to setup risc-v in rust, and also initialized
+risc-v to be able to print format strings, in this chapter we are taking
+the first look of the OS kernel, and will try to figure out the memory
+management in xv6.</p>
+<span id="more"></span>
+<h2 id="overview-of-physical-memory">1. Overview of physical memory</h2>
+<p>Before we get any further, let's recall the memory mapping in the
+QEMU that we mentioned in previous chapters:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">qemu-system-riscv64 -monitor stdio</span></span><br><span class="line">QEMU 9.1.0 monitor - type &#x27;help&#x27; for more information</span><br><span class="line">(qemu) info mtree</span><br><span class="line">address-space: cpu-memory-0</span><br><span class="line">address-space: memory</span><br><span class="line">  0000000000000000-ffffffffffffffff (prio 0, i/o): system</span><br><span class="line">    0000000000001000-000000000000ffff (prio 0, rom): riscv.spike.mrom</span><br><span class="line">    0000000001000000-000000000100000f (prio 1, i/o): riscv.htif.uart</span><br><span class="line">    0000000002000000-0000000002003fff (prio 0, i/o): riscv.aclint.swi</span><br><span class="line">    0000000002004000-000000000200bfff (prio 0, i/o): riscv.aclint.mtimer</span><br><span class="line">    0000000080000000-0000000087ffffff (prio 0, ram): riscv.spike.ram</span><br><span class="line"></span><br><span class="line">address-space: I/O</span><br><span class="line">  0000000000000000-000000000000ffff (prio 0, i/o): io</span><br></pre></td></tr></table></figure>
+<p>As we can see, the range of RAM is from <code>0x80000000</code> to
+<code>0x87ffffff</code>, which exactly to be 128MiB, and that is because
+we set it to be 128MiB in the runner command.</p>
+<p>And let's take a look at the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/ld/kernel.ld"><code>kernel.ld</code></a>
+in the xv6-rust repo:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">OUTPUT_ARCH( &quot;riscv&quot; )</span><br><span class="line">ENTRY( _entry )</span><br><span class="line"></span><br><span class="line">SECTIONS</span><br><span class="line">&#123;</span><br><span class="line">  /*</span><br><span class="line">   * ensure that entry.S / _entry is at 0x80000000,</span><br><span class="line">   * where qemu&#x27;s -kernel jumps.</span><br><span class="line">   */</span><br><span class="line">  . = 0x80000000;</span><br><span class="line"></span><br><span class="line">  .text : &#123;</span><br><span class="line">    /* no idea why the previous form *(.text .text.*) not working, maybe it is relate to ld version */</span><br><span class="line">    *(.text) *(.text.*)</span><br><span class="line">    . = ALIGN(0x1000);</span><br><span class="line">    _trampoline = .;</span><br><span class="line">    *(trampsec)</span><br><span class="line">    . = ALIGN(0x1000);</span><br><span class="line">    ASSERT(. - _trampoline == 0x1000, &quot;error: trampoline larger than one page&quot;);</span><br><span class="line">    PROVIDE(etext = .);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  .rodata : &#123;</span><br><span class="line">    . = ALIGN(16);</span><br><span class="line">    *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */</span><br><span class="line">    . = ALIGN(16);</span><br><span class="line">    *(.rodata .rodata.*)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  .data : &#123;</span><br><span class="line">    . = ALIGN(16);</span><br><span class="line">    *(.sdata .sdata.*) /* do not need to distinguish this from .data */</span><br><span class="line">    . = ALIGN(16);</span><br><span class="line">    *(.data .data.*)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  .bss : &#123;</span><br><span class="line">    . = ALIGN(16);</span><br><span class="line">    *(.sbss .sbss.*) /* do not need to distinguish this from .bss */</span><br><span class="line">    . = ALIGN(16);</span><br><span class="line">    *(.bss .bss.*)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  PROVIDE(end = .);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>It's a little bit more complicated than the one we wrote in the
+previous chapters, but still quite clear.</p>
+<p>Let's ignore the complicated part in the middle of the file, only
+focus on the <code>PROVIDE(***)</code> lines:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">/* define a symbol named &quot;etext&quot;, and set its value </span><br><span class="line"> * to the current location address, which stands for the</span><br><span class="line"> * address where end of text section.</span><br><span class="line"> */</span><br><span class="line">PROVIDE(etext = .);</span><br><span class="line"></span><br><span class="line">/* define a symbol named &quot;end&quot;, and set its value</span><br><span class="line"> * to the address where all kernel data ends.</span><br><span class="line"> */</span><br><span class="line">PROVIDE(end = .);</span><br></pre></td></tr></table></figure>
+<p>We can imagine, before <code>etext</code>, the program lies there and
+cannot be changed, between <code>etext</code> and <code>end</code>, any
+read-only data, writable data and bss data are put there, after
+<code>end</code>, the rest of the RAM space is available for stack or
+heap. Here are the real symbol addresses:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">readelf -s kernel | grep -E <span class="string">&quot;etext|stack0|end&quot;</span></span></span><br><span class="line"> 33873: 00000000800162c0 32768 OBJECT  GLOBAL DEFAULT    2 stack0</span><br><span class="line"> 33892: 000000008004eb30     0 NOTYPE  GLOBAL DEFAULT    5 end</span><br><span class="line"> 33893: 0000000080015000     0 NOTYPE  GLOBAL DEFAULT    1 etext</span><br></pre></td></tr></table></figure>
+<p>Hence, we could get the simple RAM map as follows:</p>
+<img src="/2024/11/08/xv6-rust-3/1.png" class="">
+<p>And the interesting thing is, if you take one more step to check the
+section addresses by <code>readelf</code>, you'll find the
+<code>stack0</code> was actually located in the <code>rodata</code>
+section, because we define it as a <code>static</code> field in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/start.rs#L13"><code>start.rs</code></a>,
+but we use the <code>stack0</code> as the kernel stack, which is
+writable.</p>
+<p>The reason why we can write a read-only field without an exception,
+is at the beginning of <code>start()</code> we access it in the machine
+mode, and afterward we set the Physical Memory Protection to RWX across
+the range of <code>0~0x3ffffffffffff</code>, according to the last
+chapter, so that in the supervisor mode, the <code>stack0</code> can
+also be written.</p>
+<h2 id="memory-allocator">2. Memory allocator</h2>
+<p>So far we have known the physical RAM space, next let's see how to
+manage the RAM space so that it can easily be allocated and returned
+back.</p>
+<p>In xv6, the smallest unit of memory management is "page", which is
+4096B by default, and we can adjust the page size by setting the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/riscv.rs#L269"><code>PGSIZE</code></a>.
+Basically RAM management divide the RAM into numerous and consistent
+pages, like this:</p>
+<img src="/2024/11/08/xv6-rust-3/2.png" class="">
+<p>So now we have divided the RAM into 32689 pages, how to track them?
+How to allocate pages to some code that needs the exact amount of
+memory? And how to recycle them in the end?</p>
+<p>Xv6 using the implicit list to track them, and each list item called
+a <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/kalloc.rs#L15"><code>Run</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kalloc.rs</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Run</span> &#123;</span><br><span class="line">    next: *<span class="keyword">mut</span> Run,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>It's very simple to understand, the list actually only track the free
+pages, so the <code>next</code> pointer can directly put into the page
+space itself, avoid introducing any extra memory space to save the
+pointer. Once a page has been allocated, the whole 4096B can be used to
+store data, when it returns back, we can find the correct position of
+that page by calculating its address.</p>
+<img src="/2024/11/08/xv6-rust-3/3.png" class="">
+<p>Based on the above image, we can better realize how xv6 manages its
+RAM. During the kernel starting, the available RAM space will be
+initialized by divided into pages, and fill with junk data, such logic
+starts from <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/kalloc.rs#L33"><code>kinit()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kalloc.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">kinit</span>() &#123;</span><br><span class="line">  ... ...</span><br><span class="line">  <span class="comment">// Range: From &quot;end&quot; to &quot;PHYSTOP&quot;</span></span><br><span class="line">  KMEM.<span class="title function_ invoke__">freerange</span>((&amp;<span class="keyword">mut</span> end) <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="type">u8</span>, PHYSTOP <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="type">u8</span>);</span><br><span class="line">  ... ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">freerange</span>&lt;T: <span class="built_in">Sized</span>&gt;(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>, pa_start: *<span class="keyword">mut</span> T, pa_end: *<span class="keyword">mut</span> T) &#123;</span><br><span class="line">  <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">p</span> = PGROUNDUP!(pa_start);</span><br><span class="line">  <span class="keyword">while</span> p + PGSIZE &lt;= pa_end <span class="keyword">as</span> <span class="type">usize</span> &#123;</span><br><span class="line">    <span class="keyword">self</span>.<span class="title function_ invoke__">kfree</span>(p <span class="keyword">as</span> *<span class="keyword">mut</span> T);</span><br><span class="line">    p += PGSIZE;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">kfree</span>&lt;T: <span class="built_in">Sized</span>&gt;(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>, pa: *<span class="keyword">mut</span> T) &#123;</span><br><span class="line">  ... ...</span><br><span class="line">  <span class="comment">// Fill with junk to catch dangling refs.</span></span><br><span class="line">  <span class="title function_ invoke__">memset</span>(pa <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="type">u8</span>, <span class="number">1</span>, PGSIZE);</span><br><span class="line">  <span class="comment">// Build &quot;Run&quot; in each pages</span></span><br><span class="line">  <span class="keyword">let</span> <span class="variable">r</span> = pa <span class="keyword">as</span> *<span class="keyword">mut</span> Run;</span><br><span class="line">  (*r).next = <span class="keyword">self</span>.freelist;</span><br><span class="line">  <span class="comment">// &quot;freelist&quot; is the head of the implicit list</span></span><br><span class="line">  <span class="keyword">self</span>.freelist = r;</span><br><span class="line">  ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>When the initialize completed, then any kernel code could call <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/kalloc.rs#L80"><code>kalloc()</code></a>
+to get one page of available memory:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// kalloc.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">kalloc</span>&lt;T: <span class="built_in">Sized</span>&gt;(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>) <span class="punctuation">-&gt;</span> *<span class="keyword">mut</span> T &#123;</span><br><span class="line">  ... ...</span><br><span class="line">  <span class="comment">// Get the latest free page &quot;r&quot; to be allocated</span></span><br><span class="line">  <span class="keyword">let</span> <span class="variable">r</span> = <span class="keyword">self</span>.freelist;</span><br><span class="line">  <span class="keyword">if</span> !r.<span class="title function_ invoke__">is_null</span>() &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">      <span class="comment">// Delete the &quot;r&quot; from free list</span></span><br><span class="line">      <span class="keyword">self</span>.freelist = (*r).next;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  ... ...</span><br><span class="line">  r <span class="keyword">as</span> *<span class="keyword">mut</span> T</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Apparently xv6 implemented a very simple memory allocate mechanism,
+which totally avoids introducing any lazy allocation here, hence, page
+fault is also treated as ordinary exceptions and kernel would crash if
+page fault happens.</p>
+<p>Please note that, till then all of the addresses and pages we have
+talked about are physical memory. Actually before a page has been used,
+its address must be converted to the virtual address. Next we'll go to
+the virtual memory part.</p>
+<h2 id="virtual-memory">3. Virtual Memory</h2>
+<p>Virtual memory mechanism is the key to achieve the memory
+virtualization, modern processes usually support virtual memory in
+hardware level, which includes address translation, permission control
+and related interrupts.</p>
+<p>In risc-v architecture, virtual memory management is based on page,
+variety of page table structure modes are supported in risc-v, like
+Sv32, Sv39 and Sv48, even Sv52, the number behind the "Sv" indicates the
+address width, for example, "Sv39" is the short for "Supervisor Virtual
+addressing with 39-bit virtual addresses", which means under the Sv39
+mode, the virtual address space that a process can accessing is <span
+class="math inline">\(2^{39}\)</span> bytes that around 512GiB.</p>
+<p>Let's recap the <code>satp</code> CSR mentioned in the last chapter,
+and go one step deeper(more details please see <em><a
+href="https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view">The
+RISC-V Instruction Set Manual: Volume II: 10.1.11.</a></em>):</p>
+<img src="/2024/11/08/xv6-rust-3/4.png" class="">
+<p>The above image is the definition of <code>satp</code>, it contains
+three parts, the first part defines the mode, like the following
+image:</p>
+<img src="/2024/11/08/xv6-rust-3/5.png" class="">
+<p>Xv6 uses risc-v64 and Sv39, so the highest 4bit would be
+<code>0x8</code>.</p>
+<p>The second part "ASID" basically provides better performance by
+allowing OS to hint TLB through it, however, xv6 doesn't use this
+feature.</p>
+<p>The third part "PPN" is called physical page number, the
+<code>stap.PPN</code> should be set to the PPN of the root page table,
+so that the processor can find page table through it.</p>
+<p>Talking about the page table, what exactly is the page table
+structure defined in Sv39? Let's have a look, in the meantime, there are
+many more details in <em><a
+href="https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view">The
+RISC-V Instruction Set Manual: Volume II: 10.3 ~ 10.6.</a></em>, please
+check it if you are interested.</p>
+<p>In fact, not only risc-v, almost all page tables share the concept of
+multi-level page table entries. We can have an example to make it
+clearer for understanding:</p>
+<p>Say we have a variable <code>a</code> located in a process's stack,
+whose virtual address is <code>0x3f_fff7_e000</code>(you'll know why we
+choose such a bug number afterward in the following sections). And we
+assume its physical address is <code>0x80050000</code>, so if we need a
+page table right now to hold such mapping relationship, the simplest way
+is having an array to act as a table, like this:</p>
+<p><img src="/2024/11/08/xv6-rust-3/6.png" class=""></p>
+<p>If we don't yet care how we got such a huge array, which size is
+exactly the same as the 39-bit space, the index of the array represents
+virtual address, while the value represents physical address. This at
+least makes our "theoretically" page table available.</p>
+<p>But there's no doubt that this won't work. Considering 99.99% of the
+above page table are not been used, but the space still need to be
+occupied since array is consistent. Can we use more space efficient way
+like linked list? Not really, because address translation is a very high
+frequency operation which requires very low latency.</p>
+<p>Then multi-level page table turns out to be the final solution:</p>
+<p><img src="/2024/11/08/xv6-rust-3/7.png" class=""></p>
+<p>With the multi-level approach, only a few of page tables will be
+created, like the above image, if we want to store the mapping
+<code>0x3f_fff7_e000 -&gt; 0x80050000</code>, we only need for
+512-entries page table, assume an entry store a 64-bit number(the first
+three store the next page table address, the last one store the physical
+address), then they only take <span class="math inline">\(512 * 8 * 4 =
+16\ KiB\)</span> space in total. Calculate each level's table index is
+simply left shift the virtual address for a few bits, please check the
+detail in the function <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/vm.rs#L183"><code>walk()</code></a>.</p>
+<p>More importantly, the virtual memory structure manages memory by
+page, one page in Sv39 is 4096-bit, which is <span
+class="math inline">\(2^{12}\)</span>, therefore, actually we don't need
+the low 12 bits at all, since the last 12 bits in each page is 12 bits
+0. risc-v make use of this 12-bit to record permissions. The following
+image shows format of virtual address, physical address and PTE(page
+table entry) in Sv39:</p>
+<p><img src="/2024/11/08/xv6-rust-3/8.png" class=""></p>
+<p>The PTE flags <code>R</code>, <code>W</code>, <code>X</code> indicate
+the read, write and execute permission of the PTE, U indicates user
+mode, V use to identify if the PTE is valid.</p>
+<h2 id="initialize-kernel-virtual-memory">4. Initialize kernel virtual
+memory</h2>
+<p>We already mentioned before that although <code>kalloc()</code>
+allocate memory directly form physical memory, no matter kernel code or
+user code, they all running on virtual memory. The only difference here
+is, kernel virtual address space is on purposely as same as physical
+address, while user virtual address starts from <code>0x0</code>.</p>
+<p>Let's have a first look at <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/vm.rs#L82"><code>kvminit()</code></a>,
+which is the initialization of virtual memory:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// vm.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">kvminit</span>() &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        KERNEL_PAGETABLE = <span class="title function_ invoke__">Some</span>(<span class="title function_ invoke__">kvmmake</span>());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">kvmmake</span>&lt;<span class="symbol">&#x27;a</span>&gt;() <span class="punctuation">-&gt;</span> &amp;<span class="symbol">&#x27;a</span> PageTable &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">kpgtbl</span> = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="variable">pg</span>: *<span class="keyword">mut</span> PageTable = KMEM.<span class="title function_ invoke__">kalloc</span>();</span><br><span class="line">        ... ...</span><br><span class="line">        pg.<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>()</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// uart registers</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// virtio mmio disk interface</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// PLIC</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(kpgtbl, PLIC, PLIC, <span class="number">0x400000</span>, PTE_R | PTE_W);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">etext_addr</span> = (<span class="keyword">unsafe</span> &#123; &amp;etext &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">expose_addr</span>();</span><br><span class="line">    <span class="comment">// map kernel text executable and read-only.</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(</span><br><span class="line">        kpgtbl,</span><br><span class="line">        KERNBASE,</span><br><span class="line">        KERNBASE,</span><br><span class="line">        etext_addr - KERNBASE,</span><br><span class="line">        PTE_R | PTE_X,</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    <span class="comment">// map kernel data and the physical RAM we&#x27;ll make use of.</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(</span><br><span class="line">        kpgtbl,</span><br><span class="line">        etext_addr,</span><br><span class="line">        etext_addr,</span><br><span class="line">        PHYSTOP - etext_addr,</span><br><span class="line">        PTE_R | PTE_W,</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">trapoline_addr</span> = (<span class="keyword">unsafe</span> &#123; &amp;trampoline &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">expose_addr</span>();</span><br><span class="line">    <span class="comment">// map the trampoline for trap entry/exit to</span></span><br><span class="line">    <span class="comment">// the highest virtual address in the kernel.</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(kpgtbl, TRAMPOLINE, trapoline_addr, PGSIZE, PTE_R | PTE_X);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// allocate and map a kernel stack for each process.</span></span><br><span class="line">    <span class="title function_ invoke__">proc_mapstacks</span>(kpgtbl);</span><br><span class="line"></span><br><span class="line">    kpgtbl</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">kvmmap</span>(kpgtbl: &amp;<span class="keyword">mut</span> PageTable, va: <span class="type">usize</span>, pa: <span class="type">usize</span>, sz: <span class="type">usize</span>, perm: <span class="type">usize</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> <span class="title function_ invoke__">mappages</span>(kpgtbl, va, pa, sz, perm) != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;kvmmap&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The above code is very important since it maps all physical addresses
+to virtual space, which includes uart, virtio, PLIC(we'll cover these
+two in later chapters), and it also maps kernel text section with RX
+permission, kernel data section and RAM with RW permission.</p>
+<p>Besides, it maps "TRAMPOLINE", which is a special address block that
+takes over the logic of user jump to kernel in every process, we'll
+cover this part in a later chapter as well.</p>
+<p>The interesting things here are, all the above virtual addresses are
+exactly as same as their physical address. The reason why design like
+that, is because there is only one kernel, and only one uart device or
+PLIC. Virtual memory mainly provides virtualization to processes in user
+space, but in order to share a same address space across all kernel,
+devices, and user, it's necessary to map them to virtual space too.</p>
+<p>The actual implementation of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/vm.rs#L101"><code>mappages()</code></a>
+involves some detail about building the page table, we'll omit this part
+since we've already figured out how page table works in the previous
+content. Please check the code directly.</p>
+<p>After <code>kvminit()</code>, there is one more step to make it
+effective, which is contained in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/9cd275a5591956c8c16103acf177c057e485c600/kernel/src/vm.rs#L245"><code>kvminithart()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// vm.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">kvminithart</span>() &#123;</span><br><span class="line">    <span class="comment">// wait for any previous writes to the page table memory to finish.</span></span><br><span class="line">    <span class="title function_ invoke__">sfence_vma</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">addr</span> = <span class="keyword">unsafe</span> &#123; (KERNEL_PAGETABLE.<span class="title function_ invoke__">unwrap</span>() <span class="keyword">as</span> *<span class="keyword">const</span> PageTable).<span class="title function_ invoke__">expose_addr</span>() &#125;;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">satp</span> = MAKE_SATP!(addr);</span><br><span class="line">    <span class="title function_ invoke__">w_satp</span>(satp);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// flush stale entries from the TLB.</span></span><br><span class="line">    <span class="title function_ invoke__">sfence_vma</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Essentially it just set the <code>KERNEL_PAGETABLE</code>, which is
+built before in the <code>kvminit()</code>, into <code>satp</code>,
+after that, any memory access in any instruction will lead to page
+translation through the <code>KERNEL_PAGETABLE</code> in the first
+place.</p>
+<p>I suppose you may have noticed that there are still many functions
+inside the <code>vm.rs</code> left, which we haven't talked about, most
+of them are related to process or user space memory management, let's
+cover them together with CPU virtualization in the next chapter!</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2024/11/08/xv6-rust-3/" title="&#x2F;Xv6 Rust 0x03&#x2F; - Memory Virtualization">http://lenshood.github.io/2024/11/08/xv6-rust-3/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/11/01/xv6-rust-2/" rel="prev" title="&#x2F;Xv6 Rust 0x02&#x2F; - printf!(&quot;Hello xv6-rust!&quot;)">
+                  <i class="fa fa-angle-left"></i> /Xv6 Rust 0x02/ - printf!("Hello xv6-rust!")
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/11/20/xv6-rust-4/" rel="next" title="&#x2F;Xv6 Rust 0x04&#x2F; - CPU Virtualization">
+                  /Xv6 Rust 0x04/ - CPU Virtualization <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

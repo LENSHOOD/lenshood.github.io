@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Based on disk and file management, now we are able to store the user space program on the disk, and let them run after kernel started. But before that, there is still a topic we haven&#39;t covered: how">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x06&#x2F; - User Space">
+<meta property="og:url" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Based on disk and file management, now we are able to store the user space program on the disk, and let them run after kernel started. But before that, there is still a topic we haven&#39;t covered: how">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/header.jpg">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/6.png">
+<meta property="og:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/7.png">
+<meta property="article:published_time" content="2025-02-24T06:35:03.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.582Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2025/02/24/xv6-rust-6/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2025/02/24/xv6-rust-6/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2025/02/24/xv6-rust-6/","path":"2025/02/24/xv6-rust-6/","title":"/Xv6 Rust 0x06/ - User Space"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x06/ - User Space | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#jumping-in-the-cpu-perspective"><span class="nav-number">1.</span> <span class="nav-text">1. Jumping in the CPU
+Perspective</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#trap-and-trampoline"><span class="nav-number">2.</span> <span class="nav-text">2. Trap and Trampoline</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#trap-handler"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 trap handler</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#syscalls-interrupts-and-exceptions"><span class="nav-number">3.</span> <span class="nav-text">3. Syscalls, Interrupts and
+Exceptions</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#syscalls"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 Syscalls</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#interrupts"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 Interrupts</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#exceptions"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 Exceptions</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#init-process"><span class="nav-number">4.</span> <span class="nav-text">4. Init Process</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#user-init"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 User Init</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#running-on-cpu"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 Running On CPU</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#syscall-exec"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 Syscall Exec</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#init"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 Init</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2025/02/24/xv6-rust-6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="&#x2F;Xv6 Rust 0x06&#x2F; - User Space | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x06/ - User Space
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2025-02-24 14:35:03" itemprop="dateCreated datePublished" datetime="2025-02-24T14:35:03+08:00">2025-02-24</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2025/02/24/xv6-rust-6/header.jpg" class="" width="500">
+<p>Based on disk and file management, now we are able to store the user
+space program on the disk, and let them run after kernel started. But
+before that, there is still a topic we haven't covered: how does xv6
+jump from kernel space to user space?</p>
+<p>After all, the content we talked about in previous chapters is only
+limited in the supervisor level, even machine level, where the code has
+full control of hardware. However, the user space program cannot be
+granted such huge scope of control, then we should know how to jump from
+kernel space to user space, so that we could provide a safer environment
+for the user program.</p>
+<p>In this chapter, we are going to find it out.</p>
+<span id="more"></span>
+<h2 id="jumping-in-the-cpu-perspective">1. Jumping in the CPU
+Perspective</h2>
+<p>If you remember, there was a table in our second chapter that
+describes several CSRs that risc-v provides to user, some of them are
+responsible for mode switching.</p>
+<p>Speaking of how to jump from supervisor mode to user mode, there
+would be the following questions that come up with in your mind:</p>
+<ul>
+<li>What kind of instruction is able to trigger the switching?</li>
+<li>After jumping to user mode, where exactly will the program go
+to?</li>
+<li>How to deal with the context and different memory space between two
+modes?</li>
+</ul>
+<p>At first, let's recap the privilege mode switch that we've mentioned
+in the second chapter:</p>
+<blockquote>
+<p><strong>How does risc-v deal with the privileged mode
+switch?</strong></p>
+<p><em>.... RISC-V Privileged Specification Chapter 1.2 ...</em></p>
+<p><em>A hart normally runs application code in U-mode until some trap
+(e.g., a supervisor call or a timer</em> <em>interrupt) forces a switch
+to a trap handler, which usually runs in a more privileged mode. The
+hart</em> <em>will then execute the trap handler, which will eventually
+resume execution at or after the original</em> <em>trapped instruction
+in U-mode. Traps that increase privilege level are termed vertical
+traps, while traps</em> <em>that remain at the same privilege level are
+termed horizontal traps. The RISC-V privileged architecture</em>
+<em>provides flexible routing of traps to different privilege
+layers.</em></p>
+<p><em>.... RISC-V Privileged Specification Chapter 1.2 ...</em></p>
+<p>Generally, when a trap happens, the address of where the cause the
+trap will be saved in <code>mepc</code> or <code>sepc</code>, regarding
+the current privileged mode. After trap handled by specific handler, it
+should call either <code>mret</code> or <code>sret</code> to return to
+the previous mode, which is stored in the <code>MPP</code> or
+<code>SPP</code> filed of the <code>mstatus</code>.</p>
+</blockquote>
+<p>Let's take a close look at the <code>sret</code> instruction:</p>
+<img src="/2025/02/24/xv6-rust-6/1.png" class="">
+<p>Apparently, <code>SRET</code> doesn't rely on any source or
+destination register, so when using the <code>SRET</code>, we only need
+to call the bare instruction.</p>
+<p>According to the specification, <em><code>xRET</code> sets the
+<code>pc</code> to the value stored in the <code>xepc</code>
+register.</em> Hence, before <code>SRET</code> is called, we could set
+the address into the <code>sepc</code>, then once it is called, the
+program will jump into the address.</p>
+<p>So far, it looks <code>SRET</code> does a lot of things for us, so
+that we'll no longer need to concern about the first two questions.
+However, in risc-v architecture, no more support will be provided. Now,
+for the question of context and memory space switch, we are on our
+own.</p>
+<p>Imagine the kernel is about to complete initialization, and program
+is running on the supervisor mode. Now, the kernel should start creating
+the very first process in the whole system, we call it
+<code>init</code>. Assuming that a few milliseconds later, the process
+structure has been created and all of the importance fields have been
+set, next the kernel must think about runs the <code>SRET</code>
+instruction, and hands the control of CPU to <code>init</code>.</p>
+<p>But before calling the <code>SRET</code>, both the context and memory
+space should be replaced as well, because:</p>
+<ul>
+<li>Context Switch: the context here means the general purpose
+registers, there are two main reasons that the context switch should be
+done; first, the value of registers in supervisor mode must not be
+leaked to user mode for safety; second, in other cases like syscall or
+interrupt handling, we need to make sure when go back to user mode, the
+user process can resume correctly with all registers still store the
+origin values, that requires properly context switch too.</li>
+<li>Memory Space Switch: we have known that there is a kernel page table
+dedicated for kernel code, if we don't set the user process page table
+after switch mode, then the user process is able to access kernel memory
+space, which is extremely dangerous; besides, kernel page table does not
+hold user code in the text section, makes the user process unable to get
+its code.</li>
+</ul>
+<p>Therefore, it's essential for kernel to take care of the context and
+memory space switch. The following is a diagram that shows the process
+of switching from supervisor mode to user mode:</p>
+<img src="/2025/02/24/xv6-rust-6/2.png" class="">
+<p>Firstly, there should be some memory spaces allocated to hold the
+pre-stored registers, additionally, the page table is created along with
+creating of <code>Proc</code> structure (see <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L474"><code>inner_alloc()</code></a>).</p>
+<p>Secondly, the address of user process page table should be set into
+<code>satp</code>, and the value of general purpose registers should
+also be restored.</p>
+<p>Finally, put the user space address (virtual address) into the
+<code>sepc</code>, and call <code>SRET</code> at the end of the program.
+After that, everything is changed to user space!</p>
+<h2 id="trap-and-trampoline">2. Trap and Trampoline</h2>
+<p>As there is some extra work that needs to be done before switching
+into user space, where does that need to happen?</p>
+<p>We haven't mentioned the full address layout of xv6 in previous
+chapters, now it's time to show both kernel address layout and process
+address layout, these are very helpful to understanding the concept of
+"trampoline". Let's have a look! (The following diagrams are taken from
+<a
+href="https://pdos.csail.mit.edu/6.828/2024/xv6/book-riscv-rev4.pdf">the
+xv6 book</a>, figure 3.3 and figure 3.4)</p>
+<img src="/2025/02/24/xv6-rust-6/3.png" class="">
+<p>Above is the kernel address layout that includes virtual address
+space on left and physical address space on right. Follow the sequence
+of low address to high address, which is also bottom to top, the kernel
+address space can be divided into several parts (please note that the
+mappings between virtual space and physical space in kernel is a little
+complicated, we'll introduce them together, hopefully, the what we have
+learnt in previous chapters can help us for better understanding):</p>
+<ul>
+<li>(Physical) boot ROM: qemu actually provide this</li>
+<li>(Physical) core local interrupter: it contains a timer</li>
+<li>(Physical + Virtual) PLIC, UART0, VIRTIO disk: we have talked about
+them before</li>
+<li>(Physical + Virtual) Kernel memory:
+<ul>
+<li>Text section contains all kernel code</li>
+<li>Data section stores some constants and statics</li>
+<li>Free memory holds all other data, including kernel objects and
+process data (refer to <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/kalloc.rs#L80"><code>kalloc</code></a>)</li>
+</ul></li>
+<li>(Virtual) Process stacks: each process has it own stack, which is
+allocated here, actually they are allocated from the "Free memory"
+section</li>
+<li>(Virtual) Trampoline: interesting section, according to the above
+diagram, it maps to the address near the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/memlayout.rs#L84">KERNBASE</a>,
+which is also the same address as the text section. Is this a
+coincidence?</li>
+</ul>
+<p>As the kernel vm init code shows:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// vm.rs</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">kvmmake</span>&lt;<span class="symbol">&#x27;a</span>&gt;() <span class="punctuation">-&gt;</span> &amp;<span class="symbol">&#x27;a</span> PageTable &#123;</span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">trapoline_addr</span> = (<span class="keyword">unsafe</span> &#123; &amp;trampoline &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">addr</span>();</span><br><span class="line">    <span class="comment">// map the trampoline for trap entry/exit to</span></span><br><span class="line">    <span class="comment">// the highest virtual address in the kernel.</span></span><br><span class="line">    <span class="title function_ invoke__">kvmmap</span>(kpgtbl, TRAMPOLINE, trapoline_addr, PGSIZE, PTE_R | PTE_X);</span><br><span class="line">    <span class="comment">// printf!(&quot;TRAMPOLINE Mapped.\n&quot;);</span></span><br><span class="line"></span><br><span class="line">		... ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// memlayout.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> TRAMPOLINE: <span class="type">usize</span> = MAXVA - PGSIZE;</span><br></pre></td></tr></table></figure>
+<p>The value of virtual address Trampoline is
+<code>MAXVA - PGSIZE</code>, which means the trampoline section is
+located in the top address and takes one page of space. This is
+consistent with the above diagram.</p>
+<p>However, it maps to the physical address: trapoline_addr, which is
+actually a label "trampoline" that is defined in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L17">trampoline.S</a>:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">### trampoline.S</span><br><span class="line"></span><br><span class="line">.section trampsec</span><br><span class="line">.globl trampoline</span><br><span class="line">trampoline:</span><br><span class="line">.align 4</span><br><span class="line">.globl uservec</span><br><span class="line">uservec:    </span><br><span class="line">	    ... ...</span><br><span class="line"></span><br><span class="line">.globl userret</span><br><span class="line">userret:</span><br><span class="line">      ... ...</span><br></pre></td></tr></table></figure>
+<p>Now I suppose you already know why it maps to the read-only text
+section, because the <code>trampoline</code> points to some code that
+used to handle the trap and trap return.</p>
+<p>The location of the trampoline is intentional. Let's see the process
+address layout:</p>
+<img src="/2025/02/24/xv6-rust-6/4.png" class="">
+<p>I guess most of the sections in the above diagram are very familiar
+to you, because they are no difference from other modern operating
+systems, except for the trampoline.</p>
+<p>The most obvious similarity is that the address of trampoline in
+process address space is exactly the same as it in kernel address space.
+Why? Because each time a trap happens in user mode, risc-v switching to
+supervisor mode, and then redirect the program to <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>,
+which is the trap handler address, we'll see the registration of the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>
+afterward.</p>
+<p>First, let's take a close look at it:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">### trampoline.S</span><br><span class="line">uservec:    </span><br><span class="line">	    #</span><br><span class="line">      # trap.c sets stvec to point here, so</span><br><span class="line">      # traps from user space start here,</span><br><span class="line">      # in supervisor mode, but with a</span><br><span class="line">      # user page table.</span><br><span class="line">      #</span><br><span class="line"></span><br><span class="line">      # save user a0 in sscratch so</span><br><span class="line">      # a0 can be used to get at TRAPFRAME.</span><br><span class="line">      csrw sscratch, a0</span><br><span class="line"></span><br><span class="line">      # each process has a separate p-&gt;trapframe memory area,</span><br><span class="line">      # but it&#x27;s mapped to the same virtual address</span><br><span class="line">      # (TRAPFRAME) in every process&#x27;s user page table.</span><br><span class="line">      # there is no &quot;#define&quot; in rust, so directly copy the TRAPFRAME value here</span><br><span class="line">      # li a0, TRAPFRAME</span><br><span class="line">      li a0, 274877898752</span><br><span class="line"></span><br><span class="line">      # save the user registers in TRAPFRAME</span><br><span class="line">      sd ra, 40(a0)</span><br><span class="line">      ... ...</span><br><span class="line">      sd t6, 280(a0)</span><br><span class="line"></span><br><span class="line">      # save the user a0 in p-&gt;trapframe-&gt;a0</span><br><span class="line">      csrr t0, sscratch</span><br><span class="line">      sd t0, 112(a0)</span><br><span class="line"></span><br><span class="line">      # initialize kernel stack pointer, from p-&gt;trapframe-&gt;kernel_sp</span><br><span class="line">      ld sp, 8(a0)</span><br><span class="line"></span><br><span class="line">      # make tp hold the current hartid, from p-&gt;trapframe-&gt;kernel_hartid</span><br><span class="line">      ld tp, 32(a0)</span><br><span class="line"></span><br><span class="line">      # load the address of usertrap(), from p-&gt;trapframe-&gt;kernel_trap</span><br><span class="line">      ld t0, 16(a0)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">      # fetch the kernel page table address, from p-&gt;trapframe-&gt;kernel_satp.</span><br><span class="line">      ld t1, 0(a0)</span><br><span class="line"></span><br><span class="line">      # wait for any previous memory operations to complete, so that</span><br><span class="line">      # they use the user page table.</span><br><span class="line">      sfence.vma zero, zero</span><br><span class="line"></span><br><span class="line">      # install the kernel page table.</span><br><span class="line">      csrw satp, t1</span><br><span class="line"></span><br><span class="line">      # flush now-stale user entries from the TLB.</span><br><span class="line">      sfence.vma zero, zero</span><br><span class="line"></span><br><span class="line">      # jump to usertrap(), which does not return</span><br><span class="line">      jr t0</span><br></pre></td></tr></table></figure>
+<p>Apparently, once the program goes to it, the value of many registers
+are saved into <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L112"><code>Trapframe</code></a>,
+which is allocated in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L465"><code>inner_alloc()</code></a>.
+Basically this process is the context switching that we discussed
+before. All user registers are saved.</p>
+<p>But the most important line is <code>csrw satp, t1</code>, which
+installs the kernel page table, you may ask a question at this stage:
+does that mean, before this line, although the risc-v has been switched
+to supervisor mode, the xv6 still running on user address space?</p>
+<p>Exactly! That's the essential reason of trampoline section should
+share the same address between the kernel space and user space.
+Otherwise the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>
+cannot be correctly located if trap happens. Because there is no place
+that allows page table switching before trap.</p>
+<p>Additionally, after installing the kernel page table, what if an
+external interrupt happens? At this moment, the trap vector is still set
+to <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>,
+if the kernel space and user space don't share the same trampoline
+address, there would be some chance to jump into an undefined address
+that is translated by kernel page table.</p>
+<h3 id="trap-handler">2.1 trap handler</h3>
+<p>After done the context and memory space switching, at the end of the
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>,
+it jumps to the real trap handler function, which is called <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41"><code>usertrap()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// trap.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// handle an interrupt, exception, or system call from user space.</span></span><br><span class="line"><span class="comment">// called from trampoline.S</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">usertrap</span>() &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="title function_ invoke__">r_sstatus</span>() &amp; SSTATUS_SPP) != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;usertrap: not from user mode&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// send interrupts and exceptions to kerneltrap(),</span></span><br><span class="line">    <span class="comment">// since we&#x27;re now in the kernel.</span></span><br><span class="line">    <span class="title function_ invoke__">w_stvec</span>((<span class="keyword">unsafe</span> &#123; &amp;kernelvec &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">addr</span>());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// save user program counter.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">tf</span> = <span class="keyword">unsafe</span> &#123; p.trapframe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">    tf.epc = <span class="title function_ invoke__">r_sepc</span>() <span class="keyword">as</span> <span class="type">u64</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">which_dev</span> = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">if</span> <span class="title function_ invoke__">r_scause</span>() == <span class="number">8</span> &#123;</span><br><span class="line">        <span class="comment">// system call</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> p.<span class="title function_ invoke__">killed</span>() != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="title function_ invoke__">exit</span>(-<span class="number">1</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// sepc points to the ecall instruction,</span></span><br><span class="line">        <span class="comment">// but we want to return to the next instruction.</span></span><br><span class="line">        tf.epc += <span class="number">4</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// an interrupt will change sepc, scause, and sstatus,</span></span><br><span class="line">        <span class="comment">// so enable only now that we&#x27;re done with those registers.</span></span><br><span class="line">        <span class="title function_ invoke__">intr_on</span>();</span><br><span class="line"></span><br><span class="line">        <span class="title function_ invoke__">syscall</span>();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        which_dev = <span class="title function_ invoke__">devintr</span>();</span><br><span class="line">        <span class="keyword">if</span> which_dev != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// ok</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            printf!(</span><br><span class="line">                <span class="string">&quot;usertrap(): unexpected scause &#123;:x&#125; pid=&#123;&#125;\n&quot;</span>,</span><br><span class="line">                <span class="title function_ invoke__">r_scause</span>(),</span><br><span class="line">                p.pid</span><br><span class="line">            );</span><br><span class="line">            printf!(<span class="string">&quot;            sepc=&#123;:x&#125; stval=&#123;:x&#125;\n&quot;</span>, <span class="title function_ invoke__">r_sepc</span>(), <span class="title function_ invoke__">r_stval</span>());</span><br><span class="line">            p.<span class="title function_ invoke__">setkilled</span>();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> p.<span class="title function_ invoke__">killed</span>() != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="title function_ invoke__">exit</span>(-<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// give up the CPU if this is a timer interrupt.</span></span><br><span class="line">    <span class="keyword">if</span> which_dev == <span class="number">2</span> &#123;</span><br><span class="line">        <span class="title function_ invoke__">yield_curr_proc</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">usertrapret</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>Basically, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41"><code>usertrap()</code></a>
+handles interrupts, exceptions and syscalls. But before recognizing any
+of them, it first set the <code>stvec</code> to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L12"><code>kernelvec</code></a>
+which is the trap handler specific for kernel space.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">### kernelvec.S</span><br><span class="line">kernelvec:</span><br><span class="line">    # make room to save registers.</span><br><span class="line">    addi sp, sp, -256</span><br><span class="line"></span><br><span class="line">    # save the registers.</span><br><span class="line">    sd ra, 0(sp)</span><br><span class="line">    ... ...</span><br><span class="line">    sd t6, 240(sp)</span><br><span class="line"></span><br><span class="line">    # call the C trap handler in trap.c</span><br><span class="line">    call kerneltrap</span><br><span class="line"></span><br><span class="line">    # restore registers.</span><br><span class="line">    ld ra, 0(sp)</span><br><span class="line">    ... ...</span><br><span class="line">    ld t6, 240(sp)</span><br><span class="line"></span><br><span class="line">    addi sp, sp, 256</span><br><span class="line"></span><br><span class="line">    # return to whatever we were doing in the kernel.</span><br><span class="line">    sret</span><br></pre></td></tr></table></figure>
+<p>In the same way, there are also context save and restore in it, the
+only difference is the kernel has its own trap handler:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// trap.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// interrupts and exceptions from kernel code go here via kernelvec,</span></span><br><span class="line"><span class="comment">// on whatever the current kernel stack is.</span></span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">kerneltrap</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">which_dev</span> = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">sepc</span> = <span class="title function_ invoke__">r_sepc</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">sstatus</span> = <span class="title function_ invoke__">r_sstatus</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">scause</span> = <span class="title function_ invoke__">r_scause</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (sstatus &amp; SSTATUS_SPP) == <span class="number">0</span> &#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;kerneltrap: not from supervisor mode&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> <span class="title function_ invoke__">intr_get</span>() &#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;kerneltrap: interrupts enabled&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    which_dev = <span class="title function_ invoke__">devintr</span>();</span><br><span class="line">    <span class="keyword">if</span> which_dev == <span class="number">0</span> &#123;</span><br><span class="line">        printf!(<span class="string">&quot;scause &#123;:x&#125;\n&quot;</span>, scause);</span><br><span class="line">        printf!(<span class="string">&quot;sepc=&#123;:x&#125; stval=&#123;:x&#125;\n&quot;</span>, <span class="title function_ invoke__">r_sepc</span>(), <span class="title function_ invoke__">r_stval</span>());</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;kerneltrap&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    <span class="comment">// give up the CPU if this is a timer interrupt.</span></span><br><span class="line">    <span class="keyword">if</span> which_dev == <span class="number">2</span> &amp;&amp; p.state == RUNNING &#123;</span><br><span class="line">        p.<span class="title function_ invoke__">proc_yield</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// the yield() may have caused some traps to occur,</span></span><br><span class="line">    <span class="comment">// so restore trap registers for use by kernelvec.S&#x27;s sepc instruction.</span></span><br><span class="line">    <span class="title function_ invoke__">w_sepc</span>(sepc);</span><br><span class="line">    <span class="title function_ invoke__">w_sstatus</span>(sstatus);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Since there is no syscall in kernel space, the kernel trap handler
+only handles interrupts(external, software and timer) and exceptions,
+which makes it simpler than user trap handler.</p>
+<p>Let's go back to the user trap handler, after all we just explained
+the first line of it.</p>
+<p>After saving the user program counter into trap frame, in the next it
+mainly deals with the three trap reasons: syscalls, interrupts and
+exceptions. We'll cover these parts in the next section, now we are
+going to the final call: <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103"><code>usertrapret()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// trap.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// return to user space</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">usertrapret</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// we&#x27;re about to switch the destination of traps from</span></span><br><span class="line">    <span class="comment">// kerneltrap() to usertrap(), so turn off interrupts until</span></span><br><span class="line">    <span class="comment">// we&#x27;re back in user space, where usertrap() is correct.</span></span><br><span class="line">    <span class="title function_ invoke__">intr_off</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// send syscalls, interrupts, and exceptions to uservec in trampoline.S</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">uservec_addr</span> = (<span class="keyword">unsafe</span> &#123; &amp;uservec &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">addr</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">trampoline_addr</span> = (<span class="keyword">unsafe</span> &#123; &amp;trampoline &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">addr</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">trampoline_uservec</span> = TRAMPOLINE + uservec_addr - trampoline_addr;</span><br><span class="line">    <span class="title function_ invoke__">w_stvec</span>(trampoline_uservec);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// set up trapframe values that uservec will need when</span></span><br><span class="line">    <span class="comment">// the process next traps into the kernel.</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">trapframe</span> = <span class="keyword">unsafe</span> &#123; p.trapframe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">    trapframe.kernel_satp = <span class="title function_ invoke__">r_satp</span>() <span class="keyword">as</span> <span class="type">u64</span>; <span class="comment">// kernel page table</span></span><br><span class="line">    trapframe.kernel_sp = (p.kstack + <span class="number">2</span> * PGSIZE) <span class="keyword">as</span> <span class="type">u64</span>; <span class="comment">// process&#x27;s kernel stack</span></span><br><span class="line">    trapframe.kernel_trap = usertrap <span class="keyword">as</span> <span class="type">u64</span>;</span><br><span class="line">    trapframe.kernel_hartid = <span class="title function_ invoke__">r_tp</span>(); <span class="comment">// hartid for cpuid()</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// set up the registers that trampoline.S&#x27;s sret will use</span></span><br><span class="line">    <span class="comment">// to get to user space.</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// set S Previous Privilege mode to User.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">x</span> = <span class="title function_ invoke__">r_sstatus</span>();</span><br><span class="line">    x &amp;= !SSTATUS_SPP; <span class="comment">// clear SPP to 0 for user mode</span></span><br><span class="line">    x |= SSTATUS_SPIE; <span class="comment">// enable interrupts in user mode</span></span><br><span class="line">    <span class="title function_ invoke__">w_sstatus</span>(x);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// set S Exception Program Counter to the saved user pc.</span></span><br><span class="line">    <span class="title function_ invoke__">w_sepc</span>(trapframe.epc <span class="keyword">as</span> <span class="type">usize</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// tell trampoline.S the user page table to switch to.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">satp</span> = MAKE_SATP!((p.pagetable.<span class="title function_ invoke__">unwrap</span>() <span class="keyword">as</span> *<span class="keyword">const</span> PageTable).<span class="title function_ invoke__">addr</span>());</span><br><span class="line"></span><br><span class="line">    <span class="comment">// jump to userret in trampoline.S at the top of memory, which</span></span><br><span class="line">    <span class="comment">// switches to the user page table, restores user registers,</span></span><br><span class="line">    <span class="comment">// and switches to user mode with sret.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">userret_addr</span> = (<span class="keyword">unsafe</span> &#123; &amp;userret &#125; <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>).<span class="title function_ invoke__">addr</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">trampoline_userret</span> = TRAMPOLINE + userret_addr - trampoline_addr;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">type</span> <span class="title class_">UserRetFn</span> = <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="title function_ invoke__">fn</span>(stap: <span class="type">usize</span>);</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="variable">userret_fn</span>: UserRetFn = core::mem::<span class="title function_ invoke__">transmute</span>(trampoline_userret);</span><br><span class="line">        <span class="title function_ invoke__">userret_fn</span>(satp);</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>In this function, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>
+is set to the <code>stvec</code>, and here is the only place the user
+trap vector is set. Next, saving the kernel space context to the trap
+frame so that they can be resumed in the following trap. After that, set
+some registers for preparation to make sure the user mode can be
+correctly switched afterward. At last, the address of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L103"><code>userret</code></a>
+is called along with the page table address, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L103"><code>userret</code></a>
+does the reverse operation compare to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/trampoline.S#L20"><code>uservec</code></a>.</p>
+<h2 id="syscalls-interrupts-and-exceptions">3. Syscalls, Interrupts and
+Exceptions</h2>
+<p>We have taken a glance at the trap handler previously, now we are
+going to look deeper into the handlers.</p>
+<p>There are three types of trap, and will happen in the following
+circumstances respectively:</p>
+<ul>
+<li>Syscalls: they are the bridges between user program and kernel,
+since there are plenty of operations that a user program will be needed
+for implementing some logic, however the operating system cannot trust
+the user program to do so because those operations are dangerous running
+in user mode. So kernel provides an interface layer so that user program
+can just call it to get what it needs, and delegates the job to
+kernel.</li>
+<li>Interrupts: we have learnt that the effective interactive method
+between the peripherals and the OS is through the external interrupt,
+like UART and VIRTIO, and also a hardware timer we haven't talked about.
+The CPU needs to handle these interrupts immediately because interrupts
+usually don't wait in a line, that requires a trap to suspend whatever
+is running currently, and turn to handle the interrupt.</li>
+<li>Exceptions: please imagine if a user program accesses an address
+that is out of the range that allows it to access? No matter
+accidentally or maliciously, this action needs to be stopped. Therefore,
+if a program (both kernel code and user code) does some disallowed
+operation, the CPU trapped, and let the trap handler to deal with what
+to do next.</li>
+</ul>
+<h3 id="syscalls">3.1 Syscalls</h3>
+<p>According to previous code in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41"><code>usertrap()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//trap.rs</span></span><br><span class="line"></span><br><span class="line">... ...</span><br><span class="line"><span class="keyword">if</span> <span class="title function_ invoke__">r_scause</span>() == <span class="number">8</span> &#123;</span><br><span class="line">    <span class="comment">// system call</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> p.<span class="title function_ invoke__">killed</span>() != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="title function_ invoke__">exit</span>(-<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// sepc points to the ecall instruction,</span></span><br><span class="line">    <span class="comment">// but we want to return to the next instruction.</span></span><br><span class="line">    tf.epc += <span class="number">4</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// an interrupt will change sepc, scause, and sstatus,</span></span><br><span class="line">    <span class="comment">// so enable only now that we&#x27;re done with those registers.</span></span><br><span class="line">    <span class="title function_ invoke__">intr_on</span>();</span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">syscall</span>();</span><br><span class="line">&#125;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>When the value of <code>scause</code> is 8, indicates a syscall
+happened.</p>
+<img src="/2025/02/24/xv6-rust-6/5.png" class="">
+<p>As we can see, the <code>scause</code> has two parts, interrupt and
+exception code. Since there is only 1 highest bit to indicate the
+interrupt status, as long as the bit equals 1, an interrupt
+happened.</p>
+<p>Look into the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112"><code>syscall()</code></a>,
+we will find how xv6 handles syscalls:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// syscall.rs</span></span><br><span class="line"><span class="keyword">const</span> SYSCALL: [<span class="type">Option</span>&lt;<span class="title function_ invoke__">fn</span>() <span class="punctuation">-&gt;</span> <span class="type">u64</span>&gt;; <span class="number">22</span>] = &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">arr</span>: [<span class="type">Option</span>&lt;<span class="title function_ invoke__">fn</span>() <span class="punctuation">-&gt;</span> <span class="type">u64</span>&gt;; <span class="number">22</span>] = [<span class="literal">None</span>; <span class="number">22</span>];</span><br><span class="line">    arr[<span class="number">0</span>] = <span class="literal">None</span>;</span><br><span class="line">    arr[SYS_fork] = <span class="title function_ invoke__">Some</span>(sys_fork);</span><br><span class="line">    ... ...</span><br><span class="line">    arr[SYS_close] = <span class="title function_ invoke__">Some</span>(sys_close);</span><br><span class="line">    arr</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">syscall</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">tf</span> = <span class="keyword">unsafe</span> &#123; p.trapframe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">num</span> = tf.a7 <span class="keyword">as</span> <span class="type">usize</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> num &gt; <span class="number">0</span> &amp;&amp; num &lt; SYSCALL.<span class="title function_ invoke__">len</span>() &amp;&amp; SYSCALL[num].<span class="title function_ invoke__">is_some</span>() &#123;</span><br><span class="line">        <span class="comment">// Use num to lookup the system call function for num, call it,</span></span><br><span class="line">        <span class="comment">// and store its return value in p-&gt;trapframe-&gt;a0</span></span><br><span class="line">        tf.a0 = SYSCALL[num].<span class="title function_ invoke__">unwrap</span>()();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        printf!(</span><br><span class="line">            <span class="string">&quot;&#123;&#125; &#123;&#125;: unknown sys call &#123;&#125;\n&quot;</span>,</span><br><span class="line">            p.pid,</span><br><span class="line">            core::<span class="type">str</span>::<span class="title function_ invoke__">from_utf8</span>(&amp;p.name).<span class="title function_ invoke__">unwrap</span>(),</span><br><span class="line">            num</span><br><span class="line">        );</span><br><span class="line">        tf.a0 = <span class="type">u64</span>::MAX;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Basically, it retrieves the syscall number from trap frame, and then
+using the number maps the real syscall function from a constant array.
+And look at the array you may find many familiar functions such as
+<code>sys_open</code>, <code>sys_fork</code> and
+<code>sys_read</code>.</p>
+<p>The above is how kernel handles syscalls. But you may curious how the
+user code triggers the syscall in user space? Let's move on to user
+code:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/ulib/stubs.rs</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> &#123;</span><br><span class="line">    <span class="comment">// system calls</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Create a process, return child’s PID.</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">fork</span>() <span class="punctuation">-&gt;</span> <span class="type">i32</span>;</span><br><span class="line"></span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// user/src/ulib/usys.S</span><br><span class="line">.global fork</span><br><span class="line">fork:</span><br><span class="line"> li a7, 1 # SYS_fork</span><br><span class="line"> ecall</span><br><span class="line"> ret</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>Actually, there are several stub functions located in user code, and
+each stub relates to a few lines of assembly code, which do only one
+thing: call <code>ECALL</code> by syscall number as a parameter.</p>
+<img src="/2025/02/24/xv6-rust-6/6.png" class="">
+<p>In the above diagram, the instruction <code>ECALL</code> and
+<code>EBREAK</code> share the same structure. And they behave similarly
+as well. Beneath the <code>ECALL</code>, it actually generates an
+"environment-call-from-U-mode" exception if it is called in user mode
+and performs no other operation. So we can regard the <code>ECALL</code>
+as a special exception. Similarly, <code>EBREAK</code> generates a
+breakpoint exception and performs no other operation. It's usually used
+by a debugger.</p>
+<p>Essentially these two instructions only switch user mode to
+supervisor mode then do nothing further, this simple behavior leaves the
+operating system enough space to do whatever it wants, such as syscall
+or debug.</p>
+<blockquote>
+<p>ECALL and EBREAK cause the receiving privilege mode’s
+<code>epc</code> register to be set to the address of the ECALL or
+EBREAK instruction itself, not the address of the following
+instruction.</p>
+</blockquote>
+<p>Refer to the above quote, the <code>epc</code> will be set to the
+address of <code>ECALL</code> itself, that's why in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L41"><code>usertrap()</code></a>,
+it runs <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L66"><code>tf.epc += 4;</code></a>
+before calling the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/syscall.rs#L112"><code>syscall()</code></a>.</p>
+<h3 id="interrupts">3.2 Interrupts</h3>
+<p>To handle interrupt, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L204"><code>devintr</code></a>
+needs to be called:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// trap.rs</span></span><br><span class="line">... ...</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    which_dev = <span class="title function_ invoke__">devintr</span>();</span><br><span class="line">    <span class="keyword">if</span> which_dev != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// ok</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        printf!(</span><br><span class="line">            <span class="string">&quot;usertrap(): unexpected scause &#123;:x&#125; pid=&#123;&#125;\n&quot;</span>,</span><br><span class="line">            <span class="title function_ invoke__">r_scause</span>(),</span><br><span class="line">            p.pid</span><br><span class="line">        );</span><br><span class="line">        printf!(<span class="string">&quot;            sepc=&#123;:x&#125; stval=&#123;:x&#125;\n&quot;</span>, <span class="title function_ invoke__">r_sepc</span>(), <span class="title function_ invoke__">r_stval</span>());</span><br><span class="line">        p.<span class="title function_ invoke__">setkilled</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>Inside the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L204"><code>devintr</code></a>,
+there are still a few branches to differentiate more cases:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// trap.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// check if it&#x27;s an external interrupt or software interrupt,</span></span><br><span class="line"><span class="comment">// and handle it.</span></span><br><span class="line"><span class="comment">// returns 2 if timer interrupt,</span></span><br><span class="line"><span class="comment">// 1 if other device,</span></span><br><span class="line"><span class="comment">// 0 if not recognized.</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">devintr</span>() <span class="punctuation">-&gt;</span> <span class="type">u8</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">scause</span> = <span class="title function_ invoke__">r_scause</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (scause &amp; <span class="number">0x8000000000000000</span>) != <span class="number">0</span> &amp;&amp; (scause &amp; <span class="number">0xff</span>) == <span class="number">9</span> &#123;</span><br><span class="line">        <span class="comment">// this is a supervisor external interrupt, via PLIC.</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// irq indicates which device interrupted.</span></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">irq</span> = <span class="title function_ invoke__">plic_claim</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> irq == UART0_IRQ <span class="keyword">as</span> <span class="type">u32</span> &#123;</span><br><span class="line">            <span class="keyword">unsafe</span> &#123;</span><br><span class="line">                UART_INSTANCE.<span class="title function_ invoke__">intr</span>();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> irq == VIRTIO0_IRQ <span class="keyword">as</span> <span class="type">u32</span> &#123;</span><br><span class="line">            <span class="keyword">unsafe</span> &#123;</span><br><span class="line">                <span class="title function_ invoke__">virtio_disk_intr</span>();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> irq != <span class="number">0</span> &#123;</span><br><span class="line">            printf!(<span class="string">&quot;unexpected interrupt irq=&#123;&#125;\n&quot;</span>, irq);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// the PLIC allows each device to raise at most one</span></span><br><span class="line">        <span class="comment">// interrupt at a time; tell the PLIC the device is</span></span><br><span class="line">        <span class="comment">// now allowed to interrupt again.</span></span><br><span class="line">        <span class="keyword">if</span> irq != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="title function_ invoke__">plic_complete</span>(irq);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> scause == <span class="number">0x8000000000000001</span> &#123;</span><br><span class="line">        <span class="comment">// software interrupt from a machine-mode timer interrupt,</span></span><br><span class="line">        <span class="comment">// forwarded by timervec in kernelvec.S.</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> <span class="title function_ invoke__">cpuid</span>() == <span class="number">0</span> &#123;</span><br><span class="line">            <span class="title function_ invoke__">clockintr</span>();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// acknowledge the software interrupt by clearing</span></span><br><span class="line">        <span class="comment">// the SSIP bit in sip.</span></span><br><span class="line">        <span class="title function_ invoke__">w_sip</span>(<span class="title function_ invoke__">r_sip</span>() &amp; !<span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="number">2</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>To understand the branches, we may need to investigate how many
+reasons the <code>scause</code> stands for:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: center;">Interrupt</th>
+<th style="text-align: center;">Exception Code</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">1</td>
+<td>Supervisor software interrupt</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">2-4</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">5</td>
+<td>Supervisor timer interrupt</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">6-8</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">9</td>
+<td>Supervisor external interrupt</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">10-12</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">13</td>
+<td>Counter-overflow interrupt</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">14-15</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">&gt;= 16</td>
+<td>Designated for platform use</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td>Instruction address misaligned</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td>Instruction access fault</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+<td>Illegal instruction</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">3</td>
+<td>Breakpoint</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">4</td>
+<td>Load address misaligned</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">5</td>
+<td>Load access fault</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">6</td>
+<td>Store/AMO address misaligned</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">7</td>
+<td>Store/AMO access fault</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">8</td>
+<td>Environment call from U-mode</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">9</td>
+<td>Environment call from S-mode</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">10-11</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">12</td>
+<td>Instruction page fault</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">13</td>
+<td>Load page fault</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">14</td>
+<td>Reserved</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">15</td>
+<td>Store/AMO page fault</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">16-17</td>
+<td>Reserved</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">18</td>
+<td>Software check</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">19</td>
+<td>Hardware error</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">20-23</td>
+<td>Designated for custom use</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">24-31</td>
+<td>Designated for custom use</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: center;">32-47</td>
+<td>Reserved</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"></td>
+<td style="text-align: center;">48-63</td>
+<td>Designated for custom use</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"></td>
+<td style="text-align: center;">&gt;= 64</td>
+<td>Reserved</td>
+</tr>
+</tbody>
+</table>
+<p>It looks quite complicated, but in this stage we only need to care
+about two scenarios:</p>
+<ol type="1">
+<li><p><code>(scause &amp; 0x8000000000000000) != 0 &amp;&amp; (scause &amp; 0xff) == 9</code></p>
+<p>Above condition filters out the external interrupt so that once the
+program goes into this branch, it means there was an external interrupt
+triggered by some device.</p>
+<p>In current xv6 source code there are only UART and VIRTIO supported,
+but it won't be too hard to add other devices to the system. In real
+operating system the interrupt handlers for specific devices are often
+put in some software package called driver.</p>
+<p>After handles the external interrupt, <code>plic_complete(irq)</code>
+should be called to reset the PLIC so that new interrupts can be
+triggered again, otherwise the PLIC will keep waiting for handler to do
+its work.</p></li>
+<li><p><code>scause == 0x8000000000000001</code></p>
+<p>This condition only filters software interrupt. But why does it
+handle the timer interrupt?</p>
+<p>In the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/start.rs#L57"><code>timerinit()</code></a>,
+the timer interrupt handler is set to <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L95"><code>timervec</code></a>,
+hence, once timer ticked, only <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L95"><code>timervec</code></a>
+can handle the interrupt. And if you see it closely, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/kernelvec.S#L95"><code>timervec</code></a>
+triggers a software interrupt in the end. The user trap handler wouldn't
+handle the timer interrupt until now.</p>
+<p>Why bother with all this? Because in previous versions of risc-v, the
+time compare registers can only be accessed in machine mode, so that
+there's no way for kernel to reset the timer registers in supervisor
+mode.</p>
+<p>Refer to the xv6 book version 3 (page 56):</p>
+<blockquote>
+<p>A timer interrupt can occur at any point when user or kernel code is
+executing; there’s no way for the kernel to disable timer interrupts
+during critical operations. Thus the timer interrupt handler must do its
+job in a way guaranteed not to disturb interrupted kernel code. The
+basic strategy is for the handler to ask the RISC-V to raise a “software
+interrupt” and immediately return. The RISC-V delivers software
+interrupts to the kernel with the ordinary trap mechanism, and allows
+the kernel to disable them.</p>
+</blockquote>
+<p>Fortunately, risc-v now supports the "SSTC" extension. <a
+href="https://drive.google.com/file/d/1O0ogDHijAc7gM58Byb0BRqIRGYsdOt2D/view">Here</a>
+is the documentation about the "SSTC", which was ratified in 2021. The
+SSTC extension <em>"provides supervisor mode with its own CSR-based
+timer interrupt facility that it can directly manage to provide its own
+timer service."</em></p>
+<p><a
+href="https://lists.gnu.org/archive/html/qemu-riscv/2022-05/msg00063.html">QEMU
+has supported this extension</a> back to 2022. And the newer version of
+xv6 has changed to SSTC, see <a
+href="https://github.com/mit-pdos/xv6-riscv/blob/de247db5e6384b138f270e0a7c745989b5a9c23b/kernel/trap.c#L210">here</a>.</p></li>
+</ol>
+<h3 id="exceptions">3.3 Exceptions</h3>
+<p>The exceptions are mainly related to the <code>scause</code>. And as
+long as the returns 0, means an exception happened:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// trap.rs</span></span><br><span class="line">... ...</span><br><span class="line"><span class="keyword">if</span> which_dev == <span class="number">0</span> &#123;</span><br><span class="line">    printf!(<span class="string">&quot;scause &#123;:x&#125;\n&quot;</span>, scause);</span><br><span class="line">    printf!(<span class="string">&quot;sepc=&#123;:x&#125; stval=&#123;:x&#125;\n&quot;</span>, <span class="title function_ invoke__">r_sepc</span>(), <span class="title function_ invoke__">r_stval</span>());</span><br><span class="line">    <span class="built_in">panic!</span>(<span class="string">&quot;kerneltrap&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>The handling of exceptions is quite simple and straightforward: it
+panics. The value of <code>scause</code>, <code>sepc</code> and
+<code>stval</code> will be printed along with panic. Those values are
+really useful to help investigate the root cause of exceptions. The
+<code>scause</code> records the exception reason, the <code>sepc</code>
+holds the virtual address of instruction that causes trap, while the
+<code>stval</code> is written to different useful information based on
+different value of <code>scause</code>.</p>
+<p>We have reviewed the details of exception types before, and the
+following are what kinds of value will be written into the
+<code>stval</code>:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Exceptions</th>
+<th>Value of <code>stval</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Breakpoint, address-misaligned, access-fault, page-fault</td>
+<td>Faulting virtual address</td>
+</tr>
+<tr class="even">
+<td>Access-fault or page-fault caused by misaligned load or store</td>
+<td>The virtual address of the portion of the access that caused the
+fault.</td>
+</tr>
+<tr class="odd">
+<td>Instruction access-fault or page-fault</td>
+<td>The virtual address of the portion of the instruction that caused
+the fault</td>
+</tr>
+<tr class="even">
+<td>Illegal instruction exception</td>
+<td>Faulting instruction bits</td>
+</tr>
+<tr class="odd">
+<td>Other traps</td>
+<td>Zero</td>
+</tr>
+</tbody>
+</table>
+<p>These three registers are very helpful when kernel crashes.
+Especially in the debugging process of xv6, it would be common to
+encounter the stack overflow problem, since there is always a "guard"
+area between two stacks, as long as stack overflows, there would be an
+access fault exception thrown, in this moment, checking the value of
+<code>sepc</code> and <code>stval</code> will help to find the code
+position.</p>
+<h2 id="init-process">4. Init Process</h2>
+<p>With all previous content as the foundation, now we can finally
+discover how the xv6 starts its first process: init process.</p>
+<p>The following diagram shows the main sequence of kernel builds up
+init process and then executes it as the first user process:</p>
+<img src="/2025/02/24/xv6-rust-6/7.png" class="">
+<p>Some parts like switching between user mode and supervisor mode have
+been covered before, next we are going to focus on the other parts.</p>
+<h3 id="user-init">4.1 User Init</h3>
+<p>First, let's see how the init process is created:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// proc.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> INIT_CODE: [<span class="type">u8</span>; <span class="number">52</span>] = [</span><br><span class="line">    <span class="number">0x17</span>, <span class="number">0x05</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x13</span>, <span class="number">0x05</span>, <span class="number">0x45</span>, <span class="number">0x02</span>, <span class="number">0x97</span>, <span class="number">0x05</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x93</span>, <span class="number">0x85</span>, <span class="number">0x35</span>, <span class="number">0x02</span>,</span><br><span class="line">    <span class="number">0x93</span>, <span class="number">0x08</span>, <span class="number">0x70</span>, <span class="number">0x00</span>, <span class="number">0x73</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x93</span>, <span class="number">0x08</span>, <span class="number">0x20</span>, <span class="number">0x00</span>, <span class="number">0x73</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,</span><br><span class="line">    <span class="number">0xef</span>, <span class="number">0xf0</span>, <span class="number">0x9f</span>, <span class="number">0xff</span>, <span class="number">0x2f</span>, <span class="number">0x69</span>, <span class="number">0x6e</span>, <span class="number">0x69</span>, <span class="number">0x74</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x24</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,</span><br><span class="line">    <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,</span><br><span class="line">];</span><br><span class="line"></span><br><span class="line"><span class="comment">// Set up first user process.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">userinit</span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">allocproc</span>().<span class="title function_ invoke__">unwrap</span>();</span><br><span class="line">    <span class="comment">// allocate one user page and copy initcode&#x27;s instructions</span></span><br><span class="line">    <span class="comment">// and data into it.</span></span><br><span class="line">    <span class="title function_ invoke__">uvmfirst</span>(</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; p.pagetable.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;,</span><br><span class="line">        &amp;INIT_CODE <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>,</span><br><span class="line">        mem::<span class="title function_ invoke__">size_of_val</span>(&amp;INIT_CODE),</span><br><span class="line">    );</span><br><span class="line">    p.sz = PGSIZE;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// prepare for the very first &quot;return&quot; from kernel to user.</span></span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        p.trapframe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>().epc = <span class="number">0</span>; <span class="comment">// user program counter</span></span><br><span class="line">        p.trapframe.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>().sp = PGSIZE <span class="keyword">as</span> <span class="type">u64</span>; <span class="comment">// user stack pointer</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">name</span> = [<span class="number">0</span>; <span class="number">16</span>];</span><br><span class="line">    name.<span class="title function_ invoke__">copy_from_slice</span>(<span class="string">&quot;initcode\0\0\0\0\0\0\0\0&quot;</span>.<span class="title function_ invoke__">as_bytes</span>());</span><br><span class="line">    p.name = name;</span><br><span class="line">    p.cwd = <span class="title function_ invoke__">namei</span>(&amp;[<span class="string">b&#x27;/&#x27;</span>]).<span class="title function_ invoke__">map</span>(|inner| inner <span class="keyword">as</span> *<span class="keyword">mut</span> INode);</span><br><span class="line"></span><br><span class="line">    p.state = RUNNABLE;</span><br><span class="line"></span><br><span class="line">    p.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        INIT_PROC = <span class="title function_ invoke__">Some</span>(p);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L307"><code>userinit()</code></a>
+function does three important things:</p>
+<ol type="1">
+<li>Allocate a process structure that holds stack, page table and trap
+frame. The allocation mainly covered by the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L446"><code>allocproc()</code></a>,
+which picks an unused <code>Proc</code> structure to hold init.</li>
+<li>Load code into memory at user space, which is performed by the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/vm.rs#L273"><code>uvmfirst()</code></a>
+that maps the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299"><code>INIT_CODE</code></a>
+into page table as the text section.</li>
+<li>Set entry point as 0 in virtual address, and then set status to
+<code>RUNNABLE</code>.</li>
+</ol>
+<p>Looking at the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299"><code>INIT_CODE</code></a>
+you'll find there are only binaries. In fact, these binaries come from
+the compile result of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/master/user/initcode/initcode.S"><code>initcode.S</code></a>:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">### user/initcode/initcode.S</span><br><span class="line"></span><br><span class="line"># Initial process that execs /init.</span><br><span class="line"># This code runs in user space.</span><br><span class="line"></span><br><span class="line"># exec(init, argv)</span><br><span class="line">.globl start</span><br><span class="line">start:</span><br><span class="line">        la a0, init</span><br><span class="line">        la a1, argv</span><br><span class="line">        li a7, 7 # SYS_exec</span><br><span class="line">        ecall</span><br><span class="line"></span><br><span class="line"># for(;;) exit();</span><br><span class="line">exit:</span><br><span class="line">        li a7, 2 # SYS_exit</span><br><span class="line">        ecall</span><br><span class="line">        jal exit</span><br><span class="line"></span><br><span class="line"># char init[] = &quot;/init\0&quot;;</span><br><span class="line">init:</span><br><span class="line">  .string &quot;/init\0&quot;</span><br><span class="line"></span><br><span class="line"># char *argv[] = &#123; init, 0 &#125;;</span><br><span class="line">.p2align 2</span><br><span class="line">argv:</span><br><span class="line">  .long init</span><br><span class="line">  .long 0</span><br></pre></td></tr></table></figure>
+<p>The above code is quite simple, it only calls <code>SYS_exec</code>
+syscall with <code>/init\0</code> string as the argument. Since the
+compiled binaries are very simple the xv6 can even hardcoded it as a
+constant, this will omit the step to load it from file system.</p>
+<p>Apparently, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299"><code>INIT_CODE</code></a>
+is like a step-stone for initialization, the only thing it performs is
+to call <code>SYS_exec</code> syscall to replace its code text as the
+program <code>/init</code>. I'm sure you already knew the responsibility
+of the <code>exec</code> syscall in POSIX, the <code>SYS_exec</code> is
+just like that. We'll talk the <code>/init</code> soon later.</p>
+<p>Besides, if you look into the implementation of the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/vm.rs#L273"><code>uvmfirst()</code></a>,
+it loads the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299"><code>INIT_CODE</code></a>
+at virtual address 0x0, and since the <code>trapframe.epc</code> is also
+set to 0, once the init process is put on cpu, the first line of code it
+would run is <code>start</code> in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299"><code>INIT_CODE</code></a>.</p>
+<h3 id="running-on-cpu">4.2 Running On CPU</h3>
+<p>Once the init process is well prepared, then the kernel continues its
+init procedure, and runs the last step: <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/main.rs#L164"><code>scheduler()</code></a>.</p>
+<p>We have learnt in the fourth chapter what the scheduler will do:
+traverse the proc list to find if there is any process is on
+<code>RUNNABLE</code> state. Here we only have one process that is
+runnable: init process. So the scheduler will call <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/asm/switch.S#L9"><code>swtch</code></a>
+to switch the context and return. But where will it be returned?</p>
+<p>If you remember, we have mentioned this back in chapter-4, the return
+address is set in the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L460"><code>inner_alloc()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//proc.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">inner_alloc</span>&lt;<span class="symbol">&#x27;a</span>&gt;(p: &amp;<span class="symbol">&#x27;a</span> <span class="keyword">mut</span> Proc&lt;<span class="symbol">&#x27;a</span>&gt;) <span class="punctuation">-&gt;</span> <span class="type">Option</span>&lt;&amp;<span class="symbol">&#x27;a</span> <span class="keyword">mut</span> Proc&lt;<span class="symbol">&#x27;a</span>&gt;&gt; &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    p.context.ra = forkret <span class="keyword">as</span> <span class="type">u64</span>;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Since the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/main.rs#L164"><code>scheduler()</code></a>
+is running on kernel space, we can't return to user space directly after
+switch, that what the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L426"><code>forkret</code></a>
+is responsible:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> FIRST: AtomicBool = AtomicBool::<span class="title function_ invoke__">new</span>(<span class="literal">true</span>);</span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">forkret</span>() &#123;</span><br><span class="line">    <span class="comment">// Still holding p-&gt;lock from scheduler.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">my_proc</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    my_proc.lock.<span class="title function_ invoke__">release</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> FIRST.<span class="title function_ invoke__">load</span>(Ordering::Relaxed) &#123;</span><br><span class="line">        <span class="comment">// File system initialization must be run in the context of a</span></span><br><span class="line">        <span class="comment">// regular process (e.g., because it calls sleep), and thus cannot</span></span><br><span class="line">        <span class="comment">// be run from main().</span></span><br><span class="line">        FIRST.<span class="title function_ invoke__">store</span>(<span class="literal">false</span>, Ordering::Relaxed);</span><br><span class="line">        fs::<span class="title function_ invoke__">fsinit</span>(ROOTDEV);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="title function_ invoke__">usertrapret</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>It's simple and clear, at the first time the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L426"><code>forkret</code></a>
+is called, the file system needs to be initialized, this step mainly
+reads the <code>SuperBlock</code> from disk, please refer to chapter-5
+for more details.</p>
+<p>After that, <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/trap.rs#L103"><code>usertrapret()</code></a>
+will be called, we have seen that in previous sections, at this very
+step, the <code>epc</code> will be set to <code>trapframe.epc</code>,
+which is 0, and once <code>SRET</code> is called, the init process will
+finally start to run.</p>
+<h3 id="syscall-exec">4.3 Syscall Exec</h3>
+<p>Following the previous sequence diagram, the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L299"><code>INIT_CODE</code></a>
+only execute <code>ecall</code> to get in trap again, and trigger the
+<code>SYS_exec</code>.</p>
+<p>As we already knew how syscall is handled, let's go check the
+implementation of <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/syscall/sysfile.rs#L18"><code>sys_exec()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">fn</span> <span class="title function_">sys_exec</span>() <span class="punctuation">-&gt;</span> <span class="type">u64</span> &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">ret</span> = -<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> !bad &#123;</span><br><span class="line">        ret = <span class="title function_ invoke__">exec</span>(path, &amp;argv);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> ret <span class="keyword">as</span> <span class="type">u64</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Most of its jobs fetch the argument along with <code>ecall</code>, it
+will need some effort to do so because the argument is at user space and
+needs to be copied into kernel space. But these parts are not very
+important, now we deep dive into the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25"><code>exec()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">exec</span>(path: [<span class="type">u8</span>; MAXPATH], argv: &amp;[<span class="type">Option</span>&lt;*<span class="keyword">mut</span> <span class="type">u8</span>&gt;; MAXARG]) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">    <span class="comment">// find the inode of /init</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">ip_op</span> = <span class="title function_ invoke__">namei</span>(&amp;path);</span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    ip.<span class="title function_ invoke__">ilock</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Check ELF header and copy the text section into memory</span></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">elf</span> = ElfHeader::<span class="title function_ invoke__">create</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">tot</span> = ip.<span class="title function_ invoke__">readi</span>(<span class="literal">false</span>, &amp;<span class="keyword">mut</span> elf, <span class="number">0</span>, mem::size_of::&lt;ElfHeader&gt;());</span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> <span class="variable">_i</span> <span class="keyword">in</span> <span class="number">0</span>..elf.phnum &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="variable">tot</span> = ip.<span class="title function_ invoke__">readi</span>(<span class="literal">false</span>, &amp;<span class="keyword">mut</span> ph, off, ph_sz);</span><br><span class="line">        ... ...</span><br><span class="line">        <span class="keyword">if</span> <span class="title function_ invoke__">loadseg</span>(page_table, ph.vaddr, ip, ph.off, ph.filesz) &lt; <span class="number">0</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="title function_ invoke__">goto_bad</span>(<span class="title function_ invoke__">Some</span>(page_table), sz, <span class="title function_ invoke__">Some</span>(ip));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">p</span> = <span class="title function_ invoke__">myproc</span>();</span><br><span class="line">    <span class="keyword">let</span> <span class="variable">oldsz</span> = p.sz;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">// Push argument strings, prepare rest of stack in ustack.</span></span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        ... ...</span><br><span class="line">        <span class="keyword">if</span> <span class="title function_ invoke__">copyout</span>(page_table, sp, curr_argv, <span class="title function_ invoke__">strlen</span>(curr_argv) + <span class="number">1</span>) &lt; <span class="number">0</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="title function_ invoke__">goto_bad</span>(<span class="title function_ invoke__">Some</span>(page_table), sz, <span class="title function_ invoke__">Some</span>(ip));</span><br><span class="line">        &#125;</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ... ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Commit to the user image.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">oldpagetable</span> = <span class="keyword">unsafe</span> &#123; p.pagetable.<span class="title function_ invoke__">unwrap</span>().<span class="title function_ invoke__">as_mut</span>().<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">    p.pagetable = <span class="title function_ invoke__">Some</span>(page_table <span class="keyword">as</span> *<span class="keyword">mut</span> PageTable);</span><br><span class="line">    p.sz = sz;</span><br><span class="line">    tf.epc = elf.entry; <span class="comment">// initial program counter = main</span></span><br><span class="line">    tf.sp = sp <span class="keyword">as</span> <span class="type">u64</span>; <span class="comment">// initial stack pointer</span></span><br><span class="line">    <span class="title function_ invoke__">proc_freepagetable</span>(oldpagetable, oldsz);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> argc <span class="keyword">as</span> <span class="type">i32</span>; <span class="comment">// this ends up in a0, the first argument to main(argc, argv)</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Since this function is very long, the code pieces only contain a few
+main steps. For more information please directly see the raw code.</p>
+<p>In short, the final target of the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/exec.rs#L25"><code>exec()</code></a>
+is replacing the current process into a new one, but keeps the current
+process structure and pid. Through this procedure, many things will get
+replaced, such as program code, constants, variables.</p>
+<p>In order to achieve that, first we need to load the
+<code>/init</code> into the memory, that's what the
+<code>namei(&amp;path)</code> does. Once we have the inode points to
+<code>/init</code> in our hand, we can read the content of
+<code>/init</code>.</p>
+<p>In the above code, it first reads the ELF header as the xv6 file
+follows the ELF format. The ELF header records the section information,
+including program segments that are described in the program header.
+These segments are text, data and others, which are necessary for the
+program to be executed.</p>
+<p>Through the <code>loadseg()</code> function, all program segments are
+loaded into memory and mapped into a newly created page table, this page
+table will be the new page table that replaces the old one. Expect for
+the program segment loading, the arguments passed along with the
+<code>SYS_exec</code> are also copied into stack.</p>
+<p>At last, the page table is replaced, and the old one is released, the
+<code>epc</code> is set to <code>elf.entry</code> which points to the
+first line of code of <code>/init</code>. At this moment, a new process
+is finally born.</p>
+<h3 id="init">4.4 Init</h3>
+<p>We haven't seen what the init looks like, at the end of this article,
+let's have a look:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[start]</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">main</span>(_argc: <span class="type">isize</span>, _argv: *<span class="keyword">const</span> *<span class="keyword">const</span> <span class="type">u8</span>) <span class="punctuation">-&gt;</span> <span class="type">isize</span> &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="comment">// let mut console_slice: [u8; MAXPATH] = [b&#x27;\0&#x27;; MAXPATH];</span></span><br><span class="line">        <span class="comment">// console_slice.copy_from_slice(&quot;console&quot;.as_bytes());</span></span><br><span class="line">        <span class="keyword">let</span> <span class="variable">console_slice</span> = <span class="string">&quot;console\0&quot;</span>.<span class="title function_ invoke__">as_bytes</span>();</span><br><span class="line">        <span class="keyword">if</span> <span class="title function_ invoke__">open</span>(console_slice.<span class="title function_ invoke__">as_ptr</span>(), O_RDWR) &lt; <span class="number">0</span> &#123;</span><br><span class="line">            <span class="title function_ invoke__">mknod</span>(console_slice.<span class="title function_ invoke__">as_ptr</span>(), CONSOLE <span class="keyword">as</span> <span class="type">u16</span>, <span class="number">0</span>);</span><br><span class="line">            <span class="title function_ invoke__">open</span>(console_slice.<span class="title function_ invoke__">as_ptr</span>(), O_RDWR);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="title function_ invoke__">dup</span>(<span class="number">0</span>); <span class="comment">// stdout fd=1</span></span><br><span class="line">        <span class="title function_ invoke__">dup</span>(<span class="number">0</span>); <span class="comment">// stderr fd=2</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">pid</span>;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">wpid</span>;</span><br><span class="line">        <span class="keyword">loop</span> &#123;</span><br><span class="line">            printf!(<span class="string">&quot;init: starting sh\n&quot;</span>);</span><br><span class="line">            pid = fork();</span><br><span class="line">            <span class="keyword">if</span> pid &lt; <span class="number">0</span> &#123;</span><br><span class="line">                printf!(<span class="string">&quot;init: fork failed\n&quot;</span>);</span><br><span class="line">                <span class="title function_ invoke__">exit</span>(<span class="number">1</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> pid == <span class="number">0</span> &#123;</span><br><span class="line">                <span class="keyword">let</span> <span class="variable">argv</span>: *<span class="keyword">const</span> *<span class="keyword">const</span> <span class="type">u8</span> =</span><br><span class="line">                    (&amp;[<span class="string">&quot;sh\0&quot;</span>.<span class="title function_ invoke__">as_bytes</span>().<span class="title function_ invoke__">as_ptr</span>(), <span class="string">&quot;&quot;</span>.<span class="title function_ invoke__">as_bytes</span>().<span class="title function_ invoke__">as_ptr</span>()]).<span class="title function_ invoke__">as_ptr</span>();</span><br><span class="line">                <span class="title function_ invoke__">exec</span>(<span class="string">&quot;sh\0&quot;</span>.<span class="title function_ invoke__">as_bytes</span>().<span class="title function_ invoke__">as_ptr</span>(), argv);</span><br><span class="line">                printf!(<span class="string">&quot;init: exec sh failed\n&quot;</span>);</span><br><span class="line">                <span class="title function_ invoke__">exit</span>(<span class="number">1</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">loop</span> &#123;</span><br><span class="line">                <span class="comment">// this call to wait() returns if the shell exits,</span></span><br><span class="line">                <span class="comment">// or if a parentless process exits.</span></span><br><span class="line">                wpid = <span class="title function_ invoke__">wait</span>(<span class="number">0</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="type">u8</span>);</span><br><span class="line">                <span class="keyword">if</span> wpid == pid &#123;</span><br><span class="line">                    <span class="comment">// the shell exited; restart it.</span></span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> wpid &lt; <span class="number">0</span> &#123;</span><br><span class="line">                    printf!(<span class="string">&quot;init: wait returned an error\n&quot;</span>);</span><br><span class="line">                    <span class="title function_ invoke__">exit</span>(<span class="number">1</span>);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="comment">// it was a parentless process; do nothing.</span></span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>There isn't too much code in it, the whole logic can be split into
+two simple parts:</p>
+<ul>
+<li>Open Console as stdin, stdout and stderr</li>
+<li>Fork itself
+<ul>
+<li>For the child process, call <code>SYS_exec</code> again to replace
+itself as the shell program</li>
+<li>For the parent process, which is also the init process itself, wait
+for it child to be exited, and if it happens that the child process also
+has its children, then the grandchildren processes will be regarded as
+orphans. Therefore, along with the exit of the child process, all orphan
+processes will be reparented to init. (See <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/5654d2a13560a47a5aa5505a0a9fd36bdf0274cf/kernel/src/proc.rs#L704"><code>exit()</code></a>
+for details)</li>
+</ul></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2025/02/24/xv6-rust-6/" title="&#x2F;Xv6 Rust 0x06&#x2F; - User Space">http://lenshood.github.io/2025/02/24/xv6-rust-6/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/12/10/xv6-rust-5/" rel="prev" title="&#x2F;Xv6 Rust 0x05&#x2F; - Persistence">
+                  <i class="fa fa-angle-left"></i> /Xv6 Rust 0x05/ - Persistence
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2025/06/29/linux-tracing-kprobe/" rel="next" title="Linux Tracing - Kprobe">
+                  Linux Tracing - Kprobe <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

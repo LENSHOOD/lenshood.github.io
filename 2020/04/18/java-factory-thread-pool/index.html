@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="工厂 现实生活中，存在大大小小的工厂，他们提供特定的服务，根据用户的需求生产、加工出产品，交付给客户，并赚取服务费。 通常，我们只需要交给工厂一份图纸，工厂就会根据图纸来生产产品，而生产的过程我们是无需关心的，作为客户，我们只关心这间工厂什么时候把产品交付给我们。 类似的，在代码里我们也会存在以下场景：主流程代码将需要做的事情分成一件件任务，并交由对应的代码工厂去执行，这里的任务可以是代码逻辑的执">
+<meta property="og:type" content="article">
+<meta property="og:title" content="虚拟工厂：Java 线程池">
+<meta property="og:url" content="http://lenshood.github.io/2020/04/18/java-factory-thread-pool/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="工厂 现实生活中，存在大大小小的工厂，他们提供特定的服务，根据用户的需求生产、加工出产品，交付给客户，并赚取服务费。 通常，我们只需要交给工厂一份图纸，工厂就会根据图纸来生产产品，而生产的过程我们是无需关心的，作为客户，我们只关心这间工厂什么时候把产品交付给我们。 类似的，在代码里我们也会存在以下场景：主流程代码将需要做的事情分成一件件任务，并交由对应的代码工厂去执行，这里的任务可以是代码逻辑的执">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/04/18/java-factory-thread-pool/factory-pic.png">
+<meta property="article:published_time" content="2020-04-18T15:39:59.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.215Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="thread pool">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/04/18/java-factory-thread-pool/factory-pic.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/04/18/java-factory-thread-pool/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/04/18/java-factory-thread-pool/","path":"2020/04/18/java-factory-thread-pool/","title":"虚拟工厂：Java 线程池"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>虚拟工厂：Java 线程池 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B7%A5%E5%8E%82"><span class="nav-number">1.</span> <span class="nav-text">工厂</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B7%A5%E5%8E%82%E7%9A%84%E4%BB%A3%E7%A0%81%E6%8A%BD%E8%B1%A1"><span class="nav-number">2.</span> <span class="nav-text">工厂的代码抽象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#java-%E4%BB%BB%E5%8A%A1%E5%B7%A5%E5%8E%82%E7%BA%BF%E7%A8%8B%E6%B1%A0"><span class="nav-number">3.</span> <span class="nav-text">Java 任务工厂：线程池</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B7%A5%E5%8E%82%E8%BF%90%E8%A1%8C%E7%BB%86%E8%8A%82----%E5%88%9D%E5%A7%8B%E5%8C%96%E5%B7%A5%E5%8E%82"><span class="nav-number">3.1.</span> <span class="nav-text">工厂运行细节 -- 初始化工厂</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B7%A5%E5%8E%82%E8%BF%90%E8%A1%8C%E7%BB%86%E8%8A%82----%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">3.2.</span> <span class="nav-text">工厂运行细节 -- 生命周期</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%93%E5%B0%BE"><span class="nav-number">4.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/04/18/java-factory-thread-pool/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="虚拟工厂：Java 线程池 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          虚拟工厂：Java 线程池
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-04-18 23:39:59" itemprop="dateCreated datePublished" datetime="2020-04-18T23:39:59+08:00">2020-04-18</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h3 id="工厂">工厂</h3>
+<p>现实生活中，存在大大小小的工厂，他们提供特定的服务，根据用户的需求生产、加工出产品，交付给客户，并赚取服务费。</p>
+<p>通常，我们只需要交给工厂一份图纸，工厂就会根据图纸来生产产品，而生产的过程我们是无需关心的，作为客户，我们只关心这间工厂什么时候把产品交付给我们。</p>
+<p>类似的，在代码里我们也会存在以下场景：主流程代码将需要做的事情分成一件件任务，并交由对应的代码工厂去执行，这里的任务可以是代码逻辑的执行步骤，而最基本的代码工厂就是各种方法。合并起来，代码工厂执行任务，实际上就是调用方法执行业务逻辑。</p>
+<p>不过有时我们期望代码工厂能够异步执行任务，这样主流程就不用一直等待它执行完成了：让互相之间不存在依赖的任务并行执行能大大缩短总体的执行时间。</p>
+<p>Java
+提供了线程机制允许我们将方法调用放在与主流程独立的线程中执行，不过直接使用线程代码写起来略为繁琐，线程本身也是较低层的概念，所以在
+JDK 1.5
+之后，提供了对异步任务执行的高层抽象：线程池，通过线程池我们可以更方便的执行异步任务，而不必关心线程的使用细节。</p>
+<p>线程池以清晰的设计与简洁的代码优雅的封装了线程并实现了任务执行逻辑。阅读它的代码，就好像走进了一间虚拟的工厂，工人挥舞工具的画面似乎就在眼前。</p>
+<span id="more"></span>
+<h3 id="工厂的代码抽象">工厂的代码抽象</h3>
+<p>试想一间最简陋的工厂至少需要些什么才可以正常运转？</p>
+<ul>
+<li>工人：干活</li>
+<li>老板：获得订单，安排生产</li>
+</ul>
+<p>老板不断地获取订单任务，将订单任务分发给工人，工人按照订单要求，一个接一个的生产产品，最后交付。</p>
+<img src="/2020/04/18/java-factory-thread-pool/factory-pic.png" class="">
+<p>那么，映射到代码里，假如我们想要实现一间代码工厂，我们可能会这样设计：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Factory</span> &#123;</span><br><span class="line">  taskQueue: Queue&lt;Task&gt;;</span><br><span class="line">  workers: Collection&lt;Worker&gt;;</span><br><span class="line">  productPool: Map&lt;Task, Product&gt;;</span><br><span class="line">  </span><br><span class="line">  submit(t: Task) &#123;</span><br><span class="line">    taskQueue.push(t);</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  run() &#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">      t: Task = taskQueue.pop();</span><br><span class="line">      w: Worker = workers.getAvailable();</span><br><span class="line">      p: Product = w.doJob(t);</span><br><span class="line">      productPool.put(t, p);</span><br><span class="line">      w.setAvailable();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Worker</span> &#123;</span><br><span class="line">  doJob(t: Task) -&gt; Product &#123;</span><br><span class="line">    ... ...</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>整个工厂的运转就是一个大循环，在循环中取出一个待完成的任务，并取出一个空闲的工人，最后将任务执行结果输出到产品池中。其中工人的工作方式
+<code>doJob</code> 根据具体业务要求来实现。</p>
+<p>上述代码中每一次都必须等待工人执行完任务才能再次循环，这中设计同一时间只有一名工人在工作，这是不合理的，因此稍作改动，将工人干活的部分放到独立的线程中，即可实现高效运转：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">      t: Task = taskQueue.pop();</span><br><span class="line">      w: Worker = workers.getAvailable();</span><br><span class="line">      <span class="keyword">new</span> <span class="title class_">Thread</span>(</span><br><span class="line">      	() -&gt; &#123;</span><br><span class="line">          p: Product = w.doJob(t);</span><br><span class="line">          productPool.put(t, p);</span><br><span class="line">          w.setAvailable();</span><br><span class="line">        &#125;</span><br><span class="line">      ).start();</span><br><span class="line">    &#125;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<h3 id="java-任务工厂线程池">Java 任务工厂：线程池</h3>
+<p>本质上讲，Java 的 <code>ThreadPoolExecutor</code>
+其工作原理和前文所述的流程基本一致，<code>ThreadPoolExecutor</code>
+本身可类比为工厂，在工厂内定义了以下成员及方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ThreadPoolExecutor</span> <span class="keyword">extends</span> <span class="title class_">AbstractExecutorService</span> &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> BlockingQueue&lt;Runnable&gt; workQueue;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> HashSet&lt;Worker&gt; workers = <span class="keyword">new</span> <span class="title class_">HashSet</span>&lt;&gt;();</span><br><span class="line">  </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">execute</span><span class="params">(Runnable command)</span> &#123;</span><br><span class="line">  	  ... ...</span><br><span class="line">      <span class="keyword">if</span> (isRunning(c) &amp;&amp; workQueue.offer(command)) &#123;</span><br><span class="line">        ... ...</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">runWorker</span><span class="params">(Worker w)</span> &#123;</span><br><span class="line">        ... ...</span><br><span class="line">        <span class="keyword">while</span> (task != <span class="literal">null</span> || (task = getTask()) != <span class="literal">null</span>) &#123;</span><br><span class="line">          ... ...</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">              beforeExecute(wt, task);</span><br><span class="line">              <span class="keyword">try</span> &#123;</span><br><span class="line">                task.run();</span><br><span class="line">                afterExecute(task, <span class="literal">null</span>);</span><br><span class="line">              &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">                afterExecute(task, ex);</span><br><span class="line">                <span class="keyword">throw</span> ex;</span><br><span class="line">              &#125;</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">              task = <span class="literal">null</span>;</span><br><span class="line">              w.completedTasks++;</span><br><span class="line">              w.unlock();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        ... ...</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，任务队列由 <code>BlockingQueue&lt;Runnable&gt;</code>
+定义，工人集合由 <code>HashSet&lt;Worker&gt;</code>
+定义，<code>execute(Runnable)</code> 方法将任务入队，而实际的
+<code>runWorker(Worker)</code> 方法，在 <code>whiile</code> 循环内执行
+<code>task.run()</code> 来真正的执行任务（实际代码中通过在
+<code>Worker</code> 线程内调用 <code>runWorker()</code>
+来实现异步执行）。</p>
+<p>从以上视角来看，<code>ThreadPoolExecutor</code>
+的确与前一节描述的设计大体一致，唯一不同之处在于他并没有提供存放任务执行结果的产品池，实际当中是将任务封装为
+<code>FutureTask</code> 以委托其进行结果的存储与关联。</p>
+<h4 id="工厂运行细节----初始化工厂">工厂运行细节 -- 初始化工厂</h4>
+<p><code>ThreadPoolExecutor</code> 的初始化是一个老生常谈的话题了，包括
+<code>corePoolSize</code>和 <code>maximumPoolSize</code>
+的关系，任务队列的选取，定制化的 <code>threadFactory</code> 等等。</p>
+<p>这些概念都很清晰且容易理解：封装了绝大多数细节，初始化参数不多不少，体现了良好的设计。</p>
+<p>简单介绍一下 <code>Executors</code> 类中提供的几种线程池：</p>
+<ul>
+<li><code>FixedThreadPool</code>： 固定的线程数量，最大容量为
+<code>Integer.MEX_VALUE</code> 的
+<code>LinkedBlockingQueue</code>（可以视为不限制队列容量）</li>
+<li><code>SingleThreadPool</code>：<code>FixedThreadPool</code>的特殊情况，只有一个固定线程，可以用做
+Logger</li>
+<li><code>CachedThreadPool</code>:
+线程数量不设限（最大为<code>Integer.MEX_VALUE</code>），实际工作线程数约等于当前时间窗口的最大吞吐量（工作线程存活期为
+60 秒）。使用独特的<code>SynchronousQueue</code>当作任务队列：容量为
+0，仅用于解耦客户线程与工作线程。</li>
+</ul>
+<p>此外，关于拒绝策略，默认的拒绝策略是直接终止，但有些场景下更保险的做法是通过<code>CallerRunsPolicy</code>来采用类似自适应的策略确保任务不会被丢弃。</p>
+<p>最后给出初始化方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="title function_">ThreadPoolExecutor</span><span class="params">(<span class="type">int</span> corePoolSize,</span></span><br><span class="line"><span class="params">                          <span class="type">int</span> maximumPoolSize,</span></span><br><span class="line"><span class="params">                          <span class="type">long</span> keepAliveTime,</span></span><br><span class="line"><span class="params">                          TimeUnit unit,</span></span><br><span class="line"><span class="params">                          BlockingQueue&lt;Runnable&gt; workQueue,</span></span><br><span class="line"><span class="params">                          ThreadFactory threadFactory,</span></span><br><span class="line"><span class="params">                          RejectedExecutionHandler handler)</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (corePoolSize &lt; <span class="number">0</span> ||</span><br><span class="line">      maximumPoolSize &lt;= <span class="number">0</span> ||</span><br><span class="line">      maximumPoolSize &lt; corePoolSize ||</span><br><span class="line">      keepAliveTime &lt; <span class="number">0</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>();</span><br><span class="line">  <span class="keyword">if</span> (workQueue == <span class="literal">null</span> || threadFactory == <span class="literal">null</span> || handler == <span class="literal">null</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">NullPointerException</span>();</span><br><span class="line">  <span class="built_in">this</span>.corePoolSize = corePoolSize;</span><br><span class="line">  <span class="built_in">this</span>.maximumPoolSize = maximumPoolSize;</span><br><span class="line">  <span class="built_in">this</span>.workQueue = workQueue;</span><br><span class="line">  <span class="built_in">this</span>.keepAliveTime = unit.toNanos(keepAliveTime);</span><br><span class="line">  <span class="built_in">this</span>.threadFactory = threadFactory;</span><br><span class="line">  <span class="built_in">this</span>.handler = handler;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>####工厂运行细节 -- 创建工人</p>
+<p>在 <code>ThreadPoolExecutor</code>
+中，为了对系统资源的优化使用，Worker
+不是在初始化后就全部准备好的（毕竟一个 Worker
+要独占一个线程），而是随着任务的不断提交来逐步创建出
+Worker。同时，在默认情况下，创建出的不超过 <code>corePoolSize</code> 的
+Worker 会永远保留，而当任务队列满时会尝试继续创建 Worker，直到达到
+<code>maximumPoolSize</code>。这些额外创建出来的 “临时工“
+会在一段时间（<code>keepAliveTime</code>）没有任务后自动退出，以节约资源（活多的时候找外包，活少的时候就辞退外包，惨兮兮的外包员工..）。</p>
+<p>如上所述，在线程池初始化后是并没有任何的 Worker
+，随着任务的来临开始创建 Worker，实际的创建逻辑封装在
+<code>addWorker(Runnable firstTask, boolean core)</code>
+方法中，如下是创建核心部分：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line"><span class="type">Worker</span> <span class="variable">w</span> <span class="operator">=</span> <span class="literal">null</span>;</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  </span><br><span class="line">  -----------------------------</span><br><span class="line">  | w = <span class="keyword">new</span> <span class="title class_">Worker</span>(firstTask);|</span><br><span class="line">  -----------------------------  </span><br><span class="line">    </span><br><span class="line">  <span class="keyword">final</span> <span class="type">Thread</span> <span class="variable">t</span> <span class="operator">=</span> w.thread;</span><br><span class="line">  <span class="keyword">if</span> (t != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">final</span> <span class="type">ReentrantLock</span> <span class="variable">mainLock</span> <span class="operator">=</span> <span class="built_in">this</span>.mainLock;</span><br><span class="line">    mainLock.lock();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="comment">// Recheck while holding lock.</span></span><br><span class="line">      <span class="comment">// Back out on ThreadFactory failure or if</span></span><br><span class="line">      <span class="comment">// shut down before lock acquired.</span></span><br><span class="line">      <span class="type">int</span> <span class="variable">c</span> <span class="operator">=</span> ctl.get();</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (isRunning(c) ||</span><br><span class="line">          (runStateLessThan(c, STOP) &amp;&amp; firstTask == <span class="literal">null</span>)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (t.isAlive()) <span class="comment">// precheck that t is startable</span></span><br><span class="line">          <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalThreadStateException</span>();</span><br><span class="line">        </span><br><span class="line">        -------------------</span><br><span class="line">        | workers.add(w); |</span><br><span class="line">        -------------------</span><br><span class="line">        </span><br><span class="line">        <span class="type">int</span> <span class="variable">s</span> <span class="operator">=</span> workers.size();</span><br><span class="line">        <span class="keyword">if</span> (s &gt; largestPoolSize)</span><br><span class="line">          largestPoolSize = s;</span><br><span class="line">        workerAdded = <span class="literal">true</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">      mainLock.unlock();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (workerAdded) &#123;</span><br><span class="line">      </span><br><span class="line">      --------------</span><br><span class="line">      | t.start(); |</span><br><span class="line">      --------------  </span><br><span class="line">        </span><br><span class="line">      workerStarted = <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>从框出的语句看到，实际上除了必要的 check
+工作与加锁同步以外，实际上就是先创建 Worker，将其加入
+<code>workers</code> 集合中，最后将 Worker 内部的线程启动（其实
+<code>t.start()</code>这里我觉得在 Worker 中封装一个类似
+<code>worker.start()</code> 的方法也许会更清晰）。</p>
+<p>从上面的代码中，我们了解到 Worker
+包含了自己的线程，那么除此之外，作为一个
+Worker，还有什么必须的逻辑呢？来看看 Worker 的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">Worker</span></span><br><span class="line">        <span class="keyword">extends</span> <span class="title class_">AbstractQueuedSynchronizer</span></span><br><span class="line">        <span class="keyword">implements</span> <span class="title class_">Runnable</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">final</span> Thread thread;</span><br><span class="line">  Runnable firstTask;</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> completedTasks;</span><br><span class="line"></span><br><span class="line">  Worker(Runnable firstTask) &#123;</span><br><span class="line">    setState(-<span class="number">1</span>); <span class="comment">// inhibit interrupts until runWorker</span></span><br><span class="line">    <span class="built_in">this</span>.firstTask = firstTask;</span><br><span class="line">    <span class="built_in">this</span>.thread = getThreadFactory().newThread(<span class="built_in">this</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/** Delegates main run loop to outer runWorker. */</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">    runWorker(<span class="built_in">this</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ... ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">()</span>        &#123; acquire(<span class="number">1</span>); &#125;</span><br><span class="line">  <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">()</span>  &#123; <span class="keyword">return</span> tryAcquire(<span class="number">1</span>); &#125;</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">()</span>      &#123; release(<span class="number">1</span>); &#125;</span><br><span class="line">  <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isLocked</span><span class="params">()</span> &#123; <span class="keyword">return</span> isHeldExclusively(); &#125;</span><br><span class="line"></span><br><span class="line">  ... ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">runWorker</span><span class="params">(Worker w)</span> &#123;</span><br><span class="line">  <span class="type">Thread</span> <span class="variable">wt</span> <span class="operator">=</span> Thread.currentThread();</span><br><span class="line">  <span class="type">Runnable</span> <span class="variable">task</span> <span class="operator">=</span> w.firstTask;</span><br><span class="line">  w.firstTask = <span class="literal">null</span>;</span><br><span class="line">  w.unlock(); <span class="comment">// allow interrupts</span></span><br><span class="line">  <span class="type">boolean</span> <span class="variable">completedAbruptly</span> <span class="operator">=</span> <span class="literal">true</span>;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">while</span> (task != <span class="literal">null</span> || (task = getTask()) != <span class="literal">null</span>) &#123;</span><br><span class="line">      w.lock();</span><br><span class="line">      ... ...</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        beforeExecute(wt, task);</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          task.run();</span><br><span class="line">          afterExecute(task, <span class="literal">null</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">          afterExecute(task, ex);</span><br><span class="line">          <span class="keyword">throw</span> ex;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        task = <span class="literal">null</span>;</span><br><span class="line">        w.completedTasks++;</span><br><span class="line">        w.unlock();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过 <code>Worker</code> 内部类，我们看到 Worker
+持有了一个工作线程（同时 Worker 自己也是该线程的
+<code>Runable</code>），及其 <code>firstTask</code>，结合前面
+<code>addWorker()</code> 中的 <code>t.start()</code>逻辑，我们能知道一个
+Worker
+会在创建后被启动，并赋以第一个任务，从而开始独立的工作旅程。另外，Worker
+自身还是一个 AQS，以确保任务执行期间的同步安全。</p>
+<p>了解了 Worker
+的内部构造，再次看一遍<code>runWorker()</code>就清晰多了：先执行
+<code>fisrtTask</code>，之后在循环中不断地执行从
+<code>getTaask()</code>中获取到的任务，<code>getTask()</code>实际上正是从
+<code>workQueue</code> 中来获取任务。</p>
+<p>至此，看了一圈代码后我们验证了，<code>ThreadPoolExecutor</code>正是按照上一节的流程图来执行任务：</p>
+<ol type="1">
+<li>创建任务工厂（此时没有 Worker）</li>
+<li>通过<code>execute(Runable)</code>接收任务</li>
+<li>创建 Worker 在独立的线程内执行任务，直到 Worker 数量达到
+<code>corePoolSize</code>后新任务入队</li>
+<li>已创建的 Worker 不断的从任务队列中获取任务来执行，并持续下去</li>
+</ol>
+<h4 id="工厂运行细节----生命周期">工厂运行细节 -- 生命周期</h4>
+<p><code>ThreadPoolExecutor</code>描述了以下几个生命阶段：</p>
+<ul>
+<li>RUNNING: Accept new tasks and process queued tasks</li>
+<li>SHUTDOWN: Don't accept new tasks, but process queued tasks</li>
+<li>STOP: Don't accept new tasks, don't process queued tasks, and
+interrupt in-progress tasks</li>
+<li>TIDYING: All tasks have terminated, workerCount is zero, the thread
+transitioning to state TIDYING will run the terminated() hook
+method</li>
+<li>TERMINATED: terminated() has completed</li>
+</ul>
+<p>有趣的是，<code>ThreadPoolExecutor</code>用了一个
+<code>AtomicInteger</code>
+类型的<code>ctl</code>来同时存储当前运行状态与当前 Worker
+数量，采用位存储，以此来简化对两种不同数字的同步更新操作。</p>
+<h3 id="结尾">结尾</h3>
+<p>从根本上讲，程序 = 算法 +
+数据结构，但似乎我们编写的程序离算法+数据结构越来越远，而离对真实世界的映射越来越近。这也是
+OOP
+和计算机技术的精髓所在：通过层层抽象与分层，让计算机的指令执行与现实世界的运行逐步统一。</p>
+<p>表面上<code>ThreadPoolExecutor</code>是为了减少线程创建和销毁的开销而优化效率，实际上它构造了一间虚拟的工厂，将
+”创建一个线程来执行一项异步任务“ 的工作转化为了
+”创建一间工厂，将任务委托给工厂生产“，通过一层抽象，隔离了底层线程逻辑，而对效率的提升其实不过是分层后下层更关注性能，而上层更关注业务的结果。</p>
+<blockquote>
+<p>以上这种通过分层隔离关注点，进而按关注点逐个处理的办法，在 JDK
+中大量的被使用，例如
+<code>ForkJoinPool</code>的引入，使并发执行相互关联的任务（如递归）以提升效率的实现变得非常简单。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/04/18/java-factory-thread-pool/" title="虚拟工厂：Java 线程池">http://lenshood.github.io/2020/04/18/java-factory-thread-pool/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/thread-pool/" rel="tag"># thread pool</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/04/06/mirror-github-pages-to-gitee-paages/" rel="prev" title="Git Pages 镜像到 Gitee Pages">
+                  <i class="fa fa-angle-left"></i> Git Pages 镜像到 Gitee Pages
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/05/03/java-stream/" rel="next" title="虚拟工厂：Java stream">
+                  虚拟工厂：Java stream <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

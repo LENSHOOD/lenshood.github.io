@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本节课程作业，我们会采用多种 profile 工具来对 TiDB 的性能进行分析，寻找其性能瓶颈，并根据分析结果来给出优化建议。 主要内容如下：  TiUP 部署最小集群 TiDB CPU Profile 性能瓶颈分析与优化建议">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiDB 学习课程 Lesson-3">
+<meta property="og:url" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本节课程作业，我们会采用多种 profile 工具来对 TiDB 的性能进行分析，寻找其性能瓶颈，并根据分析结果来给出优化建议。 主要内容如下：  TiUP 部署最小集群 TiDB CPU Profile 性能瓶颈分析与优化建议">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/pprof-cpu-tpcc-prepare.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/pprof-cpu-tpcc-run.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/parser.jpeg">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/antlr-tree.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/algorithm-compare.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/issue.png">
+<meta property="article:published_time" content="2020-08-26T14:59:34.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.449Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="tidb">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/08/26/tidb-lesson-3/pprof-cpu-tpcc-prepare.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/08/26/tidb-lesson-3/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/08/26/tidb-lesson-3/","path":"2020/08/26/tidb-lesson-3/","title":"TiDB 学习课程 Lesson-3"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>TiDB 学习课程 Lesson-3 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#tiup-%E9%83%A8%E7%BD%B2%E6%9C%80%E5%B0%8F%E9%9B%86%E7%BE%A4"><span class="nav-number">1.</span> <span class="nav-text">TiUP 部署最小集群</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#tidb-cpu-profile"><span class="nav-number">2.</span> <span class="nav-text">TiDB CPU Profile</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E5%88%86%E6%9E%90%E4%B8%8E%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE"><span class="nav-number">3.</span> <span class="nav-text">性能瓶颈分析与优化建议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#tidb-parser"><span class="nav-number">3.1.</span> <span class="nav-text">TiDB Parser</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#antlr"><span class="nav-number">3.2.</span> <span class="nav-text">ANTLR</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#antlr-vs.-yacc"><span class="nav-number">3.3.</span> <span class="nav-text">ANTLR vs. yacc</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE"><span class="nav-number">3.4.</span> <span class="nav-text">性能优化建议</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/08/26/tidb-lesson-3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="TiDB 学习课程 Lesson-3 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TiDB 学习课程 Lesson-3
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-08-26 22:59:34" itemprop="dateCreated datePublished" datetime="2020-08-26T22:59:34+08:00">2020-08-26</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/TiDB/" itemprop="url" rel="index"><span itemprop="name">TiDB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>本节课程作业，我们会采用多种 profile 工具来对 TiDB
+的性能进行分析，寻找其性能瓶颈，并根据分析结果来给出优化建议。</p>
+<p>主要内容如下：</p>
+<ol type="1">
+<li><strong>TiUP 部署最小集群</strong></li>
+<li><strong>TiDB CPU Profile</strong></li>
+<li><strong>性能瓶颈分析与优化建议</strong></li>
+</ol>
+<span id="more"></span>
+<h2 id="tiup-部署最小集群">TiUP 部署最小集群</h2>
+<p>为了确保与<a
+href="https://docs.pingcap.com/zh/tidb/stable/hardware-and-software-requirements">官方文档中建议的环境</a>一致，我选择在
+docker 容器中启动 centos7 环境，再借助 TiUP 部署本地集群。 1. 给出
+Dockerfile：</p>
+<p><figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">## 使用 centos7 作为基础镜像</span></span><br><span class="line"><span class="keyword">FROM</span> centos:centos7</span><br><span class="line"></span><br><span class="line"><span class="comment">## 安装 tiup</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> /bin/bash -c <span class="string">&#x27;curl --proto &#x27;</span>=https<span class="string">&#x27; --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh&#x27;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">## 设定环境变量</span></span><br><span class="line"><span class="keyword">ENV</span> PATH /root/.tiup/bin:$PATH</span><br><span class="line"></span><br><span class="line"><span class="comment">## 安装 tiup playground 所需的所有组件</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> /bin/bash -c <span class="string">&#x27;tiup install playground | tiup install prometheus | tiup install pd | tiup install tikv | tiup install tidb | tiup install grafana&#x27;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">## 设定 entrypoint 启动 playground 集群，host 映射到 0.0.0.0</span></span><br><span class="line"><span class="keyword">ENTRYPOINT</span><span class="language-bash"> tiup --tag=local-tidb-cluster playground --db=1 --kv=3 --pd=1 --tiflash=0 --monitor --host=0.0.0.0</span></span><br></pre></td></tr></table></figure></p>
+<ol start="2" type="1">
+<li><p>启动容器环境： docker-compose.yaml 如下所示，</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;2.0&#x27;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">tiup-playground-cluster:</span></span><br><span class="line">    <span class="attr">build:</span></span><br><span class="line">      <span class="attr">context:</span> <span class="string">.</span></span><br><span class="line">      <span class="attr">dockerfile:</span> <span class="string">Dockerfile</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;4000:4000&quot;</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;2379:2379&quot;</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;9090:9090&quot;</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;3000:3000&quot;</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;10080:10080&quot;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动容器</span></span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">docker-compose up -d</span></span><br></pre></td></tr></table></figure></li>
+<li><p>通过<a
+href="https://lenshood.github.io/2020/08/19/tidb-lesson-2/">上一次课程作业</a>提到的压测工具，对部署的
+TiDB 集群进行测试。</p></li>
+</ol>
+<h2 id="tidb-cpu-profile">TiDB CPU Profile</h2>
+<p>由于采用多种测试手段（例如上一节课讲到的 sysbench、ycsb、tpcc）对
+TiDB + TiKV 进行全方位的 CPU + IO + Memory 的 profiling
+并对其结果进行整合分析是一项比较大的工程。</p>
+<p>因此，本文对 Profiling 的 scope 做了限定，<strong>只针对在 tpcc
+测试方法下的 TiDB 的 CPU 使用情况进行 Profiling，并分析。</strong></p>
+<p>在确定了方向后，我们开始动手：</p>
+<ol type="1">
+<li><p>环境：</p>
+<p>前文已经提到过了，在 docker 虚拟的 centos7 下部署 1 pd + 1 tidb + 3
+tikv 。</p></li>
+<li><p>测试方法：</p>
+<p>tpcc 100 warehouse，相关命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">prepare base data</span></span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">./bin/go-tpc tpcc --warehouses 100 prepare</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">run tpcc</span></span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">./bin/go-tpc tpcc --warehouses 100 run --time 3m --threads 64</span></span><br></pre></td></tr></table></figure></li>
+<li><p>Profiling:</p>
+<p>采用在 TiDB 内已经开启的 go-pprof 进行数据采集，相关命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="keyword">do</span> 60 seconds profiling at tpcc prepare stage (tidb <span class="built_in">set</span> pprof port as 10080)</span></span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">curl http://127.0.0.1:10080/debug/zip\?seconds\=60 --output tpcc-w100-prepare.zip</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="keyword">do</span> 60 seconds profiling at tpcc run stage</span></span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">curl http://127.0.0.1:10080/debug/zip\?seconds\=60 --output tpcc-w100-run.zip</span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">after unzip the downloaded zip package, use pprof tool to illustrate profile result</span></span><br><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">go tool pprof -http=:8080 &#123;unziped <span class="built_in">dir</span>&#125;/profile</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>经过上述步骤，我们已经能够拿到在测试期间对 TiDB 的 CPU Profiling
+数据了：</p>
+<ul>
+<li>prepare 期间的 CPU Profiling：</li>
+</ul>
+<img src="/2020/08/26/tidb-lesson-3/pprof-cpu-tpcc-prepare.png" class="">
+<ul>
+<li>run 期间的 CPU Profiling：</li>
+</ul>
+<img src="/2020/08/26/tidb-lesson-3/pprof-cpu-tpcc-run.png" class="">
+<p>从上述结果中我们可以清晰地看出：</p>
+<ol type="1">
+<li>prepare 阶段 Parser 的 CPU usage 占比很大</li>
+<li>run 阶段没有特别明显的 CPU usage 占比大的函数，其对 CPU
+的消耗表现为整体平均</li>
+<li>底层 gc 相关的逻辑显著的占用了 CPU 资源</li>
+</ol>
+<h2 id="性能瓶颈分析与优化建议">性能瓶颈分析与优化建议</h2>
+<p>从上一节的 Profiling 结果中，我们发现，除了与 gc 相关的 go 底层逻辑
+CPU 占用率很高以外，对 SQL 语句进行转换的 parser
+在大量插入数据时也是一块 CPU 热点。</p>
+<p>由于对 gc
+的优化可能会横跨各个功能，需要对各种模块的实现细节有一定的理解，因此本文中我们并不会对这部分做分析，而是转为对
+parser 这一较为独立的模块进行分析。</p>
+<h3 id="tidb-parser">TiDB Parser</h3>
+<p><a href="https://github.com/pingcap/parser">Parser</a>
+的功能边界很清晰，就是将请求中包含的字符串格式的 SQL 语句转换为符合 SQL
+语言标准的 AST
+抽象语法树，以便于后续对其进行校验、优化以及转化为执行计划。</p>
+<p>目前 parser 已经被封装为模块，独立出来，名字仍旧叫做 parser。对
+parser 的原理及实现进行初步的了解，可以参考<a
+href="https://pingcap.com/blog-cn/tidb-source-code-reading-5/">TiDB SQL
+Parser 的实现</a>。</p>
+<p>简单来说，parser 采用 lex + yacc 的方式实现对 SQL
+字符串的转换，其中词法分析 lex 的部分由 <code>lexer.go</code>
+实现，用以将 SQL 字符串拆分为各种不同的 token，其中 token 定义在
+<code>parser.y</code> 文件的第一部分中。</p>
+<p>之后，yacc 的部分由 <code>go-yacc</code> 工具通过读取
+<code>parser.y</code> 来生成 <code>parser.go</code> 实现。生成过程可参考
+<code>makefile</code> 中的片段：</p>
+<figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bin/goyacc -o parser.go -p yy -t Parser parser.y <span class="comment"># generated and printed by makefile</span></span><br></pre></td></tr></table></figure>
+<p><code>parser.go</code> 将会读取实现特定 interface 的词法分析器生成的
+token，并对其进行表达式解析，最终生成 AST。</p>
+<p>整体流程借用一张图（<a
+href="https://asktug.com/t/tidb-parser/70/2">原图出处</a>）：</p>
+<img src="/2020/08/26/tidb-lesson-3/parser.jpeg" class="">
+<p><code>yy_parser.go</code> 的 <code>Parse()</code>
+方法实现了这一过程：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(parser *Parser)</span></span> Parse(sql, charset, collation <span class="type">string</span>) (stmt []ast.StmtNode, warns []<span class="type">error</span>, err <span class="type">error</span>) &#123;</span><br><span class="line">	... ...</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// build lexer</span></span><br><span class="line">	<span class="keyword">var</span> l yyLexer</span><br><span class="line">	parser.lexer.reset(sql)</span><br><span class="line">	l = &amp;parser.lexer</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// do yacc</span></span><br><span class="line">	yyParse(l, parser)</span><br><span class="line"></span><br><span class="line">	... ...</span><br><span class="line">	<span class="keyword">return</span> parser.result, warns, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>yyParse()</code>方法是由 <code>goyacc</code>
+工具生成的语法解析器，而 <code>goyacc</code> 用 go 重写了 <a
+href="https://9p.io/magic/man2html/1/yacc"><code>plan 9</code> 开源的 c
+语言实现</a>，因此可知 <code>goyacc</code> 是一种 采用了 LR(1) 算法的
+yacc parser。</p>
+<p>yacc 是由 Stephen C. Johnson 在 1975 年发表的一种解析器，距离今天已有
+45 年历史。</p>
+<h3 id="antlr">ANTLR</h3>
+<p><a href="https://github.com/antlr/antlr4">ANTLR</a> 是由 <a
+href="http://www.cs.usfca.edu/~parrt/">Terence Parr</a> 开发维护的一种
+parser generator，相比 yacc，ANTLR 采用 Java
+开发，它更年轻，作者也在持续不断的维护。ANTLR 采用了一种由作者自己对 LL
+算法改进的算法： Adaptive LL（ALL(*)）算法。Spark SQL 的 SQL Parser
+实现就采用了 ANTLR 方案。</p>
+<p>ANTLR 的语法分析描述文件的格式与 yacc
+不同，这里引用官网的一个例子：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">grammar Expr;		</span><br><span class="line">prog:	(<span class="built_in">expr</span> NEWLINE)* ;</span><br><span class="line"><span class="built_in">expr</span>:	<span class="built_in">expr</span> (<span class="string">&#x27;*&#x27;</span>|<span class="string">&#x27;/&#x27;</span>) <span class="built_in">expr</span></span><br><span class="line">    |	<span class="built_in">expr</span> (<span class="string">&#x27;+&#x27;</span>|<span class="string">&#x27;-&#x27;</span>) <span class="built_in">expr</span></span><br><span class="line">    |	INT</span><br><span class="line">    |	<span class="string">&#x27;(&#x27;</span> <span class="built_in">expr</span> <span class="string">&#x27;)&#x27;</span></span><br><span class="line">    ;</span><br><span class="line">NEWLINE : [\r\n]+ ;</span><br><span class="line">INT     : [0-9]+ ;</span><br></pre></td></tr></table></figure>
+<p>在上述定义下，对于表达式 <code>100+2*34</code> ANTLR 会生成如下
+AST：</p>
+<img src="/2020/08/26/tidb-lesson-3/antlr-tree.png" class="">
+<p>目前最新的 ANTLR 4 已经支持根据语法定义文件生成多种语言的实现，<a
+href="https://github.com/antlr/antlr4/blob/master/doc/go-target.md">包括
+Go</a>。</p>
+<h3 id="antlr-vs.-yacc">ANTLR vs. yacc</h3>
+<p>通过前文，我们了解了 TiDB 目前的 parser 方案采用了
+yacc，此外我们了解到一种目前很流行的新型 parser generator ——
+ANTLR。那么，ANTLR 相对 yacc 它的优势都有哪些呢？</p>
+<p>参考 <a
+href="https://tomassetti.me/why-you-should-not-use-flex-yacc-and-bison/">Why
+you should not use (f)lex, yacc and bison</a> 中总结的：</p>
+<ol type="1">
+<li>ANTLR 目前还在活跃开发期，而相比之下 yacc / bison
+很稳定同时也不再有新功能的开发了</li>
+<li>作为现代的 parser generator，ANTLR 的语法更强大且友好，而 yacc /
+bison 的语法老派且难以阅读</li>
+<li>ANTLR 支持各种类型的 Unicode</li>
+<li>ANTLR 采用 BSD 协议，而使用 GPL 协议的 Bison 放弃了大多数许可</li>
+<li>ANTLR 支持 EBNF</li>
+<li>ANTLR 支持 context-free 表达式，这能简化一些通用元素的定义</li>
+<li>相比 Bison 支持两种不同扩展性与性能的算法，ANTLR
+只支持一种在多数情况下性能不错的算法</li>
+<li>ANTLR 拥有完整的社区和文档</li>
+</ol>
+<p>从上述描述，我们能发现，较为年轻的 ANTLR 相比古老的 yacc /
+bison，更符合现代的需求，也更易用。</p>
+<p>不过，本文我们主要关注的是 TiDB Parser 的性能瓶颈问题，那么，假设
+TiDB Parser 采用的是 ANTLR 的方案实现，其性能相比目前会怎么样呢？</p>
+<p>ANTLR 的作者在他的<a
+href="https://www.antlr.org/papers/allstar-techreport.pdf">一篇论文</a>中对包括
+ALL(*) 在内的几种不同的 parser 算法的性能进行了对比分析，结果表明采用
+ALL(*) 实现的 ANTLR 的性能超过实现 GLR 算法的 Elkhound 4.4 倍，超过实现
+GLL 算法的 Rascal 135 倍。</p>
+<p>而在我们关注的 LALR 算法的对比中，虽然测试结果中 ANTLR 的性能超过实现
+LALR 算法的 SableCC 数十倍，但作者认为这是 SableCC 的实现问题而不是 LALR
+算法的问题，实际上的 LALR 性能应该与 ALL(*) 不相上下。</p>
+<p>作者的测试结果如下：</p>
+<p><img src="/2020/08/26/tidb-lesson-3/algorithm-compare.png" class=""></p>
+<h3 id="性能优化建议">性能优化建议</h3>
+<p>根据前文的介绍与分析，我们也许能得出以下假设：</p>
+<ol type="1">
+<li>作为 SQL Parser，TiDB Parser 采用的 goyacc
+方案实现比较古老，可以预见如果不做定制化的优化，goyacc
+项目本身在今后应该不会有大的功能开发与性能优化。</li>
+<li>ANTLR 的性能理论上与实现了 LALR 算法的 goyacc 不相上下。但 ANTLR
+的作者的一个 FAQ 回答 <a
+href="https://github.com/antlr/antlr4/blob/master/doc/faq/general.md">Why
+do we need ANTLR v4?</a> 中，作者提到目前 ANTLR4
+仍然主要聚焦在易用性而不是性能上，作者在后续会考虑优化 ANTLR
+的性能，因此作为一个活跃的开源项目，ANTLR 的性能会越来越好。</li>
+<li>ANTLR4 目前已经支持生成 Go 语言 parser generator，更容易与 TiDB
+兼容。</li>
+</ol>
+<p>基于上述假设，TiDB Parser 作为从 TiDB
+拆分出来的独立项目，也许可以考虑提供一个基于 ANTLR
+的实现，并支持用户自定义切换，以这种方式来提升 Parser
+的性能和扩展性。</p>
+<p>本节的建议已经在 TiDB Parser 项目中提出了一个 Issue，Issue num: <a
+href="https://github.com/pingcap/parser/issues/998">#998</a>。</p>
+<img src="/2020/08/26/tidb-lesson-3/issue.png" class="">
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/08/26/tidb-lesson-3/" title="TiDB 学习课程 Lesson-3">http://lenshood.github.io/2020/08/26/tidb-lesson-3/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/tidb/" rel="tag"># tidb</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/08/19/tidb-lesson-2/" rel="prev" title="TiDB 学习课程 Lesson-2">
+                  <i class="fa fa-angle-left"></i> TiDB 学习课程 Lesson-2
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/09/06/tidb-lesson-4/" rel="next" title="TiDB 学习课程 Lesson-4">
+                  TiDB 学习课程 Lesson-4 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

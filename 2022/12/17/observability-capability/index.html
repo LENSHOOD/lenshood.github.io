@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文通过介绍可观测性成熟度模型，讨论了企业可观测性能力的建设。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从成熟度模型看可观测性能力建设">
+<meta property="og:url" content="http://lenshood.github.io/2022/12/17/observability-capability/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文通过介绍可观测性成熟度模型，讨论了企业可观测性能力的建设。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2022/12/17/observability-capability/header.jpg">
+<meta property="og:image" content="https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure2.png">
+<meta property="og:image" content="https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure4.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/12/17/observability-capability/Magic-Quadrant.png">
+<meta property="og:image" content="https://imgix.datadoghq.com/img/products/usm/light-service-map-min.png?ch=Width%2cDPR%2cSave-Data&fm=png&auto=format&fit=max&w=1498">
+<meta property="og:image" content="http://lenshood.github.io/2022/12/17/observability-capability/dynatrace-platform.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/12/17/observability-capability/cncf.png">
+<meta property="article:published_time" content="2022-12-17T12:15:53.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.306Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="observability">
+<meta property="article:tag" content="maturity model">
+<meta property="article:tag" content="monitoring">
+<meta property="article:tag" content="capability">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2022/12/17/observability-capability/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2022/12/17/observability-capability/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2022/12/17/observability-capability/","path":"2022/12/17/observability-capability/","title":"从成熟度模型看可观测性能力建设"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>从成熟度模型看可观测性能力建设 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%90%E7%BB%B4%E6%8C%91%E6%88%98%E4%B8%8E%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7"><span class="nav-number">1.</span> <span class="nav-text">运维挑战与可观测性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%81%E4%B8%9A%E8%BF%90%E7%BB%B4%E7%9A%84%E6%8C%91%E6%88%98"><span class="nav-number">1.1.</span> <span class="nav-text">企业运维的挑战</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E7%9A%84%E7%9B%AE%E6%A0%87"><span class="nav-number">1.2.</span> <span class="nav-text">可观测性的目标</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E6%88%90%E7%86%9F%E5%BA%A6%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.</span> <span class="nav-text">可观测性成熟度模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%88%90%E7%86%9F%E5%BA%A6%E7%AD%89%E7%BA%A7"><span class="nav-number">2.1.</span> <span class="nav-text">成熟度等级</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#level-1%E7%9B%91%E6%8E%A7"><span class="nav-number">2.1.1.</span> <span class="nav-text">Level 1：监控</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#level-2%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7"><span class="nav-number">2.1.2.</span> <span class="nav-text">Level 2：可观测性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#level-3%E5%9B%A0%E6%9E%9C%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7"><span class="nav-number">2.1.3.</span> <span class="nav-text">Level 3：因果可观测性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#level-4%E4%BD%BF%E7%94%A8-aiops-%E7%9A%84%E4%B8%BB%E5%8A%A8%E5%BC%8F%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7"><span class="nav-number">2.1.4.</span> <span class="nav-text">Level 4：使用 AIOps
+的主动式可观测性</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%A0%E6%9E%9C%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7"><span class="nav-number">2.2.</span> <span class="nav-text">因果可观测性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E8%83%BD%E5%8A%9B%E5%BB%BA%E8%AE%BE"><span class="nav-number">3.</span> <span class="nav-text">可观测性能力建设</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%85%B3%E9%94%AE%E8%83%BD%E5%8A%9B"><span class="nav-number">3.1.</span> <span class="nav-text">可观测性关键能力</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88%E9%A2%86%E5%AF%BC%E8%80%85"><span class="nav-number">3.1.1.</span> <span class="nav-text">解决方案领导者</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%81%E4%B8%9A%E8%83%BD%E5%8A%9B%E5%BB%BA%E8%AE%BE"><span class="nav-number">3.2.</span> <span class="nav-text">企业能力建设</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%95%86%E4%B8%9A%E5%8C%96%E6%96%B9%E6%A1%88"><span class="nav-number">3.2.1.</span> <span class="nav-text">商业化方案</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%87%AA%E5%BB%BA%E5%B9%B3%E5%8F%B0"><span class="nav-number">3.2.2.</span> <span class="nav-text">自建平台</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2022/12/17/observability-capability/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="从成熟度模型看可观测性能力建设 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          从成熟度模型看可观测性能力建设
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2022-12-17 20:15:53" itemprop="dateCreated datePublished" datetime="2022-12-17T20:15:53+08:00">2022-12-17</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2022/12/17/observability-capability/header.jpg" class="" width="500">
+<p>本文通过介绍可观测性成熟度模型，讨论了企业可观测性能力的建设。</p>
+<span id="more"></span>
+<h2 id="运维挑战与可观测性">运维挑战与可观测性</h2>
+<p>近 10 年间，企业线上服务与 IT
+基础设施的规模不断扩大，各种与之匹配的研发实践、生态如微服务、DevOps、云原生等等也不断的发展。在
+Canonical 发布的 <a
+href="https://juju.is/cloud-native-kubernetes-usage-report-2022"><em>Kubernetes
+and cloud native operations report 2022</em></a> 中显示：超过 40%
+的受访者所在的组织运行了超过 100 台机器（包括VM、Bare Metal 等），而超过
+20% 的受访者所在的组织，拥有超过 10 个 Kubernetes 生产集群。</p>
+<h3 id="企业运维的挑战">企业运维的挑战</h3>
+<p>业务复杂度的提升以及规模的扩大，让运维工作愈发关键且困难，而为了快速响应业务变化，对
+DevOps 的要求也越来越高。例如在 DORA Four Keys
+中提到，对于发布频率这一指标，精英级别要求能够按需发布，实现每日变更多次。但发布变更常伴随着故障。</p>
+<blockquote>
+<p>76% 的 IT 系统故障是由变更引起的</p>
+<p>-- <a
+href="https://www.dej.cognanta.com/2020/01/24/18-key-areas-shaping-it-performance-markets-in-2020/"><em>18
+Key Areas Shaping IT Performance Markets in 2020</em></a></p>
+</blockquote>
+<p>多数故障都是由变更引起的，而对变更频率的要求又越来越高，虽然可以通过提升软件质量来降低故障率，但故障是不可避免一定会发生的。为了降低故障对业务的影响，我们便期望修复故障的时间尽可能的短，但修复故障的前提是定位故障。</p>
+<blockquote>
+<p>66% 的 <a
+href="https://cloud.google.com/blog/products/devops-sre/using-the-four-keys-to-measure-your-devops-performance">MTTR</a>
+用于识别是什么变化导致了故障</p>
+<p>-- <a
+href="https://www.dej.cognanta.com/2022/07/14/2022-state-of-managing-it-performance-study-key-takeaways/"><em>2022
+State of Managing IT Performance Study – Key Takeaways</em></a></p>
+</blockquote>
+<p>日趋复杂的系统让故障根因难以直观地显现，毕竟规模越大的业务，其所涉及到的各种应用、服务、基础设施等环节可能越复杂。因此系统复杂度的上升，导致处理故障的大部分时间都花费在定位问题上。</p>
+<p>对系统发生了什么了如指掌是定位问题的前提，因此如何监控整个线上系统，如何获悉规模巨大的系统的运行状态，成为了一大挑战。这种挑战反过来也促进了可观测性领域的发展。</p>
+<h3 id="可观测性的目标">可观测性的目标</h3>
+<p>对于数字化落地较早的企业，为了应对挑战，可能早已构建了 APM、NPM
+监控系统，以及开源的或是商用的追踪系统等。而对于传统企业可能数字化的步伐才刚刚开始，线上服务还停留在从无到有的阶段。</p>
+<p>那么企业处于自身特定的发展语境下，对可观测性的要求有什么异同呢？</p>
+<p>总体上看，可观测性代表了<strong>对系统形成洞察</strong>的能力，可观测性水平越高，对系统形成的洞察就越深。因此不论企业的数字化程度是低是高，其构建可观测性能力的目标都是不会改变的。</p>
+<p>这些目标包括：</p>
+<ul>
+<li><p>更全面的收集系统上下文</p>
+<p>系统可观测的前提是收集数据，各种遥测数据反映了系统当时的上下文。因此数据越多越全，对系统运行的还原度就越高。但由于采样底噪以及数据管理等问题，既要获得全面的上下文，又要限制收集的规模，权衡并不容易。</p></li>
+<li><p>更有效的关联各层级数据</p>
+<p>遥测数据是单一而孤立的，基础设施层关心的数据与业务应用关心的数据可能相去甚远。数据之间只有建立起关系，人脑才易于从中发现问题，抽丝剥茧。数据形成关联的有效程度，与能从中获得洞察的深度成正比。</p></li>
+<li><p>更自动化的寻找问题根因</p>
+<p>数据规模可能会指数增长，但人脑的产出只能随着时间线性增长。因此如何通过自动化的手段，降低人脑的认知成本，缩短人工时间，逐渐变得愈发重要。</p></li>
+</ul>
+<p>不同企业之间可观测性能力建设的差异，可能主要体现在对上述目标的完成程度上。</p>
+<p>企业可观测性能力的建设是持续深入的过程，那么如何才能衡量现状，发现不足进而指导未来的方向呢？</p>
+<h2 id="可观测性成熟度模型">可观测性成熟度模型</h2>
+<p>StackState 作为一家提供可观测性解决方案的咨询公司，发布了一份 <a
+href="https://www.stackstate.com/white-paper/observability-maturity-model/">《可观测性成熟度模型》</a>，基于其对真实问题、客户讨论以及技术研究，旨在帮助企业在可观测性能力建设上作为指导。</p>
+<h3 id="成熟度等级">成熟度等级</h3>
+<p>《可观测性成熟度模型》将可观测性分为四个等级，从低到高，越高的等级代表越能深入的对系统进行观测洞察。</p>
+<h4 id="level-1监控">Level 1：监控</h4>
+<p>监控代表了相对古老而简单的观测手段：跟踪数值。</p>
+<p>跟踪的数值通常专注于基本的组件、应用层面的参数指标，如可用性、性能、容量指标等等。每一次对指标的采集将产生一个事件，事件结合某些阈值，则可能引发报警。</p>
+<p>作为最初级的可观测性，通过跟踪数值和指标报警的能力，企业能够获悉组件或应用的健康状态，并在出现故障后得到通知。然而，跟踪数值加报警的形式，的确能告诉运维人员组件出了故障，但故障的原因是什么，需要联系谁来解决该问题，都无法在这一级别得到很好的处理。</p>
+<p>此外，随着时间的推移，越来越多的指标项被加入监控系统，结果一个问题可能会导致一连串的指标报警，从而出现
+“到处亮红灯，但不知道发生了什么” 的窘境。</p>
+<h4 id="level-2可观测性">Level 2：可观测性</h4>
+<p>可观测性是可观测性成熟度模型的第二个等级（名字起得差强人意）。由于上一级别遗留的问题，即只知道出了故障但难以得知故障产生的具体原因。因此第二级的目标就是能确定系统不工作的原因。</p>
+<p>第二级可观测性，通常可以采用 “指标”、“日志”、“跟踪”
+这三种关键类型的遥测数据来提供系统洞察力。“指标”
+与上一级的跟踪数值基本一致。“日志”是对系统中发生事件的带时间戳的记录。”跟踪“则能显示数据是如何从头至尾流经系统的。</p>
+<p>实际上，我们会发现这三种关键数据（某些文章称之为三大支柱）已经广泛的应用在了成熟的微服务系统中，围绕着“三大支柱”的各种解决方案也层出不穷。总之，通过合理的方案采集这些遥测数据，并展示在仪表板上，就实现了第二级的可观测能力。</p>
+<p>诚然，借助”三大支柱“的有力支持，第二级可观测能力能够更广泛而全面的了解整个系统的运行状态。但随着系统规模的扩大，遥测数据会越来越多，不同的遥测数据也可能会存在于不同的系统中（数据孤岛）。那么当出现问题时就需要通过人工从大量遥测数据中抽丝剥茧，关联因果关系。随着规模的扩大，受限于人力排查，MTTR
+的时间也会不断延长。</p>
+<h4 id="level-3因果可观测性">Level 3：因果可观测性</h4>
+<p>通过人工建立数据相关性，低效且不直观。因果可观测性，作为第三个级别，能够通过某些手段揭示这种相关性，从而达到找到事件发生的原因且确定其对整个系统影响的目的。</p>
+<p>具体通过何种手段建立相关性，将在下一节描述。那么假如已经实现了因果可观测性能力，可能会遇到的新的挑战可能是什么？</p>
+<p>如何对数据规范化，如何长期存储并高效使用这些数据可能会是下一阶段的挑战。另外，巨大的数据量也会导致即使揭示了数据的相关性，但仍然需要耗费大量时间来从噪音中分离出有用的信号。</p>
+<h4 id="level-4使用-aiops-的主动式可观测性">Level 4：使用 AIOps
+的主动式可观测性</h4>
+<p>通过 AI 和 ML
+的方式从堆积如山的数据中寻找模式，从而能帮助团队更快的发现问题。在指标报警和警告中找到模式的变化，可以帮助团队提前预知可能发生的故障，进而实现预防性的、无事故的运维目标。</p>
+<p>AIOps
+能够提升效率，提高根因分析的准确率，甚至预测异常和实现系统自愈。</p>
+<h3 id="因果可观测性">因果可观测性</h3>
+<p>从前面可观测性的四个成熟度等级可以发现，可观测性成熟度第二级别，得益于开源技术的成熟，是目前多数系统能够达到或是已经处于的位置。而更进一步，达到因果可观测性，则是相对清晰的发展方向。那么，如何实现因果可观测性的目标，建立数据之间的相关性呢？</p>
+<p>《可观测性成熟度模型》中给出的方法，是建立<strong>时间序列下的拓扑结构变化视图</strong>。</p>
+<p>对系统进行故障根因调查时，先看看系统
+”发生了哪些变化“，是一个合理的切入点。毕竟大多数故障都是因系统发生了变更而引起的，比如新的代码部署、配置变更、自动扩缩容等等。</p>
+<p>但复杂的系统可能会发生不止一处变化，如果能对比故障发生前后，整个系统栈的拓扑结构变化以及组件之间的关系变化，就能清晰的辨别出变化点及其之间的关系。</p>
+<p>拓扑结构是系统内所有组件的地图，它跨越了所有层次，是离散组件之间关系和依赖的集合。</p>
+<blockquote>
+<p>现代环境由许多动态层、微服务、无服务器应用和网络技术组成，因此在你的可观测性组合中加入最新的拓扑结构，对于区分因果关系至关重要。拓扑结构为数以千计的未连接的数据流提供了锚点，使它们具有结构性，使以前看不见的连接变得可见。拓扑可视化让你在全栈活动的背景下查看来自网络、基础设施、应用程序和其他领域的遥测数据；它还为你提供了重要的背景，让你知道当某些事情发生时，你的业务是如何受到影响的。</p>
+<p>--《可观测性成熟度模型》</p>
+</blockquote>
+<p><img src="https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure2.png" style="zoom:30%;" /></p>
+<p>如上图所示，将原本孤立的数据比如服务的注册发现、自动化部署、请求追踪等等数据汇聚，形成完整的拓扑结构，那么第一级与第二级已经实现收集的各种遥测数据就都可以挂载在拓扑图上。</p>
+<p>此外，单有拓扑图还不够。对实施自动化运维的现代系统环境中，频繁的发布、不断变化的基础设施以及动态扩缩容使得拓扑结构变化的很快，处理问题时刻的系统拓扑，可能已经与发生问题时刻完全不同了。</p>
+<p>因此，除了构建拓扑结构来关联数据，留存基于时间的快照也非常关键。一旦拥有了随时间变化的拓扑结构快照，就可以在时间线上自由的对比拓扑的变化并查看对应的遥测数据。</p>
+<p><img src="https://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure4.png" style="zoom:30%;" /></p>
+<p>透过时间序列下的拓扑结构视图，数据孤岛被弥合起来，大大加快了根因分析的速度。关联起来的数据也易于建立模式，为自动化分析奠定基础。当然，建立这样的数据模型并不容易，除了技术上的挑战，可能还涉及组织上的变革。目前已经有例如
+<a href="https://opentelemetry.io/"><code>OpenTelemetry</code></a>
+这类开放标准，尝试先从遥测数据收集的角度建立初步的关联，虽然遥测数据只是第一步，但也是一个良好的开始。</p>
+<h2 id="可观测性能力建设">可观测性能力建设</h2>
+<p>成熟度模型为企业可观测性演进的方向提供了阶段性的参考，那么在建立系统可观测性过程中，具体需要关注哪些关键能力来覆盖企业需求呢？</p>
+<h3 id="可观测性关键能力">可观测性关键能力</h3>
+<p>Gartner 在 2022 年年中发布的 <a
+href="https://www.gartner.com/en/documents/4015403"><em>Critical
+Capabilities for Application Performance Monitoring and
+Observability</em></a> 梳理了APM
+和可观测性工具的关键功能需求，以及基于需求所映射的六项关键能力。虽然
+Gartner
+的报告主要侧重于商业工具与平台的选型，但对于企业自身的可观测性能力建设亦有指导和借鉴意义。</p>
+<p>APM 和可观测性工具的关键功能性需求包括：</p>
+<ul>
+<li>对应用完整事务行为的观测</li>
+<li>自动发现并映射应用及基础设施依赖（包括云服务）</li>
+<li>监控在移动设备和桌面浏览器上运行的应用程序</li>
+<li>识别并分析应用程序性能问题及其对业务成果的影响</li>
+<li>与自动化和服务管理工具的原生集成能力，以及与公有云提供商的集成——例如，Amazon
+Web Services (AWS) CloudWatch、Azure Monitor 和 Google Cloud
+Operations</li>
+<li>业务关键绩效指标 (KPI) 和用户旅程分析</li>
+<li>能够对多种遥测类型（例如跟踪、指标和日志）执行交互式询问以检测“未知的未知(unknown
+unknowns)”——即识别意外事件的根原</li>
+<li>应用程序安全功能，通常通过代理或框架提供</li>
+</ul>
+<p>基于上述关键需求，划分出六种关键能力：</p>
+<p><strong>应用程序调试及分布式剖析（ADDP）</strong>：识别代码内的缺陷及错误的根源，来缓解性能下降问题</p>
+<p><strong>行为分析</strong>：支撑对用户及应用行为的探索和分类</p>
+<p><strong>业务分析</strong>：通过统计各项业务 KPI
+（如转化率、弃购率、业务健康度）来为营销人员和应用开发者提供对整个业务条线的洞察力</p>
+<p><strong>IT 服务和基础设施监控</strong>：以类似 SLA、OLA、SLO
+的形式为开发者、DevOps、运维团队等提供基础设施、关键服务的健康度</p>
+<p><strong>根因分析</strong>：通过 APM
+等技术建立问题、原因、影响的关系链条，支撑故障修复</p>
+<p><strong>运行时应用程序自我保护（RASP）</strong>：在运行时识别易受攻击的组件并在一定程度上阻止风险请求</p>
+<h4 id="解决方案领导者">解决方案领导者</h4>
+<p>Gartner 在上述报告发布的同时，还发布了<a
+href="https://www.gartner.com/en/documents/4015367"><em>Magic Quadrant
+for Application Performance Monitoring and
+Observability</em></a>，基于前述的六大关键能力，将市面上的一些商业化解决方案在
+“魔力象限” 内进行了划分（存在一定恰饭的成分）。</p>
+<img src="/2022/12/17/observability-capability/Magic-Quadrant.png" class="">
+<p>如图可见，在魔力象限的解决方案领导者中，Datadog 和 Dynatrace
+遥遥领先，研究这些商业化解决方案，能帮助我们构建对可观测性能力的具象化认知。</p>
+<p><a href="https://www.datadoghq.com/"><strong>Datadog</strong></a></p>
+<p>Datadog 主推的是纯 SaaS 化的一站式解决方案。</p>
+<p>用户只需要通过部署
+Agent、提供凭证等方式即可将主机、容器、网络、流水线、各种云服务等 DevOps
+全生命周期内涉及到的多种系统、应用、服务等的数据接入 Datadog 平台。</p>
+<p>但 Datadog 只支持 SaaS 服务形式，因此所有的数据都由 Datadog
+来管理。</p>
+<p>除了APM、日志分析、用户体验监控等常见的能力，Datadog
+在数据关联和系统集成方面拥有一定优势。</p>
+<p>例如Datadog 原生支持了
+600+种平台、云厂商、服务等的指标和事件的收集：</p>
+<video autoplay muted width="800">
+<source src="https://imgix.datadoghq.com/video/short-integrations-comp.mp4?fm=webm&fit=max" type="video/mp4">
+</video>
+<p>此外，通过 <a
+href="https://www.datadoghq.com/product/service-catalog/">Service
+Catalog</a>
+功能，能够将各层级服务之间的状态、依赖、实时性能聚合在一起展示（类似时间序列拓扑结构）：</p>
+<p><img src="https://imgix.datadoghq.com/img/products/usm/light-service-map-min.png?ch=Width%2cDPR%2cSave-Data&fm=png&auto=format&fit=max&w=1498" style="zoom:50%;" /></p>
+<video autoplay muted width="800">
+<source src="https://imgix.datadoghq.com/video/products/service-catalog/service-catalog-section-2-v3.mp4?fm=webm&fit=max" type="video/mp4">
+</video>
+<p><a
+href="https://www.dynatrace.com/"><strong>Dynatrace</strong></a></p>
+<p>Dynatrace 提供的也是类似的一站式解决方案 ”Dynatrace Software
+Intelligence Platform“。但与 Datadog
+不同之处在于该解决方案可以定制化的进行私有部署，按 License 付费。</p>
+<img src="/2022/12/17/observability-capability/dynatrace-platform.png" class="">
+<p>Dynatrace 通过几种关键技术来实现可观测性能力：</p>
+<ul>
+<li>OneAgent：数据探针，部署后支持收集硬件、操作系统、应用程序的各种信息。与
+Datadog Agent 不同的是，Dynatrace 的 Agent 是闭源的</li>
+<li>PurePath：分布式追踪和代码级分析。实现从用户页面到后端服务以及基础设施的分布式追踪，以及各前后端应用的代码级分析和剖析</li>
+<li>Smartscape：应用程序及其基础设施之间的依赖、关联映射关系的可视化，类似
+Datadog 的 Service Catalog</li>
+<li>Grail：主要提供对收集到的各类数据进行处理和分析的能力</li>
+<li>Davis AI：AIOps
+能力，提供包括异常探测、根因分析、自动化运维等能力</li>
+</ul>
+<p>可见以上两家 “领导者象限”
+的商业化方案，主打的都是一站式解决可观测性问题，都已经实现了
+“时间序列下的拓扑结构变化视图”
+能力。此外，相对开源软件，商业化方案在对各类语言、平台、库的集成上也有很大优势。最后，两家解决方案在
+AIOps 上也涉及了部分能力。</p>
+<h3 id="企业能力建设">企业能力建设</h3>
+<p>企业在面临对可观测性能力的需求时，结合自身状况，可以选择开箱即用的商业化方案，也可以逐步培育团队，采用开源、自研等技术维护自建的平台。</p>
+<h4 id="商业化方案">商业化方案</h4>
+<p>对于强业务型企业，使用商业化的解决方案也许是一条最便捷，成本也相对较低的途径。</p>
+<p>SaaS
+方案通常按接入的主机数量收费，接入后享受商业服务，企业自身就无需投入过多人力。由于可观测性能力本身通用属性较强，商业化方案所提供的能力很容易满足企业的基础需求，因此定制化的工作也偏少。</p>
+<p>花钱就能解决问题，对企业来说是有吸引力的。各种商业化方案的收费模式也都比较灵活，以按需付费为主流。</p>
+<p>以 Datadog 为例，付费模式为分功能按 Host
+付费。不同的功能如基础设施集成、日志管理、APM 等，每月费用大致在 $10~40
+左右。</p>
+<p>假如一家企业，生产环境集群包含 100
+个节点，购买了Infrastructure($23/mon)、APM($40/mon) 和 Universal Service
+Monitoring(即 Service Catalog $9/mon) 功能，每月预计花费是 $7200。</p>
+<p>采用商业化方案可能面临的问题是：</p>
+<ol type="1">
+<li>随着业务规模的扩张，费用会越来越高，订阅模式本身就是一项长期投入。</li>
+<li>相比 PaaS 云服务，SaaS
+服务更容易产生平台绑定。不论是合作平台出现故障还是更新了报价，对业务的影响面都会很广。</li>
+<li>SaaS 接入方式下，数据在合作平台存放，可能存在数据安全风险。如果是
+License 形式的私有化部署，维护成本就相对更高。</li>
+<li>与业务相关的需求、特殊的环境、小众的软硬件等等个性化场景，企业仍需投入研发来对接
+SaaS 平台。</li>
+</ol>
+<h4 id="自建平台">自建平台</h4>
+<p>有些企业可能已经维护了一套监控平台，期望基于遗留平台来扩充和增强可观测性能力；也可能由于市场和生态的原因，不习惯引入商业化方案或是找不到符合要求的供应商。总之基于实际情况，企业选择通过自建平台的方式来进行可观测性能力建设也合情合理。</p>
+<p>自建平台的挑战主要涉及团队能力、开源软件整合以及可能的组织变革等。</p>
+<p>通常选择自建平台的的企业其线上服务规模都相对较大，可观测性平台研发团队作为支撑层的团队，对研发能力要求较高，需要熟悉企业的技术架构以及各种开源软件的二次开发。</p>
+<p>在研发层面，即使是自研平台，也势必会通过整合各类开源软件来协助实现可观测性能力。不同的开源软件可能解决的是不同方向的问题，如通过
+Prometheus 实现 Metrics 监控和报警，通过 EFK 来监控日志，通过 Skywalking
+来实现分布式追踪。但这些方案相互之间数据结构不统一，数据的存储与分析也都各自为战，如何更好的利用及整合它们很有挑战性。OpenTelemetry
+项目的发展在一定程度上解决了采集探针和数据结构不统一的问题，但在采集到数据之后对数据进行分析和展现的能力上并没有标准化的方案。</p>
+<img src="/2022/12/17/observability-capability/cncf.png" class="" width="500">
+<p>（CNCF Landscape 中的可观测性部分）</p>
+<p>所以自研的手段虽然最灵活，但想要达到实现了各类数据关联在
+”时间序列下拓扑结构变化视图”
+的因果可观测性程度，对研发的要求并不低。</p>
+<p>最后，作为支撑性能力，可观测性平台的数据来自各业务线，如何打通部门墙，整合各种异构的业务数据，并推动业务部门接入平台，也许需要自上而下的支持和一些组织变革才能顺利进行。</p>
+<h2 id="总结">总结</h2>
+<p>本文通过介绍《可观测性成熟度模型》，结合
+“可观测性关键能力”，尝试讨论了可观测性的发展趋势以及企业可观测性能力的建设。</p>
+<p>可以预见，企业对可观测性的重视程度会越来越高，未来通过更加成熟的可观测性能力，企业不仅能洞察在线服务的运行状况，还可以支撑商业分析、精细化成本管理、自动化运维等多种场景的需要。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2022/12/17/observability-capability/" title="从成熟度模型看可观测性能力建设">http://lenshood.github.io/2022/12/17/observability-capability/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/observability/" rel="tag"># observability</a>
+              <a href="/tags/maturity-model/" rel="tag"># maturity model</a>
+              <a href="/tags/monitoring/" rel="tag"># monitoring</a>
+              <a href="/tags/capability/" rel="tag"># capability</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/12/06/multi-runtime/" rel="prev" title="多运行时架构解决了什么问题？">
+                  <i class="fa fa-angle-left"></i> 多运行时架构解决了什么问题？
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/12/29/ddia-note/" rel="next" title="（WIP）读 DDIA 书评与总结">
+                  （WIP）读 DDIA 书评与总结 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

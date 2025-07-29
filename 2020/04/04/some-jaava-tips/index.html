@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="一些 Java 语言 Tips 本文包括一些 Java 语言在使用中常见的小错误以及不佳实践，他们收集自我的日常开发、Code Review、以及书中所见。持续更新...">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一些 Java 语言 Tips">
+<meta property="og:url" content="http://lenshood.github.io/2020/04/04/some-jaava-tips/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="一些 Java 语言 Tips 本文包括一些 Java 语言在使用中常见的小错误以及不佳实践，他们收集自我的日常开发、Code Review、以及书中所见。持续更新...">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-04-04T12:56:16.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.421Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="tips">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/04/04/some-jaava-tips/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/04/04/some-jaava-tips/","path":"2020/04/04/some-jaava-tips/","title":"一些 Java 语言 Tips"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>一些 Java 语言 Tips | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%80%E4%BA%9B-java-%E8%AF%AD%E8%A8%80-tips"><span class="nav-number">1.</span> <span class="nav-text">一些 Java 语言 Tips</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%8C%E6%8B%AC%E5%8F%B7%E5%88%9D%E5%A7%8B%E5%8C%96dbi"><span class="nav-number">1.1.</span> <span class="nav-text">双括号初始化（DBI）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BC%AA%E5%94%A4%E9%86%92-spurious-wakeup"><span class="nav-number">1.2.</span> <span class="nav-text">伪唤醒 （Spurious Wakeup）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BC%AA%E5%94%A4%E9%86%92"><span class="nav-number">1.2.0.1.</span> <span class="nav-text">伪唤醒</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%85%8E%E7%94%A8-stream.peek"><span class="nav-number">1.3.</span> <span class="nav-text">慎用 Stream.peek()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BC%AA%E5%85%B1%E4%BA%AB"><span class="nav-number">1.4.</span> <span class="nav-text">伪共享</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#contended"><span class="nav-number">1.4.0.1.</span> <span class="nav-text">@Contended</span></a></li></ol></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/04/04/some-jaava-tips/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="一些 Java 语言 Tips | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          一些 Java 语言 Tips
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-04-04 20:56:16" itemprop="dateCreated datePublished" datetime="2020-04-04T20:56:16+08:00">2020-04-04</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h1 id="一些-java-语言-tips">一些 Java 语言 Tips</h1>
+<p>本文包括一些 Java
+语言在使用中常见的小错误以及不佳实践，他们收集自我的日常开发、Code
+Review、以及书中所见。持续更新...</p>
+<span id="more"></span>
+<h2 id="双括号初始化dbi">双括号初始化（DBI）</h2>
+<p>在 Java 9 之前，想要在 Field
+中初始化一个集合供其他方法使用，他的样子是尴尬而丑陋的： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> List&lt;String&gt; initListBeforeJava9 = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line"><span class="keyword">static</span> &#123;</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Dopey&quot;</span>);</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Doc&quot;</span>);</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Bashful&quot;</span>);</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Happy&quot;</span>);</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Grumpy&quot;</span>);</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Sleepy&quot;</span>);</span><br><span class="line">    initListBeforeJava9.add(<span class="string">&quot;Sneezy&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+因此，或多或少的，我们会看到那个时候的代码有一种“更优雅”的实现法：
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> List&lt;String&gt; doubleBraceCollectionInit =</span><br><span class="line">            <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;String&gt;()&#123;&#123;</span><br><span class="line">                add(<span class="string">&quot;Dopey&quot;</span>);</span><br><span class="line">                add(<span class="string">&quot;Doc&quot;</span>);</span><br><span class="line">                add(<span class="string">&quot;Bashful&quot;</span>);</span><br><span class="line">                add(<span class="string">&quot;Happy&quot;</span>);</span><br><span class="line">                add(<span class="string">&quot;Grumpy&quot;</span>);</span><br><span class="line">                add(<span class="string">&quot;Sleepy&quot;</span>);</span><br><span class="line">                add(<span class="string">&quot;Sneezy&quot;</span>);</span><br><span class="line">            &#125;&#125;;</span><br></pre></td></tr></table></figure> 这种方式有一个专门的名字：DBI（Double Brace
+Initialization）。然而，他只是看起来美一些，其实并不好。</p>
+<p>首先，这种初始化方式的本质是： - 第一层大括号，创建了一个
+<code>ArrayList&lt;String&gt;</code>的匿名子类 -
+第二层大括号，在匿名子类中构建一个代码块（也叫构造块），在代码块中调用父类的
+<code>add</code> 方法来进行初始化</p>
+<p>我们知道，Java 匿名类是可以直接访问外层类成员的： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Outer</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">outerField</span> <span class="operator">=</span> <span class="string">&quot;outer_flied&quot;</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">Inner</span> <span class="variable">inner</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Inner</span>() &#123;</span><br><span class="line">        <span class="keyword">void</span> <span class="title function_">printOuter</span><span class="params">()</span> &#123;</span><br><span class="line">            System.out.println(outerField);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+之所以能够访问外层成员，是由于 Java
+内部匿名类保存了对外层类对象的引用。那么，就存在一个问题：</p>
+<p>假如采用 DBI
+对某集合成员进行构造，在之后的某些逻辑中，将该集合成员<strong>发布</strong>了出去。由于存在引用关系，那么外层类对象，就再也无法被回收，直到这个被发布出去的集合对象被回收为止。</p>
+<p>所以说，<strong>DBI 会存在内存泄漏的风险</strong>。</p>
+<p>不过，话说回来，第一种初始化方式，确实有点不够美观，幸好我们有了 Java
+9： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> List&lt;String&gt; java9CollectionInit =</span><br><span class="line">            List.of(<span class="string">&quot;Dopey&quot;</span>, <span class="string">&quot;Doc&quot;</span>, <span class="string">&quot;Bashful&quot;</span>, <span class="string">&quot;Happy&quot;</span>, <span class="string">&quot;Grumpy&quot;</span>, <span class="string">&quot;Sleepy&quot;</span>, <span class="string">&quot;Sneezy&quot;</span>);</span><br></pre></td></tr></table></figure></p>
+<h2 id="伪唤醒-spurious-wakeup">伪唤醒 （Spurious Wakeup）</h2>
+<p>首先看一段代码： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SpuriousWakeup</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Random</span> <span class="variable">RANDOM</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Random</span>();</span><br><span class="line">    <span class="keyword">private</span> <span class="type">boolean</span> <span class="variable">condition</span> <span class="operator">=</span> RANDOM.nextBoolean();</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">notifier</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">synchronized</span> (<span class="built_in">this</span>) &#123;</span><br><span class="line">            ... ...</span><br><span class="line">            notify();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">wrongWaiter</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">synchronized</span> (<span class="built_in">this</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (condition) &#123;</span><br><span class="line">                wait();</span><br><span class="line">            &#125;</span><br><span class="line">            ... ...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+上述代码中，<code>wrongWaiter()</code>根据 <code>condition</code>
+来判断是否进行 <code>wait()</code>，而对应的，在
+<code>notifier()</code>中进行 <code>notify()</code>。</p>
+<p>类似这种 <code>wait - notify</code>
+结构是代码中很常见的一种多线程协作结构，但上述代码中存在问题：</p>
+<p><code>wait()</code>有被伪唤醒的可能，什么是或怎么样伪唤醒先放一边，我们可以暂且认为被伪唤醒的线程，实际上没有达到唤醒条件。</p>
+<p>那么会怎么样呢？ 假如 <code>wrongWaiter()</code> 被伪唤醒，则
+<code>wait()</code>
+语句阻塞解除，之后的逻辑会在不安全的情况下被执行，那么执行结果也就是不可信的了。</p>
+<p>在某些情况下，这非常危险。</p>
+<p>因此，对于防止伪唤醒，在使用 <code>wait()</code>
+时，应该确保条件判断被放在 <code>while</code>
+循环中，当被唤醒时再次判断条件，直到不满足为止，见如下代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> <span class="title function_">correctWaiter</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">synchronized</span> (<span class="built_in">this</span>) &#123;</span><br><span class="line">            <span class="keyword">while</span> (condition) &#123;</span><br><span class="line">                wait();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>在《Java 并发编程实战》章节 14 中提到：当使用条件等待时： - 在调用
+<code>wait()</code> 前测试条件谓词 - 在循环中调用 <code>wait()</code> -
+确保先获取与条件队列相关的锁</p>
+<h4 id="伪唤醒">伪唤醒</h4>
+<blockquote>
+<p><code>wait()</code> 方法过早的返回</p>
+</blockquote>
+<p>由于各种原因，<code>wait()</code> 可能会提前返回，可能的情况有： -
+由于调用 <code>notifyAll()</code> 使得所有正在等待的线程全部被唤醒 -
+线程被中断 - <code>wait()</code> 超时
+由于上述可能性，一个正在等待的线程，有可能在未满足条件谓词的情况下就被唤醒，此时如果不进行
+re-check，将会导致错误。 #### 其他错误
+上述代码中还有一点：唤醒使用的是<code>notify()</code> 而不是
+<code>notifyAll()</code>。
+通常情况下，<code>notifyAll()</code>的使用场景更加广泛，而未经仔细考虑的<code>notify()</code>容易出现问题。
+<code>notify()</code>只唤醒一个线程，假设被<code>notify()</code>唤醒的线程不是程序期望执行逻辑的线程，那么真正期望被唤醒的线程就没有机会被唤醒，程序可能陷入死锁。
+而使用<code>notifyAll()</code>会唤醒所有正在等待的线程，他们被唤醒后依次获取锁，并
+re-check 条件谓词，进而选择是继续休眠还是开始工作。</p>
+<p>《Java 并发编程实战》
+中提到，只有两种情况才可以直接使用<code>notify()</code> : &gt; 1.
+<strong>所有等待线程的类型都相同</strong>：只有一个条件谓词与条件队列相关，并且每个线程在从
+wait 返回后将执行相同的操作。 &gt; 2. <strong>单进单出</strong>:
+在条件变量上的每次通知，最多只能唤醒一个线程来执行。</p>
+<h2 id="慎用-stream.peek">慎用 Stream.peek()</h2>
+<p>工作中我经常会遇到这种情况：在使用 Stream 对某个对象集合进行 mapping
+时，想要顺便修改其中的数据，例如，想要对一个 list 中对象的某个 field
+统一赋值，并取第一个对其进行 mapping： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">SomeClass</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> a;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">setA</span><span class="params">(<span class="type">int</span> a)</span> &#123;</span><br><span class="line">         <span class="built_in">this</span>.a = a;</span><br><span class="line">    &#125; </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">List&lt;SomeClass&gt; someList = fetchXxxList();</span><br><span class="line"></span><br><span class="line"><span class="comment">// 方法1：</span></span><br><span class="line">somList.stream().forEach(e -&gt; e.setA(someA));</span><br><span class="line">Optional&lt;OtherClass&gt; first = somelist.stream().map(OtherClass::mapping).findFirst(); </span><br><span class="line"></span><br><span class="line"><span class="comment">// 方法2：</span></span><br><span class="line">Optional&lt;OtherClass&gt; first = somelist.stream().peek((e -&gt; e.setA(someA))).map(OtherClass::mapping).findFirst(); </span><br></pre></td></tr></table></figure></p>
+<p>很多时候我们都会觉得 peek
+能用更优雅的方式实现我们的诉求，然而，会有静态检查器告诉我们：
+<code>"Stream.peek" should be used with caution</code></p>
+<p>在Java Stream中，peek实际上是为了让我们做调试用的（就好像 peek
+的释义一样），如果直接用它来实现功能，可能会遇到以下的情况： 1. peek 和
+forEach 其实完全不同，peek 是一种中间操作（intermediate operation），而
+forEach 是结束操作（terminal operation），由于 Stream 的 Lazy 策略，
+<code>Stream.of(“1”, “2”, “3”).peek(I -&gt; println(i));</code>
+什么也不会打印。 2.
+即使使用是正确的，也保不齐在peek之后的终止阶段会因为什么特殊的原因只处理
+Stream
+中的几个元素。就如同上面的例子，代码的本意可能是对所有元素都setA，并输出第一个，但实际上，只有第一个元素的a值被set了。</p>
+<p>基于上述的原因，我们还是按照代码中的 “方法1”
+来写逻辑，更加健壮（即使不够简洁）。</p>
+<h2 id="伪共享">伪共享</h2>
+<p>现代 CPU 都配置了多级 Cache 来提升 Memory 读写的速度（见<a
+href="https://lenshood.github.io/2021/01/27/java-varhandle/#cpu-%E7%BC%93%E5%AD%98%E7%9A%84%E9%BA%BB%E7%83%A6">Java
+9 引入的 Memory Order</a>第一节）。但 CPU 在从 Memory
+中存取数据时，并不是 byte by byte
+来存取的，而是通过一个最小的传输单元：Cache Line 来进行操作。</p>
+<p>通常大多数 CPU 的 Cache Line Size 都是 64KB，在 Mac terminal
+中执行：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">&gt; </span><span class="language-bash">sysctl -a | grep cacheline</span></span><br><span class="line">hw.cachelinesize: 64</span><br></pre></td></tr></table></figure>
+<p>可以得到当前硬件的 Cache Line Size。</p>
+<p>以 Cache Line 作为传输单元意味着，假如想要存取某个地址内任意的 1byte
+数据，都会一次性操作当前地址所计算出的 Cache Line 空间内的全部 64KB
+数据。</p>
+<p>Cache Line 的初衷是为了提升程序的性能（类似
+prefetch），但同时也可能会导致一些不容易察觉的性能问题。</p>
+<p>如下例子中，创建一个非常简单的类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">FalseSharing</span> &#123;</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> l0;</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> l8;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们尝试用两个线程，分别读取不相干的两个共享变量 <code>l0</code> 和
+<code>l8</code>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">should_test_performance</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">  <span class="type">int</span> <span class="variable">round</span> <span class="operator">=</span> <span class="number">1000</span> * <span class="number">1000</span> * <span class="number">1000</span>;</span><br><span class="line">  <span class="type">FalseSharing</span> <span class="variable">falseSharing</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FalseSharing</span>();</span><br><span class="line"></span><br><span class="line">  <span class="type">Runnable</span> <span class="variable">t1</span> <span class="operator">=</span> () -&gt; &#123;</span><br><span class="line">    <span class="type">int</span> <span class="variable">r</span> <span class="operator">=</span> round;</span><br><span class="line">    <span class="keyword">while</span> (r-- &gt; <span class="number">0</span>) &#123;</span><br><span class="line">      falseSharing.l0 = r;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  <span class="type">Runnable</span> <span class="variable">t2</span> <span class="operator">=</span> () -&gt; &#123;</span><br><span class="line">    <span class="type">int</span> <span class="variable">r</span> <span class="operator">=</span> round;</span><br><span class="line">    <span class="keyword">while</span> (r-- &gt; <span class="number">0</span>) &#123;</span><br><span class="line">      falseSharing.l8 = r;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  <span class="type">Thread</span> <span class="variable">thread1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(t1);</span><br><span class="line">  <span class="type">Thread</span> <span class="variable">thread2</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(t2);</span><br><span class="line"></span><br><span class="line">  <span class="type">long</span> <span class="variable">start</span> <span class="operator">=</span> System.currentTimeMillis();</span><br><span class="line">  thread1.start();</span><br><span class="line">  thread2.start();</span><br><span class="line">  thread1.join();</span><br><span class="line">  thread2.join();</span><br><span class="line">  <span class="type">long</span> <span class="variable">end</span> <span class="operator">=</span> System.currentTimeMillis();</span><br><span class="line"></span><br><span class="line">  System.out.printf(<span class="string">&quot;Time consuming: %d\n&quot;</span>, end - start);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>分别测量 5
+次，取平均值得到平均时间消耗：<strong>4677.8ms</strong></p>
+<p>修改被测类为：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">FalseSharing</span> &#123;</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> l0;</span><br><span class="line">  <span class="type">long</span> l1, l2, l3, l4, l5, l6, l7;</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> l8;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再进行测试，取 5
+次平均值得到平均时间消耗：<strong>1018.2ms</strong></p>
+<p>如果单纯从代码角度，上述现象是讲不通的，但从 Cache Line
+的角度来看，多余的 <code>l1 ~ l7</code> 这 7 个成员变量，将
+<code>l0</code> 补齐至完整的一个 Cache Line（Java <code>long</code>
+类型占 8byte，从 <code>l0 ~ l7</code> 正好 8 * 8 = 64 byte，占满了一个
+Cache Line）。</p>
+<p>在最开始的类中，<code>l8</code> 与 <code>l0</code> 共享一个 Cache
+Line，那么当线程 1 （假设在 CPU0 执行）对 <code>l0</code>
+进行操作时，由于 <code>volatile</code> 强制 Cache Flush，导致线程
+1（假设在 CPU1 执行）中的 Cache Line 整体失效，因此线程 1
+想要操作完全不相干的 <code>l8</code> 时，也会强制从内存中读取数据，由于
+Memory 与 Cache 巨大的速度差，导致了性能急剧下降。</p>
+<p>当我们定义了 <code>l1 ~ l7</code> 这几个专门用于 “padding”
+的成员变量之后，<code>l0</code> 和 <code>l8</code> 分属两个不同的 Cache
+Line，<code>l0</code> 的修改也就不会影响到 <code>l8</code> 所在 Cache
+Line 的失效了（虽然定义的<code>l1 ~ l7</code>
+完全没有被使用，有可能被编译器优化，但我在 openjdk-11
+中没有遇到类似的情况）。</p>
+<h4 id="contended"><span class="citation"
+data-cites="Contended">@Contended</span></h4>
+<p>不过为了解决问题，强行增加多个没有程序意义的成员变量，毕竟不够优雅，所以从
+java 8 开始，提供了 <code>@Contended</code> 注解，来告诉编译器自动
+padding。</p>
+<p>（在 jdk11 中）<code>@Contended</code>位于
+<code>jdk.internal.vm.annotation</code> 包下，需要在编译参数中增加
+<code>--add-exports java.base/jdk.internal.vm.annotation=&#123;Module-Name&#125;</code>
+标志才能正确编译。</p>
+<p>最终得到的类如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">FalseSharing</span> &#123;</span><br><span class="line">  <span class="meta">@jdk</span>.internal.vm.annotation.Contended</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> l0;</span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">long</span> l8;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/04/04/some-jaava-tips/" title="一些 Java 语言 Tips">http://lenshood.github.io/2020/04/04/some-jaava-tips/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/tips/" rel="tag"># tips</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/03/25/zk-distributed-lock/" rel="prev" title="Java 基于 ZooKeeper 实现分布式锁需要注意什么">
+                  <i class="fa fa-angle-left"></i> Java 基于 ZooKeeper 实现分布式锁需要注意什么
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/04/06/mirror-github-pages-to-gitee-paages/" rel="next" title="Git Pages 镜像到 Gitee Pages">
+                  Git Pages 镜像到 Gitee Pages <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

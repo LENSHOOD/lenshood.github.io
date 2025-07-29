@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="在如今这样一个张口分布式，闭口微服务的软件开发趋势下，多实例似乎已经不是某种选择而是一个无需多说的基本技术要求了。 多实例为我们带来稳定性提升的同时，也伴随着更复杂的技术要求，原先在本地即可处理的问题，全部扩展为分布式问题，其中就包含我们今天会聊到的多实例同步即分布式锁问题。JDK 提供的锁实现已经能够非常好的解决本地同步问题，而扩展到多实例环境下，Redis、ZooKeeper 等优秀的实现也使">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java 基于 Redis 实现分布式锁需要注意什么？">
+<meta property="og:url" content="http://lenshood.github.io/2020/02/04/redis-distributed-lock/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="在如今这样一个张口分布式，闭口微服务的软件开发趋势下，多实例似乎已经不是某种选择而是一个无需多说的基本技术要求了。 多实例为我们带来稳定性提升的同时，也伴随着更复杂的技术要求，原先在本地即可处理的问题，全部扩展为分布式问题，其中就包含我们今天会聊到的多实例同步即分布式锁问题。JDK 提供的锁实现已经能够非常好的解决本地同步问题，而扩展到多实例环境下，Redis、ZooKeeper 等优秀的实现也使">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-02-04T15:13:16.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.413Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="distributed lock">
+<meta property="article:tag" content="redis">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/02/04/redis-distributed-lock/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/02/04/redis-distributed-lock/","path":"2020/02/04/redis-distributed-lock/","title":"Java 基于 Redis 实现分布式锁需要注意什么？"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java 基于 Redis 实现分布式锁需要注意什么？ | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E7%9A%84%E8%A6%81%E6%B1%82"><span class="nav-number">1.</span> <span class="nav-text">分布式锁的要求</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#local-remote-%E7%BB%93%E5%90%88%E5%AE%9E%E7%8E%B0%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81"><span class="nav-number">2.</span> <span class="nav-text">Local + Remote
+结合实现分布式锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.</span> <span class="nav-text">代码实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-number">3.1.</span> <span class="nav-text">整体架构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E6%A1%86%E6%9E%B6"><span class="nav-number">3.2.</span> <span class="nav-text">代码框架</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#lock"><span class="nav-number">3.3.</span> <span class="nav-text">lock</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#unlock"><span class="nav-number">3.4.</span> <span class="nav-text">unlock</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#redislockregistry"><span class="nav-number">4.</span> <span class="nav-text">RedisLockRegistry</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#redis-%E5%A4%9A%E5%AE%9E%E4%BE%8B"><span class="nav-number">5.</span> <span class="nav-text">Redis 多实例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">6.</span> <span class="nav-text">参考</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/02/04/redis-distributed-lock/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java 基于 Redis 实现分布式锁需要注意什么？ | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java 基于 Redis 实现分布式锁需要注意什么？
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-02-04 23:13:16" itemprop="dateCreated datePublished" datetime="2020-02-04T23:13:16+08:00">2020-02-04</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>在如今这样一个张口分布式，闭口微服务的软件开发趋势下，多实例似乎已经不是某种选择而是一个无需多说的基本技术要求了。</p>
+<p>多实例为我们带来稳定性提升的同时，也伴随着更复杂的技术要求，原先在本地即可处理的问题，全部扩展为分布式问题，其中就包含我们今天会聊到的多实例同步即分布式锁问题。JDK
+提供的锁实现已经能够非常好的解决本地同步问题，而扩展到多实例环境下，Redis、ZooKeeper
+等优秀的实现也使得我们使用分布式锁变得更加简单。</p>
+<p>其实对于分布式锁的原理、分布式锁的 Redis 实现、ZK
+实现等等各类文章不计其数，然而只要简单一搜就会发现，大多数文章都在教大家
+Redis
+分布式锁的原理和实现方法，但却没有几篇会写什么实现是好的实现，是适合用于生产环境，高效而考虑全面的实现。这将是本文讨论的内容。</p>
+<span id="more"></span>
+<h3 id="分布式锁的要求">分布式锁的要求</h3>
+<p>本节简单阐述分布式锁的基本要求，通常满足下述要求便可以说是比较完整的实现了。</p>
+<ol type="1">
+<li>操作原子性
+<ul>
+<li>与本地锁一样，加锁的过程必须保证原子性，否则失去锁的意义</li>
+<li>Redis
+的单线程模型帮我们解决了大部分原子性的问题，但仍然要考虑客户端代码的原子性</li>
+</ul></li>
+<li>可重入性
+<ul>
+<li>分布式锁一样要考虑可重入的问题</li>
+<li>Redis
+通常能解决实例间的可重入问题，那么实例内线程间的可重入怎么办？</li>
+</ul></li>
+<li>效率
+<ul>
+<li>Redis 作为通过 TCP
+通信的外部服务，网络延迟不可避免，因此相比本地锁操作时间更久</li>
+<li>分布式锁获取失败的通常做法是线程休眠一段时间</li>
+<li>如何才能尽可能减少不必要的通信与休眠？</li>
+</ul></li>
+</ol>
+<h3 id="local-remote-结合实现分布式锁">Local + Remote
+结合实现分布式锁</h3>
+<p>正如上一节所述，采用
+Redis，我们能很好的实现实例间的原子性（单线程模型），可重入性（各实例分配
+UUID）。</p>
+<p>而 JDK 的本地锁（如
+ReentrantLock）又能非常完善的解决线程间同步的原子性、可重入性。</p>
+<p>此外，对于实例内不同线程间的同步，JDK 通过 AQS
+中一系列的方法确保高效稳定，因此省去了与 Redis 通信的消耗。</p>
+<p>综上，如果将本地锁与远程锁结合在一起，便可以分别实现分布式锁在实例内与实例间的各项要求了。</p>
+<h3 id="代码实现">代码实现</h3>
+<blockquote>
+<p>下文代码中，本地锁使用 ReentrantLock， Redis client 使用
+Jedis。如替换其他方案，按照流程也很简单。</p>
+</blockquote>
+<h4 id="整体架构">整体架构</h4>
+<ol type="1">
+<li><p>初始化锁 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">└── 初始化锁</span><br><span class="line">    └── new instance       </span><br></pre></td></tr></table></figure></p></li>
+<li><p>获取锁 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">└── 获取锁</span><br><span class="line">    └── 尝试获取本地锁</span><br><span class="line">        ├── 成功</span><br><span class="line">        │   └── 尝试获取远程锁</span><br><span class="line">        │       ├── 成功</span><br><span class="line">        │       │   └── 加锁完成</span><br><span class="line">        │       ├── 失败</span><br><span class="line">        │       │   └── 轮询远程锁</span><br><span class="line">        │       └── 超时</span><br><span class="line">        │           ├── 释放本地锁</span><br><span class="line">        │           └── 退出</span><br><span class="line">        ├── 失败</span><br><span class="line">        │   └── 阻塞等待</span><br><span class="line">        └── 超时</span><br><span class="line">            └── 退出</span><br></pre></td></tr></table></figure></p></li>
+<li><p>释放锁 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">└── 释放锁</span><br><span class="line">    ├── 当前线程持有本地锁？</span><br><span class="line">    │   ├── 是重入状态？（hold count &gt; 1）</span><br><span class="line">    │   │   └── 释放本地锁</span><br><span class="line">    │   └── 非重入状态</span><br><span class="line">    │       ├── 释放远程锁</span><br><span class="line">    │       └── 释放本地锁</span><br><span class="line">    └── 未持有本地锁</span><br><span class="line">        └── 无法释放，抛出错误</span><br></pre></td></tr></table></figure></p></li>
+</ol>
+<h4 id="代码框架">代码框架</h4>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RedisDistributedLock</span> <span class="keyword">implements</span> <span class="title class_">Lock</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">String</span> <span class="variable">OBTAIN_LOCK_SCRIPT</span> <span class="operator">=</span> ...</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">String</span> <span class="variable">clientId</span> <span class="operator">=</span> UUID.randomUUID().toString();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">EXPIRE_SECONDS</span> <span class="operator">=</span> ...;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> String lockKey;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">ReentrantLock</span> <span class="variable">localLock</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ReentrantLock</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">RedisDistributedLock</span><span class="params">(String lockKey)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.lockKey = lockKey;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">()</span> &#123;</span><br><span class="line">        ...</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">lockInterruptibly</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">UnsupportedOperationException</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">UnsupportedOperationException</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(<span class="type">long</span> time, TimeUnit unit)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        ...</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">()</span> &#123;</span><br><span class="line">        ...</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Condition <span class="title function_">newCondition</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">UnsupportedOperationException</span>();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>由上述代码可见，我们的分布式锁实现了 <code>Lock</code>
+接口，来确保依赖倒置，用户可以方便的在本地锁与分布式锁之前切换而无需改动逻辑。</p>
+<p>在 class field 中， - <code>OBTAIN_LOCK_SCRIPT</code> 是用于执行
+redis 获取锁操作的 lua script，详情见后文。 -
+<code>clientId</code>用于唯一标识当前所在实例，是分布式锁进行重入的重要属性，注意该
+field 为 static，因此仅此一份。 - <code>lockKey</code> 为锁
+key，用于标识一个锁，在构造函数中初始化。 - <code>localLock</code>
+即本地锁，代码中采用 <code>ReentrantLock</code> 用作本地锁。</p>
+<p>出于演示性质考虑，只实现了 <code>Lock</code>
+中定义的三个方法：<code>lock()</code>,
+<code>tryLock(long time, TimeUnit unit)</code>,
+<code>unlock()</code>，其他方法可以自由发散。</p>
+<p>接下来我们将主要介绍获取锁、释放锁这两部分代码。</p>
+<h4 id="lock">lock</h4>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">String</span> <span class="variable">OBTAIN_LOCK_SCRIPT</span> <span class="operator">=</span></span><br><span class="line">            <span class="string">&quot;local lockClientId = redis.call(&#x27;GET&#x27;, KEYS[1])\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;if lockClientId == ARGV[1] then\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;  redis.call(&#x27;EXPIRE&#x27;, ARGV[2])\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;  return true\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;else if not lockClientId then\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;  redis.call(&#x27;SET&#x27;, KEYS[1], ARGV[1], &#x27;EX&#x27;, ARGV[2])\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;  return true\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;end\n&quot;</span> +</span><br><span class="line">            <span class="string">&quot;return false&quot;</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">()</span> &#123;</span><br><span class="line">    localLock.lock();</span><br><span class="line">    <span class="type">boolean</span> <span class="variable">acquired</span> <span class="operator">=</span> <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">while</span> (!(acquired = obtainRemoteLock())) &#123;</span><br><span class="line">            sleep();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!acquired) &#123;</span><br><span class="line">            localLock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">obtainRemoteLock</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> Boolean.parseBoolean((String) getJedis().eval(</span><br><span class="line">            OBTAIN_LOCK_SCRIPT, <span class="number">1</span>, lockKey, clientId, String.valueOf(EXPIRE_SECONDS)));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">sleep</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        Thread.sleep(<span class="number">100</span>);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">        <span class="comment">// do not response interrupt</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>lock()</code>中包含了绝大多数的核心逻辑，可以看到其主要流程如下：
+- 获取本地锁 - 循环调用 <code>obtainRemoteLock()</code> 直至其返回
+true，或抛出异常 - 假如跳出循环后仍未能获取到锁，则释放本地锁</p>
+<p>以上流程中，需要细说的正是 <code>obtainRemoteLock()</code>：
+该方法直接通过 <code>eval</code> 来执行了前面提到的 lua
+脚本，我们来看看脚本的内容： 1.
+<code>local lockClientId = redis.call('GET', KEYS[1])</code> -
+此处是通过 get 获取到了 key 值，并赋值为 lockClientId，其中
+<code>KEYS[1]</code> 是 eval 传入的 key 参数 2.
+<code>if lockClientId == ARGV[1] then</code> - 这里将拿到的值与参数
+ARGV[1] 进行判断，结合 <code>obtainRemoteLock()</code>的逻辑我们发现
+ARGV[1] 其实是 <code>clientId</code>，所以假如获取的值与 clientId
+相等，则代表一种情况：获取锁的线程与锁处于同一个实例 -
+又因为：每次获取远程锁之前需要先获取本地锁，在同一实例下，本地锁确保了同一时间只能有一个线程尝试获取远程锁
+- 结合上述两点，可以确定：<strong>当 lockClientId 等于 clientId
+的时候，是同一实例下的同一线程重入了代码段。</strong> -
+<code>redis.call('EXPIRE', ARGV[2])</code>
+在重入之后刷新锁超时时间，ARGV[2] 即我们传入的
+<code>EXPIRE_SECONDS</code> - 最后直接返回 true，结束逻辑 3.
+<code>else if not lockClientId then</code> - 假如 get 的结果为 null(nil)
+表明锁还没有被任何人获取，直接获取后返回 true - 这里用到了 redis 的 set
+命令 <code>redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])</code> 4.
+<code>return false</code> -
+即不是重入，锁又存在，证明锁被其他实例持有了，返回 false</p>
+<p>上述一连串判断逻辑，因为全部都是在 Redis
+内执行的，我们完全不用考虑原子性问题，因此可以放心大胆的相信执行结果。
+#### tryLock <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(<span class="type">long</span> time, TimeUnit unit)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">    <span class="keyword">if</span> ( !localLock.tryLock(time, unit)) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">boolean</span> <span class="variable">acquired</span> <span class="operator">=</span> <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">long</span> <span class="variable">expire</span> <span class="operator">=</span> System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(time, unit);</span><br><span class="line">        <span class="keyword">while</span> (!(acquired = obtainRemoteLock()) &amp;&amp; System.currentTimeMillis() &lt; expire) &#123;</span><br><span class="line">            sleep();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> acquired;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!acquired) &#123;</span><br><span class="line">            localLock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure> 结合
+<code>lock()</code>的逻辑，<code>tryLock()</code>看起来只是增加了超时逻辑，并没有本质的区别。</p>
+<h4 id="unlock">unlock</h4>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!localLock.isHeldByCurrentThread()) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;You do not own lock at &quot;</span> + lockKey);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (localLock.getHoldCount() &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        localLock.unlock();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!clientId.equals(getJedis().get(lockKey))) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;Lock was released in the store due to expiration. &quot;</span> +</span><br><span class="line">                    <span class="string">&quot;The integrity of data protected by this lock may have been compromised.&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        getJedis().del(lockKey);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        localLock.unlock();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>相比本地锁，分布式锁的解锁过程需要考虑的多一些： 1.
+先判断尝试解锁的线程与持有本地锁的线程是否一致，实际上
+ReentrantLock.unlock()
+原生即有相关判断，但是目前我们还暂时不想让本地锁直接被解锁，因此手动判断一下。
+2. 当本地锁重入计数大于 1
+时，本地锁解锁后直接返回。由于我们的远程锁并没有记录重入计数这一参数，因此对于重入线程的解锁，只解锁本地。
+3. 先判断当前远程锁的值是否与本实例 clientId
+相等，如果不等则认为是远程锁超时被释放，因此分布式锁的逻辑已经被破坏，只能抛出异常。
+-
+这里涉及到远程锁超时时间的设定问题，设定过长可能会导致死锁时间过长，设定过短则容易在逻辑未执行完便自动释放，因此实际上应该结合业务来设定。
+4. 假如一切正常，则释放远程锁，之后再释放本地锁。</p>
+<h3 id="redislockregistry">RedisLockRegistry</h3>
+<p>对 Spring Integration Redis
+熟悉的同学，一定已经发现，前面的代码完全就是 RedisLockRegistry
+的简化版，许多变量名都没改。</p>
+<p>是的，其实前文所述的代码就是 RedisLockRegistry
+的核心逻辑。RedisLockRegistry 是 Redis
+分布式锁中代码比较简单、功能比较完善的一种实现，可以很好的满足常见的分布式锁要求。（由于采用
+sleep-retry 的方式尝试获取锁，在低时延或高并发要求下并不适用）</p>
+<p>RedisLockRegistry 对外部库的依赖较少，虽然执行 redis 命令主要使用的
+Spring Redis Template，不过也很容易迁移为类似 Jedis 的方案。</p>
+<p>不过截至目前 Spring-Integration-Redis 在 github 上面并没有放置任何
+licence，按照 github 的规定，没有 licence
+的代码版权默认受到保护，因此我们可以学习其设计思想并自己尝试实现，但是最好不要直接移植代码。</p>
+<h3 id="redis-多实例">Redis 多实例</h3>
+<p>通过上述方法，我们似乎可以成功的将实例间同步的问题转交给 Redis
+来处理。然而就存在两种情况： 1. 采用单实例 Redis -- Redis
+存在单点风险，应用服务都依赖 Redis， 一旦宕机业务全挂 2. 采用 Redis 集群
+-- 应用服务实例间的同步问题转化为了 Redis 实例间的同步问题</p>
+<p>单实例 Redis 一定是不可接受的，所以似乎允许上生产环境的唯一方案就是
+Redis 集群了。那么如何保证 Redis 实例间的同步呢？</p>
+<p>我们知道，Redis 集群的数据冗余策略不同于类似 HDFS 的 3
+Replica，而是采用一对一主从的形式，每个节点一主一从，主节点宕机备节点上，备节点也宕机就全完。同时，主从之间的数据同步是异步的。以上这些都是为了超高吞吐量而做出的妥协。</p>
+<p>所以，设想会有这种情况：</p>
+<p>当应用服务节点 App-A 从 Redis 某主节点 R-Master 获取到锁后，R-Master
+宕机，此时 R-Master 的数据还没来得及同步到 R-Slave。现在 R-Slave
+成为了主节点，这时候 App-B 尝试获取锁，不出意外的也获取成功了。</p>
+<p>基于以上问题，Redis 给出了 <a
+href="https://redis.io/topics/distlock">RedLock</a>
+方案，该方案采用相互孤立的奇数个 Redis
+节点来共同存储锁，对于获取锁的操作，只有当 (N-1)/2 + 1 个 Redis
+实例都获取成功且获取时间不超过锁失效时间的前提下，才真正被判定为获取到了锁，这种场景下锁的争抢就看谁能先成功操作超过半数的
+Redis 实例。Redisson 实现了 <a
+href="https://github.com/redisson/redisson/wiki/8.-distributed-locks-and-synchronizers">RedLock
+的客户端方案</a>。</p>
+<p>当然，在 Redis 官网上也贴出了各方对于 RedLock
+方案的争论，这里不再赘述。</p>
+<p>总之，对于问题的处理终归是结合实际情况来权衡的， -
+假如小概率（但几乎一定会发生）的 Redis
+宕机未同步导致锁失效的问题，业务可以承受，那么 RedisLockRegistry + Redis
+集群的方案就没问题 - 对性能和可靠性都有更高要求的情况下，不妨使用
+RedLock 方案 - 业务非常关键，一定要求强一致的分布式锁，使用 ZooKeeper
+的方案会更好（性能没法和 Redis 比）</p>
+<h3 id="参考">参考</h3>
+<p><a
+href="https://github.com/spring-projects/spring-integration/blob/master/spring-integration-redis/src/main/java/org/springframework/integration/redis/util/RedisLockRegistry.java">RedisLockRegistry
+at Github</a></p>
+<p><a href="https://redis.io/documentation">Redis Documentaion</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/02/04/redis-distributed-lock/" title="Java 基于 Redis 实现分布式锁需要注意什么？">http://lenshood.github.io/2020/02/04/redis-distributed-lock/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/distributed-lock/" rel="tag"># distributed lock</a>
+              <a href="/tags/redis/" rel="tag"># redis</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/01/25/is-dependency-invertion-require-every-class-extract-a-interface/" rel="prev" title="依赖倒置就是每一个实现都要抽一个接口出来吗？">
+                  <i class="fa fa-angle-left"></i> 依赖倒置就是每一个实现都要抽一个接口出来吗？
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/03/14/rust-test/" rel="next" title="Rust 怎么写测试">
+                  Rust 怎么写测试 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

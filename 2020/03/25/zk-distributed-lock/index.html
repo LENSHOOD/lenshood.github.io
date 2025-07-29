@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="在前一篇有关 Redis 分布式锁的文章中，我们讨论了几点有关分布式锁的要求： 1. 操作原子性 2. 可重入性 3. 效率 为了满足上述条件，采用 本地锁 + Redis 锁 的方式解决了问题。不过在文章末尾提到，Redis 不保证强一致性，因此对一致性要求很高的场景会存在安全隐患。 本文将讨论使用满足 CP 要求的 ZooKeeper 来实现强一致性的分布式锁。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java 基于 ZooKeeper 实现分布式锁需要注意什么">
+<meta property="og:url" content="http://lenshood.github.io/2020/03/25/zk-distributed-lock/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="在前一篇有关 Redis 分布式锁的文章中，我们讨论了几点有关分布式锁的要求： 1. 操作原子性 2. 可重入性 3. 效率 为了满足上述条件，采用 本地锁 + Redis 锁 的方式解决了问题。不过在文章末尾提到，Redis 不保证强一致性，因此对一致性要求很高的场景会存在安全隐患。 本文将讨论使用满足 CP 要求的 ZooKeeper 来实现强一致性的分布式锁。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-03-25T15:26:16.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.596Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="distributed lock">
+<meta property="article:tag" content="zookeeper">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/03/25/zk-distributed-lock/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/03/25/zk-distributed-lock/","path":"2020/03/25/zk-distributed-lock/","title":"Java 基于 ZooKeeper 实现分布式锁需要注意什么"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Java 基于 ZooKeeper 实现分布式锁需要注意什么 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#zookeeper-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86"><span class="nav-number">1.</span> <span class="nav-text">Zookeeper 分布式锁原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">代码实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/03/25/zk-distributed-lock/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Java 基于 ZooKeeper 实现分布式锁需要注意什么 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Java 基于 ZooKeeper 实现分布式锁需要注意什么
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-03-25 23:26:16" itemprop="dateCreated datePublished" datetime="2020-03-25T23:26:16+08:00">2020-03-25</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>在前一篇有关 Redis 分布式锁的<a
+href="https://lenshood.github.io/2020/02/04/redis-distributed-lock/">文章</a>中，我们讨论了几点有关分布式锁的要求：
+1. 操作原子性 2. 可重入性 3. 效率</p>
+<p>为了满足上述条件，采用 <code>本地锁 + Redis 锁</code>
+的方式解决了问题。不过在文章末尾提到，Redis
+不保证强一致性，因此对一致性要求很高的场景会存在安全隐患。</p>
+<p>本文将讨论使用满足 CP 要求的 ZooKeeper 来实现强一致性的分布式锁。</p>
+<span id="more"></span>
+<h3 id="zookeeper-分布式锁原理">Zookeeper 分布式锁原理</h3>
+<p>结合 Redis 的分布式锁实现，我们能够想到最直接的 zk lock
+实现方式，可能会是以 <code>ZNode</code> 来类比 redis 的 kv
+pair：创建一个
+<code>ZNode</code>，通过判断其是否存在、以及其值是否与当前 client id
+一致来尝试获取一个锁。</p>
+<p>然而，结合 zk 的诸多优秀特性，实际上我们能更优雅的实现这一过程： 1.
+创建一个路径为 <code>locknode/&#123;guid&#125;-lock-</code> 的
+znode，同时将之设置为 <code>EPHEMERAL_SEQUENTIAL</code>, 其中的
+<code>guid</code> 是为了解决一种边缘 case*。因此，我们会创建形如
+<code>locknode/&#123;guid&#125;-lock-0000000012</code> 的一个节点。 2. 尝试获取
+<code>locknode</code>
+下的所有节点，对其进行排序，若刚刚创建的节点处在第一位，则获取锁成功，退出当前流程。
+3. 若不为第一位，则对整个序列中排在自己持有的路径前一位的路径添加一个
+watcher，并检查该前一位节点是否存在 4.
+若前一位节点不存在，跳转至第二步，否则休眠等待。当被 watch
+的路径发生变化时（通常是被删除），等待被唤醒并跳转至第二步。</p>
+<p>可以看到，上述实现分布式锁的流程，用到了 zk 的两个特性： 1. sequence
+node - 通过 zk 内部保证的序列来确保获取锁公平（回顾 Redis 的方案，每隔
+100ms 重试，是一种抢占式的非公平策略） -
+每一次获取锁的尝试都会被如实的记录下来，易于观察整个获取锁的过程，也易于
+debug 2. watcher - watcher
+避免了轮询，每个等待中的路径都只观察其前一位路径，确保锁释放时只会有一个等待者（而不是所有）被唤醒，避免了羊群效应
+（herd effect）。</p>
+<blockquote>
+<p>注* guid 的特殊
+case：对于<code>EPHEMERAL_SEQUENTIAL</code>节点的创建，假设节点创建成功，但
+zk server 在返回创建结果之前 crash，那么在 client 重新连接至 zk 后，其
+session 仍然有效，因此节点亦存在。</p>
+<p>这时将出现诡异的一幕：某种情况下，该 client
+以为自己没有获取到锁（实际上已经拿到了），这时他会再次创建一个
+path，并休眠，而另一个 client 一直在等待第一位 path
+被释放，但却永远也等不到（本来持有锁的 client 却休眠了）。</p>
+<p>通过给 path 增加 guid 前缀的办法，当 client 检测到 create
+非正常返回时，会启动 retry 流程：获取所有 children，若其中包含有 guid
+的节点，则认为节点已经创建成功。</p>
+</blockquote>
+<h3 id="代码实现">代码实现</h3>
+<ol type="1">
+<li>lock() <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">lock</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">boolean</span> <span class="variable">acquired</span> <span class="operator">=</span> <span class="literal">false</span>;</span><br><span class="line">    localLock.lock();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// reentrant</span></span><br><span class="line">        acquired = localLock.getHoldCount() &gt; <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">if</span> (acquired) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        acquire();</span><br><span class="line">        acquired = <span class="literal">true</span>;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (!acquired) &#123;</span><br><span class="line">            localLock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure> 与<a
+href="https://lenshood.github.io/2020/02/04/redis-distributed-lock/">Redis
+分布式锁</a>中实现类似，zk 分布式锁的 <code>lock()</code>
+部分也采用了本地锁+分布式锁结合的方式：首先获取本地锁，之后尝试获取 zk
+锁（即<code>acquire()</code>）。</li>
+</ol>
+<p>这里对于可重入的处理比 Redis 的方案简单一些： 在 Redis 锁中，需要在
+Redis 判断当前 client Id
+是否与锁中保存的一致。而这里的方案，直接判断本地锁是否重入，若是则直接返回。</p>
+<p>之所以能够简化，其原因是 ZooKeeper 锁并没有像 Redis
+锁一样给锁加上了超时时间，再结合 ZooKeeper
+强一致的特点，因此不会出现本地锁获取到而分布式锁被自动释放的情况。</p>
+<p>接下来看看真正获取分布式锁的逻辑： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> <span class="title function_">acquire</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">lockPath</span> <span class="operator">=</span> createLockPath();</span><br><span class="line">    <span class="keyword">if</span> (lockPath.equals(getCurrentFirstPath())) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="type">boolean</span> <span class="variable">needDelete</span> <span class="operator">=</span> <span class="literal">true</span>;</span><br><span class="line">    watcherLock.lock();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">do</span> &#123;</span><br><span class="line">            <span class="type">Condition</span> <span class="variable">condition</span> <span class="operator">=</span> watcherLock.newCondition();</span><br><span class="line">            addWatcher(getPreviousPath(lockPath), <span class="keyword">new</span> <span class="title class_">LockWatcher</span>(condition));</span><br><span class="line">            condition.await();</span><br><span class="line">        &#125; <span class="keyword">while</span> ((!lockPath.equals(getCurrentFirstPath())));</span><br><span class="line">        needDelete = <span class="literal">false</span>;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">        Thread.currentThread().interrupt();</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ZkLockException</span>(e);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        watcherLock.unlock();</span><br><span class="line">        <span class="keyword">if</span> (needDelete) &#123;</span><br><span class="line">            deletePath(lockPath);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+如上所见，<code>lock()</code>
+方法实现了前文中描述的加锁过程：先创建锁路径，然后获取目前排序第一位的锁路径，若与创建的路径相同则直接获取锁，否则获取到前一个路径，对其添加
+watcher，并进入休眠，直到被唤醒后获得锁。这里采用了一个
+<code>watcherLock</code> 来控制休眠与唤醒。唤醒机制写在
+<code>LockWatcher</code> 中： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">class</span> <span class="title class_">LockWatcher</span> <span class="keyword">implements</span> <span class="title class_">Watcher</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Condition currentCondition;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="title function_">LockWatcher</span><span class="params">(Condition currentCondition)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.currentCondition = currentCondition;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">process</span><span class="params">(WatchedEvent event)</span> &#123;</span><br><span class="line">        localLock.lock();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            currentCondition.signalAll();</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            localLock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure> 通过实现
+<code>Watcher</code> 来实现当被监听 path 有变动时释放
+<code>Condition</code> 的等待状态</p>
+<p>其他逻辑中包含的底层实现如下： <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">String <span class="title function_">createLockPath</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> client.create().withProtection().withMode(CreateMode.EPHEMERAL_SEQUENTIAL).forPath(LOCK_PATH);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ZkLockException</span>(e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">deletePath</span><span class="params">(String lockPath)</span> &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        client.delete().guaranteed().forPath(lockPath);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="comment">// do nothing</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+可以看到，底层实现中主要使用 <code>Curator</code> 来与 zk
+进行交互，其中的 <code>client</code> 是
+<code>WatcherRemoveCuratorFramework</code>。 &gt; 实际上 Curator
+本身提供了完整的 zk lock 实现，Spring Integration ZooKeeper 中的
+LockRegistry 也直接包装了 Curator
+的方案，本文以讨论原理为目的，实际使用中还是采用 Curator 更好。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">String <span class="title function_">getCurrentFirstPath</span><span class="params">()</span> &#123;</span><br><span class="line">    List&lt;String&gt; allSortedPaths = getAllSortedPaths();</span><br><span class="line">    <span class="keyword">if</span> (allSortedPaths.isEmpty()) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ZkLockException</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> allSortedPaths.get(<span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">String <span class="title function_">getPreviousPath</span><span class="params">(String lockPath)</span> &#123;</span><br><span class="line">    List&lt;String&gt; allSortedPaths = getAllSortedPaths();</span><br><span class="line">    <span class="type">int</span> <span class="variable">previousIndex</span> <span class="operator">=</span> allSortedPaths.indexOf(lockPath) - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (previousIndex &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ZkLockException</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> allSortedPaths.get(previousIndex);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> List&lt;String&gt; <span class="title function_">getAllSortedPaths</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> client.getChildren()</span><br><span class="line">                .forPath(BASE_LOCK_PATH)</span><br><span class="line">                .stream()</span><br><span class="line">                .sorted(Comparator.comparing(path -&gt; path.split(<span class="string">&quot;-&quot;</span>)[<span class="number">2</span>]))</span><br><span class="line">                .collect(Collectors.toList());</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ZkLockException</span>(e);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上为各种对所有锁路径的排序等操作。</p>
+<ol start="2" type="1">
+<li>unlock() <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">unlock</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!localLock.isHeldByCurrentThread()) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(<span class="string">&quot;You do not own the lock&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (localLock.getHoldCount() &gt; <span class="number">1</span>) &#123;</span><br><span class="line">        localLock.unlock();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        client.delete().guaranteed().forPath(getCurrentFirstPath());</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ZkLockException</span>(e);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        localLock.unlock();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure> unlock
+的过程简单了很多，首先判断线程是否合法，之后判断是否是重入状态，最后直接删除相关节点即可。
+&gt; 在 Curator 的 Lock <a
+href="https://github.com/apache/curator/blob/master/curator-recipes/src/main/java/org/apache/curator/framework/recipes/locks/LockInternals.java">实现</a>中（commit
+f0a09db4423f06455ed93c20778c65aaf7e8b06e 之后的版本），release
+锁之前，调用了<code>client.removeWatchers();</code>，经过代码分析，实际上对于
+foreground 运行的 ZooKeeper 才删除 watcher，background
+运行的不会删除。</li>
+</ol>
+<h3 id="总结">总结</h3>
+<p>采用 ZooKeeper 实现的分布式锁，在实现原理上与 Redis
+有一定的区别，它采用临时序列节点的方式实现公平的分布式锁，并通过 Watcher
+机制，避免了释放锁时可能产生的羊群效应。</p>
+<p>ZooKeeper
+以其强一致性的特点，使得采用它实现的分布式锁安全可靠，不过性能相比 Redis
+差一些。</p>
+<p>实际使用中可以直接采用 Curator 提供的分布式锁方案，Curator Recipes
+库包括了可重入、共享锁、信号量、栅栏等多种实现，方便可靠。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/03/25/zk-distributed-lock/" title="Java 基于 ZooKeeper 实现分布式锁需要注意什么">http://lenshood.github.io/2020/03/25/zk-distributed-lock/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/distributed-lock/" rel="tag"># distributed lock</a>
+              <a href="/tags/zookeeper/" rel="tag"># zookeeper</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/03/16/rust-module/" rel="prev" title="Rust Module">
+                  <i class="fa fa-angle-left"></i> Rust Module
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/04/04/some-jaava-tips/" rel="next" title="一些 Java 语言 Tips">
+                  一些 Java 语言 Tips <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

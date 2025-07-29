@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="但凡提到 JUC，就一定会提到 AQS，我们能找到各种各样的文章，来分析 AQS 的实现原理，使用方法等。其原因，不仅是因为通过 AQS，JDK 衍生出了各种各样的同步工具，也因为 AQS 的优秀设计，能够使用户以非常简单的代码就能实现安全高效的同步，同时还能兼顾扩展性。 本文通过分析 AQS 的实现，来展现其优秀的设计架构与代码模型。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="虚拟工厂：Java AQS 同步器">
+<meta property="og:url" content="http://lenshood.github.io/2021/01/14/java-aqs/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="但凡提到 JUC，就一定会提到 AQS，我们能找到各种各样的文章，来分析 AQS 的实现原理，使用方法等。其原因，不仅是因为通过 AQS，JDK 衍生出了各种各样的同步工具，也因为 AQS 的优秀设计，能够使用户以非常简单的代码就能实现安全高效的同步，同时还能兼顾扩展性。 本文通过分析 AQS 的实现，来展现其优秀的设计架构与代码模型。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2021/01/14/java-aqs/aqs_arch.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/01/14/java-aqs/try_lock_loop.png">
+<meta property="article:published_time" content="2021-01-14T15:07:50.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.214Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="aqs">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2021/01/14/java-aqs/aqs_arch.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2021/01/14/java-aqs/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2021/01/14/java-aqs/","path":"2021/01/14/java-aqs/","title":"虚拟工厂：Java AQS 同步器"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>虚拟工厂：Java AQS 同步器 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">总体结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#core-logic-%E5%B1%82%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">Core Logic 层实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#clh-queue-variant"><span class="nav-number">2.1.</span> <span class="nav-text">CLH Queue Variant</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#try-lock-loop"><span class="nav-number">2.2.</span> <span class="nav-text">Try Lock Loop</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#condition"><span class="nav-number">2.3.</span> <span class="nav-text">Condition</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#unsafe-%E6%94%AF%E6%92%91"><span class="nav-number">3.</span> <span class="nav-text">Unsafe 支撑</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#cas"><span class="nav-number">3.1.</span> <span class="nav-text">CAS</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#thread-%E8%B0%83%E5%BA%A6"><span class="nav-number">3.2.</span> <span class="nav-text">Thread 调度</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2021/01/14/java-aqs/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="虚拟工厂：Java AQS 同步器 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          虚拟工厂：Java AQS 同步器
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-01-14 23:07:50" itemprop="dateCreated datePublished" datetime="2021-01-14T23:07:50+08:00">2021-01-14</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>但凡提到 JUC，就一定会提到 AQS，我们能找到各种各样的文章，来分析 AQS
+的实现原理，使用方法等。其原因，不仅是因为通过 AQS，JDK
+衍生出了各种各样的同步工具，也因为 AQS
+的优秀设计，能够使用户以非常简单的代码就能实现安全高效的同步，同时还能兼顾扩展性。</p>
+<p>本文通过分析 AQS 的实现，来展现其优秀的设计架构与代码模型。</p>
+<span id="more"></span>
+<p>开始之前，先放出一个小例子，来看看使用 AQS
+实现同步工具是多么的简单（本例参考了《Java
+并发编程实战》中的例子）：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Latch</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">Sync</span> <span class="variable">sync</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Sync</span>();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">await</span><span class="params">()</span> &#123; sync.acquireShared(<span class="number">0</span>); &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">release</span><span class="params">()</span> &#123; sync.release(<span class="number">0</span>); &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">Sync</span> <span class="keyword">extends</span> <span class="title class_">AbstractQueuedSynchronizer</span> &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">protected</span> <span class="type">int</span> <span class="title function_">tryAcquireShared</span><span class="params">(<span class="type">int</span> arg)</span> &#123; <span class="keyword">return</span> getState() == <span class="number">1</span> ? <span class="number">1</span> : -<span class="number">1</span>; &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">protected</span> <span class="type">boolean</span> <span class="title function_">tryRelease</span><span class="params">(<span class="type">int</span> arg)</span> &#123;</span><br><span class="line">            setState(<span class="number">1</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">should_release_after_10_seconds</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">    <span class="type">Latch</span> <span class="variable">latch</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Latch</span>();</span><br><span class="line"></span><br><span class="line">    <span class="type">Runnable</span> <span class="variable">waiter</span> <span class="operator">=</span> () -&gt; &#123;</span><br><span class="line">        latch.await();</span><br><span class="line">        System.out.println(Thread.currentThread().getName() + <span class="string">&quot; done&quot;</span>);</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="type">Thread</span> <span class="variable">thread1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(waiter);</span><br><span class="line">    <span class="type">Thread</span> <span class="variable">thread2</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(waiter);</span><br><span class="line"></span><br><span class="line">    System.out.println(<span class="string">&quot;Start at: &quot;</span> + System.currentTimeMillis());</span><br><span class="line"></span><br><span class="line">    thread1.start();</span><br><span class="line">    thread2.start();</span><br><span class="line">    Thread.sleep(<span class="number">10000</span>);</span><br><span class="line"></span><br><span class="line">    latch.release();</span><br><span class="line">    thread1.join();</span><br><span class="line">    thread2.join();</span><br><span class="line"></span><br><span class="line">    System.out.println(<span class="string">&quot;End at: &quot;</span> + System.currentTimeMillis());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述例子描述了一个最简单的同步工具：闭锁。多个线程可以<code>await()</code>在其上，一旦闭锁<code>release()</code>时，所有线程得以释放。</p>
+<p>上述例子的测试结果如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Start at: 1590683053181</span><br><span class="line">Thread-4 done</span><br><span class="line">Thread-3 done</span><br><span class="line">End at:   1590683054190</span><br></pre></td></tr></table></figure>
+<p>通过 AQS，只要不到 20
+行代码，就能实现闭锁功能，可见其极大的简化了工作。</p>
+<h2 id="总体结构">总体结构</h2>
+<blockquote>
+<p>下文中源码部分使用的是 openjdk-15 的版本，与 jdk-8
+的实现略有不同，但原理一致</p>
+</blockquote>
+<p>从使用角度讲，AQS 的原理可以总结为一句话：</p>
+<ul>
+<li>AQS 委托 client 对一个 ”同步状态 state”
+进行控制，以此来决定当前访问的线程是否需要进入一个线程队列阻塞等待。</li>
+</ul>
+<p>因此，我们能设想，AQS 的作用，对 client 来说是类似一个 “同步器
+helper” 的定位，它隐含了一些实现细节，并提供控制端点来帮助 client
+更简单的实现同步器功能。</p>
+<p>就如同前文的例子，闭锁代码通过定义
+<code>tryAcquireShared(int arg)</code>，来使所有访问的线程都阻塞（初始
+state == 0），只有当 <code>tryRelease(int arg)</code> 被调用，state
+被设置为 1 后，队列中的线程被一一唤醒，且再次尝试
+<code>tryAcquireShared(int arg)</code>，并能成功返回大于 0
+的结果，因此线程得以继续执行。</p>
+<p>同样的，假如我们想要实现一个独占锁，那么只要确保只有一个线程能够成功的将
+state 置位（通过 AQS 提供的 CAS
+方法），而其他线程置位失败后就会进入等待，直到锁的持有现成通过<code>release()</code>
+将 state 重新清零为止。</p>
+<p>所以，从代码结构上，我们能够将 AQS 的实现分为三层：</p>
+<img src="/2021/01/14/java-aqs/aqs_arch.png" class="">
+<p>在 API 层中，<code>acquireXXX</code> 与 <code>releaseXXX</code>
+主要由当前访问的线程来触发，带<code>Shared</code>
+后缀的方法都是共享访问方法，不带的是独占访问方法。<code>tryAcquire</code>与<code>tryRelease</code>由同步器的子类定义，通过对
+<code>state</code>
+进行操作和对比，来达到判断是否能获取/释放的目的。<code>state</code>
+本身只是一个共享的 int 变量，用于帮助 API 层 <code>tryXXX</code>
+方法记录、判断资源是否可获取。</p>
+<p>Core Logic 层中，CLH 队列变体存放所有排队等待的线程。Try Lock Loop
+根据当前排队状态来决定如何处置当前线程（是入队等待还是出队获取资源）。Condition
+则是一种等待队列的条件谓词实现。</p>
+<p>Support 层基本由对 Unsafe 包提供的方法进行封装（或直接使用）来实现
+CAS 和线程调度等支撑性功能。</p>
+<h2 id="core-logic-层实现">Core Logic 层实现</h2>
+<h3 id="clh-queue-variant">CLH Queue Variant</h3>
+<p>在 AQS 中，实现了一个 CLH 的变体用作等待队列。CLH 队列最早是由
+Craig，Landin 和
+Hagersten，分别在两篇独立的论文中提出的一个相似的观点，即通过排队自旋的方式来公平的取用资源，从而避免竞争所产生的的资源消耗。</p>
+<p>AQS 中的等待队列，是类似 CLH 锁队列的一个变体，相比单纯的自旋，AQS
+中更多的采用了对线程进行阻塞的方式来等待资源。</p>
+<p>CLH 等待队列的节点实现如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Node status bits, also used as argument and return values</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">WAITING</span>   <span class="operator">=</span> <span class="number">1</span>;          <span class="comment">// must be 1</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">CANCELLED</span> <span class="operator">=</span> <span class="number">0x80000000</span>; <span class="comment">// must be negative</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="variable">COND</span>      <span class="operator">=</span> <span class="number">2</span>;          <span class="comment">// in a condition wait</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">abstract</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">Node</span> &#123;</span><br><span class="line">    <span class="keyword">volatile</span> Node prev;       <span class="comment">// initially attached via casTail</span></span><br><span class="line">    <span class="keyword">volatile</span> Node next;       <span class="comment">// visibly nonnull when signallable</span></span><br><span class="line">    Thread waiter;            <span class="comment">// visibly nonnull when enqueued</span></span><br><span class="line">    <span class="keyword">volatile</span> <span class="type">int</span> status;      <span class="comment">// written by owner, atomic bit ops by others</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// methods for atomic operations</span></span><br><span class="line">    <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">casPrev</span><span class="params">(Node c, Node v)</span> &#123;  <span class="comment">// for cleanQueue</span></span><br><span class="line">      	<span class="keyword">return</span> U.weakCompareAndSetReference(<span class="built_in">this</span>, PREV, c, v);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">casNext</span><span class="params">(Node c, Node v)</span> &#123;  <span class="comment">// for cleanQueue</span></span><br><span class="line">      	<span class="keyword">return</span> U.weakCompareAndSetReference(<span class="built_in">this</span>, NEXT, c, v);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="type">int</span> <span class="title function_">getAndUnsetStatus</span><span class="params">(<span class="type">int</span> v)</span> &#123;     <span class="comment">// for signalling</span></span><br><span class="line">      	<span class="keyword">return</span> U.getAndBitwiseAndInt(<span class="built_in">this</span>, STATUS, ~v);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">setPrevRelaxed</span><span class="params">(Node p)</span> &#123;      <span class="comment">// for off-queue assignment</span></span><br><span class="line">      	U.putReference(<span class="built_in">this</span>, PREV, p);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">setStatusRelaxed</span><span class="params">(<span class="type">int</span> s)</span> &#123;     <span class="comment">// for off-queue assignment</span></span><br><span class="line">      	U.putInt(<span class="built_in">this</span>, STATUS, s);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">clearStatus</span><span class="params">()</span> &#123;               <span class="comment">// for reducing unneeded signals</span></span><br><span class="line">      	U.putIntOpaque(<span class="built_in">this</span>, STATUS, <span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">long</span> <span class="variable">STATUS</span></span><br><span class="line">      	<span class="operator">=</span> U.objectFieldOffset(Node.class, <span class="string">&quot;status&quot;</span>);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">long</span> <span class="variable">NEXT</span></span><br><span class="line">      	<span class="operator">=</span> U.objectFieldOffset(Node.class, <span class="string">&quot;next&quot;</span>);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">long</span> <span class="variable">PREV</span></span><br><span class="line">      	<span class="operator">=</span> U.objectFieldOffset(Node.class, <span class="string">&quot;prev&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>显然，从数据结构的角度讲，等待队列实际上是一个双向链表。</p>
+<p>定义了前驱、后继节点 <code>prev</code> 和
+<code>next</code>（由于前驱后继节点通常都是由不同的线程来创建和访问，因此采用
+<code>volatile</code>
+语法确保不同线程访问的可见性），当前节点的实际内容有两个：a.
+实际等待线程的引用。b. 当前节点的状态，状态定义为 <code>WATING</code>
+，<code>CANCLELLED</code>，<code>COND</code>。</p>
+<p><code>Node</code> 中提供了一些方法来对 field 进行操作，他们全部使用
+<code>Unsafe</code> 提供的方法来实现（Jdk9 版本当中大都采用
+<code>VarHandle</code> 实现，注释中提到，后续版本又回到
+<code>Unsafe</code>的原因是 <em>"avoid potential VM bootstrap
+issues"</em> ）。其中有采用 CAS 的方法，也有单纯的 get/set 方法。其中的
+<code>setXXXRelaxed</code> 方法实际上就是传统的 setter 方法（这里也要用
+<code>Unsafe</code> 也许是为了与其他几个方法保持一致），Relaxed 后缀，是
+JDK9 通过 <code>VarHandle</code>引入的 Memory Order 中的概念(<a
+href="http://gee.cs.oswego.edu/dl/html/j9mm.html">Doug Lea
+的解释</a>)，实际上应该多少借鉴了 <a
+href="https://www.zhihu.com/question/24301047">C++ 11 的 Memory Order
+模型</a>。</p>
+<p>对于 CLH 节点，在 AQS 中还定义了 <code>head</code>，<code>tail</code>
+等概念，来维护一个完整的链表队列，其入队、出队的操作也都在
+<code>acquire</code> 与 <code>release</code> 方法中实现。</p>
+<h3 id="try-lock-loop">Try Lock Loop</h3>
+<p>当一个 client 确认某个访问线程需要排队等待获取资源时，AQS
+会将访问线程封装为一个 CLH
+Node，并进入一个等锁的循环，来根据当前等待队列的情况，采取不同的逻辑（相关逻辑在
+<code>final int acquire(Node node, int arg, boolean shared, boolean interruptible, boolean timed, long time)</code>方法中），流程转换图如下所示：</p>
+<img src="/2021/01/14/java-aqs/try_lock_loop.png" class="">
+<p>上图看似复杂，实际上只包括了如下几个过程：</p>
+<ol type="1">
+<li>创建 Node，入队</li>
+<li>线程休眠等待</li>
+<li>被唤醒（head 线程已经做完所有工作），位列第一，此时是除 head
+节点外第一顺位的 Node</li>
+<li>尝试获取资源，获取到后将自己设置为
+head，并退出等锁循环，继续执行线程逻辑</li>
+<li>若获取资源失败（被其他未排队的线程抢占，即非公平抢占）
+<ul>
+<li>自旋等待锁释放</li>
+<li>若自旋太久重新进入 park（但顺位仍是 first）</li>
+</ul></li>
+</ol>
+<p>对比上述过程我们发现，实际的实现代码，是把 “创建
+Node，入队，休眠等待” 这件事，拆成了多个阶段（创建，入队，设置 Waiting
+状态），而在逐步进行这些阶段之间，在节点入队前会尽可能尝试
+tryAcquire，这一点在类注释中讲到：</p>
+<p><code>在队列中排名第一并不能保证获取到资源，这只代表获得了竞争的权利。我们平衡了吞吐、开销、公平性之后，允许线程在入队前“抢占”的尝试获取锁。</code></p>
+<p>另一方面，在入队并休眠前，拆分阶段也使得当前节点对前驱节点取消的响应更加及时。不止如此，<code>acquire</code>
+方法在实现过程中，考虑了许多优化点来提升性能：</p>
+<ul>
+<li><p>非公平性，假如持有锁的线程在释放后又立即 try
+lock，对于公平锁而言，它只能在队尾排队等待，而非公平锁允许它尝试抢占。这样就避免了入队后等待以及被唤醒的两次线程切换操作。（但非公平锁可能导致线程
+"starving"，因此 ReentrantLock 就分别提供了公平、非公平的实现）</p></li>
+<li><p>为了让 GC 更易于回收，在入队前，Node 的 field 都默认为
+<code>null</code>，因为 “在 Node
+在被使用前就已经被丢弃的现象并不少见”</p></li>
+<li><p>对于 CLH 需要的一个 dummy head（哨兵节点），AQS
+在创建的时候并不会将其一起创建出来，而是在出现第一次竞争时才创建，以减少无效的开销。（可能
+AQS 被创建后很久，都没有遇到过竞争的情况）</p></li>
+</ul>
+<p>最后贴上代码实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="type">int</span> <span class="title function_">acquire</span><span class="params">(Node node, <span class="type">int</span> arg, <span class="type">boolean</span> shared,</span></span><br><span class="line"><span class="params">                      <span class="type">boolean</span> interruptible, <span class="type">boolean</span> timed, <span class="type">long</span> time)</span> &#123;</span><br><span class="line">  <span class="type">Thread</span> <span class="variable">current</span> <span class="operator">=</span> Thread.currentThread();</span><br><span class="line">  <span class="type">byte</span> <span class="variable">spins</span> <span class="operator">=</span> <span class="number">0</span>, postSpins = <span class="number">0</span>;   <span class="comment">// retries upon unpark of first thread</span></span><br><span class="line">  <span class="type">boolean</span> <span class="variable">interrupted</span> <span class="operator">=</span> <span class="literal">false</span>, first = <span class="literal">false</span>;</span><br><span class="line">  <span class="type">Node</span> <span class="variable">pred</span> <span class="operator">=</span> <span class="literal">null</span>;                <span class="comment">// predecessor of node when enqueued</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">    <span class="keyword">if</span> (!first &amp;&amp; (pred = (node == <span class="literal">null</span>) ? <span class="literal">null</span> : node.prev) != <span class="literal">null</span> &amp;&amp;</span><br><span class="line">        !(first = (head == pred))) &#123;</span><br><span class="line">      <span class="keyword">if</span> (pred.status &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        cleanQueue();           <span class="comment">// predecessor cancelled</span></span><br><span class="line">        <span class="keyword">continue</span>;</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (pred.prev == <span class="literal">null</span>) &#123;</span><br><span class="line">        Thread.onSpinWait();    <span class="comment">// ensure serialization</span></span><br><span class="line">        <span class="keyword">continue</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (first || pred == <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="type">boolean</span> acquired;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (shared)</span><br><span class="line">          acquired = (tryAcquireShared(arg) &gt;= <span class="number">0</span>);</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">          acquired = tryAcquire(arg);</span><br><span class="line">      &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">        cancelAcquire(node, interrupted, <span class="literal">false</span>);</span><br><span class="line">        <span class="keyword">throw</span> ex;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (acquired) &#123;</span><br><span class="line">        <span class="keyword">if</span> (first) &#123;</span><br><span class="line">          node.prev = <span class="literal">null</span>;</span><br><span class="line">          head = node;</span><br><span class="line">          pred.next = <span class="literal">null</span>;</span><br><span class="line">          node.waiter = <span class="literal">null</span>;</span><br><span class="line">          <span class="keyword">if</span> (shared)</span><br><span class="line">            signalNextIfShared(node);</span><br><span class="line">          <span class="keyword">if</span> (interrupted)</span><br><span class="line">            current.interrupt();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (node == <span class="literal">null</span>) &#123;                 <span class="comment">// allocate; retry before enqueue</span></span><br><span class="line">      <span class="keyword">if</span> (shared)</span><br><span class="line">        node = <span class="keyword">new</span> <span class="title class_">SharedNode</span>();</span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        node = <span class="keyword">new</span> <span class="title class_">ExclusiveNode</span>();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (pred == <span class="literal">null</span>) &#123;          <span class="comment">// try to enqueue</span></span><br><span class="line">      node.waiter = current;</span><br><span class="line">      <span class="type">Node</span> <span class="variable">t</span> <span class="operator">=</span> tail;</span><br><span class="line">      node.setPrevRelaxed(t);         <span class="comment">// avoid unnecessary fence</span></span><br><span class="line">      <span class="keyword">if</span> (t == <span class="literal">null</span>)</span><br><span class="line">        tryInitializeHead();</span><br><span class="line">      <span class="keyword">else</span> <span class="keyword">if</span> (!casTail(t, node))</span><br><span class="line">        node.setPrevRelaxed(<span class="literal">null</span>);  <span class="comment">// back out</span></span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        t.next = node;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (first &amp;&amp; spins != <span class="number">0</span>) &#123;</span><br><span class="line">      --spins;                        <span class="comment">// reduce unfairness on rewaits</span></span><br><span class="line">      Thread.onSpinWait();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (node.status == <span class="number">0</span>) &#123;</span><br><span class="line">      node.status = WAITING;          <span class="comment">// enable signal and recheck</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="type">long</span> nanos;</span><br><span class="line">      spins = postSpins = (<span class="type">byte</span>)((postSpins &lt;&lt; <span class="number">1</span>) | <span class="number">1</span>);</span><br><span class="line">      <span class="keyword">if</span> (!timed)</span><br><span class="line">        LockSupport.park(<span class="built_in">this</span>);</span><br><span class="line">      <span class="keyword">else</span> <span class="keyword">if</span> ((nanos = time - System.nanoTime()) &gt; <span class="number">0L</span>)</span><br><span class="line">        LockSupport.parkNanos(<span class="built_in">this</span>, nanos);</span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      node.clearStatus();</span><br><span class="line">      <span class="keyword">if</span> ((interrupted |= Thread.interrupted()) &amp;&amp; interruptible)</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> cancelAcquire(node, interrupted, interruptible);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="condition">Condition</h3>
+<p>Condition 可以看做是对 <code>Object.wait()</code> 与
+<code>Object.notify()</code>
+的对象式封装。它的优点在于，我们可以根据不同的条件来创建不同的
+Condition，而这些 Condition
+能够共同作用与同一组资源竞争者，从而实现更为灵活的逻辑控制。</p>
+<p>AQS 将 Condition 的等待/唤醒调度也融合在了 CLH 队列中。它将与
+Condition 相关的线程封装为一个单独的 <code>ConditionNode</code>
+节点，与之对应的，还有 <code>ExclusiveNode</code> 和
+<code>SharedNode</code>。只不过 <code>ConditionNode</code> 还实现了
+<code>ForkJoinPool.ManagedBlocker</code> 接口：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">ConditionNode</span> <span class="keyword">extends</span> <span class="title class_">Node</span></span><br><span class="line">  <span class="keyword">implements</span> <span class="title class_">ForkJoinPool</span>.ManagedBlocker &#123;</span><br><span class="line">  ConditionNode nextWaiter;            <span class="comment">// link to next waiting node</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Allows Conditions to be used in ForkJoinPools without</span></span><br><span class="line"><span class="comment">   * risking fixed pool exhaustion. This is usable only for</span></span><br><span class="line"><span class="comment">   * untimed Condition waits, not timed versions.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">isReleasable</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> status &lt;= <span class="number">1</span> || Thread.currentThread().isInterrupted();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">block</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">while</span> (!isReleasable()) LockSupport.park();</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>实现 <code>ForkJoinPool.ManagedBlocker</code> 的目的是为了在
+<code>Condition.await()</code> 时交由 <code>ForkJoinPool</code>
+来协助执行状态检查并控制当前线程进入等待。</p>
+<p>AQS 又设计了 <code>ConditionObject</code>
+类，作为真正的条件对象。<code>Condition</code>
+的通常使用场景是，由于不满足某个条件，某个线程被挂起，并由另外的线程在条件满足时将其唤醒。由于涉及到多个线程之间对于同一条件（也是一种资源）的操作，这显然是一个需要用到锁的场景，因此
+AQS 在其内部实现了 <code>ConditionObject</code>
+，能直接与条件判断逻辑中的锁关联在一起。</p>
+<p>所以，当应用程序期望使用 <code>Condition</code>
+来调度线程时，需要的动作如下：</p>
+<ol type="1">
+<li>创建锁对象： <code>new Lock()</code></li>
+<li>创建一个或多个条件对象：<code>Lock.newCondition()</code></li>
+<li>判断条件前先获取锁，<code>Lock.lock()</code></li>
+<li>不满足条件，进入等待：<code>Condition.await()</code>，此时先前获取到的锁被自动释放</li>
+<li>另一线程的动作导致条件被满足，重新唤醒：<code>Condition.singal()</code>，实际当中更多的会用<code>Condition.signalAll()</code>
+防止<a
+href="https://lenshood.github.io/2020/04/04/some-jaava-tips/#%E4%BC%AA%E5%94%A4%E9%86%92-spurious-wakeup">伪唤醒</a></li>
+<li>等待的线程被唤醒，在执行下一步动作之前，还需要再次获取锁，因为这部分逻辑是被锁包裹的</li>
+<li>获取锁成功，继续执行</li>
+</ol>
+<p>基于上面的步骤，我们来看看 <code>ConditionObject</code>
+真正的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">await</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">  ...</span><br><span class="line">  <span class="type">ConditionNode</span> <span class="variable">node</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ConditionNode</span>();</span><br><span class="line">  <span class="type">int</span> <span class="variable">savedState</span> <span class="operator">=</span> enableWait(node);</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">while</span> (!canReacquire(node)) &#123;</span><br><span class="line">    ...</span><br><span class="line">        ForkJoinPool.managedBlock(node);</span><br><span class="line">    ...</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">  acquire(node, savedState, <span class="literal">false</span>, <span class="literal">false</span>, <span class="literal">false</span>, <span class="number">0L</span>);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="type">int</span> <span class="title function_">enableWait</span><span class="params">(ConditionNode node)</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (isHeldExclusively()) &#123;</span><br><span class="line">    node.waiter = Thread.currentThread();</span><br><span class="line">    node.setStatusRelaxed(COND | WAITING);</span><br><span class="line">    <span class="type">ConditionNode</span> <span class="variable">last</span> <span class="operator">=</span> lastWaiter;</span><br><span class="line">    <span class="keyword">if</span> (last == <span class="literal">null</span>)</span><br><span class="line">      firstWaiter = node;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">      last.nextWaiter = node;</span><br><span class="line">    lastWaiter = node;</span><br><span class="line">    <span class="type">int</span> <span class="variable">savedState</span> <span class="operator">=</span> getState();</span><br><span class="line">    <span class="keyword">if</span> (release(savedState))</span><br><span class="line">      <span class="keyword">return</span> savedState;</span><br><span class="line">  &#125;</span><br><span class="line">  node.status = CANCELLED; <span class="comment">// lock not held or inconsistent</span></span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalMonitorStateException</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">canReacquire</span><span class="params">(ConditionNode node)</span> &#123;</span><br><span class="line">  <span class="comment">// check links, not status to avoid enqueue race</span></span><br><span class="line">  <span class="keyword">return</span> node != <span class="literal">null</span> &amp;&amp; node.prev != <span class="literal">null</span> &amp;&amp; isEnqueued(node);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上是 <code>await()</code> 相关的实现。我们可以看到，在创建了
+<code>ConditionNode</code> 之后，会先通过 <code>enableWait()</code>
+检查当前是否持有锁，并对 node 进行初始化。注意，这里我们发现，在
+<code>ConditionObject</code> 里面，还维护了一个单独的
+<code>ConditionNode</code>
+队列，专门用于管理由于等待条件而挂起的线程。最后，在节点入队后，将当前的锁释放。</p>
+<p><code>ForkJoinPool.managedBlock(node);</code> 这句话就是用
+<code>ForkJoinPool</code> 来帮助维护挂起了，其执行逻辑，类似：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> (!blocker.isReleasable())</span><br><span class="line">  <span class="keyword">if</span> (blocker.block())</span><br><span class="line">    <span class="keyword">break</span>;</span><br></pre></td></tr></table></figure>
+<p>可以看到，当前线程被重新唤醒后，仍然要进入
+<code>acquire(node, savedState, false, false, false, 0L);</code>的流程，这就是重新获取锁的过程（所以如果这时有其他线程占用着锁，当前被唤醒的线程又会重新被挂起，这在
+<code>signalAll</code> 时会出现）。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">signal</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="type">ConditionNode</span> <span class="variable">first</span> <span class="operator">=</span> firstWaiter;</span><br><span class="line">  <span class="keyword">if</span> (!isHeldExclusively())</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalMonitorStateException</span>();</span><br><span class="line">  <span class="keyword">if</span> (first != <span class="literal">null</span>)</span><br><span class="line">    doSignal(first, <span class="literal">false</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">doSignal</span><span class="params">(ConditionNode first, <span class="type">boolean</span> all)</span> &#123;</span><br><span class="line">  <span class="keyword">while</span> (first != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="type">ConditionNode</span> <span class="variable">next</span> <span class="operator">=</span> first.nextWaiter;</span><br><span class="line">    <span class="keyword">if</span> ((firstWaiter = next) == <span class="literal">null</span>)</span><br><span class="line">      lastWaiter = <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">if</span> ((first.getAndUnsetStatus(COND) &amp; COND) != <span class="number">0</span>) &#123;</span><br><span class="line">      enqueue(first);</span><br><span class="line">      <span class="keyword">if</span> (!all)</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    first = next;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">enqueue</span><span class="params">(Node node)</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (node != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">      <span class="type">Node</span> <span class="variable">t</span> <span class="operator">=</span> tail;</span><br><span class="line">      node.setPrevRelaxed(t);        <span class="comment">// avoid unnecessary fence</span></span><br><span class="line">      <span class="keyword">if</span> (t == <span class="literal">null</span>)                 <span class="comment">// initialize</span></span><br><span class="line">        tryInitializeHead();</span><br><span class="line">      <span class="keyword">else</span> <span class="keyword">if</span> (casTail(t, node)) &#123;</span><br><span class="line">        t.next = node;</span><br><span class="line">        <span class="keyword">if</span> (t.status &lt; <span class="number">0</span>)          <span class="comment">// wake up to clean link</span></span><br><span class="line">          LockSupport.unpark(node.waiter);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上是 <code>signal()</code> 相关的逻辑，在条件满足被
+<code>signal()</code> 后，会选择先从 <code>firstWaiter</code>
+开始唤醒，唤醒前将 <code>ConditionNode</code> 插入CLH等锁队列中。假如是
+<code>signalAll()</code>则会在唤醒 <code>firstWatier</code>
+之后继续唤醒下一个 <code>ConditionNode</code>。</p>
+<h2 id="unsafe-支撑">Unsafe 支撑</h2>
+<p>作为 AQS 中对 CLH 队列的操作（包括 lock-free
+的入队以及对线程的控制等）的支撑，<code>jdk.internal.misc.Unsafe</code>
+类承担了绝大多数的职责。</p>
+<p>AQS 通过如下语句来获取 <code>Unsafe</code>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Unsafe</span> <span class="variable">U</span> <span class="operator">=</span> Unsafe.getUnsafe();</span><br></pre></td></tr></table></figure>
+<h3 id="cas">CAS</h3>
+<p>CAS 即 compare and set 或 compare and swap，在 lock-free
+编程中有着广泛的应用。</p>
+<p>多数 CPU 都提供了具有 CAS 语义的指令，将 compare and set
+这样的动作在一条指令中原子的执行，<code>Unsafe</code> 中包装了一些 CAS
+方法：</p>
+<ul>
+<li><code>compareAndSetXXX(Object o, long offset, Object expected, Object x)</code>：在对象
+o 的 offset 处判断当前值是否为 expected，如果是则将其设置为 x，并返回
+true，否则返回 false。其中 expected 与 x 根据具体不同的方法，也可以是
+primitive 类型</li>
+<li><code>compareAndExchangeXXX(Object o, long offset, Object expected, Object x)</code>：与
+<code>compareAndSet</code> 类似的语义。</li>
+<li><code>weakCompareAndSetXXX(Object o, long offset, Object expected, Object x)</code>：与
+<code>compareAndSet</code>
+类似的语义，但提供了更弱的内存语义，因此在即使实际值与 expected
+一致时，也可能会由于内存竞争而失败。</li>
+</ul>
+<p>因此，CLH 队列在入队时，由于可能同时有很多个线程尝试入队，因此采用了
+CAS 的方法来设置队尾：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (pred == <span class="literal">null</span>) &#123;          <span class="comment">// try to enqueue</span></span><br><span class="line">  node.waiter = current;</span><br><span class="line">  <span class="type">Node</span> <span class="variable">t</span> <span class="operator">=</span> tail;</span><br><span class="line">  node.setPrevRelaxed(t);         <span class="comment">// avoid unnecessary fence</span></span><br><span class="line">  <span class="keyword">if</span> (t == <span class="literal">null</span>)</span><br><span class="line">    tryInitializeHead();</span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (!casTail(t, node))</span><br><span class="line">    node.setPrevRelaxed(<span class="literal">null</span>);  <span class="comment">// back out</span></span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    t.next = node;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而由于出队的时候，只会有一个线程参与操作，就不需要 CAS 了：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (acquired) &#123;</span><br><span class="line">  <span class="keyword">if</span> (first) &#123;</span><br><span class="line">    node.prev = <span class="literal">null</span>;</span><br><span class="line">    head = node;</span><br><span class="line">    pred.next = <span class="literal">null</span>;</span><br><span class="line">    node.waiter = <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">if</span> (shared)</span><br><span class="line">      signalNextIfShared(node);</span><br><span class="line">    <span class="keyword">if</span> (interrupted)</span><br><span class="line">      current.interrupt();</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="thread-调度">Thread 调度</h3>
+<p><code>Unsafe</code> 也提供了对线程的调度操作：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// block current thread</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title function_">park</span><span class="params">(<span class="type">boolean</span> isAbsolute, <span class="type">long</span> time)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// unblock the given thread</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">native</span> <span class="keyword">void</span> <span class="title function_">unpark</span><span class="params">(Object thread)</span>;</span><br></pre></td></tr></table></figure>
+<p>可以看到，上面的方法可以实现对线程进行 block 或
+unblock。这里要回顾一下线程的状态：</p>
+<ul>
+<li>NEW：Thread 还未启动</li>
+<li>RUNNABLE：从 JVM 的角度看，Thread
+正在执行中。但在操作系统层面可能处于等待资源的状态</li>
+<li>BLOCKED：正在等待 monitor lock 的 Thread。可代表正在等待
+<code>synchronized</code> 块的 Thread 状态。</li>
+<li>WAITING：等待其他线程执行动作。如下操作后，Thread 可以进入 WAITING
+状态：
+<ul>
+<li><code>Object.wait()</code></li>
+<li><code>Thread.join()</code></li>
+<li><code>LockSupport.park()</code>：LockSupport 在 <code>park()</code>
+中调用了 <code>Unsafe.park()</code></li>
+</ul></li>
+<li>TIMED_WAITING：与 WAITING 类似，只不过调用的方法都带有
+<code>wait time</code>参数</li>
+<li>TERMINATED：Thread 已经终止。</li>
+</ul>
+<p>因此，在<code>Unsafe.park</code> 之后，线程就进入了 WAITING
+状态。所以在 AQS <code>acquire</code> 方法的最后，就是将线程 park。</p>
+<p>AQS 中实际使用的 <code>LockSupport.park()</code> 与
+<code>Unsfae.park()</code> 的主要区别在于，<code>LockSupport.park</code>
+提供了包装逻辑来在等待线程中设置被等待的对象：<code>blocker</code>
+。<code>blocker</code> 可以用于调试、监控等目的。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2021/01/14/java-aqs/" title="虚拟工厂：Java AQS 同步器">http://lenshood.github.io/2021/01/14/java-aqs/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/aqs/" rel="tag"># aqs</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/12/25/2020-summary/" rel="prev" title="Summary of 2020">
+                  <i class="fa fa-angle-left"></i> Summary of 2020
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021/01/27/java-varhandle/" rel="next" title="Java 9 引入的 Memory Order">
+                  Java 9 引入的 Memory Order <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

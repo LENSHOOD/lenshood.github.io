@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本次课程主要涉及 TiDB 中的 Executor 组件。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiDB 学习课程 Lesson-4">
+<meta property="og:url" content="http://lenshood.github.io/2020/09/06/tidb-lesson-4/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本次课程主要涉及 TiDB 中的 Executor 组件。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-09-06T15:43:18.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.457Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="tidb">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/09/06/tidb-lesson-4/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/09/06/tidb-lesson-4/","path":"2020/09/06/tidb-lesson-4/","title":"TiDB 学习课程 Lesson-4"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>TiDB 学习课程 Lesson-4 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#tidb-sql-%E5%B1%82"><span class="nav-number">1.</span> <span class="nav-text">TiDB SQL 层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#executor-%E7%9A%84%E6%89%A7%E8%A1%8C%E8%B7%AF%E5%BE%84"><span class="nav-number">2.</span> <span class="nav-text">Executor 的执行路径</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#executor-%E7%B1%BB%E5%9E%8B"><span class="nav-number">2.1.</span> <span class="nav-text">Executor 类型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#insertexec-%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.2.</span> <span class="nav-text">InsertExec 执行过程介绍</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#tablereaderexec-%E6%89%A7%E8%A1%8C%E8%BF%87%E7%A8%8B%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.3.</span> <span class="nav-text">TableReaderExec 执行过程介绍</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%93%E5%B0%BE"><span class="nav-number">3.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/09/06/tidb-lesson-4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="TiDB 学习课程 Lesson-4 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TiDB 学习课程 Lesson-4
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-09-06 23:43:18" itemprop="dateCreated datePublished" datetime="2020-09-06T23:43:18+08:00">2020-09-06</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/TiDB/" itemprop="url" rel="index"><span itemprop="name">TiDB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>本次课程主要涉及 TiDB 中的 Executor 组件。</p>
+<span id="more"></span>
+<h3 id="tidb-sql-层">TiDB SQL 层</h3>
+<p>在介绍 Executor 层之前，我们先从总体上来看一看 TiDB 的 SQL
+架构，这里借用一张<a
+href="!%5BSQL%20层架构%5D(https://download.pingcap.com/images/blog-cn/tidb-source-code-reading-2/2.png)">官方博客的图</a>：</p>
+<p><img
+src="https://download.pingcap.com/images/blog-cn/tidb-source-code-reading-2/2.png" /></p>
+<p>我们可以看到，从客户端发来的一个 SQL 请求，会先经过 Protocol Layer
+进行预处理，每一个请求都转换成一个 Session Context，之后进入 SQL
+层进行操作。粗略的看，我们能发现在 Executor
+处，整个操作有可能会继续下探到 TiKV 层，也有可能直接由 Local Executor
+返回。</p>
+<p>仔细看 SQL
+层的架构，实际上还是像一条生产线，通过对指令进行理解，来执行相应的操作。</p>
+<ol type="1">
+<li>绿色部分：从协议层解析出来的 SQL
+语句，是以文本形式存在的，那么如何让程序去理解这条语句的意图、嵌套结构，以及校验语句的正确性呢？通过
+Parser（实际上采用了 yacc Parser Generator 来生成复杂的转换器）将 SQL
+语句转换为一颗 AST（抽象语法树），对这颗树进行分析、校验后生成一个 stmt
+结构。</li>
+<li>黄色部分：分析上述生成的
+AST，并生成实际的执行计划，对该执行计划进行逻辑与物理优化，使之尽可能达到性能最优。这里生成最终的执行计划，即我们执行
+<code>Explain xxx</code> 语句返回的执行计划了。</li>
+<li>深蓝色部分：执行计划会被转化为具体的执行器（Executor），执行器采用了
+<a
+href="https://paperhub.s3.amazonaws.com/dace52a42c07f7f8348b08dc2b186061.pdf">Volcano
+模型</a>来实现，Volcano
+模型简单来讲就是一颗操作树，树的每一层都先调用下层获取数据，之后对获取到的数据进行加工后返回给上层。</li>
+</ol>
+<p>所以，我们可以从 SQL
+语句的复杂性与多样性来得出判断：不同的操作（DML、DQL、join、sort、aggregate、index...）会生成不同的执行计划，不同的执行计划会转化为不同的执行器，因此需要通过多样的执行器来满足多样的
+SQL 操作。</p>
+<h3 id="executor-的执行路径">Executor 的执行路径</h3>
+<p>上一节我们了解了在 SQL 层的执行路径，这一节我们一起梳理一下 Executor
+的执行路径。</p>
+<p>Executor 的所有逻辑都放置在 <code>executor</code>
+包下，其中：<code>adapter.go</code> 对应了包模块的上层出入口。</p>
+<p><code>adapter.go</code>顾名思义是用于适配，它主要与执行计划交互，用于由外部调用来执行操作，并返回操作结果。<code>adapter.go</code>
+提供了 <code>ExecStmt</code> 来实现构造执行器并执行，提供了
+<code>RecordSet</code> 通过执行器获取结果集。</p>
+<p>与下层 tikv 的交互逻辑，则散落在各种不同的 Executor 实现中。</p>
+<p>Executor 都提供了 <code>Open()</code> 与 <code>Next()</code>
+方法来实现对自身的初始化以及实际的执行。</p>
+<h4 id="executor-类型">Executor 类型</h4>
+<p>根据不同的操作，Executor 包含了很多种类，不过总体来看，所有的
+Executor 都能分成两类：</p>
+<ul>
+<li>需要返回结果的类型：例如各种单表、连表查询</li>
+<li>不需要返回结果的类型：例如插入、更新等</li>
+</ul>
+<p>对于不需要返回结果类型的 Executor，其 <code>Next()</code>
+会立即执行，相关的逻辑在<code>adapter.go</code>的<code>handleNoDelay()</code>
+方法中实现，参加如下代码。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// adapter.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(a *ExecStmt)</span></span> Exec(ctx context.Context) (_ sqlexec.RecordSet, err <span class="type">error</span>) &#123;</span><br><span class="line">	...</span><br><span class="line">  </span><br><span class="line">  e, err := a.buildExecutor()</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> err = e.Open(ctx); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		terror.Call(e.Close)</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">if</span> handled, result, err := a.handleNoDelay(ctx, e, isPessimistic); handled &#123;</span><br><span class="line">		<span class="keyword">return</span> result, err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而对于需要返回结果的
+Executor，不会立即执行，而是会在<code>Open()</code>被调用后，构造一个
+<code>ResultSet</code>
+结构，包含相关上下文，最终的读取过程在<code>conn.go</code> 的
+<code>handleStmt()</code> 方法中
+<code>err = cc.writeResultset(ctx, rs, false, status, 0)</code>
+这句话里实际的执行，并获取结果，参见如下代码。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// conn.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cc *clientConn)</span></span> handleStmt(ctx context.Context, stmt ast.StmtNode, warns []stmtctx.SQLWarn, lastStmt <span class="type">bool</span>) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">  </span><br><span class="line">	rs, err := cc.ctx.ExecuteStmt(ctx, stmt)</span><br><span class="line">	reg.End()</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">if</span> rs != <span class="literal">nil</span> &#123;</span><br><span class="line">		...</span><br><span class="line"></span><br><span class="line">		err = cc.writeResultset(ctx, rs, <span class="literal">false</span>, status, <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		...</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>接下来会指定两个具有代表性的 Executor
+来分别介绍上述两种类型的操作过程。</p>
+<h4 id="insertexec-执行过程介绍">InsertExec 执行过程介绍</h4>
+<p>连接 TiDB 后执行：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="operator">&gt;</span> <span class="keyword">create</span> <span class="keyword">table</span> test (</span><br><span class="line">	id <span class="type">int</span> <span class="keyword">primary</span> key,</span><br><span class="line">  name <span class="type">varchar</span>(<span class="number">20</span>)</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="operator">&gt;</span> explain <span class="keyword">insert</span> <span class="keyword">into</span> test <span class="keyword">values</span>(<span class="number">1</span>, <span class="string">&#x27;a&#x27;</span>);</span><br><span class="line"><span class="operator">+</span><span class="comment">----------+---------+------+---------------+---------------+</span></span><br><span class="line"><span class="operator">|</span> id       <span class="operator">|</span> estRows <span class="operator">|</span> task <span class="operator">|</span> access object <span class="operator">|</span> operator info <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----------+---------+------+---------------+---------------+</span></span><br><span class="line"><span class="operator">|</span> Insert_1 <span class="operator">|</span> N<span class="operator">/</span>A     <span class="operator">|</span> root <span class="operator">|</span>               <span class="operator">|</span> N<span class="operator">/</span>A           <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----------+---------+------+---------------+---------------+</span></span><br></pre></td></tr></table></figure>
+<p>我们可以看到对于一个最简单的插入语句，TiDB 给出的执行计划是仅使用
+Insert 执行器来执行。</p>
+<p>简单来看一看<code>InsertExec</code>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> InsertExec <span class="keyword">struct</span> &#123;</span><br><span class="line">	*InsertValues</span><br><span class="line">	OnDuplicate    []*expression.Assignment</span><br><span class="line">	evalBuffer4Dup chunk.MutRow</span><br><span class="line">	curInsertVals  chunk.MutRow</span><br><span class="line">	row4Update     []types.Datum</span><br><span class="line"></span><br><span class="line">	Priority mysql.PriorityEnum</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(e *InsertExec)</span></span> Next(ctx context.Context, req *chunk.Chunk) <span class="type">error</span> &#123;</span><br><span class="line">	req.Reset()</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(e.children) &gt; <span class="number">0</span> &amp;&amp; e.children[<span class="number">0</span>] != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> insertRowsFromSelect(ctx, e)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> insertRows(ctx, e)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>具体的逻辑一部分在<code>insert_common.go</code>中，一部分在
+<code>insert.go</code> 中：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// insert_common.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">insertRows</span><span class="params">(ctx context.Context, base insertCommon)</span></span> (err <span class="type">error</span>) &#123;</span><br><span class="line">	...</span><br><span class="line">	<span class="keyword">for</span> i, list := <span class="keyword">range</span> e.Lists &#123;</span><br><span class="line">		...</span><br><span class="line">		<span class="keyword">if</span> batchInsert &amp;&amp; e.rowCount%<span class="type">uint64</span>(batchSize) == <span class="number">0</span> &#123;</span><br><span class="line">			...</span><br><span class="line">			<span class="keyword">if</span> err = base.exec(ctx, rows); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> err</span><br><span class="line">			&#125;</span><br><span class="line">			...</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// insert.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(e *InsertExec)</span></span> exec(ctx context.Context, rows [][]types.Datum) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(e.OnDuplicate) &gt; <span class="number">0</span> &#123;</span><br><span class="line">		...</span><br><span class="line">	&#125; <span class="keyword">else</span> <span class="keyword">if</span> ignoreErr &#123;</span><br><span class="line">		...</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="keyword">for</span> i, row := <span class="keyword">range</span> rows &#123;</span><br><span class="line">		  ...</span><br><span class="line">			<span class="keyword">if</span> i%sizeHintStep == <span class="number">0</span> &#123;</span><br><span class="line">				...</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				err = e.addRecord(ctx, row)</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> err</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>可以看到，插入操作是按批进行插入的，先准备好数据后，再调用
+<code>exec()</code> 来执行插入动作，<code>exec()</code>
+中的<code>err = e.addRecord(ctx, row)</code> 又会继续调用下层与 TiKV
+交互的相关 api。</p>
+<p>因此，从 <code>exec()</code>
+方法的实现角度来看，每一批待插入数据，最终都是按行插入的。</p>
+<h4 id="tablereaderexec-执行过程介绍">TableReaderExec 执行过程介绍</h4>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="operator">&gt;</span> <span class="keyword">create</span> <span class="keyword">table</span> test (</span><br><span class="line">	id <span class="type">int</span> <span class="keyword">primary</span> key,</span><br><span class="line">  name <span class="type">varchar</span>(<span class="number">20</span>)</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="operator">&gt;</span> explain <span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> test;</span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------+----------+-----------+---------------+--------------------------------+</span></span><br><span class="line"><span class="operator">|</span> id                    <span class="operator">|</span> estRows  <span class="operator">|</span> task      <span class="operator">|</span> access object <span class="operator">|</span> operator info                  <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------+----------+-----------+---------------+--------------------------------+</span></span><br><span class="line"><span class="operator">|</span> TableReader_5         <span class="operator">|</span> <span class="number">10000.00</span> <span class="operator">|</span> root      <span class="operator">|</span>               <span class="operator">|</span> data:TableFullScan_4           <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> └─TableFullScan_4     <span class="operator">|</span> <span class="number">10000.00</span> <span class="operator">|</span> cop[tikv] <span class="operator">|</span> <span class="keyword">table</span>:test    <span class="operator">|</span> keep <span class="keyword">order</span>:<span class="literal">false</span>, stats:pseudo <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-----------------------+----------+-----------+---------------+--------------------------------+</span></span><br></pre></td></tr></table></figure>
+<p>从执行计划中，我们能看到，简单的 select
+语句被拆分成了两个执行步骤（关于<a
+href="https://docs.pingcap.com/zh/tidb/stable/query-execution-plan">阅读
+TiDB 的执行计划</a>）：</p>
+<ul>
+<li>TableFullScan_4 (cop task)：下推到 TiKV 的全表扫描计算</li>
+<li>TableReader_5 (root task)：在 TiDB 层对子任务进行组合</li>
+</ul>
+<p>所以我们来看一看 <code>TableReaderExec</code>的实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> TableReaderExecutor <span class="keyword">struct</span> &#123;</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">  <span class="comment">// resultHandler handles the order of the result. Since (MAXInt64, MAXUint64] stores before [0, MaxInt64] physically</span></span><br><span class="line">	<span class="comment">// for unsigned int.</span></span><br><span class="line">	resultHandler *tableResultHandler</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们从前面的执行计划里知道，TableReader 的操作实际上是要从 TiKV
+中获取下游查询结果的，实际上获取结果的动作，就是在上述结构里面的
+<code>resultHandler</code> 中定义的。</p>
+<p>此外，前文中我们已经提到，<code>Executor</code> 定义了
+<code>Open()</code> 与 <code>Next()</code> 两种操作，以下便是
+<code>TableReaderExec</code> 的实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Open</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(e *TableReaderExecutor)</span></span> Open(ctx context.Context) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">  </span><br><span class="line">	e.resultHandler = &amp;tableResultHandler&#123;&#125;</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">	</span><br><span class="line">  firstPartRanges, secondPartRanges := splitRanges(e.ranges, e.keepOrder, e.desc)</span><br><span class="line">	firstResult, err := e.buildResp(ctx, firstPartRanges)</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(secondPartRanges) == <span class="number">0</span> &#123;</span><br><span class="line">		e.resultHandler.open(<span class="literal">nil</span>, firstResult)</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">var</span> secondResult distsql.SelectResult</span><br><span class="line">	secondResult, err = e.buildResp(ctx, secondPartRanges)</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">	</span><br><span class="line">  e.resultHandler.open(firstResult, secondResult)</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Next</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(e *TableReaderExecutor)</span></span> Next(ctx context.Context, req *chunk.Chunk) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">if</span> err := e.resultHandler.nextChunk(ctx, req); err != <span class="literal">nil</span> &#123;</span><br><span class="line">		e.feedback.Invalidate()</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>整个 select 的逻辑，实际上是划分在上面这两部分的。</p>
+<p>首先，<code>Open()</code>
+会先被执行，在该方法内我们看到，<code>firstResult, err := e.buildResp(ctx, firstPartRanges)</code>
+构造了一个下推查询任务（后文会涉及），之后将该返回值作为参数传入了
+<code>resultHandler.open()</code>（所谓 firstPartRanges 与
+secondPartRanges 是被拆开的两部分分区，基于我们当前的查询，只会使用到
+firstPartRanges，secondPaartRanges 为 nil）。</p>
+<p>我们一起来看一看 <code>buildResp()</code> 的实现。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// table_reader.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(e *TableReaderExecutor)</span></span> buildResp(ctx context.Context, ranges []*ranger.Range) (distsql.SelectResult, <span class="type">error</span>) &#123;</span><br><span class="line">	...</span><br><span class="line"></span><br><span class="line">	result, err := e.SelectResult(ctx, e.ctx, kvReq, retTypes(e), e.feedback, getPhysicalPlanIDs(e.plans), e.id)</span><br><span class="line">	</span><br><span class="line">  ...</span><br><span class="line">	</span><br><span class="line">  <span class="keyword">return</span> result, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// table_reader.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sr selectResultHook)</span></span> SelectResult(ctx context.Context, sctx sessionctx.Context, kvReq *kv.Request,</span><br><span class="line">	fieldTypes []*types.FieldType, fb *statistics.QueryFeedback, copPlanIDs []<span class="type">int</span>, rootPlanID <span class="type">int</span>) (distsql.SelectResult, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="keyword">if</span> sr.selectResultFunc == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> distsql.SelectWithRuntimeStats(ctx, sctx, kvReq, fieldTypes, fb, copPlanIDs, rootPlanID)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> sr.selectResultFunc(ctx, sctx, kvReq, fieldTypes, fb, copPlanIDs)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// select_result.go</span></span><br><span class="line"><span class="keyword">type</span> selectResult <span class="keyword">struct</span> &#123;</span><br><span class="line">	...</span><br><span class="line">  </span><br><span class="line">	resp  kv.Response</span><br><span class="line"></span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// kv.go</span></span><br><span class="line"><span class="keyword">type</span> Response <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// Next returns a resultSubset from a single storage unit.</span></span><br><span class="line">	<span class="comment">// When full result set is returned, nil is returned.</span></span><br><span class="line">	Next(ctx context.Context) (resultSubset ResultSubset, err <span class="type">error</span>)</span><br><span class="line">	<span class="comment">// Close response.</span></span><br><span class="line">	Close() <span class="type">error</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>从以上代码中我们能得出：</p>
+<ol type="1">
+<li>实际上在 <code>Open()</code> 阶段就已经通过 <code>distsql</code>
+向下游 TiKV 分发了查询任务</li>
+<li>在 <code>distsql</code> 返回的 <code>selectResult</code>
+中，可以通过 <code>resp</code> 来获得返回值</li>
+</ol>
+<p>至此整个
+<code>Open()</code>的流程介绍完毕了。我们可能会有一些疑问：</p>
+<p><code>Open()</code> 仅仅是通过 <code>buildResp()</code>
+拿到了<code>selectResult</code>，但并没有调用
+<code>resp.Next()</code>来获得结果，那么，</p>
+<p><strong>实际上获取结果的逻辑，是在上文中提到的
+<code>handleNoDelay()</code>中完成的吗？</strong></p>
+<p>实际上不是的，在前文我们还提到了：对于有返回结果的
+Executor，其结果的获取，在
+<code>err = cc.writeResultset(ctx, rs, false, status, 0)</code>
+中完成，现在我们来看一看：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// conn.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cc *clientConn)</span></span> writeResultset(ctx context.Context, rs ResultSet, binary <span class="type">bool</span>, serverStatus <span class="type">uint16</span>, fetchSize <span class="type">int</span>) (runErr <span class="type">error</span>) &#123;</span><br><span class="line">	...</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">var</span> err <span class="type">error</span></span><br><span class="line">	<span class="keyword">if</span> mysql.HasCursorExistsFlag(serverStatus) &#123;</span><br><span class="line">		err = cc.writeChunksWithFetchSize(ctx, rs, serverStatus, fetchSize)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		err = cc.writeChunks(ctx, rs, binary, serverStatus)</span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	...</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> cc.flush(ctx)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// conn.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cc *clientConn)</span></span> writeChunks(ctx context.Context, rs ResultSet, binary <span class="type">bool</span>, serverStatus <span class="type">uint16</span>) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="comment">// Here server.tidbResultSet implements Next method.</span></span><br><span class="line">		err := rs.Next(ctx, req)</span><br><span class="line">		</span><br><span class="line">    ...</span><br><span class="line">    </span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; rowCount; i++ &#123;</span><br><span class="line">			data = data[<span class="number">0</span>:<span class="number">4</span>]</span><br><span class="line">			<span class="keyword">if</span> binary &#123;</span><br><span class="line">				data, err = dumpBinaryRow(data, rs.Columns(), req.GetRow(i))</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				data, err = dumpTextRow(data, rs.Columns(), req.GetRow(i))</span><br><span class="line">			&#125;</span><br><span class="line">      </span><br><span class="line">			...</span><br><span class="line">			</span><br><span class="line">      <span class="keyword">if</span> err = cc.writePacket(data); err != <span class="literal">nil</span> &#123;</span><br><span class="line">				reg.End()</span><br><span class="line">				<span class="keyword">return</span> err</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		reg.End()</span><br><span class="line">    </span><br><span class="line">		...</span><br><span class="line">    </span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> cc.writeEOF(serverStatus)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>关键行就是<code>err := rs.Next(ctx, req)</code>，该语句中，<code>ResultSet</code>
+的<code>Next()</code> 最终会调用
+<code>TableReaderExec.Next()</code>来获取数据，并放入 <code>req</code>
+中（<code>req</code> 是 <code>ResultSet</code> 中存放的一个
+<code>Chunk</code> 结构）。</p>
+<h3 id="结尾">结尾</h3>
+<p>前文讲解了最基本的两种 Executor
+的实现逻辑，除此之外，一些较为复杂的操作，如 Join，Aggregation
+等都会通过类似的过程来完成执行，只不过嵌套更深，逻辑更复杂。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/09/06/tidb-lesson-4/" title="TiDB 学习课程 Lesson-4">http://lenshood.github.io/2020/09/06/tidb-lesson-4/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/tidb/" rel="tag"># tidb</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/08/26/tidb-lesson-3/" rel="prev" title="TiDB 学习课程 Lesson-3">
+                  <i class="fa fa-angle-left"></i> TiDB 学习课程 Lesson-3
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/09/19/tidb-lesson-5/" rel="next" title="TiDB 学习课程 Lesson-5">
+                  TiDB 学习课程 Lesson-5 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

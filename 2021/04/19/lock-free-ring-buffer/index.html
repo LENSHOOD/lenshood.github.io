@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文涉及到的代码见：https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD&#x2F;go-lock-free-ring-buffer  Ring Buffer Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特性：  容量固定的有界队列，进出队列操作不需要整体移动队内数据 内存结构紧凑（避免 GC），读写效率高（常数时间的入队、出队、随机访问） 难以扩容">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一个简单的 Lock Free Ring Buffer，有多简单？">
+<meta property="og:url" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文涉及到的代码见：https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD&#x2F;go-lock-free-ring-buffer  Ring Buffer Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特性：  容量固定的有界队列，进出队列操作不需要整体移动队内数据 内存结构紧凑（避免 GC），读写效率高（常数时间的入队、出队、随机访问） 难以扩容">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/2.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/3.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/4.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/5.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/6.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/7.png">
+<meta property="og:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/8.png">
+<meta property="article:published_time" content="2021-04-19T14:46:04.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.284Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="lock free">
+<meta property="article:tag" content="ring buffer">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/1.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/","path":"2021/04/19/lock-free-ring-buffer/","title":"一个简单的 Lock Free Ring Buffer，有多简单？"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>一个简单的 Lock Free Ring Buffer，有多简单？ | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#ring-buffer"><span class="nav-number">1.</span> <span class="nav-text">Ring Buffer</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ideology"><span class="nav-number">1.1.</span> <span class="nav-text">Ideology</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#reality"><span class="nav-number">1.2.</span> <span class="nav-text">Reality</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#lock-free-ring-buffer"><span class="nav-number">2.</span> <span class="nav-text">Lock-Free Ring Buffer</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%89%8D%E6%9C%9F%E5%87%86%E5%A4%87"><span class="nav-number">2.1.</span> <span class="nav-text">前期准备</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%94%B9%E9%80%A0%E4%B8%80%E4%B8%8B"><span class="nav-number">2.2.</span> <span class="nav-text">改造一下</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8E%9F%E5%AD%90%E5%8C%96%E7%9A%84-turn-around"><span class="nav-number">2.2.1.</span> <span class="nav-text">原子化的 turn around</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%8C%E6%AC%A1%E5%B9%82%E8%BD%AC%E6%8D%A2"><span class="nav-number">2.2.2.</span> <span class="nav-text">二次幂转换</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9B%BF%E6%8D%A2-atomic-%E5%87%BD%E6%95%B0"><span class="nav-number">2.2.3.</span> <span class="nav-text">替换 atomic 函数</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9D%9E%E5%90%8C%E6%AD%A5%E4%B8%8B%E4%B8%8D%E5%8F%AF%E6%8E%A7%E7%9A%84%E8%B0%83%E5%BA%A6%E4%BA%A7%E7%94%9F%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">3.</span> <span class="nav-text">非同步下不可控的调度产生的问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF-1cas-%E4%B8%8E-readwrite-value-%E4%B8%8D%E5%90%8C%E6%AD%A5"><span class="nav-number">3.1.</span> <span class="nav-text">场景 1：CAS 与 Read&#x2F;Write
+Value 不同步</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF-2load-tailhead-%E4%B8%8E-cas-%E4%B8%8D%E5%90%8C%E6%AD%A5%E5%8D%B3-aba"><span class="nav-number">3.2.</span> <span class="nav-text">场景 2：Load Tail&#x2F;Head
+与 CAS 不同步（即 ABA）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF-3load-tail-%E4%B8%8E-load-head-%E4%B8%8D%E5%90%8C%E6%AD%A5"><span class="nav-number">3.3.</span> <span class="nav-text">场景 3：Load Tail 与 Load
+Head 不同步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95"><span class="nav-number">4.</span> <span class="nav-text">性能测试</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E6%9C%AC%E4%BD%93"><span class="nav-number">4.1.</span> <span class="nav-text">测试本体</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9F%BA%E5%87%86"><span class="nav-number">4.2.</span> <span class="nav-text">基准</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94"><span class="nav-number">4.3.</span> <span class="nav-text">对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94%E5%8F%A6%E4%B8%80%E7%A7%8D%E5%AE%9E%E7%8E%B0"><span class="nav-number">4.4.</span> <span class="nav-text">对比另一种实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8D%E5%90%8C%E5%8F%82%E6%95%B0%E4%B8%8B%E7%9A%84%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="nav-number">4.5.</span> <span class="nav-text">不同参数下的性能对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mpsc-%E4%B8%8E-spmc"><span class="nav-number">5.</span> <span class="nav-text">MPSC 与 SPMC</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="nav-number">5.1.</span> <span class="nav-text">性能对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">6.</span> <span class="nav-text">Reference</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="一个简单的 Lock Free Ring Buffer，有多简单？ | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          一个简单的 Lock Free Ring Buffer，有多简单？
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2021-04-19 22:46:04" itemprop="dateCreated datePublished" datetime="2021-04-19T22:46:04+08:00">2021-04-19</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Go/" itemprop="url" rel="index"><span itemprop="name">Go</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><blockquote>
+<p>本文涉及到的代码见：https://github.com/LENSHOOD/go-lock-free-ring-buffer</p>
+</blockquote>
+<h2 id="ring-buffer">Ring Buffer</h2>
+<p>Ring Buffer 是一种极其简单的数据结构，它具有如下常见的特性：</p>
+<ul>
+<li>容量固定的有界队列，进出队列操作不需要整体移动队内数据</li>
+<li>内存结构紧凑（避免
+GC），读写效率高（常数时间的入队、出队、随机访问）</li>
+<li>难以扩容</li>
+</ul>
+<img src="/2021/04/19/lock-free-ring-buffer/1.png" class="">
+<span id="more"></span>
+<hr />
+<p>Lock Free Ring Buffer 系列文章：</p>
+<ol type="1">
+<li><a
+href="https://lenshood.github.io/2021/04/19/lock-free-ring-buffer/">一个简单的
+Lock Free Ring Buffer，有多简单？</a></li>
+<li><a
+href="https://lenshood.github.io/2022/08/01/optimize-lfring-performance/">探索引入泛型对
+lfring 产生的性能影响</a></li>
+<li><a
+href="https://lenshood.github.io/2022/09/04/decide-lfring-channel/">lfring
+和 channel，到底要怎么选？</a></li>
+</ol>
+<hr />
+<h3 id="ideology">Ideology</h3>
+<p>原理上 Ring Buffer 简单优雅：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> ring <span class="keyword">struct</span> &#123;</span><br><span class="line">  head <span class="type">int</span>,</span><br><span class="line">  tail <span class="type">int</span>,</span><br><span class="line">  element []<span class="keyword">interface</span>&#123;&#125;,</span><br><span class="line">  capacity <span class="type">int</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Offer(value <span class="keyword">interface</span>&#123;&#125;) &#123;</span><br><span class="line">  <span class="comment">// full</span></span><br><span class="line">  <span class="keyword">if</span> r.tail - r.head == r.capacity<span class="number">-1</span> || r.tail - r.head == <span class="number">-1</span> &#123;</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  r.tail++</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// turn around</span></span><br><span class="line">  <span class="keyword">if</span> r.tail == r.capacity<span class="number">-1</span> &#123;</span><br><span class="line">    r.tail = <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  element[r.tail] = value</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Poll() <span class="keyword">interface</span>&#123;&#125; &#123;</span><br><span class="line">  <span class="comment">// enpty</span></span><br><span class="line">  <span class="keyword">if</span> (r.tail == r.head) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  v := element[r.head]</span><br><span class="line">  r.head++</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// turn around</span></span><br><span class="line">  <span class="keyword">if</span> r.head == r.capacity<span class="number">-1</span> &#123;</span><br><span class="line">    r.head = <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> v</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="reality">Reality</h3>
+<p>既然作为一种缓冲器，我们可以预见到 Ring Buffer 的一个主要场景就是在
+Producer - Consumer 模式下均衡数据交换速率，削峰填谷。</p>
+<p>因此天然的，我们期望一个 Ring Buffer 是 thread safe 的。</p>
+<p>我们有很多种方式来避免入队和出队操作相互竞争，其中最简单的就是把共享变量：<code>head</code>、<code>tail</code>、<code>element[]</code>
+用互斥锁保护起来。</p>
+<p>但我们会发现，在前面代码中几乎每一条语句都涉及到共享变量的操作，所以我们只能用锁将整个函数体都包裹起来，导致临界区(<a
+href="https://en.wikipedia.org/wiki/Critical_section">Critical
+Section</a>) 很大。</p>
+<p><strong>考虑到 Ring Buffer 超级简单，我们可以用 Lock Free
+的方式来改造它吗？</strong></p>
+<ol type="1">
+<li>虽然 <code>element[]</code>
+整体上是一个共享变量，但由于只有<code>head</code> 和 <code>tail</code>
+的持有者才能访问数据，所以不同的持有者访问<code>element[]</code> 不同的
+"slot"，并不会发生竞争</li>
+<li><code>tail</code> 只被 Producer 更新，<code>head</code> 只被
+Consumer 更新，<code>head</code> /
+<code>tail</code>之间不存在原子更新关系。</li>
+<li><code>tail</code> 和 <code>head</code>
+都是单个整数类型变量，对其读写适用于CPU支持的原子操作（read-modify-write）</li>
+</ol>
+<p>这么看来直接使用一些 atomic 操作，就能实现 lock-free 的 ring buffer
+了！</p>
+<h2 id="lock-free-ring-buffer">Lock-Free Ring Buffer</h2>
+<h3 id="前期准备">前期准备</h3>
+<p>我们知道，在传统 SMP 架构下，确保多线程程序 memory ordering
+的方式是采用 memory barrier + cache coherence protocol
+来实现共享变量的访问在 cpu 不同核之间保持一致性与顺序性。</p>
+<p>因此，我们需要根据共享变量（在本文的上下文中指的就是
+<code>tail</code>/<code>head</code>/<code>element[]</code>）的访问方式来确定其具体使用编程语言中的哪一种
+memory order 抽象。</p>
+<p>C++ 和 Java 都提供了较为细粒度的 memory order 抽象（<a
+href="https://www.cplusplus.com/reference/atomic/memory_order/">c++
+memory order</a>、<a
+href="http://gee.cs.oswego.edu/dl/html/j9mm.html">java
+varhandle</a>），但 go 提供的 <code>atomic</code> 包对 memory order
+的控制比较粗略，因此我们能用得上的库函数只有如下几种：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 以下的 “XXX” 代表各种不同的类型如：uint32、int64、uintptr、unsafe.Pointer 等等</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">LoadXXX</span><span class="params">(addr *XXX)</span></span> (val XXX)</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">StoreXXX</span><span class="params">(addr *XXX, val XXX)</span></span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">CompareAndSwapXXX</span><span class="params">(addr *XXX, old, <span class="built_in">new</span> XXX)</span></span> (swapped <span class="type">bool</span>)</span><br></pre></td></tr></table></figure>
+<p>CAS 需要的 barrier 限制毋庸置疑，但对于
+<code>Load</code>/<code>Store</code>，Go 在<a
+href="https://golang.org/pkg/sync/atomic/">官方文档</a>中只是讲这些提到这些函数能够
+“atomically” 执行操作，但并没有说细节。不过从<a
+href="https://groups.google.com/g/golang-dev/c/vVkH_9fl1D8/m/azJa10lkAwAJ">这里</a>我们看到
+rsc 在回复中提到说 Go 的 atomic 实现 ”能够保证 sequential
+consistency，就像 c++ 的 seqconst“。那么我们就可以推断对共享变量进行
+<code>Load</code>/<code>Store</code>操作就类似于在 java 中对
+<code>volatile</code> 变量的操作行为。这也意味着最终我们的 lock-free
+实现可能会相对较慢。</p>
+<h3 id="改造一下">改造一下</h3>
+<h4 id="原子化的-turn-around">原子化的 turn around</h4>
+<p>在改造为 lock-free 版本之前，我们发现了前述代码中的一个问题：</p>
+<p>每当 head / tail 的值达到 capacity 后，我们需要将其重置为 0（即 turn
+around 操作）。<code>head/tail++</code> 与判断并重置为 0
+是两个操作，无锁状态下它们无法同步。当然我们也可以先计算出新值，再用 CAS
+来更新，但做得越多出错的概率越大，我们期望以更简单的方式来实现 ”turn
+around“。</p>
+<p>我们知道计算机补码的溢出性质：当一个无符号数向上溢出时，它变为
+0。我们可以利用这一性质来限定
+<code>tail</code>/<code>head</code>，但直接使用的问题是 capacity 只能是
+2^8/16/32/64。</p>
+<p>使用 Mask 就可以让 capacity 的选取变得更灵活：执行
+<code>head/tail &amp; (2^n - 1)</code> 就可以支持任意的二次幂
+capacity。这样，我们对 capacity 的限制就只是要求二次幂了。</p>
+<h4 id="二次幂转换">二次幂转换</h4>
+<p>我们不期望用户在创建 ring buffer 时需要了解到 ”capacity 必须是二次幂“
+这种细节问题，最简单的处理就是把用户输入的任意大于 0 的 capacity
+值向上取值为其最近的二次幂。</p>
+<p>如下代码能够即高效又简单的完成这一工作：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">findPowerOfTwo</span><span class="params">(givenMum <span class="type">uint64</span>)</span></span> <span class="type">uint64</span> &#123;</span><br><span class="line">	givenMum--</span><br><span class="line">	givenMum |= givenMum &gt;&gt; <span class="number">1</span></span><br><span class="line">	givenMum |= givenMum &gt;&gt; <span class="number">2</span></span><br><span class="line">	givenMum |= givenMum &gt;&gt; <span class="number">4</span></span><br><span class="line">	givenMum |= givenMum &gt;&gt; <span class="number">8</span></span><br><span class="line">	givenMum |= givenMum &gt;&gt; <span class="number">16</span></span><br><span class="line">	givenMum |= givenMum &gt;&gt; <span class="number">32</span></span><br><span class="line">	givenMum++</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> givenMum</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="替换-atomic-函数">替换 atomic 函数</h4>
+<p>经过前面的讨论，我们就可以初步的给出改造结果了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Offer(v <span class="keyword">interface</span>&#123;&#125;) <span class="type">bool</span> &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isFull(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newTail := (oldTail+<span class="number">1</span>) &amp; r.mask</span><br><span class="line">	<span class="keyword">if</span> !atomic.CompareAndSwapUint64(&amp;r.tail, oldTail, newTail) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail])), unsafe.Pointer(&amp;v))</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Poll() (v <span class="keyword">interface</span>&#123;&#125;, success <span class="type">bool</span>) &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isEmpty(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newHead := (oldHead+<span class="number">1</span>) &amp; r.mask</span><br><span class="line">	<span class="keyword">if</span> !atomic.CompareAndSwapUint64(&amp;r.head, oldHead, newHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newHead])))</span><br><span class="line">	<span class="keyword">return</span> *(*<span class="keyword">interface</span>&#123;&#125;)(headNode), <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> isEmpty(tail <span class="type">uint64</span>, head <span class="type">uint64</span>) <span class="type">bool</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> tail == head</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> isFull(tail <span class="type">uint64</span>, head <span class="type">uint64</span>) <span class="type">bool</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> tail - head == r.capacity<span class="number">-1</span> || tail - head == <span class="number">-1</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2
+id="非同步下不可控的调度产生的问题">非同步下不可控的调度产生的问题</h2>
+<p>由于我们的代码中完全没有用到任何锁或同步块，因此单线程（或正确同步）下的一些代码假设就不再成立：</p>
+<ul>
+<li>实时性：某两行代码，执行完第一行，下一行会立即执行</li>
+<li>Happens-before：第一行一定在第二行之前执行（只有添加了 memory
+barrier 的操作才会限制编译器、CPU 的重排序）</li>
+</ul>
+<p>所以上一节的代码看似没问题，实际上是无法通过并发测试的（并发测试代码可以见<a
+href="https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/mpmc_concurrency_test.go">这里</a>），当我们拿多个线程一边生产一边消费时，很可能会出现如下两种异常情况：</p>
+<ol type="1">
+<li>重复消费：已经消费过的数据又一次被消费</li>
+<li>覆盖生产：数据还没有被消费，就被新一次的生产所覆盖</li>
+</ol>
+<p>上述两种异常都会导致生产的总数据与消费的总数据对不上，产生错误。本节会详细的讨论可能发生上述异常的三个场景，并给出了解决办法。</p>
+<h3 id="场景-1cas-与-readwrite-value-不同步">场景 1：CAS 与 Read/Write
+Value 不同步</h3>
+<p>最简单且可能发生的问题就是 <code>head</code>/<code>tail</code>
+已经被更新，但值迟迟没有写入：</p>
+<img src="/2021/04/19/lock-free-ring-buffer/2.png" class="">
+<p>如上图所示，开始状态 buffer 为空，<code>Consumer</code>
+因为空而停止消费。这时 <code>Produer</code>
+开始送入数据，显然，图中<code>Producer</code> 的 CAS
+操作已经成功，<code>tail++</code>已经发布给 <code>Consumer</code>
+。意味着 <code>Consumer</code>已经被授权可以继续消费数据了。</p>
+<p>但问题在于 <code>Producer</code>
+并没有完成值的写入，而是被调度暂停。在这期间 <code>Consumer</code>
+已经完成了数据的读取，那么显然读到了错误的数据。</p>
+<p>要解决这样的问题，就在于需要在 <code>element[]</code> 的 slot 中告诉
+<code>Producer</code>/<code>Consumer</code>
+当前的值是否可用（已被发布/读取）：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Offer(v <span class="keyword">interface</span>&#123;&#125;) <span class="type">bool</span> &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isFull(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newTail := (oldTail+<span class="number">1</span>) &amp; r.mask</span><br><span class="line">  <span class="comment">// ----------- BEGIN --------------</span></span><br><span class="line">  tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail])))</span><br><span class="line">	<span class="keyword">if</span> tailNode != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">  <span class="comment">// ----------- END --------------</span></span><br><span class="line">	<span class="keyword">if</span> !atomic.CompareAndSwapUint64(&amp;r.tail, oldTail, newTail) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail])), unsafe.Pointer(&amp;v))</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Poll() (v <span class="keyword">interface</span>&#123;&#125;, success <span class="type">bool</span>) &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isEmpty(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newHead := (oldHead+<span class="number">1</span>) &amp; r.mask</span><br><span class="line">  <span class="comment">// ----------- BEGIN --------------</span></span><br><span class="line">  headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newHead])))</span><br><span class="line">  <span class="keyword">if</span> headNode == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">  <span class="comment">// ----------- END --------------</span></span><br><span class="line">	<span class="keyword">if</span> !atomic.CompareAndSwapUint64(&amp;r.head, oldHead, newHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ----------- BEGIN --------------</span></span><br><span class="line">  atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newHead])), <span class="literal">nil</span>)</span><br><span class="line">  <span class="comment">// ----------- END --------------</span></span><br><span class="line">	<span class="keyword">return</span> *(*<span class="keyword">interface</span>&#123;&#125;)(headNode), <span class="literal">true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>Consumer</code> 每次读取数据，都要判断是否为
+<code>nil</code>，如果是则说明新值还有没写入；对应的，<code>Producer</code>
+在写入之前也要判断值是否不为<code>nil</code>，如果是就说明还没有被消费完毕。</p>
+<p><code>nil</code> 值就像一道闸门，隔开了生产和消费的过程。</p>
+<h3 id="场景-2load-tailhead-与-cas-不同步即-aba">场景 2：Load Tail/Head
+与 CAS 不同步（即 ABA）</h3>
+<p>ABA 问题算是 lock-free 中的经典问题了，讲的就是在 CAS
+的时候，需要比较旧值和新值，但当值变化了数次之后，恰巧又变为与旧值相同的值时，CAS
+是没法判断到底中间有没有变化的。</p>
+<img src="/2021/04/19/lock-free-ring-buffer/3.png" class="">
+<p>上面的图是说：<code>Producer 0</code> 顺利的通过了
+<code>isFull</code> ，<code>value == nil</code> 的检查，准备
+CAS，但这时被调度出让执行权，之后其他的 <code>Producer</code> 和
+<code>Consumer</code> 欢快的执行了一整圈，然后 <code>Producer 0</code>
+又拿到 CPU，开始执行 CAS。</p>
+<p>按道理，过了这么久，CAS
+必然会执行失败。但很悬的就是，<code>tail</code> 转了一圈，现在又恰巧和
+<code>Produer 0</code> 先前读到的 <code>oldTail</code> 一样了，所以 CAS
+顺利的执行完成，<code>Producer 0</code>
+也愉快的写入了他本该在很早以前就写入的值。</p>
+<p>但万万没想到的是，<code>Producer 0</code>
+写入的数据，覆盖掉了原本存在，但没有被读取到的数据，因此
+<code>Consumer 0</code> 在不知情的情况下读到了重复的数据。这就是典型的
+ABA 问题。</p>
+<p>怎么解决呢？</p>
+<p>通常规避 ABA
+问题就是引入版本号或者戳（stamp），这样在实现上让绕了一圈回到旧值的情况不可能或极难发生，就避免了
+ABA：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Offer(value <span class="keyword">interface</span>&#123;&#125;) (success <span class="type">bool</span>) &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isFull(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newTail := oldTail + <span class="number">1</span></span><br><span class="line">	tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail &amp; r.mask])))</span><br><span class="line">	<span class="comment">// not published yet</span></span><br><span class="line">	<span class="keyword">if</span> tailNode != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> !atomic.CompareAndSwapUint64(&amp;r.tail, oldTail, newTail) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail &amp; r.mask])), unsafe.Pointer(&amp;value))</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> Poll() (value <span class="keyword">interface</span>&#123;&#125;, success <span class="type">bool</span>) &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isEmpty(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newHead := oldHead + <span class="number">1</span></span><br><span class="line">	headNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newHead &amp; r.mask])))</span><br><span class="line">	<span class="comment">// not published yet</span></span><br><span class="line">	<span class="keyword">if</span> headNode == <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> !atomic.CompareAndSwapUint64(&amp;r.head, oldHead, newHead) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">true</span></span><br><span class="line">	&#125;</span><br><span class="line">	atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newHead &amp; r.mask])), <span class="literal">nil</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> *(*<span class="keyword">interface</span>&#123;&#125;)(headNode), <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> isEmpty(tail <span class="type">uint64</span>, head <span class="type">uint64</span>) <span class="type">bool</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> tail - head == <span class="number">0</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> isFull(tail <span class="type">uint64</span>, head <span class="type">uint64</span>) <span class="type">bool</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> tail - head == r.capacity - <span class="number">1</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>和前文对比看，其实改动很小，原本计算 <code>tail/head</code>
+是通过对其加一之后按位与 <code>mask</code>
+来限制其值不会超限。现如今我们不限制<code>head/tail</code>
+让它们可以无限制的加一，直到达到 <code>uint64</code>
+的最大值后归零。</p>
+<p>但在读写<code>element[]</code> 的时候对索引值进行按位与
+<code>mask</code>，我们可以知道不论 <code>head/tail</code>
+有多大，按位与 <code>mask</code> 之后的索引值一定不会超限导致
+<code>out of range</code>。看起来似乎逻辑上和先前没差，但实际上由于
+<code>head/tail</code> 的极限值被极大的增大了，现在再想要发生 ABA
+问题，线程调度间隔之间要执行 <code>2^64</code>
+次读/写，这几乎不可能。</p>
+<h3 id="场景-3load-tail-与-load-head-不同步">场景 3：Load Tail 与 Load
+Head 不同步</h3>
+<p>从原理上讲，<code>tail &lt; head</code>
+这种情况绝对不可能发生，但不同线程的视角看到的结果很可能不同：</p>
+<img src="/2021/04/19/lock-free-ring-buffer/4.png" class="">
+<p>正如上图所示，<code>Consumer 0</code> 在读取了 <code>tail=3</code>
+后，本应继续读取 <code>head</code>，但由于被调度器出让
+cpu，在一段时间内其他几个线程已经执行了数次操作，等到
+<code>Consumer 0</code> 再次获得 cpu 后，它读到
+<code>head==4</code>，因此在 <code>Consumer 0</code>的视角看，此时的
+ring buffer 出现了”不可能“ 情况：<code>tail==3, head==4</code>。</p>
+<p>重要的是：目前实际上 <code>tail==head</code>，表示 buffer
+已经全部被读取，不包含有效数据了。但显然在 <code>Consumer 0</code> 看来
+<code>tail - head != 0</code>，所以它不认为 buffer
+已经为空，这时它继续工作，只要前一次对 <code>head=4</code>
+的消费还没有彻底结束（还未将值设置为
+<code>nil</code>），<code>Consumer 0</code>
+就会读到错误的数据，产生重复消费。</p>
+<p>因此我们要修改 <code>isEmpty</code>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> isEmpty(tail <span class="type">uint64</span>, head <span class="type">uint64</span>) <span class="type">bool</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> (tail &lt; head) || (tail - head == <span class="number">0</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>反过来，从<code>Producer</code>的角度看，实际上 <code>Offer()</code>
+的过程中，也同样会出现 <code>tail &lt; head</code> 的情况，但不同的是
+<code>Offer()</code> 的 CAS 是对 <code>tail++</code>，因此只要不是最新的
+<code>tail</code>，都无法成功的 CAS。 所以 <code>Offer()</code>
+的时候不会因为 <code>tail &lt; head</code> 而写入新数据覆盖旧数据。</p>
+<p>但是由于我们可以预见到但凡 <code>tail &lt; head</code> 那么
+<code>Offer()</code> 一定不会成功，所以 CAS
+之前的操作也没必要再做，因此可以再修改 <code>isFull()</code>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *ring)</span></span> isFull(tail <span class="type">uint64</span>, head <span class="type">uint64</span>) <span class="type">bool</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> tail - head &gt;= r.capacity - <span class="number">1</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="性能测试">性能测试</h2>
+<p>经过前一节的改造之后，我们的 lock free ring buffer
+在并发访问上已经没有问题了，那么接下来我们就会思考：</p>
+<p>搞了这么半天，lock-free
+的实现与常规的有锁队列相比，性能是否有提升？提升了多少？</p>
+<p>由于 ring buffer
+本身通常只会作为系统中的一小部分，其性能表现和使用方有很大关系，因此我们在性能测试中，应做好如下的准备：</p>
+<ol type="1">
+<li>性能测试代码应尽量排除外部因素的干扰</li>
+<li>需要提供一个比较基准，作为对照组</li>
+</ol>
+<h3 id="测试本体">测试本体</h3>
+<p>完整的测试代码请见<a
+href="https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/performance_test.go">这里</a>。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">mpmcBenchmark</span><span class="params">(b *testing.B, buffer lfring.RingBuffer, threadCount <span class="type">int</span>, trueCount <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	ints := setup()</span><br><span class="line"></span><br><span class="line">	counter := <span class="type">int32</span>(<span class="number">0</span>)</span><br><span class="line">	manage(b, threadCount, trueCount)</span><br><span class="line">	b.RunParallel(<span class="function"><span class="keyword">func</span><span class="params">(pb *testing.PB)</span></span> &#123;</span><br><span class="line">		producer := &lt;-controlCh</span><br><span class="line">		wg.Wait()</span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">1</span>; pb.Next(); i++ &#123;</span><br><span class="line">			<span class="keyword">if</span> producer &#123;</span><br><span class="line">				buffer.Offer(ints[(i &amp; (<span class="built_in">len</span>(ints) - <span class="number">1</span>))])</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				<span class="keyword">if</span> _, success := buffer.Poll(); success &#123;</span><br><span class="line">					atomic.AddInt32(&amp;counter, <span class="number">1</span>)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	b.StopTimer()</span><br><span class="line">	b.ReportMetric(<span class="type">float64</span>(counter), <span class="string">&quot;handovers&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> controlCh = <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="type">bool</span>)</span><br><span class="line"><span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">manage</span><span class="params">(b *testing.B, threadCount <span class="type">int</span>, trueCount <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">	runtime.GOMAXPROCS(threadCount)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; threadCount; i++ &#123;</span><br><span class="line">			<span class="keyword">if</span> trueCount &gt; <span class="number">0</span> &#123;</span><br><span class="line">				controlCh &lt;- <span class="literal">true</span></span><br><span class="line">				trueCount--</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				controlCh &lt;- <span class="literal">false</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		b.ResetTimer()</span><br><span class="line">		wg.Done()</span><br><span class="line">	&#125;()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用 <code>go-bench</code>
+的并行测试来测试性能，<code>manage()</code> 函数用于通过一个
+<code>controlCh</code> 来控制实际创建的 <code>go-routine</code> 到底是
+producer 还是 consumer，我们可以用 <code>threadCount</code> 和
+<code>trueCount</code> 两个参数来控制实际创建的 <code>go-routine</code>
+总数以及其中 producer 和 consumer 的比例。</p>
+<p>对于 producer，生产的数据从一个预先创建好的数组中依次获取。对于
+consumer，为了最大程度的排除消费速度对生产速度的限制，consumer
+直接将读到的数据丢弃，此外还维护一个
+counter，来记录所有消费线程总共成功消费的次数，该 counter 使用
+<code>atomic.AddInt32(&amp;counter, 1)</code> 实现。</p>
+<p>因此，对于性能测试结果的比较，counter 值越大，说明在相同时间内完成的
+”生产 - 消费“ 过程次数越多，性能也就越好。</p>
+<h3 id="基准">基准</h3>
+<p>我们直接将 <code>go channel</code> 包装为一个基准
+buffer，来作为对比。我们知道 <code>channel</code> 的底层是用一个
+<code>mutex</code>
+互斥锁来保护数据的，因此在发生竞争时竞争失败的线程会排队等待。</p>
+<p>包装后的<code>channel</code>如下所示：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> fakeBuffer <span class="keyword">struct</span> &#123;</span><br><span class="line">	capacity <span class="type">uint64</span></span><br><span class="line">	ch <span class="keyword">chan</span> <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *fakeBuffer)</span></span> Offer(value <span class="keyword">interface</span>&#123;&#125;) (success <span class="type">bool</span>) &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> r.ch &lt;- value:</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *fakeBuffer)</span></span> Poll() (value <span class="keyword">interface</span>&#123;&#125;, success <span class="type">bool</span>) &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> v := &lt;-r.ch:</span><br><span class="line">		<span class="keyword">return</span> v, <span class="literal">true</span></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="对比">对比</h3>
+<p>lock-free ring buffer 与 <code>channel</code>
+的性能测试，采用上述性能测试代码（capacity = 16， thread = 12），执行
+1s，分别执行 100 次取3σ 平均值。</p>
+<p>对比结果如下：</p>
+<table>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Counts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Lock-free ring buffer</td>
+<td>5, 744, 963.03</td>
+</tr>
+<tr class="even">
+<td>Channel</td>
+<td>2, 670, 051.37</td>
+</tr>
+</tbody>
+</table>
+<p>可以看到，性能测试表明，限定在前述代码的场景下，我们的 lock-free
+方式比有锁方式快约 2 倍。</p>
+<h3 id="对比另一种实现">对比另一种实现</h3>
+<p>除了本文的实现以外，还有一种改进的<a
+href="https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">实现方式（来自
+Dmitry Vyukov，golang 的抢占式调度器的贡献者）</a>，将每个元素抽象为一个
+<code>Node</code> 节点，节点中包含一个计数器，类似于该节点的一个
+stamp，每次读/写都会修改对应节点内的 stamp，这样在 <code>Offer()</code>
+和 <code>Poll()</code> 的时候就无须判断整个 buffer 是否
+full/empty，而是直接判断当前节点的 stamp 是否与 <code>head/tail</code>
+相等，若相等就表明可以操作，反之亦然。</p>
+<p>对应的 go 代码可见<a
+href="https://github.com/LENSHOOD/go-lock-free-ring-buffer/blob/master/node_based.go">这里</a>。</p>
+<p>我们可以注意到在这种实现中，结构定义里通过一些 <code>_padding</code>
+来与 CPU 的 cache line 对齐，由于这种实现的特点，<code>Offer()</code>
+的时候只需要读写 <code>tail</code>，<code>Poll()</code> 的时候只需要读写
+<code>head</code>，因此将<code>tail</code> 与 <code>head</code>
+分布在不同的 cache line 中有利于更高效的利用 CPU 缓存（stamp 和 value
+都包含在 <code>Node</code> 中，也能得益于 cacheline 快速读取）。</p>
+<p>但相比于本文的实现中，<code>head/tail</code>
+是同时读，分别写，并且由于各种检查条件的存在，读的次数远多于写。因此<code>head</code>和<code>tail</code>处于同一个
+cache line 内反而可以提升读性能（性能测试表明，对于采用
+<code>node</code> 方式的实现，<code>_padding</code> 能够提升大约
+12%，而本文实现中，<code>_padding</code> 会导致性能降低 13%
+左右），因此也就不需要 <code>_padding</code> 了。</p>
+<h3 id="不同参数下的性能对比">不同参数下的性能对比</h3>
+<ol type="1">
+<li><p>Threads = 12，Producer : Consumer = 1:1，Capacity = [2, 4, 8, 16,
+32, 64, 128, 256, 512, 1024]</p>
+<img src="/2021/04/19/lock-free-ring-buffer/5.png" class=""></li>
+<li><p>Threads = 12，Capacity = 32， Producer : Consumer = [1:11, 1:5,
+1:3, 1:2, 1:1, 2:1, 3:1, 5:1, 11:1]</p>
+<img src="/2021/04/19/lock-free-ring-buffer/6.png" class=""></li>
+<li><p>Capacity = 32， Producer : Consumer = 1:1，Thread = [2, 4, 8, 12,
+24, 48]</p>
+<img src="/2021/04/19/lock-free-ring-buffer/7.png" class=""></li>
+</ol>
+<p>可以看出改进版方案显然更胜一筹，进一步的测试表明，对 Cacheline
+的优化起到了显著的效果，下图是 NodeBasedLFRB 不进行 Cacheline
+优化时的性能对比（本文的实现作为对照）：</p>
+<p>&lt;-- <img src="/2021/04/19/lock-free-ring-buffer/8.png" class=""> --&gt;</p>
+<p>显然没有优化过的性能与本文方案不相伯仲。</p>
+<p>不论是从 go
+代码，还是从编译后的汇编代码来看，改进版和初始版实现之间的主要区别都在于改进版通过多记录了每个节点的
+<code>step</code> 从而减少了一次
+<code>if..else..</code>（可以减少一些分支预测错误导致的时间惩罚），除此之外并无区别。但正因为
+<code>step</code> 的存在隔离了 <code>head</code> 与 <code>tail</code>
+的读写，因此得以采用 Cacheline 来优化对这些共享变量的读写。</p>
+<p>另外，由于无锁的特性，从上面不同线程的对比图中我们发现，当线程数（测试中是直接设置了
+P 的数量，因此可以近似认为这里的线程数是操作系统线程数）超过 CPU
+数量时（测试机器是6核，超线程后 12 个逻辑核），由于对 CPU
+资源的竞争，导致性能急剧下降（考虑是线程调度成本），反倒是 Channel
+通过互斥量排队的方式更胜一筹。</p>
+<h2 id="mpsc-与-spmc">MPSC 与 SPMC</h2>
+<p>在很多场景下，我们面对的可能是 MPSC（multi-producer
+single-consumer）或是 SPMC （single-producer
+milti-consumer）的场景。我们可以利用这些特定的场景，来简化一些不必要的操作，从而达到提高性能的目的。</p>
+<p>修改 ring buffer，分别得到上述两种场景下的实现方案：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *hybrid)</span></span> SingleProducerOffer(valueSupplier <span class="function"><span class="keyword">func</span><span class="params">()</span></span> (v <span class="keyword">interface</span>&#123;&#125;, finish <span class="type">bool</span>)) &#123;</span><br><span class="line">	oldTail := r.tail</span><br><span class="line">	oldHead := atomic.LoadUint64(&amp;r.head)</span><br><span class="line">	<span class="keyword">if</span> r.isFull(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	newTail := oldTail + <span class="number">1</span></span><br><span class="line">	<span class="keyword">for</span> ; newTail - oldHead &lt; r.capacity; newTail++ &#123;</span><br><span class="line">		tailNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail &amp; r.mask])))</span><br><span class="line">		<span class="comment">// not published yet</span></span><br><span class="line">		<span class="keyword">if</span> tailNode != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		v, finish := valueSupplier()</span><br><span class="line">		<span class="keyword">if</span> finish &#123;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125;</span><br><span class="line">		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[newTail &amp; r.mask])), unsafe.Pointer(&amp;v))</span><br><span class="line">	&#125;</span><br><span class="line">	atomic.StoreUint64(&amp;r.tail, newTail - <span class="number">1</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *hybrid)</span></span> SingleConsumerPoll(valueConsumer <span class="function"><span class="keyword">func</span><span class="params">(<span class="keyword">interface</span>&#123;&#125;)</span></span>) &#123;</span><br><span class="line">	oldTail := atomic.LoadUint64(&amp;r.tail)</span><br><span class="line">	oldHead := r.head</span><br><span class="line">	<span class="keyword">if</span> r.isEmpty(oldTail, oldHead) &#123;</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	currHead := oldHead + <span class="number">1</span></span><br><span class="line">	<span class="keyword">for</span> ; currHead &lt;= oldTail; currHead++ &#123;</span><br><span class="line">		currNode := atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[currHead &amp; r.mask])))</span><br><span class="line">		<span class="comment">// not published yet</span></span><br><span class="line">		<span class="keyword">if</span> currNode == <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125;</span><br><span class="line">		valueConsumer(*(*<span class="keyword">interface</span>&#123;&#125;)(currNode))</span><br><span class="line">		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&amp;r.element[currHead &amp; r.mask])), <span class="literal">nil</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	atomic.StoreUint64(&amp;r.head, currHead - <span class="number">1</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="性能对比">性能对比</h3>
+<p>Threads = 12 （SPSC 下 Thread = 2），Capacity = 16</p>
+<table>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Optimization Counts</th>
+<th>Original Counts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>MPSC</td>
+<td>56168349.1</td>
+<td>40081057.2</td>
+</tr>
+<tr class="even">
+<td>SPMC</td>
+<td>12947559.1</td>
+<td>14480503.2</td>
+</tr>
+<tr class="odd">
+<td>SPSC</td>
+<td>44195353.5</td>
+<td>111587717.1</td>
+</tr>
+</tbody>
+</table>
+<p>有趣的是在 MPSC 的场景下，优化后比优化前性能提升了约 1.4 倍，然而在
+SPMC / SPSC 的场景下，性能却有所下降（SPSC 竟然下降了约1.5倍）。</p>
+<p>结合前面的性能测试我们能够发现，我们的方案在 producer 数量少于
+consumer
+时，性能会急剧下降，反之却影响不大。因此想要搞清楚得到上面测试结果的原因，还是应该更细致的分析初始方案在
+producer
+更少的情况下性能差的原因，不过目前这部分工作还没有进展，本文会持续更新。</p>
+<h2 id="reference">Reference</h2>
+<ol type="1">
+<li><a
+href="https://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue">Bounded
+MPMC queue</a></li>
+<li><a
+href="https://github.com/ben-manes/caffeine/blob/master/caffeine/src/main/java/com/github/benmanes/caffeine/cache/BoundedBuffer.java">Bounded
+Buffer from Caffeine</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/" title="一个简单的 Lock Free Ring Buffer，有多简单？">http://lenshood.github.io/2021/04/19/lock-free-ring-buffer/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/lock-free/" rel="tag"># lock free</a>
+              <a href="/tags/ring-buffer/" rel="tag"># ring buffer</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2021/03/16/richardson-maturity-model/" rel="prev" title="Richardson 成熟度模型（通往 REST 的荣光之路）">
+                  <i class="fa fa-angle-left"></i> Richardson 成熟度模型（通往 REST 的荣光之路）
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2021/06/21/why-assign-final-to-local-variable/" rel="next" title="Why Assign Final Field to Local Variable?">
+                  Why Assign Final Field to Local Variable? <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

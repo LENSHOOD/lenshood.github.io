@@ -1,0 +1,598 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Lenshood</title>
+  <icon>http://lenshood.github.io/icon.png</icon>
+  <subtitle>Software Developer @ThoughtWorks</subtitle>
+  <link href="http://lenshood.github.io/atom.xml" rel="self"/>
+  
+  <link href="http://lenshood.github.io/"/>
+  <updated>2025-07-29T02:17:59.251Z</updated>
+  <id>http://lenshood.github.io/</id>
+  
+  <author>
+    <name>Lenshood</name>
+    
+  </author>
+  
+  <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Linux Tracing - Kprobe</title>
+    <link href="http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/"/>
+    <id>http://lenshood.github.io/2025/06/29/linux-tracing-kprobe/</id>
+    <published>2025-06-29T15:40:44.000Z</published>
+    <updated>2025-07-29T02:17:59.251Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2025/06/29/linux-tracing-kprobe/header.jpg&quot; class=&quot;&quot; width=&quot;300&quot;&gt;
+&lt;p&gt;自各类计算机程序开始被编写、运行开始，我们就一直想通过各种方式来了解它的执行过程和状态从而判断计算机程序运行的行为和效率。作为被使用最广泛的操作系统，Linux
+经过多年发展，拥有了各类工具和组件来实现对用户程序以及内核程序的追踪，这些组件组成了
+Linux 的追踪（Tracing）系统，它的魔力令人着迷。&lt;/p&gt;
+&lt;p&gt;本文将从最基础也是最灵活的 Kprobes（Kernel Probes） 入手，了解 Linux
+Tracing 系统的设计（本文基于 linux kernel v6.15.4）。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Linux" scheme="http://lenshood.github.io/categories/Linux/"/>
+    
+    
+    <category term="linux" scheme="http://lenshood.github.io/tags/linux/"/>
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="kprobe" scheme="http://lenshood.github.io/tags/kprobe/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>/Xv6 Rust 0x06/ - User Space</title>
+    <link href="http://lenshood.github.io/2025/02/24/xv6-rust-6/"/>
+    <id>http://lenshood.github.io/2025/02/24/xv6-rust-6/</id>
+    <published>2025-02-24T06:35:03.000Z</published>
+    <updated>2025-07-29T02:17:59.582Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2025/02/24/xv6-rust-6/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;Based on disk and file management, now we are able to store the user
+space program on the disk, and let them run after kernel started. But
+before that, there is still a topic we haven&#39;t covered: how does xv6
+jump from kernel space to user space?&lt;/p&gt;
+&lt;p&gt;After all, the content we talked about in previous chapters is only
+limited in the supervisor level, even machine level, where the code has
+full control of hardware. However, the user space program cannot be
+granted such huge scope of control, then we should know how to jump from
+kernel space to user space, so that we could provide a safer environment
+for the user program.&lt;/p&gt;
+&lt;p&gt;In this chapter, we are going to find it out.&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Rust" scheme="http://lenshood.github.io/categories/Rust/"/>
+    
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="rust" scheme="http://lenshood.github.io/tags/rust/"/>
+    
+    <category term="xv6" scheme="http://lenshood.github.io/tags/xv6/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>/Xv6 Rust 0x05/ - Persistence</title>
+    <link href="http://lenshood.github.io/2024/12/10/xv6-rust-5/"/>
+    <id>http://lenshood.github.io/2024/12/10/xv6-rust-5/</id>
+    <published>2024-12-10T14:25:29.000Z</published>
+    <updated>2025-07-29T02:17:59.527Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/12/10/xv6-rust-5/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;With all of the content in the previous chapters, we have known how
+to initialize and run a process, but before the kernel runs the first
+line of a process&#39;s code, a question still remained, how does my user
+program store in the disk and how is it loaded?&lt;/p&gt;
+&lt;p&gt;In this chapter, we are going to discover the disk management and
+file system in the xv6, we&#39;ll see the persistence stack from the top to
+the bottom, let&#39;s get started!&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Rust" scheme="http://lenshood.github.io/categories/Rust/"/>
+    
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="rust" scheme="http://lenshood.github.io/tags/rust/"/>
+    
+    <category term="xv6" scheme="http://lenshood.github.io/tags/xv6/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>/Xv6 Rust 0x04/ - CPU Virtualization</title>
+    <link href="http://lenshood.github.io/2024/11/20/xv6-rust-4/"/>
+    <id>http://lenshood.github.io/2024/11/20/xv6-rust-4/</id>
+    <published>2024-11-20T14:50:32.000Z</published>
+    <updated>2025-07-29T02:17:59.522Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/11/20/xv6-rust-4/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;In this chapter, we are going to explore the cpu virtualization, also
+known as process, in the xv6.&lt;/p&gt;
+&lt;p&gt;I&#39;m really excited about writing this chapter, because process is one
+of the fundamental concepts of the operating system. Process is very
+useful for multiple tasks, and in the design wise, its abstraction is
+also very elegant.&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Rust" scheme="http://lenshood.github.io/categories/Rust/"/>
+    
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="rust" scheme="http://lenshood.github.io/tags/rust/"/>
+    
+    <category term="xv6" scheme="http://lenshood.github.io/tags/xv6/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>/Xv6 Rust 0x03/ - Memory Virtualization</title>
+    <link href="http://lenshood.github.io/2024/11/08/xv6-rust-3/"/>
+    <id>http://lenshood.github.io/2024/11/08/xv6-rust-3/</id>
+    <published>2024-11-08T15:29:43.000Z</published>
+    <updated>2025-07-29T02:17:59.501Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/11/08/xv6-rust-3/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;We have learnt how to setup risc-v in rust, and also initialized
+risc-v to be able to print format strings, in this chapter we are taking
+the first look of the OS kernel, and will try to figure out the memory
+management in xv6.&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Rust" scheme="http://lenshood.github.io/categories/Rust/"/>
+    
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="rust" scheme="http://lenshood.github.io/tags/rust/"/>
+    
+    <category term="xv6" scheme="http://lenshood.github.io/tags/xv6/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>/Xv6 Rust 0x02/ - printf!(&quot;Hello xv6-rust!&quot;)</title>
+    <link href="http://lenshood.github.io/2024/11/01/xv6-rust-2/"/>
+    <id>http://lenshood.github.io/2024/11/01/xv6-rust-2/</id>
+    <published>2024-11-01T06:36:49.000Z</published>
+    <updated>2025-07-29T02:17:59.500Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/11/01/xv6-rust-2/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;With the help of the previous article, right now we have a good
+foundation for running rust on risc-v platform.&lt;/p&gt;
+&lt;p&gt;In the second episode, we are going to jump into some real code of
+xv6, and take care of the initialize from machine level to supervisor
+level, and finally, make the &lt;code&gt;printf!()&lt;/code&gt; macro available in
+our code!&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Rust" scheme="http://lenshood.github.io/categories/Rust/"/>
+    
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="rust" scheme="http://lenshood.github.io/tags/rust/"/>
+    
+    <category term="xv6" scheme="http://lenshood.github.io/tags/xv6/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>/Xv6 Rust 0x01/ - Getting Started is the Hardest Part</title>
+    <link href="http://lenshood.github.io/2024/10/23/xv6-rust-1/"/>
+    <id>http://lenshood.github.io/2024/10/23/xv6-rust-1/</id>
+    <published>2024-10-23T14:27:59.000Z</published>
+    <updated>2025-07-29T02:17:59.492Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/10/23/xv6-rust-1/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;&lt;a href=&quot;https://github.com/mit-pdos/xv6-public&quot;&gt;Xv6&lt;/a&gt; is one of
+the best operating systems for teaching. It’s a great way to learn about
+how an OS works with basic functions and few lines of code.&lt;/p&gt;
+&lt;p&gt;Originally, xv6 was written in C, which is awesome for students to
+get hands-on experience with such a classic programming language. But
+now that Rust is gaining traction—especially since rust-for-linux is
+becoming a part of the main line Linux—wouldn’t it be fun to run xv6
+using Rust?&lt;/p&gt;
+&lt;p&gt;As a perfect way to kill time, I have migrated most of xv6 from C to
+Rust. You can check it out &lt;a
+href=&quot;https://github.com/LENSHOOD/xv6-rust&quot;&gt;here&lt;/a&gt;. During this
+migration process, I encountered many sorts of issues and tricky stuff,
+nothing brings me more satisfaction than successfully resolving a
+problem!&lt;/p&gt;
+&lt;p&gt;Therefore, I believe it would be cool for me to share my experiences
+through a series of articles detailing how I did this, complete with a
+more structured approach and clear procedures.&lt;/p&gt;
+&lt;p&gt;All right, let&#39;s get started...&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Rust" scheme="http://lenshood.github.io/categories/Rust/"/>
+    
+    
+    <category term="os" scheme="http://lenshood.github.io/tags/os/"/>
+    
+    <category term="rust" scheme="http://lenshood.github.io/tags/rust/"/>
+    
+    <category term="xv6" scheme="http://lenshood.github.io/tags/xv6/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>（翻译）软件定义汽车</title>
+    <link href="http://lenshood.github.io/2024/04/29/translation-of-the-sdv/"/>
+    <id>http://lenshood.github.io/2024/04/29/translation-of-the-sdv/</id>
+    <published>2024-04-29T13:22:05.000Z</published>
+    <updated>2025-07-29T02:17:59.462Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/04/29/translation-of-the-sdv/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;本文翻译自 Gregor Resing（IBM）的文章 &lt;a
+href=&quot;https://www.ibm.com/blogs/digitale-perspektive/2023/06/the-software-defined-vehicle/&quot;&gt;The
+Software Defined Vehicle&lt;/a&gt;。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Software Defined Vehicle" scheme="http://lenshood.github.io/categories/Software-Defined-Vehicle/"/>
+    
+    
+    <category term="sdv" scheme="http://lenshood.github.io/tags/sdv/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>汽车软件性能提升方法的工程化落地</title>
+    <link href="http://lenshood.github.io/2024/03/20/performance-engineering-practice-in-car-software/"/>
+    <id>http://lenshood.github.io/2024/03/20/performance-engineering-practice-in-car-software/</id>
+    <published>2024-03-20T13:38:54.000Z</published>
+    <updated>2025-07-29T02:17:59.338Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2024/03/20/performance-engineering-practice-in-car-software/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;当今的汽车与数年前的汽车相比，虽然作为载具的主要目的变化不大，但不论是在驾乘体验、智能化水平还是交互方式上，都发生了质的飞跃。&lt;/p&gt;
+&lt;p&gt;为了能支撑新一代汽车所提供的这种智能化服务水平，显而易见，需要将软件平台与硬件平台相互分离和抽象以提升灵活性，这种被称为软件定义汽车（Software
+Defined Vehicle，下文简称
+SDV）的设计方法基于更加灵活和易于扩展的软件作为汽车的核心，将传统的汽车升级为拥有诸如智能驾驶、深度娱乐、个性化人机交互能力的
+“第三空间”。&lt;/p&gt;
+&lt;p&gt;SDV
+带来了一系列汽车设计的革命性跨越，同时也引入了各种新的困难。诸如性能、可靠性、安全性、易用性等在软件领域长期存在的跨领域、跨业务型挑战，随着
+SDV 被一并引入了汽车领域。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Performance Engineering" scheme="http://lenshood.github.io/categories/Performance-Engineering/"/>
+    
+    
+    <category term="performance engineering" scheme="http://lenshood.github.io/tags/performance-engineering/"/>
+    
+    <category term="performance optimization" scheme="http://lenshood.github.io/tags/performance-optimization/"/>
+    
+    <category term="performance analysis" scheme="http://lenshood.github.io/tags/performance-analysis/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【翻译】性能改善代码编辑的研究</title>
+    <link href="http://lenshood.github.io/2024/01/10/perf-llm/"/>
+    <id>http://lenshood.github.io/2024/01/10/perf-llm/</id>
+    <published>2024-01-10T04:38:07.000Z</published>
+    <updated>2025-07-29T02:17:59.318Z</updated>
+    
+    
+    <summary type="html">&lt;figure&gt;
+&lt;img
+src=&quot;https://raw.githubusercontent.com/madaan/pie-perf/main/docs/static/images/mainfig-v4.jpg&quot;
+alt=&quot;image&quot; /&gt;
+&lt;figcaption aria-hidden=&quot;true&quot;&gt;image&lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;blockquote&gt;
+&lt;p&gt;本文是对论文 &lt;a
+href=&quot;https://openreview.net/pdf?id=ix7rLVHXyY&quot;&gt;LEARNING
+PERFORMANCE-IMPROVING CODE EDITS&lt;/a&gt; 的翻译&lt;/p&gt;
+&lt;/blockquote&gt;</summary>
+    
+    
+    
+    <category term="Software Engineering" scheme="http://lenshood.github.io/categories/Software-Engineering/"/>
+    
+    
+    <category term="performance engineering" scheme="http://lenshood.github.io/tags/performance-engineering/"/>
+    
+    <category term="LLM" scheme="http://lenshood.github.io/tags/LLM/"/>
+    
+    <category term="AI" scheme="http://lenshood.github.io/tags/AI/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>智能座舱软件性能与可靠性的评估和改进</title>
+    <link href="http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/"/>
+    <id>http://lenshood.github.io/2023/12/12/improve-perf-reliability-car-software/</id>
+    <published>2023-12-12T15:47:09.000Z</published>
+    <updated>2025-07-29T02:17:59.146Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/12/12/improve-perf-reliability-car-software/header.png&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;随着智能汽车的不断发展，智能座舱在性能与可靠性上暴露出体验不佳，投诉渐多的问题，本文从工程化方法的角度简述了如何构建智能座舱软件的评估框架，以及如何持续改进性能和可靠性。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Performance Engineering" scheme="http://lenshood.github.io/categories/Performance-Engineering/"/>
+    
+    
+    <category term="performance engineering" scheme="http://lenshood.github.io/tags/performance-engineering/"/>
+    
+    <category term="reliability engineering" scheme="http://lenshood.github.io/tags/reliability-engineering/"/>
+    
+    <category term="software quality" scheme="http://lenshood.github.io/tags/software-quality/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>性能工程实践</title>
+    <link href="http://lenshood.github.io/2023/07/13/performance-engineering-practice/"/>
+    <id>http://lenshood.github.io/2023/07/13/performance-engineering-practice/</id>
+    <published>2023-07-13T13:28:12.000Z</published>
+    <updated>2025-07-29T02:17:59.361Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/07/13/performance-engineering-practice/header.jpg&quot; class=&quot;&quot; width=&quot;400&quot;&gt;
+&lt;p&gt;本文书接上篇《什么是性能工程》，通过介绍相关实践、方法与尝试，试图回答
+“企业如何达成性能工程目标” 的问题。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Performance Engineering" scheme="http://lenshood.github.io/categories/Performance-Engineering/"/>
+    
+    
+    <category term="performance engineering" scheme="http://lenshood.github.io/tags/performance-engineering/"/>
+    
+    <category term="performance optimization" scheme="http://lenshood.github.io/tags/performance-optimization/"/>
+    
+    <category term="performance analysis" scheme="http://lenshood.github.io/tags/performance-analysis/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>什么是性能工程？</title>
+    <link href="http://lenshood.github.io/2023/07/05/what-is-performance-engineering/"/>
+    <id>http://lenshood.github.io/2023/07/05/what-is-performance-engineering/</id>
+    <published>2023-07-05T14:35:10.000Z</published>
+    <updated>2025-07-29T02:17:59.467Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/07/05/what-is-performance-engineering/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;性能工程，是指通过设计、构建工具链和工作流，从而对系统性能进行持续改善和守护的一类实践方法。&lt;/p&gt;
+&lt;p&gt;本文将从起源开始探寻性能工程出现的必然性，进而以软件研发流程中处理性能问题和实施性能优化时所遇到的挑战为出发点，来讨论性能工程的定义以及企业实践性能工程的目标。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Performance Engineering" scheme="http://lenshood.github.io/categories/Performance-Engineering/"/>
+    
+    
+    <category term="performance engineering" scheme="http://lenshood.github.io/tags/performance-engineering/"/>
+    
+    <category term="performance optimization" scheme="http://lenshood.github.io/tags/performance-optimization/"/>
+    
+    <category term="performance analysis" scheme="http://lenshood.github.io/tags/performance-analysis/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>如何让数据库插入速度提升200倍</title>
+    <link href="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/"/>
+    <id>http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/</id>
+    <published>2023-06-11T06:50:45.000Z</published>
+    <updated>2025-07-29T02:17:59.133Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/06/11/how-to-insert-data-faster/header.jpg&quot; class=&quot;&quot; width=&quot;300&quot;&gt;
+&lt;p&gt;本文介绍了在一次构造测试数据的活动中，我们如何通过优化手段将数据插入速度提升200倍的经历。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="DB" scheme="http://lenshood.github.io/categories/DB/"/>
+    
+    
+    <category term="prepare data" scheme="http://lenshood.github.io/tags/prepare-data/"/>
+    
+    <category term="SQL" scheme="http://lenshood.github.io/tags/SQL/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>构建可扩展的平台工程软件栈架构</title>
+    <link href="http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/"/>
+    <id>http://lenshood.github.io/2023/05/09/build-extendable-platform-engineering-software-stack/</id>
+    <published>2023-05-09T14:08:49.000Z</published>
+    <updated>2025-07-29T02:17:59.038Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/05/09/build-extendable-platform-engineering-software-stack/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;本文介绍了企业在构建平台工程能力时如何通过可扩展的软件栈架构来满足多样的场景与诉求。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Software Engineering" scheme="http://lenshood.github.io/categories/Software-Engineering/"/>
+    
+    
+    <category term="multi-runtime" scheme="http://lenshood.github.io/tags/multi-runtime/"/>
+    
+    <category term="platform engineering" scheme="http://lenshood.github.io/tags/platform-engineering/"/>
+    
+    <category term="multi-cluster" scheme="http://lenshood.github.io/tags/multi-cluster/"/>
+    
+    <category term="multi-cloud" scheme="http://lenshood.github.io/tags/multi-cloud/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>理解 K8s 多集群（下）：解决方案对比与演进趋势</title>
+    <link href="http://lenshood.github.io/2023/03/26/k8s-multi-cluster-2/"/>
+    <id>http://lenshood.github.io/2023/03/26/k8s-multi-cluster-2/</id>
+    <published>2023-03-26T05:19:34.000Z</published>
+    <updated>2025-07-29T02:17:59.236Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/03/26/k8s-multi-cluster-2/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a
+href=&quot;https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/&quot;&gt;理解 K8s
+多集群（上）：构建成熟可扩展云平台的核心要素&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a
+href=&quot;https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/&quot;&gt;理解 K8s
+多集群（下）：解决方案对比与演进趋势&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;本文（分上下两部分）介绍了 K8s
+多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s
+多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。&lt;/p&gt;
+&lt;p&gt;本篇是下半部分，主要讨论目前实现 K8s
+多集群的开源方案、对现状问题的讨论以及可能的演进方向。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Kubernetes" scheme="http://lenshood.github.io/categories/Kubernetes/"/>
+    
+    
+    <category term="multi-cluster" scheme="http://lenshood.github.io/tags/multi-cluster/"/>
+    
+    <category term="multi-cloud" scheme="http://lenshood.github.io/tags/multi-cloud/"/>
+    
+    <category term="k8s" scheme="http://lenshood.github.io/tags/k8s/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>理解 K8s 多集群（上）：构建成熟可扩展云平台的核心要素</title>
+    <link href="http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/"/>
+    <id>http://lenshood.github.io/2023/03/09/k8s-multi-cluster-1/</id>
+    <published>2023-03-09T12:33:21.000Z</published>
+    <updated>2025-07-29T02:17:59.223Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2023/03/09/k8s-multi-cluster-1/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a
+href=&quot;https://www.lenshood.dev/2023/03/09/k8s-multi-cluster-1/&quot;&gt;理解 K8s
+多集群（上）：构建成熟可扩展云平台的核心要素&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a
+href=&quot;https://www.lenshood.dev/2023/03/26/k8s-multi-cluster-2/&quot;&gt;理解 K8s
+多集群（下）：解决方案对比与演进趋势&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;本文（分上下两部分）介绍了 K8s
+多集群的由来以及实现多集群所面临的核心问题，之后分析并探讨了现有的 K8s
+多集群方案，最后根据目前实现方案的痛点与挑战，设想了未来的演进趋势。&lt;/p&gt;
+&lt;p&gt;本篇是上半部分，主要讨论 K8s
+多集群的目的、实现多集群所面临的核心问题以及方案。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Kubernetes" scheme="http://lenshood.github.io/categories/Kubernetes/"/>
+    
+    
+    <category term="multi-cluster" scheme="http://lenshood.github.io/tags/multi-cluster/"/>
+    
+    <category term="multi-cloud" scheme="http://lenshood.github.io/tags/multi-cloud/"/>
+    
+    <category term="k8s" scheme="http://lenshood.github.io/tags/k8s/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Summary of 2022</title>
+    <link href="http://lenshood.github.io/2023/01/01/2022-summary/"/>
+    <id>http://lenshood.github.io/2023/01/01/2022-summary/</id>
+    <published>2023-01-01T13:10:55.000Z</published>
+    <updated>2025-07-29T02:17:58.997Z</updated>
+    
+    
+    <summary type="html">&lt;h2 id=&quot;farewell-2022&quot;&gt;Farewell 2022&lt;/h2&gt;
+&lt;p&gt;2022 has passed. What a year!&lt;/p&gt;
+&lt;p&gt;Take one word to summary my 2022, I think it would be &quot;&lt;em&gt;lack of
+splendid&lt;/em&gt;&quot;. Expand to some words, then I would choose
+&lt;em&gt;deceleration&lt;/em&gt;, &lt;em&gt;chaotic&lt;/em&gt;, &lt;em&gt;pursuing&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Deceleration means I feel my personal growing became slower than
+before in 2022, including work, study, input and output. I spent four
+months occupied in a tough project that I don&#39;t like. Only read a few
+books. Barely involved in open source. Not much writing.&lt;/p&gt;
+&lt;p&gt;Chaotic refers to the whole world and my life. Too many events were
+happened, too many disappointment, too many anger, too few hope.&lt;/p&gt;
+&lt;p&gt;Pursuing. In 2022 I seems lost my goal, always trying, not much gain.
+I did produce some outcome, but not enough to satisfy me. What would
+happened to me in the next three to five years? How to keep my
+advantages? What could I be interested in?&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Others" scheme="http://lenshood.github.io/categories/Others/"/>
+    
+    
+    <category term="summary" scheme="http://lenshood.github.io/tags/summary/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>（WIP）读 DDIA 书评与总结</title>
+    <link href="http://lenshood.github.io/2022/12/29/ddia-note/"/>
+    <id>http://lenshood.github.io/2022/12/29/ddia-note/</id>
+    <published>2022-12-29T15:40:31.000Z</published>
+    <updated>2025-07-29T02:17:59.049Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2022/12/29/ddia-note/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;本文是我在读完 DDIA 后的总结和评价感想。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Others" scheme="http://lenshood.github.io/categories/Others/"/>
+    
+    
+    <category term="ddia" scheme="http://lenshood.github.io/tags/ddia/"/>
+    
+    <category term="book review" scheme="http://lenshood.github.io/tags/book-review/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>从成熟度模型看可观测性能力建设</title>
+    <link href="http://lenshood.github.io/2022/12/17/observability-capability/"/>
+    <id>http://lenshood.github.io/2022/12/17/observability-capability/</id>
+    <published>2022-12-17T12:15:53.000Z</published>
+    <updated>2025-07-29T02:17:59.306Z</updated>
+    
+    
+    <summary type="html">&lt;img src=&quot;/2022/12/17/observability-capability/header.jpg&quot; class=&quot;&quot; width=&quot;500&quot;&gt;
+&lt;p&gt;本文通过介绍可观测性成熟度模型，讨论了企业可观测性能力的建设。&lt;/p&gt;</summary>
+    
+    
+    
+    <category term="Software Engineering" scheme="http://lenshood.github.io/categories/Software-Engineering/"/>
+    
+    
+    <category term="observability" scheme="http://lenshood.github.io/tags/observability/"/>
+    
+    <category term="maturity model" scheme="http://lenshood.github.io/tags/maturity-model/"/>
+    
+    <category term="monitoring" scheme="http://lenshood.github.io/tags/monitoring/"/>
+    
+    <category term="capability" scheme="http://lenshood.github.io/tags/capability/"/>
+    
+  </entry>
+  
+</feed>

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="今年了解到 TiDB 这样一个 HTAP 数据库，在 Github 上面热度超高，再加上国人开发与维护，因此产生了很大的兴趣。 正好社区搞了一个《高性能 TiDB 课程学习计划》通过 12 节课来使学员能达到 Committer 的水平，因此就报名参加啦。 第一节课的课程作业是尝试在本地启动一个最小集群，并在开启事务时打印 “hello transaction” 并将这一过程写成一片文章，因此本文">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiDB 学习课程 Lesson-1">
+<meta property="og:url" content="http://lenshood.github.io/2020/08/14/tidb-lesson-1/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="今年了解到 TiDB 这样一个 HTAP 数据库，在 Github 上面热度超高，再加上国人开发与维护，因此产生了很大的兴趣。 正好社区搞了一个《高性能 TiDB 课程学习计划》通过 12 节课来使学员能达到 Committer 的水平，因此就报名参加啦。 第一节课的课程作业是尝试在本地启动一个最小集群，并在开启事务时打印 “hello transaction” 并将这一过程写成一片文章，因此本文">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/14/tidb-lesson-1/dashboard-login.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/08/14/tidb-lesson-1/dashboard-instances.png">
+<meta property="article:published_time" content="2020-08-14T12:51:26.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.428Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="tidb">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/08/14/tidb-lesson-1/dashboard-login.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/08/14/tidb-lesson-1/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/08/14/tidb-lesson-1/","path":"2020/08/14/tidb-lesson-1/","title":"TiDB 学习课程 Lesson-1"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>TiDB 学习课程 Lesson-1 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%80%E5%8D%95%E4%BB%8B%E7%BB%8D-tidb-%E6%9E%B6%E6%9E%84"><span class="nav-number">1.</span> <span class="nav-text">简单介绍 TiDB 架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%8E%E6%BA%90%E7%A0%81%E5%BC%80%E5%A7%8B%E9%83%A8%E7%BD%B2"><span class="nav-number">2.</span> <span class="nav-text">从源码开始部署</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#step-1%E5%89%8D%E6%9C%9F%E5%87%86%E5%A4%87"><span class="nav-number">2.1.</span> <span class="nav-text">STEP 1：前期准备</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-go-%E7%8E%AF%E5%A2%83"><span class="nav-number">2.1.1.</span> <span class="nav-text">1. 安装 Go 环境</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%89%E8%A3%85-rust-%E7%8E%AF%E5%A2%83"><span class="nav-number">2.1.2.</span> <span class="nav-text">2. 安装 Rust 环境</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AD%A6%E4%B9%A0-golang"><span class="nav-number">2.1.3.</span> <span class="nav-text">3. 学习 Golang</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AD%A6%E4%B9%A0-rust"><span class="nav-number">2.1.4.</span> <span class="nav-text">4. 学习 Rust</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#step-2%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C%E4%B8%89%E5%A4%A7%E4%BB%B6"><span class="nav-number">2.2.</span> <span class="nav-text">STEP 2：编译运行三大件</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C-tidb"><span class="nav-number">2.2.1.</span> <span class="nav-text">1. 编译运行 tidb</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C-pd"><span class="nav-number">2.2.2.</span> <span class="nav-text">2. 编译运行 pd</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%BC%96%E8%AF%91%E8%BF%90%E8%A1%8C-tikv"><span class="nav-number">2.2.3.</span> <span class="nav-text">3. 编译运行 tikv</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%90%AF%E5%8A%A8%E4%B8%80%E4%B8%AA%E6%9C%80%E5%B0%8F%E9%9B%86%E7%BE%A4one-tidb-one-pd-three-tikv"><span class="nav-number">2.2.4.</span> <span class="nav-text">4.
+启动一个最小集群：one tidb + one pd + three tikv</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%80%E5%90%AF%E4%BA%8B%E5%8A%A1%E6%97%B6%E6%89%93%E5%8D%B0-hello-transaction"><span class="nav-number">3.</span> <span class="nav-text">开启事务时打印 “hello
+transaction”</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#tidb-%E6%89%A7%E8%A1%8C-sql-%E5%91%BD%E4%BB%A4%E7%9A%84%E6%80%BB%E4%BD%93%E6%AD%A5%E9%AA%A4"><span class="nav-number">3.0.1.</span> <span class="nav-text">1. tidb 执行 SQL
+命令的总体步骤</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#func-s-session-txnactive-bool-kv.transaction-error"><span class="nav-number">3.0.2.</span> <span class="nav-text">2.
+func (s *session) Txn(active bool) (kv.Transaction, error)</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#executor"><span class="nav-number">3.0.3.</span> <span class="nav-text">3. Executor</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E7%BB%93%E6%9E%9C"><span class="nav-number">3.0.4.</span> <span class="nav-text">4. 运行结果</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/08/14/tidb-lesson-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="TiDB 学习课程 Lesson-1 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TiDB 学习课程 Lesson-1
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-08-14 20:51:26" itemprop="dateCreated datePublished" datetime="2020-08-14T20:51:26+08:00">2020-08-14</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/TiDB/" itemprop="url" rel="index"><span itemprop="name">TiDB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>今年了解到 TiDB 这样一个 HTAP 数据库，在 Github
+上面热度超高，再加上国人开发与维护，因此产生了很大的兴趣。</p>
+<p>正好社区搞了一个《高性能 TiDB 课程学习计划》通过 12
+节课来使学员能达到 Committer 的水平，因此就报名参加啦。</p>
+<p>第一节课的课程作业是<em>尝试在本地启动一个最小集群，并在开启事务时打印
+“hello transaction”
+并将这一过程写成一片文章</em>，因此本文将会主要描述这一过程。</p>
+<span id="more"></span>
+<h3 id="简单介绍-tidb-架构">简单介绍 TiDB 架构</h3>
+<p>TiDB 是一款支持 SQL 语义并直接兼容 MySQL
+通信协议的分布式关系型数据库。可以看到这句话里面包含了三个很重要的信息：</p>
+<ul>
+<li>兼容 MySQL</li>
+<li>关系型数据库</li>
+<li>分布式</li>
+</ul>
+<p>假如作为一个业务开发者，从外部来看，TiDB
+在绝大多数情况下直接表现为一个 MySQL，业务中的各种 Select
+查询，表关联，以及对事务、ACID
+的要求，它都能满足。在此基础上，通过分布式实现了方便的动态扩缩容，以及高性能。</p>
+<p>那么 <code>MySQL + 分布式</code>
+这样一个在传统互联网应用中想要而不可得的东西，TiDB
+是如何实现的呢？请看下图（转载自 PingCAP 官网，一切版权归其所有）：</p>
+<p><img
+src="https://download.pingcap.com/images/docs-cn/tidb-architecture-1.png" /></p>
+<p>整个数据库集群分为三类模块：</p>
+<ul>
+<li>tikv：分布式 K-V 存储，通过 Raft
+协议保证强一致性实现多副本的高可用，是数据的实际存储位置</li>
+<li>tidb：接受客户端连接，解析 SQL 语句，并转换为访问 tikv
+的计算，最后收集数据并返回</li>
+<li>pd：placement driver，管理整个集群的元信息，并负责 tikv
+节点的调度。</li>
+</ul>
+<p>上述模块全都都可以多节点部署。</p>
+<p>了解了总体架构后，我们发现，外表上看似乎是一台 MySQL，实际上除了对
+MySQL 协议的支持以外，其内部结构已经和 MySQL
+没有太大关系了。相比之下，TiDB 可能更像一个 Spark 集群，因此其实 TiDB
+就是一个根正苗红的分布式数据库方案。</p>
+<h3 id="从源码开始部署">从源码开始部署</h3>
+<p>如果只谈部署的话，其实 TiDB
+提供了一个非常方便的集群部署工具：TiUP，在<a
+href="https://book.tidb.io/session2/chapter1/tiup-tiops.html">《TiDB in
+action》的安装部署章节中</a>，非常清楚的描述了 TiUP
+的使：不论是部署单机测试环境还是部署集群，几条命令就能全部搞定了。</p>
+<p>不过在我们当前的上下文中，是想要从源码开始部署的，所以，接下来我会暂时先抛开
+TiUP，直接从源码开始。</p>
+<h4 id="step-1前期准备">STEP 1：前期准备</h4>
+<h5 id="安装-go-环境">1. 安装 Go 环境</h5>
+<p>三大件中，tidb 和 pd 都是基于 go 开发的，所以我们首先需要安装 Go
+语言的环境：</p>
+<ul>
+<li>方法一 ：<a
+href="https://golang.org/">官网</a>直接下载安装包安装即可。</li>
+<li>方法二：<code>brew install golang</code>，但 brew 目前安装的版本是
+1.14.7，实际上 1.15 已经发布了。</li>
+<li>方法三：安装一个 GoLand， 在里面直接安装</li>
+</ul>
+<p>安装完成后需要配置 <code>GOROOT</code> 和
+<code>GOPATH</code>两个环境变量，详情可以见<a
+href="https://golang.org/doc/install">官网</a>。</p>
+<h5 id="安装-rust-环境">2. 安装 Rust 环境</h5>
+<p>直接进入 Rust 官网，可以看到在 Mac 环境上，最佳方式是通过安装
+<code>rustup</code> 来安装 Rust 环境。就如同官网所述，Rust 采用 6
+周的快速发布流程，因此在任何时候都可以通过执行
+<code>rustup update</code> 来更新本地的 Rust。当前最新版是
+<code>1.45.2</code>。</p>
+<p>在安装<code>rustup</code> 后，相关组件都会被默认放置在
+<code>~/.cargo/bin</code> 且环境变量都会自动被正确的配置。</p>
+<h5 id="学习-golang">3. 学习 Golang</h5>
+<p>因为先前没有接触过 Go 语言，所以先花了两天时间简单学习了 Go，从 java
+切换过来入门不算太难。推荐<a
+href="https://tour.golang.org/welcome/1">官网教程</a>。</p>
+<h5 id="学习-rust">4. 学习 Rust</h5>
+<p>先前我对 Rust 有过初步的了解，了解了其内存分配与释放的模型等等，<a
+href="https://doc.rust-lang.org/book/">官网教程</a>很详细，但也很长...
+:(</p>
+<h4 id="step-2编译运行三大件">STEP 2：编译运行三大件</h4>
+<h5 id="编译运行-tidb">1. 编译运行 tidb</h5>
+<p>直接 clone master 分支到本地，我们可以看到源码中提供了
+Makefile，default target 会以
+<code>tidb_server/main.go</code>作为入口进行编译。编译完成后的 binary
+会输出在 <code>bin</code>
+目录，可以直接通过<code>./bin/tidb-server</code>执行。</p>
+<p>在这里大家可能会有疑问，作为集群的一份子，tidb
+组件可以单独直接运行吗？</p>
+<p>我们可以参考其<a
+href="https://docs.pingcap.com/zh/tidb/stable/command-line-flags-for-tidb-configuration">命令行参数配置页面</a>中所描述的：</p>
+<blockquote>
+<p><code>--store</code></p>
+<ul>
+<li><p>用来指定 TiDB 底层使用的存储引擎</p></li>
+<li><p>默认："mocktikv"</p></li>
+<li><p>可以选择 "mocktikv"（本地存储引擎）或者
+"tikv"（分布式存储引擎）</p></li>
+</ul>
+<p><code>--path</code></p>
+<ul>
+<li>对于本地存储引擎 "mocktikv" 来说，path
+指定的是实际的数据存放路径</li>
+<li>当 <code>--store = tikv</code> 时，必须指定 path；当
+<code>--store = mocktikv</code> 时，如果不指定 path，会使用默认值。</li>
+<li>对于 "TiKV" 存储引擎来说，path 指定的是实际的 PD 地址。假如在
+192.168.100.113:2379、192.168.100.114:2379 和 192.168.100.115:2379
+上面部署了 PD，那么 path 为 "192.168.100.113:2379, 192.168.100.114:2379,
+192.168.100.115:2379"</li>
+<li>默认："/tmp/tidb"</li>
+<li>可以通过 <code>tidb-server --store=mocktikv --path=""</code>
+来启动一个纯内存引擎的 TiDB</li>
+</ul>
+</blockquote>
+<p>实际上在我们做出任何配置以前，默认的 tidb 不需要连接
+pd，而是直接连接了其内置的
+<code>mocktikv</code>（显然这种方式符合架构的组件依赖原则
+SDP，组件之间通过抽象来定义接口）。</p>
+<p>这种方式很方便单独对 tidb 进行开发调试。</p>
+<h5 id="编译运行-pd">2. 编译运行 pd</h5>
+<p>直接 clone master 分支到本地，同样的，Makefile 中已经指明，default
+target 会以 <code>cmd/pd-server/main.go</code>作为入口进行编译。</p>
+<p>编译完成后的 binary 会输出在 <code>bin</code>
+目录，可以直接通过<code>./bin/tidb-server</code>执行。</p>
+<p>从<a
+href="https://docs.pingcap.com/zh/tidb/stable/dashboard-intro">官方文档</a>中可以得知，在
+pd 中内置了 GUI 监控工具 <code>TiDB Dashboard</code>，我们将本地编译好的
+pd-server
+启动起来，进入浏览器输入<code>http://127.0.0.1:2379/dashboard</code>
+即可进入 Dashboard 登录页，我们尝试使用 tidb 默认的<code>root</code> +
+空密码登录：</p>
+<img src="/2020/08/14/tidb-lesson-1/dashboard-login.png" class="">
+<p>提示我们 TiDB 连不上，这是因为目前我们的集群里还没有 tidb 组件。</p>
+<h5 id="编译运行-tikv">3. 编译运行 tikv</h5>
+<p>与 tidb 和 pd 一样，master 分支 clone 到本地后，执行
+<code>make</code> 即可，编译挺慢，在我的 mac 上整个编译花了 16min。</p>
+<p>Makefile 中默认是采用 release 编译，因此输出的 binary 需要到
+<code>./target/release</code>下面找到 <code>./tikv-server</code>。</p>
+<p>之后就可以尝试启动它，在我的 mac 上遇到了一个问题：</p>
+<p><code>the maximum number of open file descriptors is too small</code></p>
+<p>导致启动失败，实际上是由于 mac 默认的 <code>ulimit</code>
+中最大打开文件数是 256，而 tikv 要求的最小文件数是
+82920，因此需要执行以下语句来满足要求：</p>
+<p><code>sudo launchctl limit maxfiles 82920</code></p>
+<p>之后就能够正常启动了。（实际上需要 3 个 tikv
+节点才可以正常启动，详见下一节）</p>
+<h5 id="启动一个最小集群one-tidb-one-pd-three-tikv">4.
+启动一个最小集群：one tidb + one pd + three tikv</h5>
+<p>根据 <a href="https://tikv.org/docs/4.0/tasks/deploy/binary/">TiKV
+官方文档</a>，我们可以采用文档中的方式来启动一个最小集群：</p>
+<ul>
+<li><p>启动 pd：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">./pd-server --name=pd1 \</span><br><span class="line">                --data-dir=pd1 \</span><br><span class="line">                --client-urls=<span class="string">&quot;http://127.0.0.1:2379&quot;</span> \</span><br><span class="line">                --peer-urls=<span class="string">&quot;http://127.0.0.1:2380&quot;</span> \</span><br><span class="line">                --initial-cluster=<span class="string">&quot;pd1=http://127.0.0.1:2380&quot;</span> \</span><br><span class="line">                --log-file=pd1.log</span><br><span class="line">*注1：其实 pd 的默认配置中都包含了上述 config 参数，因此默认单 pd 节点时可以不加任何参数。</span><br><span class="line">*注2：--log-file 参数会将输出重定向到 <span class="built_in">log</span> 文件，假如我们在 shell 中测试，可以不要该参数，输出就打印到控制台了</span><br></pre></td></tr></table></figure></li>
+<li><p>启动 tikv （最小要求 3 个节点）</p>
+<p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">./tikv-server --pd-endpoints=<span class="string">&quot;127.0.0.1:2379&quot;</span> \</span><br><span class="line">                --addr=<span class="string">&quot;127.0.0.1:20160&quot;</span> \</span><br><span class="line">                --data-dir=tikv1 \</span><br><span class="line">                --log-file=tikv1.log</span><br><span class="line"></span><br><span class="line">./tikv-server --pd-endpoints=<span class="string">&quot;127.0.0.1:2379&quot;</span> \</span><br><span class="line">                --addr=<span class="string">&quot;127.0.0.1:20161&quot;</span> \</span><br><span class="line">                --data-dir=tikv2 \</span><br><span class="line">                --log-file=tikv2.log</span><br><span class="line"></span><br><span class="line">./tikv-server --pd-endpoints=<span class="string">&quot;127.0.0.1:2379&quot;</span> \</span><br><span class="line">                --addr=<span class="string">&quot;127.0.0.1:20162&quot;</span> \</span><br><span class="line">                --data-dir=tikv3 \</span><br><span class="line">                --log-file=tikv3.log              </span><br><span class="line">*注：--log-file 参数会将输出重定向到 <span class="built_in">log</span> 文件，假如我们在 shell 中测试，可以不要该参数，输出就打印到控制台了</span><br></pre></td></tr></table></figure></p></li>
+<li><p>启动 tidb</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./tidb-server --path=<span class="string">&quot;127.0.0.1:2379&quot;</span> --store=<span class="string">&quot;tikv&quot;</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<p>如果一切顺利的话，在互相通信的过程中它们会打印大量的日志，现在我们再进入
+TiDB Dashboard，就能够顺利的登录了，然后看看 Instance 页面：</p>
+<img src="/2020/08/14/tidb-lesson-1/dashboard-instances.png" class="">
+<h3 id="开启事务时打印-hello-transaction">开启事务时打印 “hello
+transaction”</h3>
+<h5 id="tidb-执行-sql-命令的总体步骤">1. tidb 执行 SQL
+命令的总体步骤</h5>
+
+<p>从源码中我们可知，<code>tidb-server/main.go</code> 的
+<code>main</code>
+函数作为程序入口，在启动后会执行一些读取配置、初始化等操作，之后会创建一个
+server，并执行<code>server.Run()</code>启动 server。</p>
+<p>之后 server 获取到的每一个 tcp 连接，都会开启一个 go routine，在 go
+routine 中执行连接的具体工作（go routine 真简单... 想想 netty 的 reactor
+模型...）：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">go</span> s.onConn(clientConn)</span><br></pre></td></tr></table></figure>
+<p>处理连接的主要逻辑在 <code>conn.go</code>包中，其中主要包括了读取 tcp
+数据并分发（<code>readPacket()</code> 和
+<code>dispatch(ctx, data)</code>），之后对第一个字符进行解析，解析为不同的
+command，我们关注 DML
+语句的执行，因此可以直接进入<code>handleQuery(ctx, dataStr)</code>
+函数。</p>
+<p>之后对来源数据进行 parse，将字节数组转化为 <code>ast.StmtNode</code>
+，这里没有深入看，应该是引入了抽象语法树来描述 SQL。</p>
+<p>之后的工作就转交至了 <code>session.go</code>这个包，由 session
+包来执行相应的
+statement，具体函数可见：<code>ExecuteStmt(ctx, stmt)</code>。</p>
+<p>执行 statement
+的过程中，就会涉及到对事务的操作，一开始回先将事务准备好：<code>s.PrepareTxnCtx(ctx)</code>，之后在执行具体动作时，通过
+<code>Txn(active bool)</code>
+函数来开启事务（该函数会在等待事务时阻塞）。</p>
+<h5 id="func-s-session-txnactive-bool-kv.transaction-error">2.
+<code>func (s *session) Txn(active bool) (kv.Transaction, error)</code></h5>
+<p>具体对事务的操作就是本函数了：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *session)</span></span> Txn(active <span class="type">bool</span>) (kv.Transaction, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="keyword">if</span> !active &#123;</span><br><span class="line">		<span class="keyword">return</span> &amp;s.txn, <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	... ...</span><br><span class="line">	</span><br><span class="line">  <span class="keyword">if</span> s.txn.pending() &#123;</span><br><span class="line">	</span><br><span class="line">    ... ...</span><br><span class="line">		</span><br><span class="line">    <span class="comment">// Transaction is lazy initialized.</span></span><br><span class="line">		<span class="comment">// PrepareTxnCtx is called to get a tso future, makes s.txn a pending txn,</span></span><br><span class="line">		<span class="comment">// If Txn() is called later, wait for the future to get a valid txn.</span></span><br><span class="line">		<span class="keyword">if</span> err := s.txn.changePendingToValid(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">			logutil.BgLogger().Error(<span class="string">&quot;active transaction fail&quot;</span>,</span><br><span class="line">				zap.Error(err))</span><br><span class="line">			s.txn.cleanup()</span><br><span class="line">			s.sessionVars.TxnCtx.StartTS = <span class="number">0</span></span><br><span class="line">			<span class="keyword">return</span> &amp;s.txn, err</span><br><span class="line">		</span><br><span class="line">    &#125;</span><br><span class="line">		</span><br><span class="line">    ... ...</span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	<span class="comment">// logutil.BgLogger().Info(&quot;hello transaction&quot;)</span></span><br><span class="line">	</span><br><span class="line">  <span class="keyword">return</span> &amp;s.txn, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，当输入参数为 false 时，代表不需要激活事务，因此直接将当前
+session 的 txn 返回即可，否则，需要判断事务是否在 pending
+中，如果是则等待其解除 pending（实际上是等待一个 future 完成）。</p>
+<p>所以可以看到，我们的题目要求在开启事务时打印 “hello
+transaction”，那么就可以将相应代码啊添加到注释处。</p>
+<h5 id="executor">3. Executor</h5>
+<p>对不同的 SQL 操作，tidb 定义了许多 Executor
+来执行，例如：<code>SelectionExec</code>、<code>DeleteExec</code>、<code>DDLExec</code>等等。</p>
+<p>为了验证在执行 DML 时真的开启了事务，我们可以任意选择一个
+Executor，来看看在执行时是不是真的开启了事务。这里我们选择
+<code>UpdateExec</code>。（tidb 默认开启了 auto
+commit，且新版本默认开启悲观事务）</p>
+<p>update 动作一共分为了五个步骤，</p>
+<ul>
+<li><p>转换被修改的值</p></li>
+<li><p>处理 null 错误</p></li>
+<li><p>数据比较</p></li>
+<li><p>将需要更改的值写入 on-update-now</p></li>
+<li><p>删除旧值，插入新值</p></li>
+</ul>
+<p>可以看到，真正的更新操作是在第五步，选取第五步中的 ”删除旧值“
+相关逻辑：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *TableCommon)</span></span> removeRowData(ctx sessionctx.Context, h kv.Handle) <span class="type">error</span> &#123;</span><br><span class="line">	<span class="comment">// Remove row data.</span></span><br><span class="line">	txn, err := ctx.Txn(<span class="literal">true</span>)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	key := t.RecordKey(h)</span><br><span class="line">	err = txn.Delete(key)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们发现在 <code>txn.Delete(key)</code>之前，确实先执行了
+<code>ctx.Txn(true)</code>。</p>
+<h5 id="运行结果">4. 运行结果</h5>
+<p>最后，将改动后的 tidb 重新编译，加入到先前的集群中，执行一下 insert
+或者 update 语句，我们就能看到如下输出：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[2020/08/16 16:55:21.158 +08:00] [INFO] [set.go:216] [&quot;set session var&quot;] [conn=2] [name=tx_read_only] [val=0]</span><br><span class="line">[2020/08/16 16:55:21.158 +08:00] [INFO] [set.go:216] [&quot;set session var&quot;] [conn=2] [name=transaction_read_only] [val=0]</span><br><span class="line">[2020/08/16 16:55:21.163 +08:00] [INFO] [set.go:216] [&quot;set session var&quot;] [conn=2] [name=net_write_timeout] [val=600]</span><br><span class="line"></span><br><span class="line">[2020/08/16 16:55:21.163 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:55:21.163 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line"></span><br><span class="line">[2020/08/16 16:55:21.164 +08:00] [WARN] [session.go:472] [&quot;can not retry txn&quot;] [conn=2] [label=general] [error=&quot;[kv:1062]Duplicate entry &#x27;1&#x27; for key &#x27;PRIMARY&#x27;&quot;] [IsBatchInsert=false] [IsPessimistic=false] [InRestrictedSQL=false] [tidb_retry_limit=10] [tidb_disable_txn_auto_retry=true]</span><br><span class="line">[2020/08/16 16:55:21.165 +08:00] [WARN] [session.go:488] [&quot;commit failed&quot;] [conn=2] [&quot;finished txn&quot;=&quot;Txn&#123;state=invalid&#125;&quot;] [error=&quot;[kv:1062]Duplicate entry &#x27;1&#x27; for key &#x27;PRIMARY&#x27;&quot;]</span><br><span class="line">[2020/08/16 16:55:21.165 +08:00] [ERROR] [conn.go:744] [&quot;command dispatched failed&quot;] [conn=2] [connInfo=&quot;id:2, addr:127.0.0.1:53187 status:10, collation:utf8_general_ci, user:root&quot;] [command=Query] [status=&quot;inTxn:0, autocommit:1&quot;] [sql=&quot;/* ApplicationName=GoLand 2020.2.2 */ insert into tester (id, name) VALUES (1, &#x27;aa&#x27;)&quot;] [txn_mode=PESSIMISTIC] [err=&quot;[kv:1062]Duplicate entry &#x27;1&#x27; for key &#x27;PRIMARY&#x27;&quot;]</span><br><span class="line">[2020/08/16 16:55:21.167 +08:00] [INFO] [2pc.go:717] [&quot;2PC clean up done&quot;] [conn=2] [txnStartTS=418792897543667719]</span><br></pre></td></tr></table></figure>
+<p>以上是对有主键约束的一行进行重复插入而打印的日志，可以看到打印的：<code>["hello transaction"]</code>。</p>
+<p>另外，在做了上述修改后，tidb 会每隔 3 秒打印 7 条
+<code>["hello transaction"]</code>，怀疑是后台定时任务所致。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[2020/08/16 16:58:59.661 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:58:59.661 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:58:59.663 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:58:59.664 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:58:59.665 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line"></span><br><span class="line">[2020/08/16 16:59:02.636 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:02.663 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:02.665 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:02.666 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:02.666 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:02.668 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:02.669 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line"></span><br><span class="line">[2020/08/16 16:59:05.635 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:05.660 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:05.662 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:05.663 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:05.664 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:05.665 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br><span class="line">[2020/08/16 16:59:05.665 +08:00] [INFO] [session.go:1454] [&quot;hello transaction&quot;]</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/08/14/tidb-lesson-1/" title="TiDB 学习课程 Lesson-1">http://lenshood.github.io/2020/08/14/tidb-lesson-1/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/tidb/" rel="tag"># tidb</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/07/10/rethink-of-a-release-failed/" rel="prev" title="对一次发布失败的反思">
+                  <i class="fa fa-angle-left"></i> 对一次发布失败的反思
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/08/19/tidb-lesson-2/" rel="next" title="TiDB 学习课程 Lesson-2">
+                  TiDB 学习课程 Lesson-2 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

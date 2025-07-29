@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文是对 StackState 发布的 The Observability Maturity Model 的中文翻译">
+<meta property="og:type" content="article">
+<meta property="og:title" content="可观察性成熟度模型">
+<meta property="og:url" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文是对 StackState 发布的 The Observability Maturity Model 的中文翻译">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/header.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure1.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure2.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure3.png">
+<meta property="og:image" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/figure4.png">
+<meta property="article:published_time" content="2022-11-27T14:06:31.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.421Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="observability">
+<meta property="article:tag" content="SRE">
+<meta property="article:tag" content="ops">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/header.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2022/11/27/the-observability-maturity-model/","path":"2022/11/27/the-observability-maturity-model/","title":"可观察性成熟度模型"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>可观察性成熟度模型 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BA%8F%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">序言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E9%87%87%E7%94%A8%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7%E6%88%90%E7%86%9F%E5%BA%A6%E6%A8%A1%E5%9E%8B"><span class="nav-number">2.</span> <span class="nav-text">引言：为什么要采用可观察性成熟度模型？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level-1-%E7%9B%91%E6%8E%A7-monitoring"><span class="nav-number">3.</span> <span class="nav-text">Level 1: 监控 Monitoring</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8B%E4%B8%80%E6%AD%A5%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7"><span class="nav-number">3.1.</span> <span class="nav-text">下一步：可观察性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level-2-%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7-observability"><span class="nav-number">4.</span> <span class="nav-text">Level 2: 可观察性
+Observability</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8B%E4%B8%80%E6%AD%A5%E5%9B%A0%E6%9E%9C%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7"><span class="nav-number">4.1.</span> <span class="nav-text">下一步：因果可观察性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level-3-%E5%9B%A0%E6%9E%9C%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7-causal-observability"><span class="nav-number">5.</span> <span class="nav-text">Level 3: 因果可观察性
+Causal Observability</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8B%E4%B8%80%E6%AD%A5%E4%BD%BF%E7%94%A8-aiops-%E7%9A%84%E4%B8%BB%E5%8A%A8%E5%BC%8F%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7"><span class="nav-number">5.1.</span> <span class="nav-text">下一步：使用 AIOps
+的主动式可观察性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#level-4-%E4%BD%BF%E7%94%A8-aiops-%E7%9A%84%E4%B8%BB%E5%8A%A8%E5%BC%8F%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7-proactive-observability-with-aiops"><span class="nav-number">6.</span> <span class="nav-text">Level
+4: 使用 AIOps 的主动式可观察性 Proactive Observability With AIOps</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8E%A5%E4%B8%8B%E6%9D%A5%E7%9A%84%E6%AD%A5%E9%AA%A4"><span class="nav-number">6.1.</span> <span class="nav-text">接下来的步骤</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">8.</span> <span class="nav-text">参考</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="可观察性成熟度模型 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          可观察性成熟度模型
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2022-11-27 22:06:31" itemprop="dateCreated datePublished" datetime="2022-11-27T22:06:31+08:00">2022-11-27</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2022/11/27/the-observability-maturity-model/header.png" class="" width="500">
+<blockquote>
+<p>本文是对 StackState 发布的 <a
+href="https://www.stackstate.com/white-paper/observability-maturity-model/"><em>The
+Observability Maturity Model</em></a> 的中文翻译</p>
+</blockquote>
+<span id="more"></span>
+<h2 id="序言">序言</h2>
+<p>在StackState，我们已经在监控和可观察性领域度过了八年时间。在这段时间里，我们与无数的DevOps工程师、架构师、SRE、IT运营主管和CTO交谈过，我们反复听到同样的挣扎。</p>
+<p>今天的消费者已经习惯了从不宕机的伟大技术。他们对故障或性能问题的容忍度很低。这些期望促使企业通过频繁的发布、更快的响应和更高的可靠性来保持竞争力。同时，向基于云的应用的转变--所有不断变化的功能、微服务和容器--使IT环境变得更加复杂，比以往更难运维和监控。</p>
+<p>因此，我们看到在全球范围内展开的有关监控的挑战有很大的共性，例如一位客户描述的如下丰富多彩的问题。</p>
+<blockquote>
+<p>"当基础设施、存储、网络设备或类似的东西出现大故障时......每次我们都像在看一部同样的电影。监控变得红色，红色，红色，成千上万的警报，没有人知道什么是根本原因。每个人都很惊慌--真正的完全混乱"。</p>
+<p>- Georg Höllebauer, APA-Tech的企业指标架构师</p>
+</blockquote>
+<p>八年前，我亲眼目睹了这个问题，当时我是一个由两名顾问组成的团队的一员，在一家大型荷兰银行工作，帮助他们提高其关键任务应用程序的可靠性。他们是一个成熟的企业，为其复杂的环境配备了多种监控工具，但他们无法迅速找到问题的根因。由于许多孤立的工具和缺乏对其IT环境的统一视图，客户体验直接受到影响。当有什么东西损坏时，要花很长时间才能找到并解决核心问题。我们知道我们必须找到一个更好的方法，而我们为满足这家银行的需求而建立的技术成为StackState的基础。</p>
+<p>自从我们在2017年发布最初的监控成熟度模型以来，很明显，最初的监控工具--只是在出现故障时通知IT团队--对于许多其他组织也不再足够。今天的工程师需要立即了解一个问题的优先级和背景：对客户体验和业务成果的影响是什么？然后，如果影响很大：为什么会发生故障，我们该如何修复它？</p>
+<p>可观察性的概念是从监控中发展出来，专为回答上述问题的。可观察性对于维持业务成功所需的服务可靠性水平至关重要。不幸的是，在监控和可观察性的空间里航行是很困难的，特别是当AIOps映入眼帘时。许多供应商在市场上大肆宣传，新的开源项目也层出不穷。但很难知道谁真正做了什么，更难知道哪些功能真正重要。</p>
+<p>可观察性成熟度模型是基于对实际环境中真实问题的广泛经验、与客户和潜在客户的讨论、对最新技术的研究以及与Gartner等领先分析公司的对话而形成的。我们希望它能帮助你在黑暗中照亮一些光。我们的目标不是向你展示你的可观察性旅程应该是什么样子的完美模型。我们认为它并不应像那样工作。引用<a
+href="https://www.lacan.upc.edu/admoreWeb/2018/05/all-models-are-wrong-but-some-are-useful-george-e-p-box/">一位著名的英国统计学家</a>的话，"所有的模型都是错的，但有些是有用的"。相反，我们编写这个可观察性成熟度模型是为了帮助你确定你在可观察性道路上的位置，了解前面的道路，并提供一张地图来帮助你找到你自己的路。</p>
+<p>愿这个模型在你的旅程中对你有用!</p>
+<p>Lodewijk Bogaards</p>
+<p>合伙人与 CTO</p>
+<p>StackState</p>
+<h2
+id="引言为什么要采用可观察性成熟度模型">引言：为什么要采用可观察性成熟度模型？</h2>
+<p>作为IT运营团队深入了解其系统的可用性和性能的一种方式，监控已经存在了几十年。为了满足市场需求，更快地创新和更好地支持业务目标，IT组织需要更深入和更精确地了解他们的技术环境中正在发生什么。获得这种洞察力并不容易，因为今天的基础设施和应用程序跨越多种技术，使用多种架构，并且在本质上更加动态、分布式和模块化。</p>
+<p>变化也是IT行业的一种生活方式，研究表明76%的问题是由变化引起的。<em>[1]</em>为了在所有这些挑战面前保持可靠性，公司的监控策略必须向可观察性发展。</p>
+<p>大多数企业发现很难找到正确的监控策略来可靠地管理其环境。超过65%的企业组织有超过10个监控工具，通常作为孤立的解决方案运行。<em>[2]</em>这种分离的结构限制了SRE和IT运营团队快速检测、诊断和解决性能问题的能力。当问题发生时，团队试图通过结合团队、流程和工具，或通过手动拼凑筒仓式的数据碎片来找到根因。这种传统的监控方法很耗时，而且不能提供改善业务成果所需的洞察力。排错的速度太慢，你最关键的面向客户的系统可能会瘫痪几个小时，导致数百万的收入损失。</p>
+<blockquote>
+<p>66%的MTTR用于识别是什么变化导致了故障<em>[3]</em>。</p>
+</blockquote>
+<p>向动态云、容器、微服务和无服务器架构进军的运动，加上维护混合环境和遗留记录系统的需要，进一步加剧了对更先进能力的需求。</p>
+<p>为了满足这些需求，可观察性实践已经发展起来，将监控方面的进展与更全面的方法结合起来，对整个技术环境中发生的事情提供更深入的洞察力和更精确的理解。可观察性成熟度模型在可观察性的发展过程中定义了四个不同的级别，如下页表
+1 所述。</p>
+<blockquote>
+<p>向云和容器的迁移正在推动对更高级的可观察性成熟度的需求。</p>
+</blockquote>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 36%" />
+<col style="width: 42%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level</th>
+<th>Goal</th>
+<th>Functionality</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1.监控</td>
+<td>确保单个组件按预期工作。</td>
+<td>• 追踪IT系统中各个组件的基本健康状况<br/>•
+查看事件；触发警报和通知<br/>• 告诉你出了问题...但不是什么问题</td>
+</tr>
+<tr class="even">
+<td>2.可观察性</td>
+<td>确定系统不工作的原因。</td>
+<td>• 通过观察系统的输出，深入洞察系统的行为<br/>•
+结合现有的监控数据，聚焦于从指标、日志和追踪中推断出结果 <br/>•
+提供基线数据，帮助调查出错的原因</td>
+</tr>
+<tr class="odd">
+<td>3. 因果可观察性</td>
+<td>找到事件的原因并确定其对整个系统的影响。</td>
+<td>• 提供更全面的洞察，以帮助确定问题的原因 <br/>•
+在一级和二级基础上，增加追踪IT栈中拓扑结构随时间变化的能力 <br/>•
+生成广泛的相关性信息，帮助减少确定出错的原因、问题发生的原因所需的时间</td>
+</tr>
+<tr class="even">
+<td>4. 使用 AIOps 的主动式可观察性</td>
+<td>分析大量的数据，自动化反响应，防止异常情况变成问题。</td>
+<td>• 使用AI和ML在大量数据中寻找模式 <br/>•
+将AI/ML与1-3级的数据结合起来，在整个堆栈中提供最全面的分析 <br/>•
+尽早发现异常，并发出足够的警告以防止故障</td>
+</tr>
+</tbody>
+</table>
+<p>表1: 定义可观察性成熟度的级别</p>
+<p>每个级别的可观察性都建立在前几个级别建立的基础上，以增加捕捉、追踪和分析数据的能力。新的功能使每个阶段的可观察性更加深入，从而提高了IT可靠性和客户满意度，如下图1所示。尽管你可以通过加强流程来略微改善一个级别内的结果，但大多数团队需要收集新类型的数据来提升到下一个成熟度级别并实现更大的收益。</p>
+<img src="/2022/11/27/the-observability-maturity-model/figure1.png" class="">
+<p>图1：可观察性成熟度以及它如何影响IT可靠性</p>
+<p>可观察性成熟度模型是基于对各行业企业的研究和对话，并经过其他从业者、分析师和思想领袖的验证。它旨在帮助你：</p>
+<ul>
+<li>了解不同类型的数据以及监控和可观察性实践如何帮助你的组织收集可操作的信息。</li>
+<li>理解监控、可观察性和AIOps之间的区别。</li>
+<li>评估你的组织目前的成熟度。</li>
+<li>引导你的团队达到一个更高的成熟度。</li>
+</ul>
+<p>使用这个模型，你可以了解明确的步骤来提高你的组织中的可观察性，这样你就可以最终向你的客户提供更可靠和有韧性的应用。</p>
+<h2 id="level-1-监控-monitoring">Level 1: 监控 Monitoring</h2>
+<p><em>目的：确保单个组件按预期工作</em></p>
+<p>第一个层次，监控，对IT行业来说并不陌生。监控器跟踪单个系统组件的特定参数，以确保它保持在一个可接受的范围内。如果数值超出了范围，监控器就会触发一个动作，如报警、状态改变、通知或警告。</p>
+<p>传统的监控通常包括应用性能监控（APM）、基础设施监控、API监控、网络监控和其他各种以领域为中心的工具，其用例是："当某些东西运行得不理想时通知我。"
+你可以用交通灯的颜色来考虑监控。</p>
+<ul>
+<li>该组件是可用的和健康的（绿色）</li>
+<li>该组件处于危险之中（橙色或黄色）</li>
+<li>该组件已损坏（红色）</li>
+</ul>
+<p>监控着眼于预先定义的数值集和预先定义的故障模式集。它专注于基本的组件级参数，如可用性、性能和容量，并产生报告监控值状态的事件。</p>
+<p><strong>事件</strong>是IT环境中值得注意的变化。虽然事件可能是纯粹的信息，但它们往往描述了需要采取行动的关键事件。事件可能触发<strong>警报或通知</strong>，通过各种渠道到达，如电子邮件、聊天、移动应用程序或事件管理系统。</p>
+<p>作为实现可观察性的第一步，实施监控以获得对各个组件的健康和状态的基本了解，并在出现故障时得到通知。下面，表2给出了第1级的关键能力概述。</p>
+<table>
+<colgroup>
+<col style="width: 100%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level 1: Monitoring</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>使用基本的交通灯监控来了解构成你的IT服务的各个组件的可用性。</td>
+</tr>
+<tr class="even">
+<td><strong>System Input</strong>
+<br/>事件和组件级指标（例如，"API响应时间高于我们的SLO五秒"）。<br/><br/><strong>System
+Output</strong> <br/>警报或通知（例如，"订单执行服务中断了"）。</td>
+</tr>
+<tr class="odd">
+<td><strong>What You Get</strong> <br/>•
+基本信息，如一个组件的健康状态--它在工作吗？<br/>•
+当问题发生时发出警报和通知 <br/>•
+最简单的入门方式；有许多开源和SaaS解决方案可用</td>
+</tr>
+</tbody>
+</table>
+<p>表2: 第1级摘要</p>
+<h3 id="下一步可观察性">下一步：可观察性</h3>
+<p>监控让你对整个环境的状态有有限的了解。它向你显示单个组件的健康状况，但通常没有关于全局的信息。它告诉你有些东西坏了，但没有告诉你原因，也没有告诉你该找谁，更没有告诉你原始问题是从什么时候和在什么地方开始的。</p>
+<p>设置和维护监控检查和通知渠道需要大量的手工工作。在第1级，你还需要手动进行根因分析和影响分析，而且你的数据集有限。调查问题的来源需要时间。此外，一个问题可能会引起来自多个组件的报警风暴，造成进一步的混乱和延迟，无法准确地找出根本原因。</p>
+<p>虽然监控可以检测到有限的已知故障类型，或
+"已知的未知"，但第2级，可观察性，可以帮助你发现未知和意外的故障模式，或
+"未知的未知"。随着你从第1级到第2级，你将获得更深入的信息，对你的服务的可用性、性能和行为有更好的了解。</p>
+<h2 id="level-2-可观察性-observability">Level 2: 可观察性
+Observability</h2>
+<p><em>目标：确定系统不工作的原因。</em></p>
+<p>为了保持当今复杂多变的IT系统的可靠运行，你不仅需要知道什么在工作（监控），还需要了解它为什么不工作（可观察性）。</p>
+<p>传统的监控是跟踪一个部件或系统的基本健康状况。可观察性自然而然地发展起来，以提供对一个系统随时间变化的行为的更深入的洞察力。当出了问题，你的团队收到警报时，你需要迅速搞清楚："发生了什么？在哪里，什么时候，为什么，我们应该找谁？"
+可观察性数据帮助你回答这些问题。在其完全成熟时（第4级），可观察性在适当的背景下提供你所需要的所有数据，以自动检测和补救问题，甚至主动识别和预防问题。</p>
+<p>当报警弹出时，你要了解系统的状态以找到问题的根源。在第二级，可观察性通常通过关注三种关键类型的遥测数据来提供系统洞察力。<strong>指标</strong>，<strong>日志</strong>和<strong>追踪</strong>。<em>[4]</em>
+可观察性的这三个支柱是从IT组件（如微服务、应用程序和数据库）中收集的，以提供对系统行为的整体看法。每个支柱都提供不同类型的信息，如下表3所示。</p>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 88%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>支柱</th>
+<th>定义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>指标</strong></td>
+<td>帮助你了解服务性能和状态的数字度量--例如，著名的四大黄金信号：延迟、流量、错误率和饱和度<em>[5]</em>。</td>
+</tr>
+<tr class="even">
+<td><strong>日志</strong></td>
+<td>对系统中发生的相关事件（如事务、警告、错误）的时间戳记录，这有助于你了解系统在某一特定时间点的行为。</td>
+</tr>
+<tr class="odd">
+<td><strong>追踪</strong></td>
+<td>详细的快照显示数据如何从头到尾流经一个应用程序（例如，用户请求），这有助于排除性能故障，有时还能让人看到你的应用程序的代码级性能。</td>
+</tr>
+</tbody>
+</table>
+<p>表3：可观察性的三大支柱</p>
+<p>这三个支柱，连同事件和警报，通常被绘制在仪表盘上，这样团队就可以轻松地跟踪重要的活动。一些可观察性工具提供了开箱即用的仪表盘，将这些不同类型的数据集中在一个屏幕上，并允许你深入研究这些数据以进一步调查。</p>
+<p>第二级的数据比第一级数据有更好的广度和深度，它通常涉及到将整个环境的一些数据整合到一个单一的视图中。如果你想获得更多的洞察力，你可能需要建立额外的仪表盘，特别是当你的环境有多个域，并且你使用多个监控工具时。</p>
+<table>
+<colgroup>
+<col style="width: 100%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level 2: Observability</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>除了事件和健康状态外，还通过捕捉指标、日志和跟踪来观察IT环境的行为。</td>
+</tr>
+<tr class="even">
+<td><strong>System Input</strong> <br/>第1级输入+综合指标、日志和追踪
+<br/><br/><strong>System Output</strong>
+<br/>1级输出+综合仪表盘，包括图表、仪表、火焰图、日志等。</td>
+</tr>
+<tr class="odd">
+<td><strong>What You Get</strong> <br/>•
+通过从更多的来源收集额外的数据，更深入、更广泛、更全面地了解整个系统的健康状况，从而更好地支持问题诊断
+<br/>• 除了已知的故障类型外，还能发现未知的故障模式 <br/>•
+从个别类型的数据中获得有益的见解 --
+例如，跟踪有助于识别性能瓶颈，指标是优秀的KPI，日志可用于发现软件缺陷</td>
+</tr>
+</tbody>
+</table>
+<p>表4: 第2级摘要</p>
+<p>那么此时挑战就变成了如何解决来自太多仪表盘的信息。在第2级，你可以通过手动关联数据来推断可疑的事故原因，但这种方法往往涉及跨系统的复杂手动查询。</p>
+<p>在第2级，团队还没有开发出一种自动化的方法来统一和关联来自不同工具和领域的孤立数据，所以要找出问题的根因仍然需要耗费大量的人力和时间。因此，与更高的成熟度相比，MTTD和MTTR要高一些，客户受到的不利影响更大，损失的收入也更多。</p>
+<h3 id="下一步因果可观察性">下一步：因果可观察性</h3>
+<p>可观察性产生了大量的数据，整理出有意义的信息可能很困难。</p>
+<p>在第二级，你的团队可能受到数据孤岛和数据量的挑战，这导致跨领域和跨团队的故障排除效率低下。</p>
+<p>当出现问题时，由于没有人知道问题出在哪里，所以有太多人牵扯进来，从而导致了事件的乒乓化和指责游戏。你可能需要建立专门的解决方案来查询多个可观察性筒仓，以解决单一问题。创建这些查询需要从业人员具备开发技能、数据结构知识和对系统架构的理解。</p>
+<p>此外，第2级中典型的以遥测为中心的筒仓式视图往往需要大量的手工工作来提取可操作的洞察力。设置高效的仪表盘可能需要相当长的时间，而且需要持续的维护。根因分析、影响分析和减少报警噪音对于维护一个可靠和有韧性的栈非常重要，但这些活动在这个级别是具有挑战性的。</p>
+<p>注意：团队越来越多地采用OpenTelemetry标准，以促进指标、日志和跟踪的采集。OpenTelemetry对于有效地收集这些类型的数据是非常有帮助的，但它并不是为了弥合孤岛，为数据创造更好的背景或分析数据而设计的。</p>
+<p>为了进入第三级，了解你的可观察性数据是如何关联的，你需要为IT环境中跨数据筒仓的事件、日志、指标和追踪提供上下文。在第三级，即因果可观察性，你可以得到你的业务流程、应用程序和基础设施的拓扑结构的精确地图，你可以跟踪它如何随时间变化。当出现问题时，你可以利用这些上下文数据与自动化相结合，快速确定问题的原因，而不必手动处理不相关的数据孤岛。</p>
+<h2 id="level-3-因果可观察性-causal-observability">Level 3: 因果可观察性
+Causal Observability</h2>
+<p><em>目标：找到事件的原因并确定其对整个系统的影响。</em></p>
+<p>毫不奇怪，大多数故障都是由系统中某个地方的变化引起的，比如新的代码部署、配置变更、自动扩缩容活动或自愈事件。当你调查事件的根因时，最好的开始是找到哪里发生了变化。</p>
+<p>为了了解是什么变化导致了问题，以及什么影响在你的栈中传播，你需要能够看到栈组件之间的关系是如何随时间变化的。</p>
+<ul>
+<li>当一个问题开始时，栈是什么样子的？</li>
+<li>哪些组件受到了影响？</li>
+<li>所有的报警是如何关联的？</li>
+</ul>
+<p>我们把这一层次的洞察力称为因果可观察性，它可以让你追踪整个栈的因果关系，它建立在第一和第二层次的基础上。</p>
+<blockquote>
+<p>"从拓扑结构内的数据中推导出模式将建立相关性，并揭示隐藏的依赖关系。将拓扑结构作为因果关系确定的一部分，可以大大增强其准确性和有效性。"</p>
+<p>– Gartner® AIOps平台市场指南，2022年5月，Pankaj Prasad, Padraig
+Byrne, Gregg Siegfried</p>
+</blockquote>
+<p>拓扑结构是因果观察能力的第一个必要维度。拓扑是IT环境中所有组件的地图，它跨越了所有的层次，从网络到应用到存储，显示了所有东西的关系。拓扑结构包含了组件之间的逻辑依赖性、物理接近性和其他关系，以提供人类可读的可视化和操作化的关系数据。</p>
+<blockquote>
+<p>拓扑结构描述了环境中离散组件之间的关系和依赖性集合，例如，业务服务、微服务、负载均衡器、容器和数据库。</p>
+<p>在今天的现代环境中，随着新的代码不断被推入生产，以及底层基础设施的快速变化，拓扑结构迅速发展。管理这些动态环境需要有能力跟踪拓扑结构随时间的变化（时间序列拓扑），为你的栈中发生的活动提供历史和实时上下文。</p>
+</blockquote>
+<p>现代环境由许多动态层、微服务、无服务器应用和网络技术组成，因此在你的可观察性组合中加入最新的拓扑结构，对于区分因果关系至关重要。拓扑结构为数以千计的未连接的数据流提供了锚点，使它们具有结构性，使以前看不见的连接变得可见。拓扑可视化让你在全栈活动的背景下查看来自网络、基础设施、应用程序和其他领域的遥测数据；它还为你提供了重要的背景，让你知道当某些事情发生时，你的业务是如何受到影响的。</p>
+<img src="/2022/11/27/the-observability-maturity-model/figure2.png" class="">
+<p>图2：因果观察能力需要整合环境中所有来源的拓扑信息。</p>
+<p>然而，对于大多数公司来说，增加拓扑结构本身并不足以提供因果观察能力。特别是在当今动态的现代环境中，微服务、频繁的部署、不断变化的云资源和容器的动态扩缩，拓扑结构变化很快。你的堆栈现在是什么样子，可能不是问题刚开始时的样子。因此，第二个维度对于创建因果观察能力的基础是必要的：时间。</p>
+<img src="/2022/11/27/the-observability-maturity-model/figure3.png" class="">
+<p>图3：捕获时间序列拓扑结构，以跟踪堆栈的变化并迅速排除根本原因。</p>
+<p>最后，为了理解现代IT环境的动态行为，并获得实现因果观察能力所需的上下文，你需要将环境的拓扑结构与其相关的指标、日志、事件和跟踪数据随时间推移而关联起来。</p>
+<img src="/2022/11/27/the-observability-maturity-model/figure4.png" class="">
+<p>图4：随着时间的推移捕获拓扑结构，并将其与指标、日志、事件和跟踪联系起来，以跟踪栈的变化。以后，当问题发生时，你可以回到问题开始的确切时刻，看看是什么变化造成的。</p>
+<p>在第三级，拓扑结构和时间的额外维度，与遥测数据相关联，向您展示任何变化或故障的原因和影响，跨越不同的层、数据筒仓、团队和技术--大大改善了解决时间和业务成果。你也有了开始自动进行根因分析、业务影响分析和警报关联的基础。这种更深层次的数据也是更高级的AIOps所需要的，你会在第四级中读到这一点。</p>
+<blockquote>
+<p><strong>建立因果观察能力和AIOps基础的四个关键步骤</strong>。</p>
+<ol type="1">
+<li>整合。首先，你需要确保你已经将整个栈的数据整合到一个地方，以便你有一个完整的视图。</li>
+<li>收集拓扑结构数据。接下来，你需要建立一个环境的拓扑图，这是一个栈的组件地图，显示它们之间的关系。拓扑结构的可视化可以快速回答如下问题："什么组件依赖于其他组件？如果一个服务出现故障，还有什么会受到影响？"</li>
+<li>关联。你需要将所有这些统一的数据关联起来，这样你的整个IT环境就可以作为一个整体进行分析，甚至是跨筒仓。拓扑结构中的每个组件都需要与其相关的指标、日志、事件和跟踪数据相关联。</li>
+<li>随着时间的推移跟踪一切。最后，如果你想看看一个组件的变化是如何在你的栈中传播的，你需要将你的拓扑数据与指标、日志和跟踪数据随着时间的推移进行关联。</li>
+</ol>
+</blockquote>
+<table>
+<colgroup>
+<col style="width: 100%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level 3: Causal Observability</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>通过单一的拓扑结构将遥测数据（指标、跟踪、事件、日志）上下文化。随着时间的推移，对所有数据进行关联，以跟踪在你的堆栈中传播的变化。</td>
+</tr>
+<tr class="even">
+<td><strong>System Input</strong> <Br/>1级和2级+时间序列拓扑结构
+<Br/><Br/><strong>System Output</strong>
+<Br/>第1级和第2级+相关的拓扑结构、遥测和时间数据显示在上下文的可视化中，显示整个堆栈的变化效应</td>
+</tr>
+<tr class="odd">
+<td><strong>What You Get</strong> <Br/>•
+通过统一时间序列拓扑中的孤岛数据，对环境状态进行综合的、清晰的、相关的上下文视图
+<Br/>• 通过拓扑可视化和分析了解因果关系，大大加快根因识别和解决时间
+<Br/>• 为基本的自动调查奠定基础，如根因分析、业务影响分析和警报关联
+<Br/>• 自动聚类与同一根源相关的报警所需的上下文，减少噪音和干扰 <Br/>•
+能够可视化网络、基础设施和应用程序事件对业务服务和客户的影响</td>
+</tr>
+</tbody>
+</table>
+<p>表5：第3级摘要</p>
+<h3 id="下一步使用-aiops-的主动式可观察性">下一步：使用 AIOps
+的主动式可观察性</h3>
+<p>如上所述，Gartner指出，拓扑结构可以大大增加因果判断的准确性和有效性。第3级是一个很大的进步，但统一来自不同筒仓的数据在数据规范化、关联性和质量方面带来了挑战，可能需要新的能力甚至组织变革来解决。此外，很难大规模地收集和操作高质量的拓扑数据，特别是在不太现代化的环境中。</p>
+<p>每个拓扑源都需要不断地流入主拓扑，所以你需要确保你有一个能够长期存储拓扑的系统。随着时间的推移，存储与遥测数据相关的拓扑结构是一个更大的挑战。</p>
+<p>在你制定实施计划时要考虑这些问题。还要记住，第3级的数据速度、数量和种类通常非常大，为了实现你的整体可靠性目标，可能需要人工智能来帮助从噪音中分离出信号。当你迈向第4级时，你在第1-3级的基础上增加了IT运营的人工智能（AIOps），以获得更准确的洞察力。</p>
+<blockquote>
+<p>"随着数据量达到或超过每分钟数千兆字节，跨越十几个不同的领域，由人类手动分析数据以服务于运营期望，已经不可能，更不现实。"</p>
+<p>– Gartner® AIOps平台市场指南，2022年5月，Pankaj Prasad, Padraig
+Byrne, Gregg Siegfried</p>
+</blockquote>
+<h2
+id="level-4-使用-aiops-的主动式可观察性-proactive-observability-with-aiops">Level
+4: 使用 AIOps 的主动式可观察性 Proactive Observability With AIOps</h2>
+<p><em>目标：分析大量的数据，自动化反响应，防止异常情况变成问题。</em></p>
+<p>第四级，主动观察与AIOps，是最先进的可观察水平。在这个阶段，IT运营的人工智能（AIOps）被加入到这个组合中。AIOps，在监控和可观察性的背景下，是关于应用人工智能和机器学习（ML）来整理堆积如山的数据，寻找模式，从而</p>
+<ul>
+<li>推动更好的响应</li>
+<li>在最短的时间内</li>
+<li>同时包含人和自动化系统</li>
+</ul>
+<p>在Pankaj Prasad、Padraig Byrne和Gregg
+Siegried撰写的Gartner《AIOps平台市场指南》（2022年5月）中，Gartner对AIOps平台的特点作了如下定义。</p>
+<blockquote>
+<p>"AIOps平台分析遥测和事件，并识别有意义的模式，提供洞察力以支持主动反应。AIOps平台有五个特点。</p>
+<ol type="1">
+<li>跨领域的数据摄取和分析</li>
+<li>从资产关系和依赖性的隐性和显性来源进行拓扑结构组装</li>
+<li>与事件相关的或多余的事件之间的关联性</li>
+<li>模式识别，以检测事件、其领先指标或可能的根本原因</li>
+<li>可能的补救措施的关联"</li>
+</ol>
+</blockquote>
+<p>我们对AIOps的看法与Gartner相同。AIOps建立在这个成熟度模型中前几个级别的核心能力之上--比如收集和操作数据、拓扑组装和数据的相关性--并加入了模式识别、异常检测和更精确的问题补救建议。因果观察能力是一个必要的基础：时间序列拓扑结构提供了一个基本框架。</p>
+<p>AIOps可以帮助团队更快地发现问题，甚至完全预防问题。人工智能/ML算法寻找警告、报警和故障之前的模式变化，帮助团队了解服务或组件何时开始偏离正常行为，并在发生故障之前解决这个问题。</p>
+<blockquote>
+<p>"发现异常现象很容易，因为它们一直在发生。当你每天收集10亿个事件时，每两分钟就会发生一个百万分之一概率的事件。可观察性工具的关键是发现与手头问题相关的异常情况，然后将日志文件/指标中可能相关的其他信息点联系起来。通过浮现上下文中的相关信息，运维人员可以更迅速地分离出问题的潜在根源"。</p>
+<p>– Gartner® "Innovation Insight for Observability"，2022年3月，Padraig
+Byrne和Josh Chessman</p>
+</blockquote>
+<p>然而，反常现象经常发生。它们不一定意味着问题会发生，也不意味着补救措施应该是高度优先的。AIOps帮助确定哪些异常情况需要关注，哪些可以忽略。</p>
+<p>AIOps可观察性的另一个目标是通过IT服务管理（ITSM）和自愈系统推动自动修复。例如，如果这些系统收到不正确的根因输入，它们可以自我纠正错误的并可能导致更大的问题。AIOps提供了更准确的输入，增强了它们的有效性。</p>
+<blockquote>
+<p>一盎司的预防胜过一磅的治疗。还有什么比阻止事故发生更好的方法来提高可靠性呢？</p>
+</blockquote>
+<p>在第四级，你应该注意到更高效和无事故的IT运营，提供更好的客户体验。为了实现这些目标，设置AIOps以超越孤岛，并摄取从整个环境中收集的数据。AI/ML模型应该分析我们在前几个级别中讨论的所有可观察的数据类型：事件、指标、日志、跟踪、变化和拓扑结构，所有这些都是随时间推移而关联的。</p>
+<blockquote>
+<p><strong>提醒您。不要跳过第三级 </strong></p>
+<p>利用AIOps进行主动观察是确保IT系统可靠运行的最佳方式，但直接进入第4级并跳过第3级的因果观察步骤（数据整合、拓扑结构、所有数据流随时间变化的关联性）是一个错误。</p>
+<p>这个可观察性成熟度模型中的每个级别都是建立在前几个级别所构建的能力之上的，但拥有一个完整的基础对第四级的成功最为重要。如果你在没有全面的数据基础的情况下应用AI/ML，你实际上会造成损害。例如，假设你在一个自动化自我修复系统的前端使用AI/ML。如果算法确定了一个不正确的根因，自愈系统就会试图补救错误的东西，并可能进一步破坏系统。如果你在数据不足或数据质量差的基础上应用AI/ML，你可能会在算法学到错误的东西时推动自动化走向错误的方向。</p>
+<p>如果没有拓扑数据与指标、日志和跟踪数据长期相关，AIOps工具很可能无法理解这些不同种类的数据之间的相关性，因为它们走到了一起。AIOps需要拓扑结构和时间提供的额外背景，以便准确评估根因，确定业务影响，检测异常情况，并主动确定何时提醒SRE和DevOps团队。</p>
+</blockquote>
+<table>
+<colgroup>
+<col style="width: 100%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level 4: Proactive Observability With AIOps</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>使用AIOps对堆积如山的数据进行分类，确定最重要的模式和有影响的事件，这样团队就可以把时间集中在重要的事情上。</td>
+</tr>
+<tr class="even">
+<td><strong>System Input</strong> <Br/>1-3级+AI/ML模型
+<Br/><Br/><strong>System Output</strong>
+<Br/>1-3级+主动洞察，实现快速MTTR并防止故障发生</td>
+</tr>
+<tr class="odd">
+<td><strong>What You Get</strong>
+<Br/>使用AI/ML从大量数据中收集和关联可操作的信息，对IT环境运行有新的见解
+<Br/>• 预测和异常检测，在问题影响业务之前突出问题 <Br/>•
+提高效率，减少劳累，因为团队将精力集中在最有影响的事件上 <Br/>•
+提高自动根因分析、业务影响分析和报警关联的准确性 <Br/>•
+事件数据足够准确，可以有效使用自动化ITSM和自愈系统</td>
+</tr>
+</tbody>
+</table>
+<p>表6：第4级摘要</p>
+<h3 id="接下来的步骤">接下来的步骤</h3>
+<p>今天，大多数AIOps解决方案需要大量的配置和训练时间，但往往会产生不准确的结果，特别是如果不考虑拓扑结构随时间的变化。团队经常在不切实际的期望和不明确的目标下实施它们，然后发现自己很失望。</p>
+<p>4级是目前最终的可观察性成熟度级别，但随着IT的不断发展，我们完全期待5级的出现。</p>
+<h2 id="总结">总结</h2>
+<p>几十年来，IT运营团队一直依靠监控来洞察其系统的可用性和性能。但是，向更先进的IT技术和实践的转变推动了对监控以外的需求--因此，可观察性也随之发展。随着基础设施和应用跨越多个动态、分布式和模块化的IT环境，企业需要更深入、更精确地了解这些系统内发生的一切。可观察性提供了这种全面的洞察力，在每个成熟度级别上提供了明确的能力。</p>
+<p><strong>提高成熟度的驱动力</strong></p>
+<table>
+<colgroup>
+<col style="width: 37%" />
+<col style="width: 62%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>等级</th>
+<th>驱动力</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Level 1: 监控</td>
+<td>1级对经典的静态基础设施来说是足够的。</td>
+</tr>
+<tr class="even">
+<td>Level 2: 可观察性</td>
+<td>当你转向云、容器和微服务架构并实施CI/CD时，第二级能力变得更加关键。</td>
+</tr>
+<tr class="odd">
+<td>Level 3: 因果可观察性</td>
+<td>三级能力对于维护混合环境、扩展到多云平台、实施容器、微服务和更先进的CI/CD的规模变得至关重要。</td>
+</tr>
+<tr class="even">
+<td>Level 4: 使用 AIOps 的主动式可观察性</td>
+<td>随着公司试图将事件关联、自动创建工单、工单整合、自动修复和自我修复的系统自动化，需要AIOps的4级能力。AIOps所提供的智能为这些系统提供了必要的数据准确性。</td>
+</tr>
+</tbody>
+</table>
+<p>图5：推动企业推进可观察性成熟度的典型技术环境。</p>
+<p>每个级别的可观察性都有不同的目标、输入、输出和能力的特点。你还会发现每个层次的典型工具的共同点。</p>
+<table>
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 8%" />
+<col style="width: 11%" />
+<col style="width: 14%" />
+<col style="width: 24%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Level 1: 监控</th>
+<th>Level 2: 可观察性</th>
+<th>Level 3: 因果可观察性</th>
+<th>Level 4: 使用 AIOps 的主动式可观察性</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>可观察性目标</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>确保单个组件按预期工作。</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>确定系统不工作的原因。</td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>找到事件的原因并确定其对整个系统的影响。</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>分析大量的数据，自动化反应，防止异常情况变成问题。</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><strong>System Input</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>事件和组件级指标</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>指标、日志、追踪（全面）。</td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>时间序列拓扑结构</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>AI和ML模型</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td><strong>System Output</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>报警</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>全面的仪表板</td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>理解变化的原因和效果</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>自动化的根因分析</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>自动化的业务影响分析</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>相关报警/降噪</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>预测性和预防性的洞察力</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td><strong>典型工具</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>经典的以领域为中心的监控工具（例如，基础设施监控、应用监控、API监控、合成监控、网络监控、业务监控），基于事件的警报。</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>APM/可观察性工具--APM工具、基于OpenTelemetry的现代可观察性工具、可观察性数据湖（以前称为日志聚合器）、开源指标的领域诊断组合、跟踪和日志工具，有时统一于仪表盘工具。</td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td>更高级的APM和可观察性工具，具有因果推理和事件关联能力，由时间序列拓扑结构提供支持。3级是一个新兴的市场领域。</td>
+<td></td>
+<td></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="odd">
+<td>数据诊断型AIOps解决方案，可以在大量数据中找到模式，提供智能能力，如异常检测和领先指标检测/主动警报。第四级是一个新兴的市场领域。</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p>图6：可观察性成熟度的各个层次的特征。你的组织最适合哪里？</p>
+<p>你的成熟度越高，你的IT系统就越有韧性和可靠性。你将能更快地对问题根因进行排查，了解变化和故障的业务影响，最终为客户提供更好的体验。</p>
+<h2 id="参考">参考</h2>
+<ol type="1">
+<li><a
+href="https://www.dej.cognanta.com/2020/01/24/18-key-areas-shaping-it-performance-markets-in-2020/">“18
+Key Areas Shaping IT Performance Markets in 2020,”</a> Digital
+Enterprise Journal (DEJ)</li>
+<li>Enterprise Management Associates (EMA) APM Tools Survey</li>
+<li><a
+href="https://www.dej.cognanta.com/2022/07/14/2022-state-of-managing-it-performance-study-key-takeaways/">“2022
+State of Managing IT Performance Study – Key Takeaways,”</a> Digital
+Enterprise Journal (DEJ)</li>
+<li><a
+href="https://www.oreilly.com/library/view/distributed-systems-observability/9781492033431/ch04.html">Distributed
+Systems Observability: A Guide to Building Robust Systems: A Guide to
+Building Robust Systems</a>, by Cindy Sridarhan, O’Reilly Media,
+2018.</li>
+<li><a
+href="https://sre.google/sre-book/monitoring-distributed-systems/">Site
+Reliability Engineering: How Google Runs Production Systems</a>, edited
+by Betsy Beyer, Chris Jones, Jennifer Petoff and Niall Richard Murphy,
+O’Reilly Media, 2016.</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2022/11/27/the-observability-maturity-model/" title="可观察性成熟度模型">http://lenshood.github.io/2022/11/27/the-observability-maturity-model/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/observability/" rel="tag"># observability</a>
+              <a href="/tags/SRE/" rel="tag"># SRE</a>
+              <a href="/tags/ops/" rel="tag"># ops</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2022/09/20/run-k8s-on-qemu-macos/" rel="prev" title="MacOS 上安装基于 QEMU 的 K8S 集群">
+                  <i class="fa fa-angle-left"></i> MacOS 上安装基于 QEMU 的 K8S 集群
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2022/12/06/multi-runtime/" rel="next" title="多运行时架构解决了什么问题？">
+                  多运行时架构解决了什么问题？ <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

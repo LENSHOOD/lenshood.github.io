@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文是对 《Spanner: Google’s Globally-Distributed Database》的翻译，原文请见：https:&#x2F;&#x2F;static.googleusercontent.com&#x2F;media&#x2F;research.google.com&#x2F;en&#x2F;&#x2F;archive&#x2F;spanner-osdi2012.pdf  摘要 Spanner 是 Google 的可伸缩、多版本、全球分布且同步复制的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spanner：Google 的全球分布式数据库">
+<meta property="og:url" content="http://lenshood.github.io/2020/11/06/google-spanner/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文是对 《Spanner: Google’s Globally-Distributed Database》的翻译，原文请见：https:&#x2F;&#x2F;static.googleusercontent.com&#x2F;media&#x2F;research.google.com&#x2F;en&#x2F;&#x2F;archive&#x2F;spanner-osdi2012.pdf  摘要 Spanner 是 Google 的可伸缩、多版本、全球分布且同步复制的">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-1.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-2.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-3.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-4.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/table-1.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/table-2.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/table-3.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/table-4.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-5.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-6.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/table-5.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/11/06/google-spanner/table-6.png">
+<meta property="article:published_time" content="2020-11-06T09:40:44.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.094Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="database">
+<meta property="article:tag" content="spanner">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/11/06/google-spanner/figure-1.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/11/06/google-spanner/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/11/06/google-spanner/","path":"2020/11/06/google-spanner/","title":"Spanner：Google 的全球分布式数据库"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Spanner：Google 的全球分布式数据库 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">true</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%91%98%E8%A6%81"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.</span> <span class="nav-text">1 介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.</span> <span class="nav-text">2 实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#spanserver-%E8%BD%AF%E4%BB%B6%E6%A0%88"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 Spanserver 软件栈</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%9B%AE%E5%BD%95%E5%92%8C%E6%94%BE%E7%BD%AEplacement"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 目录和放置（placement）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 数据模型</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#truetime"><span class="nav-number">4.</span> <span class="nav-text">3 TrueTime</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B9%B6%E5%8F%91%E6%8E%A7%E5%88%B6"><span class="nav-number">5.</span> <span class="nav-text">4 并发控制</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%97%B6%E9%97%B4%E6%88%B3%E7%AE%A1%E7%90%86"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 时间戳管理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#paxos-leader-%E7%A7%9F%E7%BA%A6"><span class="nav-number">5.1.1.</span> <span class="nav-text">4.1.1 Paxos Leader 租约</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E8%AF%BB%E5%86%99%E4%BA%8B%E5%8A%A1%E5%88%86%E9%85%8D%E6%97%B6%E9%97%B4%E6%88%B3"><span class="nav-number">5.1.2.</span> <span class="nav-text">4.1.2 为读写事务分配时间戳</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A5%E6%97%B6%E9%97%B4%E6%88%B3%E8%AF%BB"><span class="nav-number">5.1.3.</span> <span class="nav-text">4.1.3 以时间戳读</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BAro%E4%BA%8B%E5%8A%A1%E5%88%86%E9%85%8D%E6%97%B6%E9%97%B4%E6%88%B3"><span class="nav-number">5.1.4.</span> <span class="nav-text">4.1.4 为RO事务分配时间戳</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%86%E8%8A%82"><span class="nav-number">5.2.</span> <span class="nav-text">细节</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%BB%E5%86%99%E4%BA%8B%E5%8A%A1"><span class="nav-number">5.2.1.</span> <span class="nav-text">4.2.1 读写事务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AA%E8%AF%BB%E4%BA%8B%E5%8A%A1"><span class="nav-number">5.2.2.</span> <span class="nav-text">4.2.2 只读事务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#schema-%E5%8F%98%E6%9B%B4%E4%BA%8B%E5%8A%A1"><span class="nav-number">5.2.3.</span> <span class="nav-text">4.2.3 Schema 变更事务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%94%B9%E8%BF%9B"><span class="nav-number">5.2.4.</span> <span class="nav-text">4.2.4 改进</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AF%84%E4%BC%B0"><span class="nav-number">6.</span> <span class="nav-text">5 评估</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BE%AE%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 微基准测试</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AF%E7%94%A8%E6%80%A7"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 可用性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#truetime-1"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 TrueTime</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#f1"><span class="nav-number">6.4.</span> <span class="nav-text">5.4 F1</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C"><span class="nav-number">7.</span> <span class="nav-text">6 相关工作</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%AA%E6%9D%A5%E7%9A%84%E5%B7%A5%E4%BD%9C"><span class="nav-number">8.</span> <span class="nav-text">7 未来的工作</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">9.</span> <span class="nav-text">8 总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%87%B4%E8%B0%A2"><span class="nav-number">10.</span> <span class="nav-text">致谢</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="nav-number">11.</span> <span class="nav-text">参考文献</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%99%84%E5%BD%95-apaxos-leader-%E7%A7%9F%E7%BA%A6%E7%AE%A1%E7%90%86"><span class="nav-number">12.</span> <span class="nav-text">附录 A：Paxos Leader 租约管理</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/11/06/google-spanner/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Spanner：Google 的全球分布式数据库 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Spanner：Google 的全球分布式数据库
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-11-06 17:40:44" itemprop="dateCreated datePublished" datetime="2020-11-06T17:40:44+08:00">2020-11-06</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/TiDB/" itemprop="url" rel="index"><span itemprop="name">TiDB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><blockquote>
+<p>本文是对 《Spanner: Google’s Globally-Distributed
+Database》的翻译，原文请见：https://static.googleusercontent.com/media/research.google.com/en//archive/spanner-osdi2012.pdf</p>
+</blockquote>
+<h1 id="摘要">摘要</h1>
+<p>Spanner 是 Google
+的可伸缩、多版本、全球分布且同步复制的数据库。它是首个在全球范围分布数据且支持外部一致性分布式事务的系统。本文描述了
+Spanner
+的结构、特性集、其多项设计决策下蕴含的理论基础以及一个能够暴露时钟不确定性（clock
+uncertainly）的新颖的时间 API。该 API
+及其实现是作为关键角色来支撑外部一致性和其他许多涉及整个 Spanner
+的强大特性，如对过往数据的非阻塞读（nonblocking read in the
+past），无锁的读事务，原子的 schema 变更等。</p>
+<span id="more"></span>
+<h1 id="介绍">1 介绍</h1>
+<p>Spanner 是由 Google
+设计、构造并部署的可伸缩全球分布式数据库。其最顶层的抽象，可以看做是一个在遍布世界各地的许多
+Paxos [21]
+集合之间分片数据的数据库。复制用于全局可用性以及地理位置性；客户端自动在不同的副本间故障转移。当数据量或服务器数量发生变化时，Spanner
+会自动在机器之间重分片（reshard）数据，并且能在机器之间自动迁移数据（哪怕是跨数据中心）来平衡负载和应对故障。Spanner
+被设计为能够在数百个数据中心的数万亿个数据库行之间扩展到数百万台机器。</p>
+<p>应用程序能够使用 Spanner
+来实现高可用，即使面对大面积的自然灾害，它也能靠在洲际内甚至跨洲际来进行数据复制。我们的内部客户是
+F1 [35]，一个重写的 Google 广告后端。F1
+使用了遍布美国的五个副本。大多数其他的应用大概会将他们的数据复制到 3 到
+5 个处于同一个地理区域内数据中心，但故障模式相对独立。即只要他们能够在 1
+到 2
+个数据中心失效的情况下存活下来，大多数应用都会在低延迟与高可用之间选择低延迟。</p>
+<p>Spanner
+主要聚焦于跨数据中心复制数据的管理，但我们也花了非常多精力在我们的分布式基础设施之上设计和实现重要的数据库特性。即使大多数项目都乐于使用
+BigTable [9]，但我们也持续的收到了用户的抱怨：BigTable
+难以使用在某些较为复杂、schema
+经常演进，或是想要在大面积复制中保持强一致性的应用中。（其他作者也有类似的说法
+[37]。）尽管存在相对较弱的写吞吐，Google 的许多应用程序仍然会选择使用
+Megastore
+[5]，因为其半关系型数据模型以及支持同步复制的特性。因此，Spanner
+从一个类 BigTable 的有版本 kv 存储（versioned key-value
+store）进化为一个基于时间版本的多版本数据库。数据存储在 schema
+化的半关系型表中；数据有版本，且每一个版本都自动以其提交时间作为时间戳；旧版本的数据受可配置的垃圾收集策略所控制；应用也可以读取旧时间戳上的数据。Spanner
+支持通用事务，且提供了一个基于 SQL 的查询语言。</p>
+<p>作为一个全球分布的数据库。Spanner
+提供了许多有趣的特性。首先，对于数据复制的配置可以被应用程序细粒度的动态控制。应用能够指定一些约束（constrains）来控制哪个数据中心包含哪些数据，数据距离用户有多远（来控制读延迟），副本之间有多远（来控制写延迟），以及维护了多少份副本（来控制持久性、可用性和读性能）。为了均衡数据中心之间的利用率，数据能够动态且透明的在不同数据中心之间移动。其次，Spanner
+提供了两个在分布式数据库中较难实现的特性：提供外部一致性 [16]
+读写，和基于时间戳的跨数据中心全球一致性读。这些特性使得 Spanner
+能支持一致性备份，执行一致性 MapReduce [12]，以及原子的 schema
+更新，所有这些都是全球尺度，甚至是在正在执行事务时。</p>
+<p>这些特性都基于一个事实即 Spanner
+会给事务分配在全球都有意义的提交时间戳，即使该事务可能是分布式的。时间戳反映了串行顺序。进一步的，串行顺序满足了外部一致性（或等价性，线性化
+[20]）：如果事务 <span class="math inline">\(T_1\)</span> 在另一个事务
+<span class="math inline">\(T_2\)</span> 开始之前提交，那么 <span
+class="math inline">\(T_1\)</span> 的提交时间戳便小于 <span
+class="math inline">\(T_2\)</span>。Spanner
+是首个在全球尺度提供如此承诺的系统。</p>
+<p>使能这种属性的关键是一个新的 TrueTime API 和其实现。该 API
+直接将时钟不确定性暴露出来，而对
+Spanner时间戳的承诺依赖于实现提供的边界。假如这种不确定性很大，Spanner
+就会停下来等待直到不确定性消失。Google 的集群管理软件提供了 TrueTime API
+的实现。这个实现采用多个现代时钟基准（GPS
+和原子钟）来确保不确定性很小（通常小于 10ms）。</p>
+<p>第二节描述了 Spanner
+实现的结构、特性集，和设计包含的工程决策。第三节描述了我们的新型
+TrueTime API 和其实现的概览。第四节描述 Spanner 是如何使用 TrueTime
+来实现外部一致性分布式事务、无锁只读事务以及原子 schema
+更新的。第五节提供了一些对 Spanner 性能和 TrueTime 行为的测试，并讨论了
+F1 的经验。第六、七、八节描述了相关未来工作，以及对我们结论的总结。</p>
+<h1 id="实现">2 实现</h1>
+<p>这一节描述了 Spanner
+的结构以及蕴含在实现下的理论基础。之后描述了目录抽象 -
+它用于管理复制和局部性，是数据移动的基本单元。最后，描述了我们的数据模型、为什么
+Spanner 看起来更像是关系型数据库而不是 k-v
+存储，以及应用程序如何控制数据的局部性。</p>
+<p>Spanner 的一份部署被称为一个 universe。鉴于 Spanner
+全球管理数据的特点，将只有少数个 universe 在运行。目前我们运行了一个
+测试/演示 universe，一个开发/生产 universe 和一个仅用于生产的
+universe。</p>
+<p>Spanner 被组织为一组 zone 集合，每一个 zone 都是一份大致类似 BigTable
+的服务器部署 [9]。Zone 是管理部署的单元。这一组 zone
+集合也是一组数据可被复制的位置集合。当新的数据中心被引入服务而旧的被关闭时，zone
+能够在运行的系统中被添加或移除。Zone
+也是物理隔离的单元：如果不同的应用程序的数据必须在同一数据中心的不同的服务器集上进行分区，那么在一个数据中心内就有可能分布一个或多个
+zone。</p>
+<img src="/2020/11/06/google-spanner/figure-1.png" class="">
+<p>Figure 1 展示了在 Spanner universe 中的服务器。一个 zone 包含一个
+zonemaster 和从一百至数千个 spanserver。zonemaster 给 spanserver
+分配数据；spanserver 将数据提供给客户端。每个 zone 包含的 location proxy
+用于客户端来定位能够提供数据的 spanserver。universe master 和 placement
+driver 目前都是单实例。universe master 主要作为一个控制台来展示所有 zone
+的状态信息以用于交互式调试。placement driver 以分钟为单位处理跨 zone
+的数据自动移动。placement driver 周期性的与 spanserver
+通信，来寻找需要被移动的数据，以满足复制约束（replication
+constrain）被更新的情况或是负载均衡。篇幅考虑，我们将只详细描述
+spanserver。</p>
+<h2 id="spanserver-软件栈">2.1 Spanserver 软件栈</h2>
+<img src="/2020/11/06/google-spanner/figure-2.png" class="">
+<p>这一节聚焦于 spanserver 的实现，以说明复制和分布式事务在基于 BigTable
+的实现上是如何分层的。Figure 2 展示了软件栈。在最底层，每一个 spanserver
+都负责 100 到 1000 个称为 tablet 的数据结构的实例。一个 tablet 类似于
+BigTable 的 tablet 抽象，因为它实现了如下映射包（mapping bag）：</p>
+<p><code>(key:string, timestamp:int64) → string</code></p>
+<p>与 BigTable 不同，Spanner 会给数据分配时间戳，这使得 Spanner
+更像是一个多版本数据库而不只是一个 k-v 存储。一个 tablet
+的状态会被保存在类 B-Tree 结构的文件以及写前日志文件中（write-ahead
+log），所有这些文件都被存放在分布式文件系统 Colossus（Google File System
+的继任者 [15]） 内。</p>
+<p>为了支持复制，每个 spanserver 都在每一个 tablet 上实现了一个 Paxos
+状态机。（在 Spanner 的早期版本中，每个 tablet 能支持多个 Paxos
+状态机，这能让复制配置更加灵活。但这种设计的复杂性让我们放弃了它。）每个状态机都将它的元数据以及日志存储在相关的
+tablet 上。我们的 Paxos
+实现支持基于时间租约的久存活（long-lived）leader，该租约默认为 10
+秒。当前的 Spanner 实现会在日志中记录 Paxos 写两次：一次是在 tablet
+的日志中，一次是在 Paxos
+的日志中。这种选择是一个权宜之计，我们最终很可能会补救它。我们的 Paxos
+实现是流水线的，以便在存在 WAN 延迟的情况下提升 Spanner 的吞吐；但是由
+Paxos 应用的写入是按顺序的（我们将在第四节中依赖的一个事实）。</p>
+<p>Paxos 状态机用于实现对映射包的一致性复制。每个副本的 k-v
+映射状态都存储在它对应的 tablet 中。对状态的写操作必须由 Paxos leader
+发起；访问状态时则直接从任意足够新的副本中的 tablet
+内读取。副本集共同组成一个 Paxos 组。</p>
+<p>在每个作为 leader 的副本中，spanserver 都实现了一个 lock table
+用于并发控制。该 lock table 包含了两阶段锁（two-phase
+locking）的状态：他将一定范围的 key 映射到锁状态上。（注意一个久存活的
+Paxos leader 对提升 lock table 的效率至关重要。）在 BigTable 和 Spanner
+中，我们都是为久存活事务而设计的（例如生成报告，可能会需要以分钟为单位的顺序），这会导致当存在冲突时，乐观并发控制的性能较差。对需要同步的操作，例如事务读，会在
+lock table 请求锁，其他按操作则会绕过 lock table。</p>
+<p>在每个作为 leader 的副本中，spanserver
+也都实现了一个事务管理器来支撑分布式事务。事务管理器用于实现一个 leader
+参与者；而组内的其他副本则被称为 slave 参与者。如果一个事务只引入了一个
+Paxos 组（大多数事务都是这样），由于 lock table 和 Paxos
+组共同提供了事务性，因此会自动绕过事务管理器。假如一个事务引入了多于一个
+Paxos 组，这些组的 leader
+就会协调进行两阶段提交。其中的某个参与组被选为协调者：该组的 leader
+参与者会被成为 leader 协调者，而组内的其他 slave 就成了 slave
+协调者。每个事务管理器的状态都保存在其下的 Paxos
+组中（所以也会一并被复制）。</p>
+<h2 id="目录和放置placement">2.2 目录和放置（placement）</h2>
+<p>在 k-v 映射包之上，Spanner
+实现支持一个称为目录的桶抽象，它是由一组相邻的 key
+共享一个通用的前缀。（选择术语目录是一个历史性意外，一个更好的术语应该是桶（bucket）。）我们会在
+2.3 节解释前缀的来源。支持目录允许应用程序控制通过仔细的选择 key
+来控制数据的位置。</p>
+<img src="/2020/11/06/google-spanner/figure-3.png" class="">
+<p>目录是数据放置的单元。一个目录中的所有数据都拥有相同的复制配置。Figure
+3 展示了当数据在 Paxos 组之间移动时，是以目录为单位来移动的。Spanner
+可能会通过移动一个目录来降低某个 Paxos
+组的负载；将经常访问的目录放在同一个组中；或移动一个目录到距离访问者更近的地方。当客户端操作在进行中时也能够移动目录。可以预期一个
+50MB 的目录能够在几秒钟内被移动。</p>
+<p>一个 Paxos 组可能会包含多个目录的事实隐含了 Spanner 的 tablet 与
+BigTable 的 tablet 的不同：Spanner 的 tablet
+并不一定是单个按字符顺序分区的行空间。相反，Spanner 的 tablet
+是一个可能包含多个行空间分区的容器。我们做出这样的决定是为了能够将经常访问的多个目录放在一起。</p>
+<p><code>Movedir</code> 是一个用于在 Paxos 组间移动数据的后台任务
+[14]。由于 Spanner 还不支持基于 Paxos
+的配置更改，<code>Movedir</code>也用于给 Paxos 组添加或移除副本
+[25]。<code>Movedir</code>
+并不被实现为单个事务，因此能它能避免在大量数据移动时阻塞正在进行中的读写。当它移动了所有的数据后，它会使用事务来原子对
+“名义上的数据量” 进行移动，并更新被移动双方的 Paxos 元数据。</p>
+<p>目录也是应用程序能够指定其地理复制属性（简称放置）的最小单元。我们的放置规范语言（placement-specification
+language）的设计分离了管理复制配置的责任。管理员可以控制两个维度：副本的数量和类型，以及对这些副本放置的地理位置。他们在这两个维度创建了命名选项的菜单（例如，North
+America, replicated 5 ways with 1
+witness）。一个应用通过给每个数据库和/或独立的目录打标签来控制数据如何被复制，标签的内容就是上述选项的组合。例如，一个应用也许想将每个端用户的数据存储在他自己的目录下，那么用户
+<span class="math inline">\(A\)</span>
+的数据可以有三个副本在欧洲，而用户 <span
+class="math inline">\(B\)</span> 的数据可以有五份副本在北美。</p>
+<p>为了解释清晰，我们简化了整个流程。实际上，当一个目录变得过大时，Spanner
+会将其分片至多个片段（fragment）中。片段可能会从不同的 Paxos
+组而来（也即不同的服务器中）。<code>Movedir</code>
+实际上在组间是移动片段而不是整个目录。</p>
+<h2 id="数据模型">2.3 数据模型</h2>
+<p>Spanner
+将如下数据集特性暴露给应用程序：一个基于模式化半关系型表的数据结构，一种查询语言，以及通用事务。为了支持这些特性所做的工作受到了许多因素的推动。对于支持模式化半关系型表和同步复制的需求，Spanner
+得到了流行的 Megstore 的推动 [5]。Google 内部至少有 300 个应用程序在使用
+Megastore（即使它的性能相对较低），原因是它的数据模型比 BigTable
+更容易管理，且支持跨数据中心的同步复制。（BigTable
+只支持跨数据中心最终一致性。）著名的 Google 应用使用 Megasotore 的例子有
+Gmail、Picasa、Calendar、Android Market 和 AppEngine。鉴于Dremel [28]
+作为一种交互式数据分析工具的流行，在 Spanner 中支持类 SQL
+查询语言的需求也很明确。最后，由于 BigTable
+中跨行事务的缺失导致了频繁的抱怨；Percolator [32]
+的构建部分是为了解决这个问题。一些作者声称，由于会引入性能或可用性的问题
+[9, 10,
+19]，对通用的两阶段提交的支持过于昂贵。我们认为，由于滥用事务而导致瓶颈出现时，最好让应用程序员来处理性能问题，而不是总围绕着缺失事务来编码。在
+Paxos 上运行两阶段提交可以缓解可用性问题。</p>
+<p>应用数据模型层建立在实现所支持的目录-桶 k-v 映射上。一个应用能在
+universe
+中创建一个或多个数据库。每一个数据库都能包含无限数量的模式化表。表看起来就像是关系型数据库的表一样，有行、列和有版本的值。我们不会深入讲解
+Spanner 的查询语言。它与 SQL
+很像，且包含了一些扩展来支持协议缓冲区值字段。</p>
+<p>Spanner
+的数据模型不是纯关系型的，因为行必须要有名称。更准确的讲，每个表都要求要有一个由一个或多个主键列组成的有序集合。这种要求使得
+Spanner 仍然起来像 k-v
+存储：主键构成了行的名称，每个表都定义了一个从主键列到非主键列的映射。只有当行的键（row's
+key）定义为某些值（即使它是
+NULL）时，该行才存在。施加这种结构非常有用，因为这使应用程序通过选择 key
+值来控制数据的位置。</p>
+<img src="/2020/11/06/google-spanner/figure-4.png" class="">
+<p>Figure 4 包含了一个 Spanner
+为每一个用户及每一个相册存储图片元数据模式的例子。模式语言与 Megastore
+类似，除此之外，每个 Spanner
+数据库都要求必须由客户端划分为一个或多个表层次结构。客户端应用程序通过
+<code>INTERLEAVE IN</code>
+在数据库声明层级结构。层级之上的表是一个目录表。目录表中键为
+<code>K</code>
+的每一行，以及派生表中按字典顺序以<code>K</code>开头的所有行，构成一个目录。<code>ON DELETE CASCADE</code>是说当目录表中的一行被删除时，任何关联的子行也会被删除。该图也展示了示例数据库的交错布局：<code>Albums(2,1)</code>
+表示<code>user id 2</code>,<code>album id 1</code> 的
+<code>Albums</code>
+表中的行。这种将表交错以形成目录的方法非常重要，因为这允许客户端来描述多个表之间的位置关系，这对于在分片的、分布式数据库中获得良好性能是必要的的。如果没有这种方法，Spanner
+就无法知道最重要的位置关系了。</p>
+<h1 id="truetime">3 TrueTime</h1>
+<img src="/2020/11/06/google-spanner/table-1.png" class="">
+<p>这一节描述了 TrueTime API
+和其实现的概要。我们将更多的细节留给另一篇文章：我们的目的是展示拥有这种
+API 的能力。Table 1 列出了该 API 的方法。TrueTime 显式将时间表示为一个
+<span class="math inline">\(TTinterval\)</span>
+，即一个包含有界时间不确定性的时间间隔（与标准时间接口不同，标准时间接口没有给客户带来不确定性这一概念）。<span
+class="math inline">\(TTinterval\)</span> 的端点来源于 <span
+class="math inline">\(TTstamp\)</span> 类型。<span
+class="math inline">\(TT.now()\)</span> 方法返回一个 <span
+class="math inline">\(TTinterval\)</span>，该结果能保证包含在 <span
+class="math inline">\(TT.now()\)</span>
+被调用时的绝对时间。该时间纪元类似于带有闰秒补偿（leap-second
+smearing）的 UNIX 时间。将瞬时误差边界定义为 <span
+class="math inline">\(ε\)</span>，即区间宽度的一半，平均误差边界为 <span
+class="math inline">\(\bar{ε}\)</span>。<span
+class="math inline">\(TT.after()\)</span> 和 <span
+class="math inline">\(TT.before()\)</span> 是对 <span
+class="math inline">\(TT.now()\)</span> 包装而成的简便方法。</p>
+<p>用函数 <span class="math inline">\(t_{abs}(e)\)</span> 表示事件 <span
+class="math inline">\(e\)</span> 的绝对时间。更正式的表述是，TrueTime
+确保对于一次 <span class="math inline">\(tt = TT.now()\)</span>
+的调用，<span class="math inline">\(tt.earliest ≤ t_{abs}(e_{now}) ≤
+tt.latest\)</span> ，<span class="math inline">\(e_{now}\)</span>
+是调用事件。</p>
+<p>TrueTime 底层的时间参考是 GPS 和原子钟。TrueTime
+使用两种时间参考的原因是它们有不同的故障模式。GPS
+参考源漏洞包括天线和接收器错误，本地无线电干扰，相关性故障（比如，类似错误的闰秒处理及欺骗的设计错误），以及
+GPS 系统中断故障。原子钟可能会以与 GPS
+不相关的方式失效，在很长的一段时间内，由于频率误差，原子钟会产生显著的漂移。</p>
+<p>TrueTime 由每个数据中心一组的 time master 和每台机器一个的 time slave
+守护程序组成。大多数 master 都带有专用天线的 GPS 接收器；这些 master
+被物理分离，以减小天线失效、无线电干扰与欺骗的影响。其余的
+master（我们称之为世界末日（Armageddon）master）配备了原子钟。一台原子钟并没有那么贵：一个世界末日
+master 的花费与一个 GPS master 处于同一数量级。所有 master
+的时间参考会定期互相对比。每个 master
+也会交叉检查它的时间参考与它本地时间前进的速率，如果存在较大的分歧，则会将自己移除。在同步间，世界末日
+master 会显示出源于保守的最坏情况的时钟漂移而缓慢增加的时间不确定。GPS
+master 则显示不确定性通常接近于零。</p>
+<p>每个守护程序都会从多个 master 轮询数据 [29] 来降低任意 master
+错误的可能性。一部分是从附近数据中心选取的 GPS
+master；其余的是较远的数据中心的 GPS master，还有一些是世界末日
+master。守护程序应用 Marzullo
+算法的一个变体来探测并拒绝假信息，并将本地机器时钟与正确的 master
+同步。为了防止损坏本地时钟，那些显示频率偏移大于组件规格和操作环境的最坏情况边界的机器将被移除。</p>
+<p>在同步间隔中，一个守护程序显示为缓慢的增加时间不确定性。<span
+class="math inline">\(ε\)</span>
+源于保守应用的最坏情况下的本地时钟漂移。<span
+class="math inline">\(ε\)</span> 也依赖于 time master 的不确定性和与
+time master 通信的延迟。在我们的生产环境，<span
+class="math inline">\(ε\)</span>
+通常是时间的锯齿函数，在每个轮询间隔内，从 1 到 7ms 不等。 因此 <span
+class="math inline">\(\bar{ε}\)</span> 在大多数情况下是
+4ms。守护程序的轮询间隔目前是 30 秒，且目前应用的漂移率被设定为
+200us/s， 这两个值共同构成了 0 到 6ms 的锯齿边界。剩下的 1ms 是从与 time
+master 的通信延迟而来。当出现故障时，这种锯齿可能会有偏差。例如，time
+master 的偶尔不可用会导致数据中心范围的 <span
+class="math inline">\(ε\)</span>
+的增加。同样的，过载的机器和网络连接也会导致 <span
+class="math inline">\(ε\)</span> 的局部峰值。</p>
+<h1 id="并发控制">4 并发控制</h1>
+<p>这一节描述 TrueTime
+是如何用于保证并发控制属性的正确性，以及这些属性是如何用于实现类似外部一致性事务、无锁只读事务以及旧数据非阻塞读等特性的。这些特性能够使能例如保证在时间戳
+<span class="math inline">\(t\)</span> 下的全数据库审计读能看到截止
+<span class="math inline">\(t\)</span> 时提交的所有事务。</p>
+<p>进一步的，区分 Paxos 能看到的写（除非上下文清晰，否则我们称为 Paxos
+写）与 Spanner
+客户端产生的写是很重要的。例如，两阶段提交会在准备阶段生成一个 Paxos
+写，而这个写操作与 Spanner 客户端写并没有关系。</p>
+<h2 id="时间戳管理">4.1 时间戳管理</h2>
+<img src="/2020/11/06/google-spanner/table-2.png" class="">
+<p>表 2 列出了Spanner 支持的操作类型。Spanner
+支持了读写事务、只读事务（预声明快照隔离事务），以及快照读。单机写被实现为读写事务；非快照单机读被实现为只读事务。二者都会内部重试（客户端不需要再编写他们自己的重试循环）。
+只读事务是一种具有快照隔离 [6]
+性能优势的事务。只读事务必须提前声明不包含任何写；并不能简单认为它是一种不包含写操作的读写事务。只读事务中的读会在系统选择的时间戳下无锁的执行，因此不会阻塞到来的写操作。在只读事务中执行的读操作可以在任意满足最新数据的副本上执行（4.1.3
+节）。
+快照读是在过去的数据上执行无锁的读。客户端可以为快照读指定一个时间戳，也可以提供一个期望的过期时间戳的上界来让
+Spanner
+选择时间戳。这两种情况下快照读都可以在任意满足最新数据的副本上执行。
+无论是只读事务还是快照读，一旦选定了时间戳，提交就不可避免，除非是在该时间戳上的数据已经被垃圾回收了。因此，客户端可以避免在一个重试循环中暂存结果。当一个服务器失效时，客户端会在内部通过重复时间戳和当前读位置来继续将该操作执行在一个不同的服务器上。</p>
+<h3 id="paxos-leader-租约">4.1.1 Paxos Leader 租约</h3>
+<p>Spanner 的 Paxos 实现使用定时租约来实现 leader
+久存活（默认10秒）。一个潜在的leader发送定时租约投票请求；在收到额定数量的租约投票时，leader就能知道它拥有了租约。在一次成功的写之后，副本会隐含的自动延长该租约投票，且当租约投票将要到期时，它会请求延长租约投票。当某个副本探测到它拥有了额定的租约投票数量时，就可定义一个
+leader
+租约期的开始，而当它不再拥有额定的租约投票时（因为有一些投票过期了）可定义
+leader 租约期结束。Spanner 依赖如下离散不变性：对每个 Paxos 组，每个
+Paxos leader 的租约期与其他 leader 的租约期不相交。附录 A
+描述了这种不变性是如何强制保证的。 Spanner 的实现允许一个 Paxos leader
+通过释放 slave 的的租约投票来放弃 leader
+角色。为了保持离散不变性，Spanner 会在放弃 leader 被允许时做出约束。定义
+<span class="math inline">\(S_{max}\)</span> 为 leader
+使用的最大时间戳。后续章节会描述何时 <span
+class="math inline">\(S_{max}\)</span> 会增加。在放弃 leader
+之前，leader 必须等待 <span class="math inline">\(TT.after(
+S_{max})\)</span> 为 True。</p>
+<h3 id="为读写事务分配时间戳">4.1.2 为读写事务分配时间戳</h3>
+<p>事务读写使用两阶段锁。因此，可以在所有锁都被获取之后，以及任意锁被释放之前的任何时间点分配时间戳。对于给定的事务，Spanner
+会给它分配 Paxos 分配给代表事务提交的 Paxos write 操作的时间戳。</p>
+<p>Spanner 依赖下述单调不变性：在每个 Paxos 组中，Spanner
+都使用单调递增的顺序给 Paxos write 分配时间戳，哪怕是跨 leader
+的情况。一个单 leader
+的副本可以简单的按单调递增分配时间戳。这种不变性通过使用如下离散不变性来强制跨
+leader：一个 leader
+必须仅在它的租约期内分配时间戳。注意无论何时一个时间戳 <span
+class="math inline">\(s\)</span> 被分配，<span
+class="math inline">\(S_{max}\)</span> 都会被提升至 <span
+class="math inline">\(s\)</span> 以此来保持离散性。</p>
+<p>Spanner 也强制如下外部一致不变性：如果一个事务 <span
+class="math inline">\(T_2\)</span> 在事务 <span
+class="math inline">\(T_1\)</span> 提交后开始，那么 <span
+class="math inline">\(T_2\)</span> 的提交时间戳必须要大于 <span
+class="math inline">\(T_1\)</span> 的提交时间戳。定义事务 <span
+class="math inline">\(T_i\)</span> 的开始和提交事件为 <span
+class="math inline">\(e^{start}_i\)</span> 和 <span
+class="math inline">\(e^{commit}_i\)</span>，<span
+class="math inline">\(T_i\)</span> 的提交时间戳为 <span
+class="math inline">\(s_i\)</span>。该不变性变为 <span
+class="math inline">\(t_{abs}(e^{commit}_1) &lt; t_{abs}(e^{start}_2) ⇒
+s_1 &lt;
+s_2\)</span>。执行事务和分配时间戳的协议服从两个规则，这两个规则会共同确保该不变性，详情下述。定义协调者
+leader 的写事务 <span class="math inline">\(T_i\)</span>
+的提交请求到达事件为 <span
+class="math inline">\(e^{server}_i\)</span>。</p>
+<p><strong>Start</strong> 协调者 leader 给写事务 <span
+class="math inline">\(T_i\)</span> 分配一个不比 <span
+class="math inline">\(TT.now().latest\)</span> 的值小的时间戳 <span
+class="math inline">\(s_i\)</span>，该时间戳在 <span
+class="math inline">\(e^{server}_i\)</span> 之后计算。注意参与者 leader
+在这里并不相关；4.2.1 节将会描述它们是如何在第二条规则内引入的。</p>
+<p><strong>Commit Wait</strong> 协调者 leader 确保客户端在 <span
+class="math inline">\(TT.after(s_i)\)</span> 为 true 之前不会看到任何由
+<span class="math inline">\(T_i\)</span> 提交的数据。提交会等待确保
+<span class="math inline">\(s_i\)</span> 小于 <span
+class="math inline">\(T_i\)</span> 的绝对提交时间，或 <span
+class="math inline">\(s_i &lt; t_{abs}(e^{commit}_i)\)</span>。Commit
+Wait 的实现描述在4.2.1节。证明：</p>
+<p><span class="math inline">\(s_1 &lt; t_{abs}(e^{commit}_1)\)</span>
+(commit wait)</p>
+<p><span class="math inline">\(t_{abs}(e^{commit}_1) &lt;
+t_{abs}(e^{start}_2)\)</span> (assumption)</p>
+<p><span class="math inline">\(t_{abs}(e^{start}_2) ≤
+t_{abs}(e^{server}_2)\)</span> (causality)</p>
+<p><span class="math inline">\(t_{abs}(e^{server}_2) ≤ s_2\)</span>
+(start)</p>
+<p><span class="math inline">\(s_1 &lt; s_2\)</span> (transitivity)</p>
+<h3 id="以时间戳读">4.1.3 以时间戳读</h3>
+<p>在4.1.2节描述的单调递增不变性允许Spanner正确确定副本的状态是否足够新以满足读取要求。每个副本都会跟踪一个称为安全时间点
+<span class="math inline">\(T_{safe}\)</span>
+的值，该值是副本最新的最大时间戳。一个副本可以满足一个在时间戳 <span
+class="math inline">\(t &lt; T_{safe}\)</span> 的读取请求。定义 <span
+class="math inline">\(t_{safe} = min(t^{Paxos}_{safe} ,
+t^{TM}_{safe})\)</span>， 每一个Paxos 状态机都包含一个安全时间点 <span
+class="math inline">\(t^{Paxos}_{safe}\)</span>，每个事务管理器都包含一个安全时间点
+<span class="math inline">\(t^{TM}_{safe}\)</span>。<span
+class="math inline">\(t^{Paxos}_{safe}\)</span>更简单：它是最新被应用的
+Paxos 写时间戳。由于时间戳单调递增切写按顺序执行，因此写不会在 <span
+class="math inline">\(t^{Paxos}_{safe}\)</span> 或其之后发生。</p>
+<p>当存在零个prepared（但未提交）事务 --
+即两阶段提交中两个阶段之间的事务 -- 时，<span
+class="math inline">\(t^{TM}_{safe} = ∞\)</span>。（对于参与者
+slave，<span class="math inline">\(t^{TM}_{safe}\)</span>
+实际上指的是副本leader的事务管理器，slave
+可以通过传递的元数据来推断其状态）。如果有任何这种事务，那么受到这些事务影响的状态是不确定的：一个参与者副本并不知道这种事务是否要提交。就像我们在4.2.1节讨论的，提交协议确保每一个参与者都知道
+prepare 的事务的时间戳下界。每个参与者leader（对组 <span
+class="math inline">\(g\)</span>）会给事务 <span
+class="math inline">\(T_i\)</span> 为其 prepare 阶段记录分配一个 prepare
+阶段时间戳 <span
+class="math inline">\(s^{prepare}_{i,g}\)</span>。协调者leader确保该事务的提交时间戳在所有参与组
+<span class="math inline">\(g\)</span> 之间都满足 <span
+class="math inline">\(s_i &gt;= s^{prepare}_{i,g}\)</span>
+。因此对于每一个在组 <span class="math inline">\(g\)</span> 中的副本，在
+<span class="math inline">\(g\)</span> 准备的所有事务 <span
+class="math inline">\(T_i\)</span> 上，<span
+class="math inline">\(t^{TM}_{safe} = mini(s^{prepare}_{i,g}) −
+1\)</span> 在 <span class="math inline">\(g\)</span>
+准备的所有事务上。</p>
+<h3 id="为ro事务分配时间戳">4.1.4 为RO事务分配时间戳</h3>
+<p>一个只读事务分两个阶段执行：分配一个时间戳 <span
+class="math inline">\(s_{read}\)</span> [8]，之后以快照读在 <span
+class="math inline">\(s_{read}\)</span>
+来执行事务读。快照读可以在任何满足最新时间戳要求的副本进行。</p>
+<p>在事务执行的任何时候，<span class="math inline">\(s_{read} =
+TT.now().latest\)</span>
+的简单赋值通过一个类似4.1.2节中的写操作的参数来确保外部一致性。然而，假如
+<span class="math inline">\(t_{safe}\)</span>
+不足够提前，这种时间戳也许需要在 <span
+class="math inline">\(s_{read}\)</span>
+读数据的执行时阻塞。（此外，注意选择一个 <span
+class="math inline">\(s_{read}\)</span> 的值也有可能比 <span
+class="math inline">\(s_{max}\)</span>
+提前来保持不连续性。）为了降低被阻塞的概率，Spanner
+应该分配最旧的时间戳来保持外部一致性。4.2.2节解释了这种时间戳需要如何选择。</p>
+<h2 id="细节">细节</h2>
+<p>这一节解释了前文省略的读写事务与只读事务的实用细节，以及用于实现原子schema变更的特殊事务类型的实现。之后描述了一些基本方案的改进。</p>
+<h3 id="读写事务">4.2.1 读写事务</h3>
+<p>像
+BigTable一样，发生在事务内的写会缓存在客户端直到提交时。因此，事务内的读不会看到事务内写的效果。这种设计在Spanner工作的很好，原因是读会返回被读取数据的时间戳，而未提交的写也并没有被分配时间戳。</p>
+<p>读写事务内的读使用 wound-wait [33] 来防止死锁。客户端向合适组的
+leader
+副本发出读操作，这会获取读锁且读最新的数据。当客户端事务保持开启时，他会发送keepalive信息来防止事务在参与者
+leader
+上被超时。当一个客户端已经完成了所有的读，并缓存了所有的写后，它开始进行两阶段提交。该客户端选择一个协调者组并发送包含协调者以及任何被缓存写信息的提交信息给每一个参与者leader。让客户端来驱动两阶段提交能避免在大范围的连接上发送两次数据。</p>
+<p>一个非协调者、参与者leader会先获取写锁。之后选择一个准备时间戳，该时间戳必须比任何它给先前事务分配过的时间戳要大（为了保证单调递增），然后将准备记录通过
+Paxos 进行log。之后每个参与者会通知该协调者它们的准备时间戳。</p>
+<p>协调者leader也会先获取写锁，但是跳过准备阶段。它在收取到所有其他参与者leader的时间戳之后，选择一个作为整个事务的时间戳。该提交时间戳
+<span class="math inline">\(s\)</span>
+必须大于或等于所有的准备时间戳（为了满足4.1.3节所述的约束），在协调者收到它们的提交消息时大于
+<span class="math inline">\(TT.now().latest\)</span>
+，且大于任何该leader曾经分配给先前事务的时间戳（还是为了保证单调递增）。协调者leader之后将提交记录通过
+Paxos 进行log（或者在等待其他参与者时由于超时而被中断）。</p>
+<p>在允许任何协调者副本应用提交记录之前，协调者 leader 等待直到 <span
+class="math inline">\(TT.after(s)\)</span>，以便遵循在4.1.2节描述的
+commit-wait 规则。由于协调者 leader 基于 <span
+class="math inline">\(TT.now().latest\)</span> 来选择 <span
+class="math inline">\(s\)</span>，现在要等到该时间戳确保成为过去，所以期望的等待时间至少是
+<span class="math inline">\(2 ∗ \bar{ε}\)</span>。这个等待通常会与和
+Paxos
+通信的时间相重合。在提交等待之后，协调者发送提交时间戳给客户端和其他所有的参与者
+leader。每个参与者 leader
+都将事务的结果通过Paxos进行log。所有参与者都在相同的时间戳应用事务之后释放锁。</p>
+<h3 id="只读事务">4.2.2 只读事务</h3>
+<p>分配一个时间戳需要一个在所有涉及到读的 Paxos
+组之间的协商阶段。所以，Spanner
+的每个只读事务都需要一个作用域表达式，来汇总所有将要在整个事务中被读取到的key。Spanner
+会自动推断某个独立查询的作用域。</p>
+<p>假如作用域内的值只由单个 Paxos 组来提供，那么客户端会向该组的 leader
+发起只读事务。（目前的 Spanner 的实现仅为 Paxos leader
+上的只读事务选择一个时间戳。）该 leader 分配 <span
+class="math inline">\(s_{read}\)</span>
+并执行该读取。对单个站点的读而言，Spanner通常会比 <span
+class="math inline">\(TT.now().latest\)</span> 做得更好。定义 <span
+class="math inline">\(LastTS()\)</span> 为 Paxos
+组中最后提交的时间戳。如果没有准备好的事务，赋值 <span
+class="math inline">\(s_{read} = LastTS()\)</span>
+一般能满足外部一致性：事务能够看到最近的写的结果，因此会在其顺序之后。</p>
+<p>假如作用域内的值由多个 Paxos
+组提供，那么会有几种选择。最复杂的选择是在所有 Paxos 组的 leader
+之间轮流通信来基于 <span class="math inline">\(LastTS()\)</span> 协商
+<span class="math inline">\(s_{read}\)</span>。目前 Spanner
+的实现选择了一个更简单的选项。客户端避免轮流协商，仅将读操作在 <span
+class="math inline">\(sread = TT.now().latest\)</span>
+时执行（也许会等待安全时间过后）。在事务内的所有读都可以被发给副本来满足更新。</p>
+<h3 id="schema-变更事务">4.2.3 Schema 变更事务</h3>
+<p>TrueTime 使 Spanner 能支持原子的 schema
+变更。由于参与者的数量（数据库内组的数量）可能会有上百万，因此不可能使用标准事务。Bigtable
+支持在单个数据中心内原子的进行 schema 变更，但它会阻塞所有操作。</p>
+<p>Spanner 的 schema
+变更事务是一个通用的标准事务非阻塞变量。首先，在准备阶段，它显式的分配一个将来的时间戳。因此，跨数千个服务器的
+schema
+变更能在对其他并发的动作造成最小中断的情况下完成。之后，隐含依赖该
+schema 的读写操作，与任意已注册的 schema 变更时间戳 <span
+class="math inline">\(t\)</span> 相同步：当它们的时间戳先于 <span
+class="math inline">\(t\)</span>
+时它们可能会执行，但是假如他们的时间戳晚于 <span
+class="math inline">\(t\)</span> 时，它们必须阻塞等待 schema
+变更事务。如果没有 TrueTime，定义 schema 变更在 <span
+class="math inline">\(t\)</span> 时发生将会没有意义。</p>
+<h3 id="改进">4.2.4 改进</h3>
+<p>上述定义的 <span class="math inline">\(t^{TM}_{safe}\)</span>
+存在弱点，即单个准备好的事务会阻碍 <span
+class="math inline">\(t_{safe}\)</span>
+前进。因此，在之后的时间戳中不会有读操作发生，即使读操作与该事务并不冲突。这种错误的冲突可以通过从
+key range 到准备好的事务时间戳的细粒度映射以扩大 <span
+class="math inline">\(t^{TM}_{safe}\)</span> 来消除。这类信息可以保存在
+lock 表中，lock 表已经将 key range
+与锁元信息进行了映射。当读到来时，它只需要对 key range
+的细粒度安全时间进行检查来确保没有读冲突。</p>
+<p>上述定义的 <span class="math inline">\(LastTS()\)</span>
+也存在类似的弱点：假如一个事务刚刚提交，一个非冲突的只读事务也必须被分配
+<span class="math inline">\(S_{read}\)</span>
+以便跟踪该事务。因此，读操作的执行可能会被延迟。这个弱点也可以通过从 key
+range 到准备好的事务时间戳的细粒度映射以扩大 <span
+class="math inline">\(LastTS()\)</span>
+来解决。（目前我们还没有实现该优化。）当一个只读事务到来时，可以通过为事务冲突的
+key range 取 <span class="math inline">\(LastTS()\)</span>
+的最大值来分配时间戳，除非与准备好的事务有冲突。（可以通过细粒度的安全时间来确定。）</p>
+<p>上述定义的 <span class="math inline">\(t^{Paxos}_{safe}\)</span>
+存在弱点，它无法在缺失 Paxos 写的情况下前进。即一个在 <span
+class="math inline">\(t\)</span> 的快照读无法在 Paxos
+组的最后一次写发生在 <span class="math inline">\(t\)</span>
+之前的情况下执行。Spanner 通过 leader
+租约之间的不连续性解决了这个问题。每个 Paxos leader
+通过保持一个将来将要发生的写时间戳来保证 <span
+class="math inline">\(t^{Paxos}_{safe}\)</span> 的前进：他维护了一个
+Paxos 序列号 <span class="math inline">\(n\)</span> 到可能会被分配给
+Paxos 序列号 <span class="math inline">\(n+1\)</span> 的最小时间戳的映射
+<span class="math inline">\(MinNextTS(n)\)</span>。当一个副本应用过
+<span class="math inline">\(n\)</span> 后，可以将 <span
+class="math inline">\(t\)</span> 推进至 <span
+class="math inline">\(MinNextTS(n) − 1\)</span>。</p>
+<p>单个 leader 可以很容易的执行 <span
+class="math inline">\(MinNextTS()\)</span> 承诺。因为 <span
+class="math inline">\(MinNextTS()\)</span> 承诺的时间戳在一个 leader
+租约期限内，不连续的不变量在 leader 之前强制 <span
+class="math inline">\(MinNextTS()\)</span> 承诺。假如一个 leader
+想要在租约结束之后推进 <span class="math inline">\(MinNextTS()\)</span>
+，它必须先扩展它的租约。注意 <span
+class="math inline">\(S_{max}\)</span> 总是比 <span
+class="math inline">\(MinNextTS()\)</span>
+的最新值更新以保持离散性。</p>
+<p>leader 默认每 8 秒推进一次 <span
+class="math inline">\(MinNextTS()\)</span>。因此在准备好的事务缺失时，最坏情况下，空闲
+Paxos 组中健康的 slave 可以在大于 8 秒的时间戳上执行读取。</p>
+<h1 id="评估">5 评估</h1>
+<p>我们首先测量了关于 Spanner
+的复制、事务、可用性的性能。之后我们提供了一些 TrueTime
+的行为数据，以及一个场景来研究我们的首个客户，F1。</p>
+<h2 id="微基准测试">5.1 微基准测试</h2>
+<img src="/2020/11/06/google-spanner/table-3.png" class="">
+<p>Table 3 展示了一些对 Spanner
+的微基准测试。这些测量值都是在共享时间的机器上完成的：每个 spanserver
+都运行在 4GB RAM + 4 core（AMD Barcelona
+2200MHz）的调度单元上。客户端在分立的机器上运行。每个 zone 包含一个
+spanserver。客户端和 zone 被放置在一组网络距离小于 1ms
+的数据中心中。（这种布局应该很常见：大多数应用斌不需要将他们的数据分布在全世界。）测试数据库被创建为50
+个 Paxos 组，2500 个目录。操作是单独的 4KB
+读写。压缩之后，所有的读都会耗尽内存，因此我们只测量 Spanner
+的调用栈的开销。此外，最开始会执行一轮不测量的读来对各个地方的缓存进行预热。</p>
+<p>对于延迟实验，客户端发起足够少的操作来避免服务端排队。对于单副本实验，提交等待大约
+5ms，Paxos 延迟大约
+9ms。随着副本数量的增加，延迟大致保持不变，标准差较小。这是因为 Paxos
+会在副本之间并行的执行。随着副本数量的增加，在一个 slave
+副本上，完成一次 quorum 的延迟对减慢程度不敏感。</p>
+<p>对于吞吐实验，客户端发起足够多的操作来让服务器的 CPU
+饱和。快照读可以在任意足够新的副本上执行，因此它的吞吐量随着副本数的增加接近线性增长。单个读的只读事务由于
+leader 必须要分配时间戳因此只会在 leader
+执行。只读事务的吞吐量随着副本数的增加而增加，原因是有效 spanserver
+的数量也在不断增加：在实验环境下，spanserver 的数量与副本数量一致，且
+leader 会随机的分布在 zone
+中。写吞吐受益于相同的实验工件（解释了为何副本数从3到5的吞吐增长），但随着副本数量的增加，每次写所执行的工作量呈线性增加，这远远超出了前述的益处。</p>
+<img src="/2020/11/06/google-spanner/table-4.png" class="">
+<p>Table 4 展示了两阶段提交能扩大到一个合理的参与者数量：它总结了一组跨
+3 个 zone 运行的的实验，每个区域有 25 个
+spanserver。从平均值和第99个百分位来看，将参与者增加到50个是合理的，并且在100个参与者时，延迟开始显著增加。</p>
+<h2 id="可用性">5.2 可用性</h2>
+<img src="/2020/11/06/google-spanner/figure-5.png" class="">
+<p>Figure 5 展示了可用性能受益于在多个数据中心执行 Spanner。
+它显示了在同一时间标度下的三种数据中心故障实验对吞吐量的影响。测试
+universe 由 5 个 zone <span class="math inline">\(Z_i\)</span>
+组成，每一个都包含 25 个 spanserver。测试数据库分片为 1250 个 Paxos
+组，100 个客户端以 50K reads/second 的聚合速率不断地发起非快照读。所有的
+leader 都被显式的指定在 <span
+class="math inline">\(Z_1\)</span>。在每次测试开始 5 秒后，一个 zone
+的所有服务器被 kill 掉：non-leader 实验 kill <span
+class="math inline">\(Z_2\)</span>；leader-hard 实验 kill <span
+class="math inline">\(Z_1\)</span>；leader-soft 实验 kill <span
+class="math inline">\(Z_1\)</span>，但它先会给所有能够交接领导权的服务器发出提醒。</p>
+<p>kill <span class="math inline">\(Z_2\)</span> 对读吞吐没有影响。当给
+leader 时间来交接领导权到其他 zone 后 kill <span
+class="math inline">\(Z_1\)</span>，仅造成了很小的影响：吞吐量的下降在图中难以察觉，但实际是大约
+3-4%。另一方面，在没有警告的前提下直接 kill <span
+class="math inline">\(Z_1\)</span> 会造成严重的影响：完成率降低到接近
+0，随着 leader 被重选，系统的吞吐量以大约 100K reads/second
+的速率上升，这源于实验中的两个要素：系统有额外的容量，且操作会在 leader
+不可用时排队。因此，系统的吞吐量会先上升，然后再以稳态速率稳定下来。</p>
+<p>我们同时能看到 Paxos leader 的租约期设置为 10 秒所造成的影响。当我们
+kill zone 的时候，组的 leader 租约过期时间应该均匀的在接下来的 10
+秒内分布。不久后每个宕机 leader 的租约会过期，新的 leader 被选出。在
+kill 过后大约 10 秒，所有的组都会再次拥有
+leader，吞吐量恢复正常。更短的租约期能够在可用性上降低服务器宕机造成的影响，但是更频繁的租约刷新会导致增加大量的网络开销。我们正在设计开发一种机制，能够让
+leader 失效时 slave 自动释放 Paxos leader 租约。</p>
+<h2 id="truetime-1">5.3 TrueTime</h2>
+<p>关于 TrueTime，有两个问题必须要回答：<span
+class="math inline">\(ε\)</span> 真的是时钟不确定性的边界吗，<span
+class="math inline">\(ε\)</span>
+到底有多糟糕？对于前者，最严重的问题是，假如本地时钟的漂移超过了
+200us/sec：这会破坏 TrueTime 的假设。我们的机器统计数据显示 CPU
+故障的可能性是时钟的 6
+倍。即相比于其他严重的硬件故障，时钟问题发生的频率极低。因此，我们相信
+TrueTime 的实现能够像 Spanner 的其他依赖软件一样值得信赖。</p>
+<img src="/2020/11/06/google-spanner/figure-6.png" class="">
+<p>Figure 6 展示了在距离最多 2200km 的数据中心之间的数千个 spanserver
+中获取的 TrueTime 数据。它绘制了 90，99 和 99.9 分位的 <span
+class="math inline">\(ε\)</span>，在 timeslave 守护程序从 timemaster
+拉取时间后立即从 timeslave 中采样。由于本地时钟的不确定性，采样忽略了
+<span class="math inline">\(ε\)</span> 中的锯齿。因此是 timemaster
+的不确定性（通常为 0）与通信延迟之和。</p>
+<p>数据显示前述两种因子在确定基准值时通常不是个问题。然而，它们可能会产生显著的尾部延迟问题而导致
+<span class="math inline">\(ε\)</span>
+的值升高。从3月30日开始，由于网络改进暂时降低了网络连接拥塞使得从3月30日开始尾部延迟有所降低。4月13日大约一小时的升高，是因为例行维护而关闭了两台
+timemaster 导致的。我们将继续调查并消除 TrueTime 峰值的原因。</p>
+<h2 id="f1">5.4 F1</h2>
+<p>2011 年初，作为重写的 Google 广告后端 F1 [35] 的一部分，Spanner
+开始在生产负载下进行实验性评估。该后端最初是基于 MySQL
+的，并采用多种方式进行手动分片。未压缩的数据集有数十 TB 大，虽然对许多
+NoSQL 实例来说这些数据并不多，但它已经足够大到使分片过的 MySQL
+时造成困难。MySQL 会将 schema
+分配给每个用户，且所有相关的数据都是分片固定的。这种布局允许在每个用户的基础上使用索引和复杂查询，但需要了解应用程序业务逻辑的分片。随着用户及其数据的增加，当在这种收入关键型数据库上进行重分片的成本非常高。最后一次重分片在两年时间内花费了巨大的努力，涉及了数十个团队的协调和测试以最小化风险。这种操作对于日常维护太过复杂：因此，团队需要通过将一些数据存储在
+Bigtable 上来限制 MySQL
+上的数据增长，但这损害了事务行为和跨数据查询的能力。</p>
+<p>F1 团队选择使用 Spanner 有如下几个原因。其一，使用 Spanner
+不在需要人工分片。其二，Spanner 提供了同步复制和自动故障转移功能。以
+MySQL
+的主从模式，故障转移很困难，会有数据丢失和一段时间不可用的风险。其三，F1
+要求强一致性事务语义，这让其他 NoSQL
+系统变得不切实际。应用程序语义需要一致性读和跨任意数据事务。F1
+团队需要在数据上支持二级索引（由于 Spanner
+还不能自动支持二级索引），且能够通过 Spanner
+事务来实现它们自己的一致性全局索引。</p>
+<p>所有应用程序的写入现在都默认从 F1 透传至 Spanner，这代替了基于 MySQL
+的应用程序栈。F1
+在美国西海岸拥有两个副本，东海岸有三个。副本站的选择一方面是为了对付潜在的重大自然灾害，另一方面也与它们的前端站点有关。有趣的是，Spanner
+的自动故障转移对 F1
+来说近乎是透明的。尽管在过去的几个月里发生了一些意外的集群故障，但是 F1
+团队需要做的最多的就是是升级它们的数据库 schema 来告诉 Spanner 优先把
+Paxos leader 放在哪里，以期能让这些 leader
+在它们的前端移动时与之保持最近。</p>
+<p>Spanner 的时间戳语义让 F1
+能更高效的通过数据库状态来计算的内存数据结构。F1
+维护了一个逻辑上的修改历史日志，该日志作为每个事物的一部分也被写入了
+Spanner。F1
+以时间戳获取全量快照，来初始化其数据结构，之后读取增量数据来更新该数据结构。</p>
+<img src="/2020/11/06/google-spanner/table-5.png" class="">
+<p>Table 5 展示了 F1
+的每个目录分片数量的分布情况。每个目录通常都会与一个在 F1
+应用程序栈之上的客户相关。绝大多数目录（以及其对应的客户）仅由一个分片组成，这意味着对这类客户数据的读写能确保只在单个服务器上进行。多于
+100
+个分片的目录用于存放F1二级索引的表：一次写入此类表的多个分片是非常罕见的。F1
+团队只在事务内进行未经调整的大容量数据加载时遇到过这种行为。</p>
+<img src="/2020/11/06/google-spanner/table-6.png" class="">
+<p>Table 6 展示从 F1 服务器测量的 Spanner 的操作延迟。在选择 Paxos
+leader
+的时候，东海岸数据中心的副本拥有更高的选择优先级。表中的数据是从这些数据中心的
+F1
+服务器中测量的。在写延迟中较大的标准偏差是由于锁冲突而导致的相当大的尾部造成的。导致在读延迟中更大的标准偏差的部分原因是
+Paxos leader 分布在两个数据中心间，且只有一个数据中心的机器拥有
+SSD。此外，测量包含系统中来自两个数据中心的每次读取：读取字节的平均值和标准差分别为
+1.6KB 和 119KB。</p>
+<h1 id="相关工作">6 相关工作</h1>
+<p>Megastore [5] 和 DynamoDB [3]
+作为存储服务已经提供了跨数据中心一致性复制。DynamoDB 给出了一个
+key-value 接口，仅在 region 内部复制。Spanner 跟随 Megastore
+提供了半关系型数据模型，甚至是类似的 schema 语言。Megastore
+未实现高性能。处于 Bigtable
+层次之上，这回带来很高的通信成本。它也不支持久存活
+leader：有多个副本都可能发起写。来自不同副本的所有写操作都不可避免的会在
+Paxos 协议中发生冲突，即使他们在逻辑上不存在冲突：Paxos
+组的吞吐量以每秒几次写的速度崩溃。Spanner
+提供了高性能、通用事务，和外部一致性。</p>
+<p>Pavlo 等人 [31] 对比了数据库与 MapReduce [12]
+的性能。他们指出，为探索分布式键值存储 [1,4,7,41]
+上的数据库功能而进行的其他几项努力证明了这两个世界正在融合。我们同意这一结论，但是证明集成多个层有它的优点：例如，集成并发控制和复制可以减少
+Spanner 中等待提交的成本。</p>
+<p>在复制的存储之上构建事务分层的概念可以追溯至Gifford 的论文中
+[16]。Scatter [17] 是一个事务分层在一致性复制之上的基于 DHT 的 key-value
+存储。Spanner 专注于提供一个比 Scatter 更高层的接口。Gray and Lamport
+[18] 描述了一个基于 Paxos
+的非阻塞提交协议。他们的协议会比两阶段提交产生更多消息传低成本，这回加重在宽范围分布的组上提交的成本。Walter
+[36]
+提供了一种快照隔离的变体，可在数据中心内而不是跨数据中心工作。相反的，我们的只读事务提供了一个更自然的语义，因为我们所有的操作都支持外部一致性。</p>
+<p>最近有大量降低或消除锁开销的工作。Calvin [40]
+消除了并发控制：它会预先分配时间戳之后按照时间戳顺序执行事务。HStore
+[39] 和 Granola [11]
+都分别支持了它们自己的事务类型分类，有一些能够避免锁。但这些系统没有一个能提供外部一致性。Spanner
+通过提供快照隔离的支持来解决争用问题。</p>
+<p>VoltDB [42]
+是一个分片内存数据库，支持在广域范围内进行主从复制来进行灾难恢复，但不支持更通用的复制配置。它是一个被称为
+NewSQL 的例子，是由市场推动的支持伸缩的 SQL
+[38]。大把商业数据库实现了读过去的数据，例如 MarkLogic [26] 和 Oracle’s
+Total Recall [30]. Lomet and Li [24]
+描述了对这种有时态数据库的实现策略。</p>
+<p>Farsite 导出了与可信时钟基准相关的时钟不确定性（比 TrueTime
+宽松得多）界限：Farsite 服务器维护租约使用了与 Spanner 维护 Paxos
+租约类似的方式。在之前的工作中，松散同步的时钟被用于并发控制 [2,
+23]。我们展示了 TrueTime 允许一个关于跨 Paxos
+状态机集合的全局时间的原因。</p>
+<h1 id="未来的工作">7 未来的工作</h1>
+<p>去年我们花了绝大多数时间与 F1 团队一起工作来将 Google 的广告后端从
+MySQL 迁移到
+Spanner。我们积极地改善它的监控和支持工具，以及调优它的性能。此外，我们也致力于提升我们的备份/恢复系统的功能性与性能。我们目前正在实现
+Spanner
+的模式语言，二级索引的自动维护以及基于负载的自动重分片。更远期的，我们有一些特性计划去考察。并行乐观读也许是一个有追求价值的策略，但初步的试验证明正确实现它并非易事。此外，我们计划最终支持直接对
+Paxos 进行配置修改 [22, 34]。</p>
+<p>考虑到我们期望许多应用程序能够跨彼此相对更近的数据中心来复制它们的数据，因此
+TrueTime 也许会明显的影响到性能。目前我们认为将延迟降低到 1ms
+以下并非是不可逾越的障碍。Time-master-query
+间隔时间可以降低，更好的石英钟也相对便宜。Time-master
+的查询延迟可以通过改善网络技术来降低，甚至可以通过交替的时间分布技术来避免。</p>
+<p>最后，有很多地方显然可以改进。即使 Spanner
+可以在数个节点之间伸缩，然而由于节点被设计为简单的 key-value
+查询，因此节点本地的数据结构在复杂 SQL
+查询时的性能还是相对较弱。来自数据库文献中的算法和数据结构能够显著的提升单节点的性能。其次，自动在数据中心之间移动数据以响应客户端负载的变化一直是我们的目标，但为了让该目标变得高效，我们还需要在数据中心之间自动的、协调的迁移客户端应用程序进程的能力。</p>
+<h1 id="总结">8 总结</h1>
+<p>总的来说，Spanner
+结合并扩展了两个研究社区的观点：从数据库社区引入了一个熟悉的、易用的、半关系型接口、事务以及基于
+SQL
+的查询语言；从系统社区引入了可伸缩、自动分片、故障容忍、一致性复制、外部一致性以及广域分布式。从
+Spanner
+开始，我们花了超过五年时间来迭代直到今天的设计和实现。花费如此漫长迭代的一部分原因是我们慢慢意识到
+Spanner 应该做的不仅仅是解决全局复制命名空间的问题，还应该关注 Bigtable
+所缺少的数据库特性。</p>
+<p>我们设计里有一个突出的特点：Spanner 的特性集中最关键的就是
+TrueTime。我们已经展示了在时间 API
+中具象化时间不确定性使得构建具有更强时间语义的分布式系统成为可能。此外，由于底层系统对时钟不确定性实施了更严格的限制，因此强语义的开销会减少。作为社区，我们不应该再依赖松散的同步时钟和孱弱的时间
+API 来设计分布式算法。</p>
+<h1 id="致谢">致谢</h1>
+<p>许多人都帮助我们完善了这篇论文：我们的引领人 Jon
+Howell，它超越了自己的职责；匿名审阅人；以及许多 Googler：Atul Adya, Fay
+Chang, Frank Dabek, Sean Dorward, Bob Gruber, David Held, Nick Kline,
+Alex Thomson, and Joel
+Wein。我们的管理层一直非常支持我们的工作和论文的发表，他们是：Aristotle
+Balogh, Bill Coughran, Urs Holzle, Doron Meyer, Cos Nicolaou, Kathy
+Polizzi, Sridhar Ramaswany, 和 Shivakumar Venkataraman。</p>
+<p>We have built upon the work of the Bigtable and Megastore teams. The
+F1 team, and Jeff Shute in particular, worked closely with us in
+developing our data model and helped immensely in tracking down
+performance and correctness bugs. The Platforms team, and Luiz Barroso
+and Bob Felderman in particular, helped to make TrueTime happen.
+Finally, a lot of Googlers used to be on our team: Ken Ashcraft, Paul
+Cychosz, Krzysztof Ostrowski, Amir Voskoboynik, Matthew Weaver, Theo
+Vassilakis, and Eric Veach; or have joined our team recently: Nathan
+Bales, Adam Beberg, Vadim Borisov, Ken Chen, Brian Cooper, Cian
+Cullinan, Robert-Jan Huijsman, Milind Joshi, Andrey Khorlin, Dawid
+Kuroczko, Laramie Leavitt, Eric Li, Mike Mammarella, Sunil Mushran,
+Simon Nielsen, Ovidiu Platon, Ananth Shrinivas, Vadim Suvorov, and
+Marcel van der Holst.</p>
+<p>我们建立在 Bigtable 和 Megastore 团队的工作之上。F1 团队，特别是 Jeff
+Shute，与我们一同工作，来开发我们的数据模型并极大地帮助了我们追踪性能和正确性的
+bug。平台团队，特别是 Luiz Barroso 和 Bob Felderman，帮助实现了
+TrueTime。最后，很多 Googler 都曾是我们团队的一员，它们是：Ken Ashcraft,
+Paul Cychosz, Krzysztof Ostrowski, Amir Voskoboynik, Matthew Weaver,
+Theo Vassilakis, 和 Eric Veach；还有近期刚刚加入我们团队的人：Nathan
+Bales, Adam Beberg, Vadim Borisov, Ken Chen, Brian Cooper, Cian
+Cullinan, Robert-Jan Huijsman, Milind Joshi, Andrey Khorlin, Dawid
+Kuroczko, Laramie Leavitt, Eric Li, Mike Mammarella, Sunil Mushran,
+Simon Nielsen, Ovidiu Platon, Ananth Shrinivas, Vadim Suvorov, 以及
+Marcel van der Holst。</p>
+<h1 id="参考文献">参考文献</h1>
+<p>[1] Azza Abouzeid et al. “HadoopDB: an architectural hybrid of
+MapReduce and DBMS technologies for analytical workloads”. Proc. of
+VLDB. 2009, pp. 922–933.</p>
+<p>[2] A. Adya et al. “Efficient optimistic concurrency control using
+loosely synchronized clocks”. Proc. of SIGMOD. 1995, pp. 23– 34.</p>
+<p>[3] Amazon. Amazon DynamoDB. 2012.</p>
+<p>[4] Michael Armbrust et al. “PIQL: Success-Tolerant Query Processing
+in the Cloud”. Proc. of VLDB. 2011, pp. 181–192.</p>
+<p>[5] Jason Baker et al. “Megastore: Providing Scalable, Highly
+Available Storage for Interactive Services”. Proc. of CIDR. 2011, pp.
+223–234.</p>
+<p>[6] Hal Berenson et al. “A critique of ANSI SQL isolation levels”.
+Proc. of SIGMOD. 1995, pp. 1–10.</p>
+<p>[7] Matthias Brantner et al. “Building a database on S3”. Proc. of
+SIGMOD. 2008, pp. 251–264.</p>
+<p>[8] A. Chan and R. Gray. “Implementing Distributed Read-Only
+Transactions”. IEEE TOSE SE-11.2 (Feb. 1985), pp. 205–212.</p>
+<p>[9] Fay Chang et al. “Bigtable: A Distributed Storage System for
+Structured Data”. ACM TOCS 26.2 (June 2008), 4:1–4:26.</p>
+<p>[10] Brian F. Cooper et al. “PNUTS: Yahoo!’s hosted data serving
+platform”. Proc. of VLDB. 2008, pp. 1277–1288.</p>
+<p>[11] James Cowling and Barbara Liskov. “Granola: Low-Overhead
+Distributed Transaction Coordination”. Proc. of USENIX ATC. 2012, pp.
+223–236.</p>
+<p>[12] Jeffrey Dean and Sanjay Ghemawat. “MapReduce: a flexible data
+processing tool”. CACM 53.1 (Jan. 2010), pp. 72–77.</p>
+<p>[13] John Douceur and Jon Howell. Scalable Byzantine-FaultQuantifying
+Clock Synchronization. Tech. rep. MSR-TR-2003- 67. MS Research,
+2003.</p>
+<p>[14] John R. Douceur and Jon Howell. “Distributed directory service
+in the Farsite file system”. Proc. of OSDI. 2006, pp. 321–334.</p>
+<p>[15] Sanjay Ghemawat, Howard Gobioff, and Shun-Tak Leung. “The Google
+file system”. Proc. of SOSP. Dec. 2003, pp. 29–43.</p>
+<p>[16] David K. Gifford. Information Storage in a Decentralized
+Computer System. Tech. rep. CSL-81-8. PhD dissertation. Xerox PARC, July
+1982.</p>
+<p>[17] Lisa Glendenning et al. “Scalable consistency in Scatter”. Proc.
+of SOSP. 2011.</p>
+<p>[18] Jim Gray and Leslie Lamport. “Consensus on transaction commit”.
+ACM TODS 31.1 (Mar. 2006), pp. 133–160.</p>
+<p>[19] Pat Helland. “Life beyond Distributed Transactions: an
+Apostate’s Opinion”. Proc. of CIDR. 2007, pp. 132–141.</p>
+<p>[20] Maurice P. Herlihy and Jeannette M. Wing. “Linearizability: a
+correctness condition for concurrent objects”. ACM TOPLAS 12.3 (July
+1990), pp. 463–492.</p>
+<p>[21] Leslie Lamport. “The part-time parliament”. ACM TOCS 16.2 (May
+1998), pp. 133–169.</p>
+<p>[22] Leslie Lamport, Dahlia Malkhi, and Lidong Zhou. “Reconfiguring a
+state machine”. SIGACT News 41.1 (Mar. 2010), pp. 63– 73.</p>
+<p>[23] Barbara Liskov. “Practical uses of synchronized clocks in
+distributed systems”. Distrib. Comput. 6.4 (July 1993), pp. 211–
+219.</p>
+<p>[24] David B. Lomet and Feifei Li. “Improving Transaction-Time DBMS
+Performance and Functionality”. Proc. of ICDE (2009), pp. 581–591.</p>
+<p>[25] Jacob R. Lorch et al. “The SMART way to migrate replicated
+stateful services”. Proc. of EuroSys. 2006, pp. 103–115.</p>
+<p>[26] MarkLogic. MarkLogic 5 Product Documentation. 2012.</p>
+<p>[27] Keith Marzullo and Susan Owicki. “Maintaining the time in a
+distributed system”. Proc. of PODC. 1983, pp. 295–305.</p>
+<p>[28] Sergey Melnik et al. “Dremel: Interactive Analysis of WebScale
+Datasets”. Proc. of VLDB. 2010, pp. 330–339.</p>
+<p>[29] D.L. Mills. Time synchronization in DCNET hosts. Internet
+Project Report IEN–173. COMSAT Laboratories, Feb. 1981.</p>
+<p>[30] Oracle. Oracle Total Recall. 2012.</p>
+<p>[31] Andrew Pavlo et al. “A comparison of approaches to large-scale
+data analysis”. Proc. of SIGMOD. 2009, pp. 165–178.</p>
+<p>[32] Daniel Peng and Frank Dabek. “Large-scale incremental processing
+using distributed transactions and notifications”. Proc. of OSDI. 2010,
+pp. 1–15.</p>
+<p>[33] Daniel J. Rosenkrantz, Richard E. Stearns, and Philip M. Lewis
+II. “System level concurrency control for distributed database systems”.
+ACM TODS 3.2 (June 1978), pp. 178–198.</p>
+<p>[34] Alexander Shraer et al. “Dynamic Reconfiguration of
+Primary/Backup Clusters”. Proc. of USENIX ATC. 2012, pp. 425– 438.</p>
+<p>[35] Jeff Shute et al. “F1 — The Fault-Tolerant Distributed RDBMS
+Supporting Google’s Ad Business”. Proc. of SIGMOD. May 2012, pp.
+777–778.</p>
+<p>[36] Yair Sovran et al. “Transactional storage for geo-replicated
+systems”. Proc. of SOSP. 2011, pp. 385–400</p>
+<p>[37] Michael Stonebraker. Why Enterprises Are Uninterested in NoSQL.
+2010.</p>
+<p>[38] Michael Stonebraker. Six SQL Urban Myths. 2010.</p>
+<p>[39] Michael Stonebraker et al. “The end of an architectural era:
+(it’s time for a complete rewrite)”. Proc. of VLDB. 2007, pp. 1150–
+1160.</p>
+<p>[40] Alexander Thomson et al. “Calvin: Fast Distributed Transactions
+for Partitioned Database Systems”. Proc. of SIGMOD. 2012, pp. 1–12.</p>
+<p>[41] Ashish Thusoo et al. “Hive — A Petabyte Scale Data Warehouse
+Using Hadoop”. Proc. of ICDE. 2010, pp. 996–1005.</p>
+<p>[42] VoltDB. VoltDB Resources. 2012</p>
+<h1 id="附录-apaxos-leader-租约管理">附录 A：Paxos Leader 租约管理</h1>
+<p>确保 Paxos leader
+租约的不连续性最简单的方法是，只要租约间隔被延长，leader 就发出一个同步
+Paxos 写操作。后继 leader 会读取该间隔并等待直到间隔过后。</p>
+<p>TrueTime 可用于在不需要额外的日志写入时保证不连续性。潜在的第 <span
+class="math inline">\(i\)</span> 个 leader 保持从副本 <span
+class="math inline">\(r\)</span> 租约投票开始时的下限 <span
+class="math inline">\(v^{leader}_{i,r} = TT.now().earliest\)</span>，在
+<span class="math inline">\(e^{send}_{i,r}\)</span> （定义为租约请求被
+leader 发出的时刻）之前计算得到。每个副本 <span
+class="math inline">\(r\)</span> 都在租约 <span
+class="math inline">\(e^{grant}_{i,r}\)</span> 时获取租约，这会在 <span
+class="math inline">\(e^{receive}_{i,r}\)</span>
+之后发生（当副本收到一个租约请求时）；该租约在 <span
+class="math inline">\(t^{end}_{i,r} = TT.now().latest + 10\)</span>
+时终止，该时刻由 <span class="math inline">\(e^{receive}_{i,r}\)</span>
+计算得到。一个副本 <span class="math inline">\(r\)</span>
+服从<strong>单一投票（single-vote）</strong>规则：在 <span
+class="math inline">\(TT.after(t^{end}_{i,r}) == true\)</span>
+之前它不会再授予其他租约。为了在不同的 <span
+class="math inline">\(r\)</span>
+中保证这一点，在副本授予租约之前，Spanner
+会在日志中记录租约的投票；这种日志写入可以在现有的 Paxos
+协议日志写入的基础上进行。</p>
+<p>当第 <span class="math inline">\(i\)</span> 个 leader 收到投票 quorum
+后（<span class="math inline">\(e^{quorum}_i\)</span>
+事件），它将自己的租约期计算为 <span class="math inline">\(lease_i =
+[TT.now().latest, min_r(v^{leader}_{i,r}) + 10]\)</span>。当 <span
+class="math inline">\(TT.before(min_r(v^{leader}_{i,r}) + 10) ==
+false\)</span> 时，leader
+上的租约被视为过期。为了证明不连续性，我们利用了第 <span
+class="math inline">\(i\)</span> 个和第 <span class="math inline">\((i +
+1)\)</span> 个 leader 在它们的 quorum
+中必须有一个共同的副本这一事实。我们称该副本为 <span
+class="math inline">\(r0\)</span>。证明：</p>
+<p><span class="math inline">\(lease_i.end = min_r(v^{leader}_{i,r}) +
+10\)</span> (by definition)</p>
+<p><span class="math inline">\(min_r(v^{leader}_{i,r}) + 10 ≤
+v^{leader}_{i,r0} + 10\)</span> (min)</p>
+<p><span class="math inline">\(v^{leader}_{i,r0} + 10 ≤
+t_{abs}(e^{send}_{i,r0}) + 10\)</span> (by definition)</p>
+<p><span class="math inline">\(t_{abs}(e^{send}_{i,r0}) + 10 ≤
+t_{abs}(e^{receive}_{i,r0}) + 10\)</span> (causality)</p>
+<p><span class="math inline">\(t_{abs}(e^{receive}_{i,r0}) + 10 ≤
+t^{end}_{i,r0}\)</span> (by definition)</p>
+<p><span class="math inline">\(t^{end}_{i,r0} &lt;
+t_{abs}(e^{grant}_{i+1,r0})\)</span> (single-vote)</p>
+<p><span class="math inline">\(t_{abs}(e^{grant}_{i+1,r0}) ≤
+t_{abs}(e^{quorum}_{i+1})\)</span> (causality)</p>
+<p><span class="math inline">\(t_{abs}(e^{quorum}_{i+1}) ≤
+lease_{i+1}.start\)</span> (by definition)</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/11/06/google-spanner/" title="Spanner：Google 的全球分布式数据库">http://lenshood.github.io/2020/11/06/google-spanner/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/database/" rel="tag"># database</a>
+              <a href="/tags/spanner/" rel="tag"># spanner</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/10/14/tidb-lesson-8/" rel="prev" title="TiDB 学习课程 Lesson-8">
+                  <i class="fa fa-angle-left"></i> TiDB 学习课程 Lesson-8
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/11/30/isolation-level-with-mysql/" rel="next" title="MySQL(InnoDB) 独特的 Repeatable Read 隔离级别">
+                  MySQL(InnoDB) 独特的 Repeatable Read 隔离级别 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

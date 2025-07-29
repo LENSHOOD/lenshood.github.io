@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="本文介绍了在一次构造测试数据的活动中，我们如何通过优化手段将数据插入速度提升200倍的经历。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何让数据库插入速度提升200倍">
+<meta property="og:url" content="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="本文介绍了在一次构造测试数据的活动中，我们如何通过优化手段将数据插入速度提升200倍的经历。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/header.jpg">
+<meta property="article:published_time" content="2023-06-11T06:50:45.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.133Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="prepare data">
+<meta property="article:tag" content="SQL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/","path":"2023/06/11/how-to-insert-data-faster/","title":"如何让数据库插入速度提升200倍"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>如何让数据库插入速度提升200倍 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AC%AC%E4%B8%80%E4%B8%AA%E7%89%88%E6%9C%AC"><span class="nav-number">1.</span> <span class="nav-text">第一个版本</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96"><span class="nav-number">2.</span> <span class="nav-text">性能优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BC%98%E5%8C%96-sql-%E8%AF%AD%E5%8F%A5"><span class="nav-number">2.1.</span> <span class="nav-text">优化 SQL 语句</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8F%90%E9%AB%98%E8%B5%84%E6%BA%90%E5%88%A9%E7%94%A8%E7%8E%87"><span class="nav-number">2.2.</span> <span class="nav-text">提高资源利用率</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%87%8F%E5%B0%91%E5%86%97%E4%BD%99%E6%93%8D%E4%BD%9C"><span class="nav-number">2.3.</span> <span class="nav-text">减少冗余操作</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E7%9A%84%E6%80%9D%E8%80%83"><span class="nav-number">3.</span> <span class="nav-text">性能优化的思考</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%86%E8%A7%A3%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84"><span class="nav-number">3.1.</span> <span class="nav-text">了解系统架构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BB%BA%E7%AB%8B%E6%A8%A1%E5%9E%8B"><span class="nav-number">3.2.</span> <span class="nav-text">建立模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%82%E6%B5%8B%E6%B4%9E%E5%AF%9F%E7%9A%84%E9%87%8D%E8%A6%81%E6%80%A7"><span class="nav-number">3.3.</span> <span class="nav-text">观测洞察的重要性</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%89%A9%E5%B1%95%E9%98%85%E8%AF%BB"><span class="nav-number">4.</span> <span class="nav-text">扩展阅读</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="如何让数据库插入速度提升200倍 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          如何让数据库插入速度提升200倍
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2023-06-11 14:50:45" itemprop="dateCreated datePublished" datetime="2023-06-11T14:50:45+08:00">2023-06-11</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/DB/" itemprop="url" rel="index"><span itemprop="name">DB</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2023/06/11/how-to-insert-data-faster/header.jpg" class="" width="300">
+<p>本文介绍了在一次构造测试数据的活动中，我们如何通过优化手段将数据插入速度提升200倍的经历。</p>
+<span id="more"></span>
+<p>在帮助某客户构建业务系统过程中，为了测试数据库表性能，我们需要构造 1
+亿条模拟业务数据，这些数据在关键业务字段上需要能反映实际业务特点，包括数据类型和数据分布。</p>
+<p>客户先前曾经构造过同样规模的测试数据，通过在代码中循环批次插入，构造一亿条数据大约需要
+6 小时。据此我们认为这种方案引入了不必要的网络
+IO，效率太差，通过存储过程构造肯定会更快（当然如果数据已经准备好了，单插入用
+COPY 命令是最快的，详细可见<a href="#扩展阅读">扩展阅读</a>）。</p>
+<h3 id="第一个版本">第一个版本</h3>
+<p>在对构造数据的需求进行分析后，我们计划通过两步来实现功能：</p>
+<ol type="1">
+<li>构造业务数据集
+<ul>
+<li>预置业务数据集，按数据分布的实际比例进行推算，预置的数据集的规模在数十万条左右</li>
+<li>对于唯一性业务数据（主要是流水号类）创建序列生成器生成唯一数值</li>
+</ul></li>
+<li>编写存储过程
+<ul>
+<li>通过随机函数从业务数据集中选取数据</li>
+<li>拼接 INSERT 语句，批次插入</li>
+<li>循环上述过程</li>
+</ul></li>
+</ol>
+<p>搞清楚需求之后，我们（<del>ChatGPT</del>）很快就写出了如下脚本：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 数据库：openGauss</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 假设：</span></span><br><span class="line"><span class="comment">-- 被插入数据表名 t0，包含三个字段 A(bigint), B(varchar), C(datetime)</span></span><br><span class="line"><span class="comment">-- A 数据来自 Sequence s0，B 数据随机选取业务数据集 t1，C 数据随机选取 2014~2023 年中任意一天</span></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">OR</span> REPLACE <span class="keyword">PROCEDURE</span> P0(<span class="keyword">IN</span> n <span class="type">INTEGER</span>, <span class="keyword">IN</span> m <span class="type">INTEGER</span>)</span><br><span class="line"><span class="keyword">DECLARE</span></span><br><span class="line">    i <span class="type">INTEGER</span>;</span><br><span class="line">    a_value <span class="type">BIGINT</span>;</span><br><span class="line">    b_value <span class="type">VARCHAR</span>;</span><br><span class="line">    c_value <span class="type">TIMESTAMP</span>;</span><br><span class="line">    sql_insert TEXT :<span class="operator">=</span> <span class="string">&#x27;&#x27;</span>;</span><br><span class="line"><span class="keyword">BEGIN</span></span><br><span class="line">    <span class="keyword">FOR</span> i <span class="keyword">IN</span> <span class="number">1.</span>.n LOOP</span><br><span class="line">        sql_insert :<span class="operator">=</span> <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">        <span class="keyword">FOR</span> j <span class="keyword">IN</span> <span class="number">1.</span>.m LOOP</span><br><span class="line">            <span class="keyword">SELECT</span> nextval(<span class="string">&#x27;s0&#x27;</span>) <span class="keyword">INTO</span> a_value;</span><br><span class="line">            <span class="comment">-- 这里由于数据库原因，无法使用 TABLESAMPLE</span></span><br><span class="line">            <span class="keyword">SELECT</span> b_column <span class="keyword">FROM</span> t1 <span class="keyword">ORDER</span> <span class="keyword">BY</span> random() LIMIT <span class="number">1</span> <span class="keyword">INTO</span> b_value;</span><br><span class="line">            <span class="keyword">SELECT</span> <span class="type">TIMESTAMP</span> <span class="string">&#x27;2014-01-01&#x27;</span> <span class="operator">+</span> random() <span class="operator">*</span> (<span class="type">TIMESTAMP</span> <span class="string">&#x27;2023-06-30&#x27;</span> <span class="operator">-</span> <span class="type">TIMESTAMP</span> <span class="string">&#x27;2014-01-01&#x27;</span>) <span class="keyword">INTO</span> c_value;  </span><br><span class="line">            <span class="comment">-- 拼接 insert statement</span></span><br><span class="line">            sql_insert :<span class="operator">=</span> sql_insert <span class="operator">||</span> format(<span class="string">&#x27;(%s, %s, %s),&#x27;</span>, a_value, quote_literal(b_value), quote_literal(c_value));</span><br><span class="line">        <span class="keyword">END</span> LOOP;</span><br><span class="line">        </span><br><span class="line">        sql_insert :<span class="operator">=</span> rtrim(sql_insert, <span class="string">&#x27;,&#x27;</span>);</span><br><span class="line">        <span class="keyword">EXECUTE</span> format(<span class="string">&#x27;INSERT INTO t0 (A, B, C) VALUES %s;&#x27;</span>, sql_insert);</span><br><span class="line">        </span><br><span class="line">    <span class="keyword">END</span> LOOP;</span><br><span class="line"><span class="keyword">END</span>;</span><br></pre></td></tr></table></figure>
+<p>然而执行后发现，这个存储过程慢的令人发指，估算插入一亿条数据耗时 180
+小时，比代码插入反倒慢了 30 倍。</p>
+<h3 id="性能优化">性能优化</h3>
+<p>为了挽回顾问（有但不多）的专业度，我们决定对存储过程进行性能优化。</p>
+<p>一般来说，实施性能优化之前，可以先进行分析以寻找可能的性能劣化点，再决定从哪里开始。由于脚本比较简单，我们很容易发现一些可能的劣化点：</p>
+<ul>
+<li><code>nextval()</code> 函数及 Sequence 的性能</li>
+<li><code>random()</code> 函数性能</li>
+<li><code>ORDER BY random()</code> 的执行效率</li>
+<li>FOR 循环</li>
+</ul>
+<p>只要依次测试就能发现最耗时之处。</p>
+<h4 id="优化-sql-语句">优化 SQL 语句</h4>
+<p>分析执行计划是对 SQL
+进行优化时最直接的尝试。通过执行计划，我们快速发现了第一处问题点：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> b_column <span class="keyword">FROM</span> t1 <span class="keyword">ORDER</span> <span class="keyword">BY</span> random() LIMIT <span class="number">1</span></span><br><span class="line">Limit</span><br><span class="line">  <span class="operator">-</span><span class="operator">&gt;</span> Sort</span><br><span class="line">    Sort Key: (random())</span><br><span class="line">      <span class="operator">-</span><span class="operator">&gt;</span> Seq Scan <span class="keyword">on</span> xxxxx</span><br></pre></td></tr></table></figure>
+<p>通过 <code>order by random()</code> 来从数据集 <code>t1</code>
+中选取随机值，实际上是为 <code>t1</code>
+中每一行数据生成随机值，之后按每行随机值进行排序得来的。由于我们只选取排序后的第一条数据，因此排序工作并没有意义。</p>
+<p>修改后的语句+执行计划：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> b_column <span class="keyword">FROM</span> t1 <span class="keyword">WHERE</span> id <span class="keyword">in</span> (<span class="keyword">SELECT</span> <span class="built_in">floor</span>(random()<span class="operator">*</span><span class="number">10000</span>)) LIMIT <span class="number">1</span></span><br><span class="line">Index <span class="keyword">Only</span> Scan</span><br><span class="line">  Index Cond</span><br><span class="line">  Init Plan1</span><br><span class="line">    <span class="operator">-</span><span class="operator">&gt;</span> <span class="keyword">Result</span> xxx</span><br></pre></td></tr></table></figure>
+<p><code>t1</code>
+的主键是自增整数，我们直接随机一个不超限的整数值，通过主键索引快速查找。</p>
+<p>另外，考虑到事务提交与 insert
+拼接性能损耗的平衡，经测试插入批次规模在 100~1000 之间效率最高。</p>
+<p>再进一步，由于数据集和实际生成数据的比例在 1:10000
+以上，因此无需每一次都进行随机选取，当内循环批次大小在几百至数千时数据离散程度不会发生明显变化。故将随机选取语句放入外循环，可以大幅降低计算次数。</p>
+<p>从结果上看，最明显的劣化点，修改后效果最好：通过上述修改，预估只需要
+4 小时就可插入完成，性能提升了 45 倍。</p>
+<h4 id="提高资源利用率">提高资源利用率</h4>
+<p>基于第一次分析，我们发现除了<code>ORDER BY</code>以外，其他几部分的耗时都很短，优化的意义不大。因此我们跳出耗时，转向资源利用率。</p>
+<p>对于数据库的插入性能，主要的指标关注点在于 <strong>IO
+写入速率</strong>和 <strong>CPU 使用率</strong>。IO
+写入速率越高说明单位时间插入的数据越多，CPU
+使用率越高证明执行引擎跑的越满（等待 IO 时间少）。</p>
+<p>通过监控发现，在存储过程执行期间，IO Write 约 20MiB/s，CPU 使用率
+10~20%，基于此我们认为可以尝试加并发。由于我们并不清楚数据库的硬件配置，无法根据
+CPU 核数来划定线程数范围，因此进行了多轮并发插入测试，最后得到结论是 8
+个线程下加速比最高。</p>
+<p>同时，依赖和竞争是限制并发性能的两大障碍。容易发现，这些并发运行的存储过程都依赖同一个
+Sequence <code>s0</code> 来生成序列数字。</p>
+<p>Sequence 通过加锁来实现递增的并发安全，为了提升
+<code>nextval()</code> 的并发取数性能，为 Sequence 添加
+<code>Cache</code> 属性，降低锁竞争。经测试 Cache 前后
+<code>nextval()</code> 性能可以提升一倍以上。</p>
+<p>最终，进行并发优化后的插入速度同比又提升了 4 倍，并且 CPU 使用率达到
+96%，IO Write 约 115MiB/s。</p>
+<p>由于缺少监控数据，我们无法确定 CPU 使用率中 user 和 sys
+的比例，但考虑到托管云服务通常会正确设置线程池、绑核等参数，因此我们认为
+user 占据主导。</p>
+<h4 id="减少冗余操作">减少冗余操作</h4>
+<p>经过上一轮优化后，CPU 使用率已达 96%，IO Write 则达到
+115MiB/s。我们虽然无法判断 IO 带宽被利用了多少，但可以明确 CPU
+已经基本被打满。在这种情况下想要进一步优化，不妨将视线移至计算逻辑。</p>
+<p>数据库执行一次操作，在计算层大致需要经过解析
+SQL，逻辑+物理优化、形成执行计划这几个过程，之后会在计算层和存储层分别执行各类算子。计算层主要是
+CPU 计算，在存储层更多是 CPU 和 IO 操作混合。</p>
+<p>我们发现，对变量的赋值操作都是采用 <code>SELECT xxx INTO var</code>
+的形式，这样每个变量的赋值都要经历一遍解析、优化和执行的过程。因此我们尝试将这种操作修改为
+<code>var := &#123;value conpute&#125;</code>
+的形式，即对变量直接赋值。测试表明，直接赋值比<code>SELECT xxx INTO var</code>要快
+5 倍左右。</p>
+<p>经过以上修改后的存储过程，整体 CPU 利用率下降了 2%，而 IO Write
+提升了 17%，达到了135MiB/s 。</p>
+<p>通过几轮优化，我们最终在 50 分钟内完成了 1
+亿条数据的写入，比原先预估的 180 小时，提速了 216 倍。</p>
+<p>这里附上优化后的脚本：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> SEQUENCE s0 cache <span class="number">1000</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">OR</span> REPLACE <span class="keyword">PROCEDURE</span> P0(<span class="keyword">IN</span> n <span class="type">INTEGER</span>, <span class="keyword">IN</span> m <span class="type">INTEGER</span>)</span><br><span class="line"><span class="keyword">DECLARE</span></span><br><span class="line">    i <span class="type">INTEGER</span>;</span><br><span class="line">    a_value <span class="type">BIGINT</span>;</span><br><span class="line">    b_value <span class="type">VARCHAR</span>;</span><br><span class="line">    c_value <span class="type">TIMESTAMP</span>;</span><br><span class="line">    sql_insert TEXT :<span class="operator">=</span> <span class="string">&#x27;&#x27;</span>;</span><br><span class="line"><span class="keyword">BEGIN</span></span><br><span class="line">    <span class="keyword">FOR</span> i <span class="keyword">IN</span> <span class="number">1.</span>.n LOOP</span><br><span class="line">        <span class="keyword">SELECT</span> b_column <span class="keyword">FROM</span> t1 <span class="keyword">WHERE</span> id <span class="keyword">in</span> (<span class="keyword">SELECT</span> <span class="built_in">floor</span>(random()<span class="operator">*</span><span class="number">10000</span>)) LIMIT <span class="number">1</span> <span class="keyword">INTO</span> b_value;</span><br><span class="line">        c_value :<span class="operator">=</span> <span class="type">TIMESTAMP</span> <span class="string">&#x27;2014-01-01&#x27;</span> <span class="operator">+</span> random() <span class="operator">*</span> (<span class="type">TIMESTAMP</span> <span class="string">&#x27;2023-06-30&#x27;</span> <span class="operator">-</span> <span class="type">TIMESTAMP</span> <span class="string">&#x27;2014-01-01&#x27;</span>);</span><br><span class="line">        </span><br><span class="line">        sql_insert :<span class="operator">=</span> <span class="string">&#x27;&#x27;</span>;</span><br><span class="line">        <span class="keyword">FOR</span> j <span class="keyword">IN</span> <span class="number">1.</span>.m LOOP</span><br><span class="line">            a_value :<span class="operator">=</span> nextval(<span class="string">&#x27;s0&#x27;</span>);</span><br><span class="line">            sql_insert :<span class="operator">=</span> sql_insert <span class="operator">||</span> format(<span class="string">&#x27;(%s, %s, %s),&#x27;</span>, a_value, quote_literal(b_value), quote_literal(c_value));</span><br><span class="line">        <span class="keyword">END</span> LOOP;</span><br><span class="line">        </span><br><span class="line">        sql_insert :<span class="operator">=</span> rtrim(sql_insert, <span class="string">&#x27;,&#x27;</span>);</span><br><span class="line">        <span class="keyword">EXECUTE</span> format(<span class="string">&#x27;INSERT INTO t0 (A, B, C) VALUES %s;&#x27;</span>, sql_insert);</span><br><span class="line">        </span><br><span class="line">    <span class="keyword">END</span> LOOP;</span><br><span class="line"><span class="keyword">END</span>;</span><br></pre></td></tr></table></figure>
+<h3 id="性能优化的思考">性能优化的思考</h3>
+<p>前文所述的性能优化过程，场景简单、依赖少，很适合用来作为熟悉性能分析和优化流程的案例。因此我们总结了以下几点对性能分析和优化的思考实践：</p>
+<h4 id="了解系统架构">了解系统架构</h4>
+<p><strong>对系统的了解程度直接决定了进行性能分析时定义问题的范畴。</strong></p>
+<p>通过了解系统架构，我们能回答如下问题，进而帮助分析：</p>
+<ul>
+<li>系统提供的是计算类服务还是存储类服务？据此大致判断需要关注的指标。如计算类服务关注
+CPU
+使用率、线程调度、并行度；存储类服务关注请求吞吐量、网络带宽、IO等。</li>
+<li>各业务模块的核心逻辑是什么？据此筛选可能的性能瓶颈点和劣化点。如数据库的
+Parser、Optimizer、Executor 等模块的功能和资源使用特点。</li>
+<li>子模块之间的交互关系是什么？据此了解模块间调用链和阻塞点。如函数调用和
+IPC 的时间差异、缓冲队列的使用率、缓存命中率等。</li>
+<li>用到了哪些关键算法或数据结构？据此可以更细致的分析系统的工作过程。如分析
+HashJoin 和 IndexJoin 的性能差异、B+Tree 与 LSM Tree
+对读写的不同表现等。</li>
+</ul>
+<blockquote>
+<p>在前面的例子中，对数据库架构有一定程度的认识，帮助了我们更快的进行优化决策。</p>
+</blockquote>
+<h4 id="建立模型">建立模型</h4>
+<p>结合对系统架构和业务模型的了解，我们能<strong>更加自信的在高阶层面对系统性能关注点和可能的劣化点进行建模</strong>。</p>
+<p>可能的步骤包括：</p>
+<ol type="1">
+<li>确定关注对象：根据观测指标和业务模块，框定出大致的关注对象范围</li>
+<li>识别性能劣化点：从逻辑、交互、算法和数据结构层面识别可能的劣化点</li>
+<li>评估优先级：对劣化点进行评估和排序，先从综合收益大的地方开始</li>
+</ol>
+<blockquote>
+<p>在前面的例子中，存储过程脚本比较简单，建模意义不大。但对于稍显复杂的系统，建模能帮助我们厘清组件关系，让劣化点一目了然。</p>
+</blockquote>
+<h4 id="观测洞察的重要性">观测洞察的重要性</h4>
+<p><strong>没有观测，何谈分析？成熟的可观测能力是深入分析系统的基石。</strong></p>
+<p>上文描述的场景中，我们获取的信息很有限：不清楚硬件环境，可供观测的指标也很少，不了解数据库所在机器的系统配置，对
+OpenGauss 和 PostgreSQL 在架构设计上的差异也不够熟悉。</p>
+<p>观测不足导致对系统认知模糊，这使我们容易陷入无头苍蝇的境地：用“想到什么就试一试”来代替方法和流程。好在是我们优化的对象非常简单，否则可能没这么顺利。</p>
+<p>正如医生在诊断复杂疾病的时候，都会要求进行各项身体检查。全面的观测能力可以提升对系统的洞察深度，也就更易于正确的进行建模、分析和优化。略带夸张的讲，对系统观测的深度，甚至决定了性能优化的成败。</p>
+<p>构建成熟而完善的系统观测能力对于性能优化至关重要，然而，这并非一蹴而就的过程。它需要在观测体系、性能工程等领域持续进行投入和建设。</p>
+<blockquote>
+<p>在前面的例子中，虽然观测指标少，但至少有 CPU 使用率和 IO
+写入速率，这两项监控指标帮助我们完成了后续的关键优化动作。</p>
+</blockquote>
+<h3 id="扩展阅读">扩展阅读</h3>
+<p><a
+href="https://www.postgresql.org/docs/current/populate.html">PostgreSQL:
+Populating a Database</a></p>
+<p><a
+href="https://www.postgresql.org/docs/current/sql-createsequence.html">PostgreSQL:
+Sequence</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/" title="如何让数据库插入速度提升200倍">http://lenshood.github.io/2023/06/11/how-to-insert-data-faster/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/prepare-data/" rel="tag"># prepare data</a>
+              <a href="/tags/SQL/" rel="tag"># SQL</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/05/09/build-extendable-platform-engineering-software-stack/" rel="prev" title="构建可扩展的平台工程软件栈架构">
+                  <i class="fa fa-angle-left"></i> 构建可扩展的平台工程软件栈架构
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2023/07/05/what-is-performance-engineering/" rel="next" title="什么是性能工程？">
+                  什么是性能工程？ <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

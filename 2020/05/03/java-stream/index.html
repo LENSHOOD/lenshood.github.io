@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="在我的文章 虚拟工厂：Java 线程池 中简单介绍了采用 ”工厂“ 这样一个现实生活中的概念来抽象具体的线程操作，并定义了 Worker TaskQueue 等概念。用这种方式拉近了计算机域和真实世界域之间的距离，让代码表现现实的意图。 不仅仅是线程池，从 Java 8 开始引入的Stream也一样，它用代码构建了一套流水线体系，通过流水线环节的叠加来实现对流水线上元素的各种处理。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="虚拟工厂：Java stream">
+<meta property="og:url" content="http://lenshood.github.io/2020/05/03/java-stream/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="在我的文章 虚拟工厂：Java 线程池 中简单介绍了采用 ”工厂“ 这样一个现实生活中的概念来抽象具体的线程操作，并定义了 Worker TaskQueue 等概念。用这种方式拉近了计算机域和真实世界域之间的距离，让代码表现现实的意图。 不仅仅是线程池，从 Java 8 开始引入的Stream也一样，它用代码构建了一套流水线体系，通过流水线环节的叠加来实现对流水线上元素的各种处理。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/05/03/java-stream/pipeline.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/05/03/java-stream/reference-pipeline.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/05/03/java-stream/stage-connect.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/05/03/java-stream/sink.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/05/03/java-stream/three-level-abstract.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/05/03/java-stream/two-wrap-line.png">
+<meta property="article:published_time" content="2020-05-03T15:07:27.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.217Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="stream">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/05/03/java-stream/pipeline.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/05/03/java-stream/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/05/03/java-stream/","path":"2020/05/03/java-stream/","title":"虚拟工厂：Java stream"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>虚拟工厂：Java stream | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%81%E6%B0%B4%E7%BA%BFpipeline"><span class="nav-number">1.</span> <span class="nav-text">流水线（Pipeline）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#stream"><span class="nav-number">2.</span> <span class="nav-text">Stream</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#stream-shape"><span class="nav-number">2.1.</span> <span class="nav-text">Stream Shape</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#referencepipeline"><span class="nav-number">3.</span> <span class="nav-text">ReferencePipeline</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%81%E6%B0%B4%E7%BA%BF%E7%9A%84%E7%BB%84%E8%A3%85"><span class="nav-number">4.</span> <span class="nav-text">流水线的组装</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%A5%E5%8F%A3%E4%BB%8E%E5%8E%9F%E6%96%99%E5%88%B0%E5%B7%A5%E4%BB%B6"><span class="nav-number">4.1.</span> <span class="nav-text">入口：从原料到工件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%AD%E9%97%B4%E6%93%8D%E4%BD%9C%E6%9C%89%E7%8A%B6%E6%80%81-vs-%E6%97%A0%E7%8A%B6%E6%80%81"><span class="nav-number">4.2.</span> <span class="nav-text">中间操作：有状态 vs 无状态</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%87%BA%E5%8F%A3%E5%AE%8C%E6%88%90%E7%BB%84%E8%A3%85"><span class="nav-number">4.3.</span> <span class="nav-text">出口：完成组装</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%81%E6%B0%B4%E7%BA%BF%E7%9A%84%E6%89%A7%E8%A1%8C"><span class="nav-number">5.</span> <span class="nav-text">流水线的执行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%93%E5%B0%BE"><span class="nav-number">6.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/05/03/java-stream/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="虚拟工厂：Java stream | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          虚拟工厂：Java stream
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-05-03 23:07:27" itemprop="dateCreated datePublished" datetime="2020-05-03T23:07:27+08:00">2020-05-03</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Java/" itemprop="url" rel="index"><span itemprop="name">Java</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p>在我的文章 <a href="">虚拟工厂：Java 线程池</a> 中简单介绍了采用
+”工厂“ 这样一个现实生活中的概念来抽象具体的线程操作，并定义了
+<code>Worker</code> <code>TaskQueue</code>
+等概念。用这种方式拉近了计算机域和真实世界域之间的距离，让代码表现现实的意图。</p>
+<p>不仅仅是线程池，从 Java 8
+开始引入的<code>Stream</code>也一样，它用代码构建了一套流水线体系，通过流水线环节的叠加来实现对流水线上元素的各种处理。</p>
+<span id="more"></span>
+<h3 id="流水线pipeline">流水线（Pipeline）</h3>
+<p>在中文翻译中，我们时常会把 Assembly Line（装配线）以及
+Pipeline（管线）都译为流水线，而在计算机领域，我们说的流水线通常都是
+Pipeline，例如 CPU 的指令流水线（Instruction Pipeline）。</p>
+<p>对于 Pipeline，韦氏词典的第一个解释即：</p>
+<blockquote>
+<p>a line of pipe with pumps, valves, and control devices for conveying
+liquids, gases, or finely divided solids</p>
+</blockquote>
+<p>显然对于上述释义，Pipeline 翻译为 “管线”
+似乎更为合理，不过在软件领域，对 Pipeline 进行了引申，一个 Pipeline
+是一组计算过程（computing
+processes）的组合，并且以并行（Parallel）的方式执行。</p>
+<p>那么实际上在计算机领域，Pipeline 与 Assembly Line
+在概念上就没有太明确的区别了：我们可以将之类比为一种操作，它可以由多个工序构成，每个工序都将对上一个工序产出的工件进行进一步加工，工件从流水线入口进入，并在流水线上移动，最后被输出为某种产品。</p>
+<p>所以根据上述描述我们可以抽象出与流水线相关的几个概念：</p>
+<ul>
+<li>工件（workpiece）：即被流水线加工的元素</li>
+<li>工序（process）：即执行单元，它以工件为输入，也以工件为输出</li>
+<li>流水线（pipeline）：即流水线主体，他包括了入口，出口，在其上可以放置各种工序</li>
+</ul>
+<p>那么我们就能得到如下的一个流水线结构： <img src="/2020/05/03/java-stream/pipeline.png" class=""></p>
+<p>可见流水线上的工序理应能够灵活的组合与替换，采用各种简单而固定的工序，就能组合出来满足多种多样的需求。</p>
+<h3 id="stream">Stream</h3>
+<p>Java 8 中定义的流式操作，能够对流（Stream）叠加多种操作并进行处理。在
+<a
+href="https://www.oracle.com/technical-resources/articles/java/ma14-java-se-8-streams.html">Processing
+Data with Java SE 8 Streams, Part 1</a> 中提到对 Stream 的定义：</p>
+<blockquote>
+<p>a sequence of elements from a source that supports aggregate
+operations.</p>
+</blockquote>
+<p>首先，任何单一对象、集合、数组都可以输入为一个
+Stream，这就是定义里提到的 “source”。转换为 Stream
+后，他们都将变身为流中的一个元素，即 “sequence of
+element”。在对所有元素进行一番处理之后，Stream
+可以再次转换回到对象、集合、数组等，这里的处理即 “aggregate
+operations”。</p>
+<p>那么，对于这 ”一番处理“，从处理的方式上划分，有以下几种<a
+href="https://docs.oracle.com/javase/8/docs/api/java/util/stream/package-summary.html#StreamOps">处理形式</a>：</p>
+<ol type="1">
+<li><p>中间操作（Intermediate Operations）：会返回一个新的
+Stream，并且是 Lazy 操作</p>
+<ul>
+<li><p>无状态操作（StatelessOps）：对单个元素进行操作，操作之间没有联系，也不保存任何元素的状态。典型操作有：<code>filter</code>
+<code>maap</code> <code>peak</code> 等</p></li>
+<li><p>有状态操作（StatefulOps）：对流中元素的处理会依赖之前处理的结果，元素与元素之间有关系，下一个元素的处理依赖上一个元素的状态，或需要获取到所有的元素后才能进行操作。典型操作有：<code>distinct</code>
+<code>sorted</code> <code>limit</code></p></li>
+</ul></li>
+<li><p>终止操作（Termination
+Operations）：穿越（traverse）整个流，得到结果或是副作用（side-effect），一旦执行了终止操作，整个流就认为已经被消费，并且无法再次执行任何操作。</p></li>
+</ol>
+<h4 id="stream-shape">Stream Shape</h4>
+<p>通常，Stream 中的元素都以对象引用的形式存在，但同时 Java
+也考虑到了对基本类型的 Stream 支持，因此共定义了四种 “Stream
+Shape”：</p>
+<ul>
+<li><strong>Reference</strong>：元素类型为对象引用，其行为由
+<code>Stream</code> 定义</li>
+<li><strong>Int Value</strong>：元素类型为
+int，其行为由<code>IntStream</code>定义</li>
+<li><strong>Long Value</strong>：元素类型为
+long，其行为由<code>Longtream</code>定义</li>
+<li><strong>Double Value</strong>：元素类型为
+double，其行为由<code>DoubleStream</code>定义</li>
+</ul>
+<p>下文中主要以 Reference 类型的 Stream 来举例说明流水线的工作原理。</p>
+<h3 id="referencepipeline">ReferencePipeline</h3>
+<p>对于元素为对象引用的 Stream（也是大多数 Stream
+的形态）而言，<code>ReferencePipeline</code> 是其实现的核心。</p>
+<p><code>ReferencePipeline</code>的类继承关系如下图所示：</p>
+<img src="/2020/05/03/java-stream/reference-pipeline.png" class="">
+<p>此外，由于<code>ReferencePipeline</code>本身实现了
+<code>Streaam</code>接口，因此他实现了<code>Stream</code>中定义的所有行为，包括：<code>map</code>，<code>filter</code>，<code>reduce</code>，<code>collect</code>，<code>limit</code>
+等等。所以我们可以说<code>ReferencePipeline</code>本身就是一个流水线的基础工序，基于这种基础工序，我们能构造出多种多样的工序来。</p>
+<p><code>ReferencePipeline</code>
+作为基类，在其内部提供了如下三个实现类，这三个实现类进一步对不同种类的工序进行了定义：</p>
+<ul>
+<li>Head：入口工序
+<ul>
+<li>与其他两个实现类相比，<code>Head</code>比较独特，也比较好理解：他会被作为整个
+<code>Stream</code>
+的头部，也即流水线的入口。又因为<code>Head</code>本身是一个<code>ReferencePipeline</code>，因此我们可以把<code>Head</code>理解为一道特殊的工序，他接收原料作为工件，且不对工件做任何进一步处理，但作为头部（第一道工序），我们可以在其之后追加更多的工序。</li>
+</ul></li>
+<li>StatelessOp：无状态工序
+<ul>
+<li>对应前文 ”中间操作“ 中的无状态操作</li>
+<li>无状态工序不依赖前后两个工件的状态，即不论前后工件如何，他只对当前工件进行加工，典型的无状态工序是<code>map</code></li>
+</ul></li>
+<li>StatefulOp：有状态工序
+<ul>
+<li>对应前文 ”中间操作“ 中的有状态操作</li>
+<li>有状态工序依赖与工件之间的状态，他能结合多个工件来进行处理，典型的有状态工序是<code>sorted</code></li>
+</ul></li>
+</ul>
+<p>通过上述三种基于 <code>ReferencePipeline</code>
+实现的操作，定义了构造一条流水线的入口（Head）及中间操作（intermediate
+operation），那么现在就只剩下流水线的出口（terminal
+operation）还没有定义了，所以，JDK
+中还对流水线的出口即终止操作进行了定义：</p>
+<ul>
+<li>TerminalOp：出口工序
+<ul>
+<li>对应前文”终止操作“</li>
+<li>将流水线各工序最后输出的工件进行整合并转换为产品，典型的终止操作是<code>reduce</code>与<code>collect</code></li>
+</ul></li>
+</ul>
+<p>综合上述几种操作类型，不出意外，我们也许能进一步想到：</p>
+<ul>
+<li><code>map</code>操作其实就是一个行为是 ”对工件进行映射变换“
+的<code>StatelessOp</code> 工序</li>
+<li><code>filter</code>操作其实就是一个行为是 ”对工件进行筛选“
+的<code>StatelessOp</code>工序</li>
+<li><code>limit</code>操作其实就是一个行为是 ”只保留有限个工件“
+的<code>StatefulOp</code>工序</li>
+<li><code>sorted</code>操作其实就是一个行为是 ”对所有工件进行排序的“
+的<code>StatefulOp</code>工序</li>
+<li><code>collect</code>操作其实就是一个行为是 ”将所有工件整合为产品“
+的<code>TerminalOp</code>工序</li>
+</ul>
+<p>因此我们日常使用的形如：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Stream.of(<span class="string">&quot;a&quot;</span>, <span class="string">&quot;b&quot;</span>, <span class="string">&quot;c&quot;</span>, <span class="string">&quot;1&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="string">&quot;3&quot;</span>).filter(NumUtil::isNum).map(NumUtil::minusOne).limit(<span class="number">1</span>).collect(Collectors.toList);</span><br></pre></td></tr></table></figure>
+<p>其实就是先创造了一条这样的流水线：</p>
+<p><code>Head</code> -&gt; <code>StatelessOp:filter</code> -&gt;
+<code>StatelessOp:map</code> -&gt; <code>StatelessOp:filter</code> -&gt;
+<code>StatefulOp:limit</code> -&gt; <code>TerminalOp:collect</code></p>
+<p>之后输入工件：<code>"a", "b", "c", "1", "2", "3"</code>，最后启动流水线产出结果。</p>
+<h3 id="流水线的组装">流水线的组装</h3>
+<h4 id="入口从原料到工件">入口：从原料到工件</h4>
+<p>我们知道，在期望对某个或某集合进行 Stream
+操作之前，我们都需要使用一种通用的方式，将元素或集合转换为
+Stream，这种转换方法通常包括：</p>
+<ul>
+<li><code>Stream.of(T value)</code>：将单个给定元素转换为 Stream</li>
+<li><code>Arrays.stream(T[] valueArray)</code>：将数组转换为 Stream</li>
+<li><code>Collection.stream()</code>：将集合转换为 Stream</li>
+</ul>
+<p>深入这些方法后我们发现，实际上他们最终都调用了如下方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; Stream&lt;T&gt; <span class="title function_">stream</span><span class="params">(Spliterator&lt;T&gt; spliterator, <span class="type">boolean</span> parallel)</span> &#123;</span><br><span class="line">    Objects.requireNonNull(spliterator);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReferencePipeline</span>.Head&lt;&gt;(spliterator,</span><br><span class="line">                                        StreamOpFlag.fromCharacteristics(spliterator),</span><br><span class="line">                                        parallel);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>该方法很简单，如前文所述的，构造流水线的前提是构造一个入口，即<code>Head</code>，因此不论是从单个对象，还是从数组、集合中构造流水线，我们都将创建一个入口<code>Head</code>。</p>
+<p>那么入口有了，怎么样将原材料（输入元素）作为工件导入流水线呢？ 就靠
+<code>Spliterator</code>。</p>
+<p><code>Spliterator</code>定义了一类行为：</p>
+<blockquote>
+<p>作为 Stream 的输入源，Spiltertor
+能够对元素进行遍历（traverse）或拆分（partitioning）。</p>
+<p>可以采用<code>tryAdvance(Consumer&lt;? super T&gt; action)</code>方法来将
+action 作用于当前元素，可以用</p>
+<p><code>void forEachRemaining(Consumer&lt;? super T&gt; action)</code>方法来将
+action 作用于所有元素。</p>
+</blockquote>
+<p>在真实的使用中，流水线工序的集合从外部可以看做是一个<code>Consumer</code>，而<code>Spilterator</code>正是采用<code>forEachRemainig()</code>方法遍历每一个元素并执行流水线<code>Consumer.accept()</code>的方式来实施流水线操作的。</p>
+<h4 id="中间操作有状态-vs-无状态">中间操作：有状态 vs 无状态</h4>
+<p><strong>StatelessOp 无状态</strong></p>
+<p>每一个中间操作都会在当前流水线末端增加一道工序。</p>
+<p>我们从最简单、最容易理解的操作<code>map</code>来看看到底怎么样给流水线增加一道工序：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> &lt;R&gt; Stream&lt;R&gt; <span class="title function_">map</span><span class="params">(Function&lt;? <span class="built_in">super</span> P_OUT, ? extends R&gt; mapper)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(mapper);</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">StatelessOp</span>&lt;P_OUT, R&gt;(<span class="built_in">this</span>, StreamShape.REFERENCE,</span><br><span class="line">                                   StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT) &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    Sink&lt;P_OUT&gt; <span class="title function_">opWrapSink</span><span class="params">(<span class="type">int</span> flags, Sink&lt;R&gt; sink)</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Sink</span>.ChainedReference&lt;P_OUT, R&gt;(sink) &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">accept</span><span class="params">(P_OUT u)</span> &#123;</span><br><span class="line">          downstream.accept(mapper.apply(u));</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们知道，<code>map</code>操作会对流水线上每一个工件进行相同的加工工作，具体的加工方法描述为一个<code>Function&lt;? super P_OUT, ? extends R&gt; mapper</code>，所以显然<code>map</code>是一种无状态操作。上述代码中也印证了这一点：</p>
+<p>对一个<code>ReferencePipeline</code>（可以假定当前是一个<code>Head</code>）实施<code>map</code>操作实际上是返回了一个<code>StatelessOp</code>的匿名子类。那么在哪里做挂载工序操作呢？看看<code>StatelessOp</code>的构造方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// StatelessOp</span></span><br><span class="line">StatelessOp(AbstractPipeline&lt;?, E_IN, ?&gt; upstream,</span><br><span class="line">            StreamShape inputShape,</span><br><span class="line">            <span class="type">int</span> opFlags) &#123;</span><br><span class="line">  <span class="built_in">super</span>(upstream, opFlags);</span><br><span class="line">  <span class="keyword">assert</span> upstream.getOutputShape() == inputShape;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// super方法调用了 ReferencePipeline 的构造方法</span></span><br><span class="line">ReferencePipeline(AbstractPipeline&lt;?, P_IN, ?&gt; upstream, <span class="type">int</span> opFlags) &#123;</span><br><span class="line">  <span class="built_in">super</span>(upstream, opFlags);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ReferencePipeline 的 super 方法调用了 AbstractPipeline 的构造方法</span></span><br><span class="line">AbstractPipeline(AbstractPipeline&lt;?, E_IN, ?&gt; previousStage, <span class="type">int</span> opFlags) &#123;</span><br><span class="line">  <span class="keyword">if</span> (previousStage.linkedOrConsumed)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(MSG_STREAM_LINKED);</span><br><span class="line">  previousStage.linkedOrConsumed = <span class="literal">true</span>;</span><br><span class="line">  previousStage.nextStage = <span class="built_in">this</span>;</span><br><span class="line"></span><br><span class="line">  <span class="built_in">this</span>.previousStage = previousStage;</span><br><span class="line">  <span class="built_in">this</span>.sourceOrOpFlags = opFlags &amp; StreamOpFlag.OP_MASK;</span><br><span class="line">  <span class="built_in">this</span>.combinedFlags = StreamOpFlag.combineOpFlags(opFlags, previousStage.combinedFlags);</span><br><span class="line">  <span class="built_in">this</span>.sourceStage = previousStage.sourceStage;</span><br><span class="line">  <span class="keyword">if</span> (opIsStateful())</span><br><span class="line">    sourceStage.sourceAnyStateful = <span class="literal">true</span>;</span><br><span class="line">  <span class="built_in">this</span>.depth = previousStage.depth + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>根据代码可知，创建的
+<code>StatelessOp</code>实例，在构造函数中以调用者（刚刚我们假定为<code>Head</code>）<code>this</code>
+作为其<code>upstream</code>（也就是 <code>AbstractPipeline</code>
+中的<code>previousStage</code>）这有点像是构造链表时，新增节点将其<code>previousNode</code>设置为尾结点，并将尾结点的<code>nextNode</code>指向自己一样。</p>
+<img src="/2020/05/03/java-stream/stage-connect.png" class="">
+<p>至于匿名类中复写的<code>opWrapSink</code>方法，我们可以暂且认为该方法会在最终流水线启动时对每一个工件调用，因此也就不难理解方法内构造了一个<code>Sink</code>（Sink
+是什么后文会讲到），在<code>Sink</code>中又通过<code>downstream.accept(mapper.apply(u))</code>来对工件（也就是输入参数<code>u</code>）apply
+了 mapper，并继续调用其下游的<code>accept</code>方法。</p>
+<p>明白了<code>map</code>是怎么一回事，<code>filter</code>也就显而易见了：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> Stream&lt;P_OUT&gt; <span class="title function_">filter</span><span class="params">(Predicate&lt;? <span class="built_in">super</span> P_OUT&gt; predicate)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(predicate);</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">StatelessOp</span>&lt;P_OUT, P_OUT&gt;(<span class="built_in">this</span>, StreamShape.REFERENCE,</span><br><span class="line">                                       StreamOpFlag.NOT_SIZED) &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    Sink&lt;P_OUT&gt; <span class="title function_">opWrapSink</span><span class="params">(<span class="type">int</span> flags, Sink&lt;P_OUT&gt; sink)</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Sink</span>.ChainedReference&lt;P_OUT, P_OUT&gt;(sink) &#123;</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">begin</span><span class="params">(<span class="type">long</span> size)</span> &#123;</span><br><span class="line">          downstream.begin(-<span class="number">1</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">accept</span><span class="params">(P_OUT u)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (predicate.test(u))</span><br><span class="line">            downstream.accept(u);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>filter</code>除了具体的操作与<code>map</code>不同以外，仍然是构造了一个<code>StatelessOp</code>的匿名类。并且结合<code>filter</code>的语义，确实是当<code>predicate.test(u)</code>为
+true
+时，才会继续执行下游的操作，否则什么也不做。通过这种方法简单的实现了筛选功能。</p>
+<p><strong>StatefulOp 有状态</strong></p>
+<p>在来对比的看一下有状态操作<code>limit</code>:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> Stream&lt;P_OUT&gt; <span class="title function_">limit</span><span class="params">(<span class="type">long</span> maxSize)</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (maxSize &lt; <span class="number">0</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(Long.toString(maxSize));</span><br><span class="line">  <span class="keyword">return</span> SliceOps.makeRef(<span class="built_in">this</span>, <span class="number">0</span>, maxSize);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// SliceOps</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; Stream&lt;T&gt; <span class="title function_">makeRef</span><span class="params">(AbstractPipeline&lt;?, T, ?&gt; upstream,</span></span><br><span class="line"><span class="params">                                    <span class="type">long</span> skip, <span class="type">long</span> limit)</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (skip &lt; <span class="number">0</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;Skip must be non-negative: &quot;</span> + skip);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReferencePipeline</span>.StatefulOp&lt;T, T&gt;(upstream, StreamShape.REFERENCE,</span><br><span class="line">                                                flags(limit)) &#123;</span><br><span class="line">    ... ...</span><br><span class="line">      </span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    Sink&lt;T&gt; <span class="title function_">opWrapSink</span><span class="params">(<span class="type">int</span> flags, Sink&lt;T&gt; sink)</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Sink</span>.ChainedReference&lt;T, T&gt;(sink) &#123;</span><br><span class="line">        <span class="type">long</span> <span class="variable">n</span> <span class="operator">=</span> skip;</span><br><span class="line">        <span class="type">long</span> <span class="variable">m</span> <span class="operator">=</span> limit &gt;= <span class="number">0</span> ? limit : Long.MAX_VALUE;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">begin</span><span class="params">(<span class="type">long</span> size)</span> &#123;</span><br><span class="line">          downstream.begin(calcSize(size, skip, m));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">accept</span><span class="params">(T t)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (n == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (m &gt; <span class="number">0</span>) &#123;</span><br><span class="line">              m--;</span><br><span class="line">              downstream.accept(t);</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">else</span> &#123;</span><br><span class="line">            n--;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ... ...</span><br><span class="line">      &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>很直白：将 <code>limit</code>值赋给<code>m</code>，
+每当执行一个工件时<code>m--</code>，直到<code>m&lt;0</code>后不再继续操作。这里的
+"Stateful" 说的就是<code>m</code>了。</p>
+<h4 id="出口完成组装">出口：完成组装</h4>
+<p>在对流水线添加了一系列工序之后，是时候启动流水线并生产出产品了。</p>
+<p>我们通过对流水线挂载最后一个工序：<code>TerminalOp</code>来结束流水线的创建，并启动流水线。先来看看<code>TerminalOp</code>提供的行为:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">interface</span> <span class="title class_">TerminalOp</span>&lt;E_IN, R&gt; &#123;</span><br><span class="line">    ... ...</span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Performs a sequential evaluation of the operation using the specified</span></span><br><span class="line"><span class="comment">     * &#123;<span class="doctag">@code</span> PipelineHelper&#125;, which describes the upstream intermediate</span></span><br><span class="line"><span class="comment">     * operations.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> helper the pipeline helper</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> spliterator the source spliterator</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the result of the evaluation</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    &lt;P_IN&gt; R <span class="title function_">evaluateSequential</span><span class="params">(PipelineHelper&lt;E_IN&gt; helper,</span></span><br><span class="line"><span class="params">                                Spliterator&lt;P_IN&gt; spliterator)</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>除去我们不关心的行为，最重要的行为便是：<code>evaluateSequential()</code>了，根据注释可知，实现该方法，来对给定的<code>spliterator</code>执行操作，操作是由描述了上游中间操作的<code>PipelineHelper</code>来执行。根据前文的继承关系图，我们知道实际上<code>ReferencePipeling</code>本身就是一个<code>PipelineHelper</code>，再结合前文所述，一条流水线被创建时，<code>spliterator</code>已经与<code>Head</code>一起被作为流水线入口的一部分了，因此直接找一段比较简单的终止操作实现，<code>reduce</code>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ReferencePipeline</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> Optional&lt;P_OUT&gt; <span class="title function_">reduce</span><span class="params">(BinaryOperator&lt;P_OUT&gt; accumulator)</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> evaluate(ReduceOps.makeRef(accumulator));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// AbstractPipeline</span></span><br><span class="line"><span class="keyword">final</span> &lt;R&gt; R <span class="title function_">evaluate</span><span class="params">(TerminalOp&lt;E_OUT, R&gt; terminalOp)</span> &#123;</span><br><span class="line">  <span class="keyword">assert</span> <span class="title function_">getOutputShape</span><span class="params">()</span> == terminalOp.inputShape();</span><br><span class="line">  <span class="keyword">if</span> (linkedOrConsumed)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalStateException</span>(MSG_STREAM_LINKED);</span><br><span class="line">  linkedOrConsumed = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> isParallel()</span><br><span class="line">    ? terminalOp.evaluateParallel(<span class="built_in">this</span>, sourceSpliterator(terminalOp.getOpFlags()))</span><br><span class="line">    : terminalOp.evaluateSequential(<span class="built_in">this</span>, sourceSpliterator(terminalOp.getOpFlags()));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ReduceOps </span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; TerminalOp&lt;T, Optional&lt;T&gt;&gt;</span><br><span class="line">  <span class="title function_">makeRef</span><span class="params">(BinaryOperator&lt;T&gt; operator)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(operator);</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">ReducingSink</span></span><br><span class="line">    <span class="keyword">implements</span> <span class="title class_">AccumulatingSink</span>&lt;T, Optional&lt;T&gt;, ReducingSink&gt; &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">boolean</span> empty;</span><br><span class="line">    <span class="keyword">private</span> T state;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">begin</span><span class="params">(<span class="type">long</span> size)</span> &#123;</span><br><span class="line">      empty = <span class="literal">true</span>;</span><br><span class="line">      state = <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">accept</span><span class="params">(T t)</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (empty) &#123;</span><br><span class="line">        empty = <span class="literal">false</span>;</span><br><span class="line">        state = t;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        state = operator.apply(state, t);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Optional&lt;T&gt; <span class="title function_">get</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> empty ? Optional.empty() : Optional.of(state);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">combine</span><span class="params">(ReducingSink other)</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (!other.empty)</span><br><span class="line">        accept(other.state);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReduceOp</span>&lt;T, Optional&lt;T&gt;, ReducingSink&gt;(StreamShape.REFERENCE) &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> ReducingSink <span class="title function_">makeSink</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReducingSink</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以发现，当我们对一个 Stream
+挂载<code>reduce</code>操作时，实际上先构造了一个<code>ReduceOp</code>（实现了
+<code>TerminalOp</code>）之后通过语句<code>terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()))</code>
+触发<code>TerminalOp</code>中的<code>evaluateSequential()</code>方法，其两个入参正好是当前组装好的流水线<code>this</code>以及输入源<code>sourceSpliterator()</code>（该方法返回一个<code>Spliterator</code>）。</p>
+<p>那么我们具体来看一看<code>ReduceOp</code>中定义的`<code>evaluateSequential()</code>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">abstract</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">ReduceOp</span>&lt;T, R, S <span class="keyword">extends</span> <span class="title class_">AccumulatingSink</span>&lt;T, R, S&gt;&gt;</span><br><span class="line">  <span class="keyword">implements</span> <span class="title class_">TerminalOp</span>&lt;T, R&gt; &#123;</span><br><span class="line"></span><br><span class="line">  ... ...</span><br><span class="line">		<span class="keyword">public</span> <span class="keyword">abstract</span> S <span class="title function_">makeSink</span><span class="params">()</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> &lt;P_IN&gt; R <span class="title function_">evaluateSequential</span><span class="params">(PipelineHelper&lt;T&gt; helper,</span></span><br><span class="line"><span class="params">                                       Spliterator&lt;P_IN&gt; spliterator)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> helper.wrapAndCopyInto(makeSink(), spliterator).get();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结合前面<code>reduce</code>方法构造的匿名类中实现的<code>makeSink()</code>方法
+<code>return new ReducingSink();</code>，我们得知其实<code>reduce</code>匿名类的真实作用是调用<code>makeSink</code>构造了一个<code>Sink</code>之后将之传入原
+Stream
+中，并调用流水线的<code>wrapAndCopyInto()</code>方法来启动整个流水线。</p>
+<p><strong>Sink</strong></p>
+<p>前文我们在构建中间操作时遇到过<code>Sink</code>但没有细说，终于，要到了解释<code>Sink</code>的时刻了。</p>
+<p>从流水线的角度讲 ，不论是 <code>map</code>、<code>filter</code>、
+<code>limit</code> 还是
+<code>reduce</code>，都属于高层抽象概念，主要用于定义通用的工序行为。在
+Stream
+的实现中，采用<code>Head</code>、<code>StatelessOp</code>、<code>StatefulOp</code>和<code>TerminalOp</code>作为中间层抽象，主要用于对工序行为进行归纳分类。而最终落到低层实现上，靠的只有一种东西：<code>Sink</code>。</p>
+<p>从<code>Sink</code>的定义来看，不论是什么样的流水线工序，Steam
+都将其低层定义成了一个<code>Sink</code>，用来在流水线的各个阶段（stage）传递值。从名称中就很明确，<code>Sink</code>就像是一个个的水槽，互相之间首尾相连，数据流从第一个水槽漏到第二个，再漏到第三个，以此类推，只能向下漏，不能向上返。</p>
+<img src="/2020/05/03/java-stream/sink.png" class="">
+<p><code>Sink</code>具有两个状态：</p>
+<ul>
+<li>初始态</li>
+<li>激活态</li>
+</ul>
+<p>三种基本的行为：</p>
+<ul>
+<li>begin: 在接收数据之前调用，并将<code>Sink</code>置为激活态</li>
+<li>accept：开始接收数据，并对数据进行处理</li>
+<li>end：数据处理完成后调用，并将<code>Sink</code>置为初始态</li>
+</ul>
+<p>有了以上知识，结合前文<code>map</code>操作的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">Sink&lt;P_OUT&gt; <span class="title function_">opWrapSink</span><span class="params">(<span class="type">int</span> flags, Sink&lt;R&gt; sink)</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Sink</span>.ChainedReference&lt;P_OUT, R&gt;(sink) &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">accept</span><span class="params">(P_OUT u)</span> &#123;</span><br><span class="line">      downstream.accept(mapper.apply(u));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>就很清晰了，就像前文图里画的一样，通过<code>opWrapSink</code>方法，把传入的<code>sink</code>进行一层包装，创建一个新的<code>Sink.ChainedReference</code>（有点像装饰器模式）。来看看<code>Sink.ChainedReference</code>的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">abstract</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">ChainedReference</span>&lt;T, E_OUT&gt; <span class="keyword">implements</span> <span class="title class_">Sink</span>&lt;T&gt; &#123;</span><br><span class="line">  <span class="keyword">protected</span> <span class="keyword">final</span> Sink&lt;? <span class="built_in">super</span> E_OUT&gt; downstream;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="title function_">ChainedReference</span><span class="params">(Sink&lt;? <span class="built_in">super</span> E_OUT&gt; downstream)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.downstream = Objects.requireNonNull(downstream);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">begin</span><span class="params">(<span class="type">long</span> size)</span> &#123;</span><br><span class="line">    downstream.begin(size);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">end</span><span class="params">()</span> &#123;</span><br><span class="line">    downstream.end();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">cancellationRequested</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> downstream.cancellationRequested();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>基于传入的<code>Sink</code>构造的<code>Sink.ChainedReference</code>，顾名思义就像一根链条一样，其<code>begin</code>和<code>end</code>方法都直接调用传入<code>Sink</code>的方法，在<code>map</code>的<code>opWrapSink</code>中，覆写了<code>accept()</code>方法，先执行<code>mapper</code>的逻辑，之后执行传入<code>Sink</code>的逻辑。</p>
+<p>有趣的是，在<code>Sink.ChainedReference</code>中将传入的<code>Sink</code>命名为"downstram"，也就是下游，那么从实现上，<code>Sink</code>是从最底层开始，层层包装，层层向上构建的。而前文中我们提到，<code>Sink</code>就像是首尾相连的水槽，水（数据）只能向下流，不能向上流。正因为这一点，实际上<code>Sink</code>在组装时，是从下往上，才能满足运行时数据从上往下流动。</p>
+<p>基于此，我们是否可以假设，类似<code>Stream.of("a", "b", "c", "1", "2", "3").filter(NumUtil::isNum).map(NumUtil::minusOne).limit(1).collect(Collectors.toList);</code>流水线的组装，从实现上其实是先从<code>collect</code>这一道<code>TerminlOp</code>工序为起点的？</p>
+<p>从代码我们可以得知：确实是这样的，回顾一下<code>ReduceOp</code>的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">abstract</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">ReduceOp</span>&lt;T, R, S <span class="keyword">extends</span> <span class="title class_">AccumulatingSink</span>&lt;T, R, S&gt;&gt;</span><br><span class="line">  <span class="keyword">implements</span> <span class="title class_">TerminalOp</span>&lt;T, R&gt; &#123;</span><br><span class="line"></span><br><span class="line">  ... ...</span><br><span class="line">		<span class="keyword">public</span> <span class="keyword">abstract</span> S <span class="title function_">makeSink</span><span class="params">()</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> &lt;P_IN&gt; R <span class="title function_">evaluateSequential</span><span class="params">(PipelineHelper&lt;T&gt; helper,</span></span><br><span class="line"><span class="params">                                       Spliterator&lt;P_IN&gt; spliterator)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> helper.wrapAndCopyInto(makeSink(), spliterator).get();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; TerminalOp&lt;T, Optional&lt;T&gt;&gt;</span><br><span class="line">  <span class="title function_">makeRef</span><span class="params">(BinaryOperator&lt;T&gt; operator)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(operator);</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">ReducingSink</span></span><br><span class="line">    <span class="keyword">implements</span> <span class="title class_">AccumulatingSink</span>&lt;T, Optional&lt;T&gt;, ReducingSink&gt; &#123;</span><br><span class="line">    ... ...</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReduceOp</span>&lt;T, Optional&lt;T&gt;, ReducingSink&gt;(StreamShape.REFERENCE) &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> ReducingSink <span class="title function_">makeSink</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReducingSink</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在<code>helper.wrapAndCopyInto(makeSink(), spliterator)</code>中第一次被<code>wrap</code>的<code>Sink</code>就是通过<code>makeSink()</code>方法生成出来的。</p>
+<p><strong>综合以上所有</strong>，我们发现： Java Stream
+中对流水线的组装，从抽象层次角度划分，可以分成三层：</p>
+<ol type="1">
+<li>业务高层：采用
+<code>filter</code>、<code>map</code>、<code>reduce</code>
+等业务概念描述流水线中的多种工序</li>
+<li>抽象中层：采用<code>Head</code>，<code>StatelessOp</code>、<code>StatefulOp</code>、<code>TerminalOp</code>四种形式来完整描述所有的业务工序</li>
+<li>实现低层：采用<code>Sink</code>来具体完成实现逻辑，形成各工序的串联</li>
+</ol>
+<img src="/2020/05/03/java-stream/three-level-abstract.png" class="">
+<p>从代码组装的角度划分，可以分成正向/反向两个过程：</p>
+<ol type="1">
+<li><p>正向组装：</p>
+<p>从
+<code>Head</code>开始，不断在尾部挂载新的工序，包括中间操作或终止操作。</p></li>
+<li><p>反向组装：</p>
+<p>从<code>TerminalOp</code>的<code>makeSink()</code>开始，不断向前包装
+<code>Sink</code> 形成<code>Sink</code>链。</p></li>
+</ol>
+<img src="/2020/05/03/java-stream/two-wrap-line.png" class="">
+<h3 id="流水线的执行">流水线的执行</h3>
+<p>经过上一节的流水线组装，终于到了要执行流水线的时候了。</p>
+<p>详细的看看<code>helper.wrapAndCopyInto(makeSink(), spliterator).get()</code>具体是如何实现的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractPipeline.class</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">final</span> &lt;P_IN, S <span class="keyword">extends</span> <span class="title class_">Sink</span>&lt;E_OUT&gt;&gt; S <span class="title function_">wrapAndCopyInto</span><span class="params">(S sink, Spliterator&lt;P_IN&gt; spliterator)</span> &#123;</span><br><span class="line">  copyInto(wrapSink(Objects.requireNonNull(sink)), spliterator);</span><br><span class="line">  <span class="keyword">return</span> sink;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line"><span class="keyword">final</span> &lt;P_IN&gt; Sink&lt;P_IN&gt; <span class="title function_">wrapSink</span><span class="params">(Sink&lt;E_OUT&gt; sink)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(sink);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> ( <span class="meta">@SuppressWarnings(&quot;rawtypes&quot;)</span> AbstractPipeline p=AbstractPipeline.<span class="built_in">this</span>; p.depth &gt; <span class="number">0</span>; p=p.previousStage) &#123;</span><br><span class="line">    sink = p.opWrapSink(p.previousStage.combinedFlags, sink);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> (Sink&lt;P_IN&gt;) sink;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">final</span> &lt;P_IN&gt; <span class="keyword">void</span> <span class="title function_">copyInto</span><span class="params">(Sink&lt;P_IN&gt; wrappedSink, Spliterator&lt;P_IN&gt; spliterator)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(wrappedSink);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!StreamOpFlag.SHORT_CIRCUIT.isKnown(getStreamAndOpFlags())) &#123;</span><br><span class="line">    wrappedSink.begin(spliterator.getExactSizeIfKnown());</span><br><span class="line">    spliterator.forEachRemaining(wrappedSink);</span><br><span class="line">    wrappedSink.end();</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">else</span> &#123;</span><br><span class="line">    copyIntoWithCancel(wrappedSink, spliterator);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>以上<code>AbstractPipeline</code>中的三个方法组成了最终执行流水线的全部动作。</p>
+<p>其中，<code>wrapSink()</code>方法接收由<code>ReduceOp</code>的<code>maakeSink()</code>方法所创建出的尾部<code>Sink</code>，之后不断向上查找<code>priviousStaage</code>并调用其<code>opWrapSink()</code>方法，层层包装形成最终的<code>Sink</code>链条，这就是上一节图中所展示的<code>Sink</code>包装具体实现。</p>
+<p><code>wrapSink()</code>最终返回的<code>Sink</code>，包含了所有下游的<code>Sink</code>。</p>
+<p>这时该<code>Sink</code>作为参数，与另一个参数<code>splieraator</code>，一起进入
+<code>copyInto()</code>方法，通过<code>spliterator.forEachRemaining(wrappedSink)</code>这句话，对Stream中的每一个元素都会从上到下流经一遍所有的
+<code>Sink</code>，最终被最后一个<code>Sink</code>（也就是<code>makeSink()</code>方法创建的<code>ReducingSink</code>）所收集，并进行最后的处理。</p>
+<p>为了清晰，我们再次放出<code>ReducingSink</code>的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ReduceOps </span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; TerminalOp&lt;T, Optional&lt;T&gt;&gt;</span><br><span class="line">  <span class="title function_">makeRef</span><span class="params">(BinaryOperator&lt;T&gt; operator)</span> &#123;</span><br><span class="line">  Objects.requireNonNull(operator);</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">ReducingSink</span></span><br><span class="line">    <span class="keyword">implements</span> <span class="title class_">AccumulatingSink</span>&lt;T, Optional&lt;T&gt;, ReducingSink&gt; &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="type">boolean</span> empty;</span><br><span class="line">    <span class="keyword">private</span> T state;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">begin</span><span class="params">(<span class="type">long</span> size)</span> &#123;</span><br><span class="line">      empty = <span class="literal">true</span>;</span><br><span class="line">      state = <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">accept</span><span class="params">(T t)</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (empty) &#123;</span><br><span class="line">        empty = <span class="literal">false</span>;</span><br><span class="line">        state = t;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        state = operator.apply(state, t);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Optional&lt;T&gt; <span class="title function_">get</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> empty ? Optional.empty() : Optional.of(state);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">combine</span><span class="params">(ReducingSink other)</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (!other.empty)</span><br><span class="line">        accept(other.state);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReduceOp</span>&lt;T, Optional&lt;T&gt;, ReducingSink&gt;(StreamShape.REFERENCE) &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> ReducingSink <span class="title function_">makeSink</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ReducingSink</span>();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>ReducingSink</code>保存了一个共享变量<code>state</code>，其<code>accept()</code>方法调用<code>BinaryOperator.apply(op1, op2)</code>来将到达<code>Sink</code>的
+Stream
+中前后两个元素进行聚合，最后，由于<code>ReducingSink</code>的父类<code>AccumulatingSink</code>实现了<code>Consumer</code>，因此可以在所有元素都聚合完成后通过<code>get()</code>方法拿到聚合结果。</p>
+<p>这整是<code>helper.wrapAndCopyInto(makeSink(), spliterator).get()</code>最后的<code>get()</code>的作用。</p>
+<h3 id="结尾">结尾</h3>
+<p>看完了 Java Stream 的实现原理，再想想自从 jdk8
+以后在业务代码里随处可见的 Stream
+用法，不得不感叹其底层实现的工整、精巧。他以较为复杂的方式实现了流式操作，但最终暴露给用户的，仅仅是<code>Stream.of().filter().map().collect()</code>这样简单、直接的语义，真正做到了设计的高内聚和低耦合。</p>
+<p>从代码架构角度看，Stream 的实现采用三层结构，高层引申概念并提供
+API，底层抽取共性并实现逻辑，而中层通过业务抽象来衔接高低层。通过这种方式实现了良好的扩展性，有了基础架构，多种多样的功能都能简单的实现出来（这里可以参考<code>distinct</code>、<code>collect</code>等操作符的实现逻辑，无一不实现的清晰而简洁）。</p>
+<p>回过头想想我自己日常的
+coding，有没有可能尽量通过合理的分层、清晰地设计来更好的表达业务，并提供更强的扩展性呢？这应该是我读完
+Stream 的源码后期望能深入思考之处。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/05/03/java-stream/" title="虚拟工厂：Java stream">http://lenshood.github.io/2020/05/03/java-stream/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/stream/" rel="tag"># stream</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/04/18/java-factory-thread-pool/" rel="prev" title="虚拟工厂：Java 线程池">
+                  <i class="fa fa-angle-left"></i> 虚拟工厂：Java 线程池
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/06/07/guava-strings/" rel="next" title="Guava 译文系列）Strings">
+                  Guava 译文系列）Strings <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

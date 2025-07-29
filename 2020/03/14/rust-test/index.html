@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="先跑起来 不说什么具体的知识，我们先一步步的，来写个最简单的测试，并且让他啊跑起来，看看 rust 下的测试是什么样子的： 1. 创建个 lib 工程：cargo new simplest-test --lib 2. 在 src&#x2F;lib.rs 里面，rust 已经自动帮我们写下了如下代码： 1234567#[cfg(test)]mod test &#123;    #[test]    fn it">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust 怎么写测试">
+<meta property="og:url" content="http://lenshood.github.io/2020/03/14/rust-test/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="先跑起来 不说什么具体的知识，我们先一步步的，来写个最简单的测试，并且让他啊跑起来，看看 rust 下的测试是什么样子的： 1. 创建个 lib 工程：cargo new simplest-test --lib 2. 在 src&#x2F;lib.rs 里面，rust 已经自动帮我们写下了如下代码： 1234567#[cfg(test)]mod test &#123;    #[test]    fn it">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-03-14T06:59:28.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.421Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="test">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/03/14/rust-test/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/03/14/rust-test/","path":"2020/03/14/rust-test/","title":"Rust 怎么写测试"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Rust 怎么写测试 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%88%E8%B7%91%E8%B5%B7%E6%9D%A5"><span class="nav-number">1.</span> <span class="nav-text">先跑起来</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%96%AD%E8%A8%80"><span class="nav-number">2.</span> <span class="nav-text">断言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%95%E5%85%83%E6%B5%8B%E8%AF%95"><span class="nav-number">3.</span> <span class="nav-text">单元测试</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9B%86%E6%88%90%E6%B5%8B%E8%AF%95"><span class="nav-number">4.</span> <span class="nav-text">集成测试</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E8%BF%90%E8%A1%8C%E6%8E%A7%E5%88%B6"><span class="nav-number">5.</span> <span class="nav-text">测试运行控制</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/03/14/rust-test/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Rust 怎么写测试 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Rust 怎么写测试
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-03-14 14:59:28" itemprop="dateCreated datePublished" datetime="2020-03-14T14:59:28+08:00">2020-03-14</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h3 id="先跑起来">先跑起来</h3>
+<p>不说什么具体的知识，我们先一步步的，来写个最简单的测试，并且让他啊跑起来，看看
+rust 下的测试是什么样子的： 1. 创建个 lib
+工程：<code>cargo new simplest-test --lib</code> 2. 在
+<code>src/lib.rs</code> 里面，rust 已经自动帮我们写下了如下代码：
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(test)]</span></span><br><span class="line"><span class="keyword">mod</span> test &#123;</span><br><span class="line">    <span class="meta">#[test]</span></span><br><span class="line">    <span class="keyword">fn</span> <span class="title function_">it_works</span>() &#123;</span><br><span class="line">        <span class="built_in">assert_eq!</span>(<span class="number">2</span> + <span class="number">2</span>, <span class="number">4</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure> 3. 运行一下：<code>cargo test</code> <figure class="highlight subunit"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">   Compiling simplest-test v0.1.0 (/User/xxx/simplest-test)</span><br><span class="line">        Finished dev [unoptimized + debuginfo] target(s) in 5.91s</span><br><span class="line">            Running target/debug/deps/simplest_test-c430fbaec5f55b85</span><br><span class="line"></span><br><span class="line">running 1 test</span><br><span class="line"><span class="keyword">test test</span>s::it_works ... ok</span><br><span class="line"></span><br><span class="line"><span class="keyword">test </span>result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out</span><br><span class="line"></span><br><span class="line">    Doc-tests simplest-test</span><br><span class="line"></span><br><span class="line">running 0 tests</span><br><span class="line"></span><br><span class="line"><span class="keyword">test </span>result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out</span><br></pre></td></tr></table></figure></p>
+<p>经过上述三步，我们已经创建了一个最简单的测试工程，并且运行了自带的测试。</p>
+<p>在代码层面，测试本身无需多说，结构上我们看到，与业务代码不同，测试在
+module 上增加了 attribute: <code>#[cfg(test)]</code>，在测试方法上增加了
+attribute: <code>#[test]</code>。 -
+<code>#[cfg(test)]</code>：配置编译条件，只有在 test
+模式下，被标记的代码块才会被编译（换句话说，它确保 release
+中不包含测试代码） -
+<code>#[test]</code>：被标记的方法将被视为测试来执行</p>
+<p>在 output 中，还包含了两部分“running x
+test”，第一部分是我们已有的测试，第二部分为文档测试，本文暂不涉及。</p>
+<span id="more"></span>
+<h3 id="断言">断言</h3>
+<p>rust 原生提供了几种简单的测试断言，能够满足基本的测试需求，以下是
+rust 的测试断言与 junit 测试断言的对应表：</p>
+<table>
+<thead>
+<tr class="header">
+<th>rust</th>
+<th>junit</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>assert!()</td>
+<td>assertTrue()</td>
+</tr>
+<tr class="even">
+<td>assert_eq!()</td>
+<td>assertEqual()</td>
+</tr>
+<tr class="odd">
+<td>assert_ne!()</td>
+<td>assertNotEqual()</td>
+</tr>
+<tr class="even">
+<td>#[should_panic(expected = "{error message}")]</td>
+<td>assertThrows()</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>对 panic 的断言使用的是 attribute 而不是 macro</p>
+</blockquote>
+<h3 id="单元测试">单元测试</h3>
+<p>rust 的封装性与 java 略有不同，只有 default(private) 与
+pub(public)，那么有个问题：我想写个单元测试，难道必须要把需要测试的函数都
+pub 出来吗？（其实 java 里面也有要不要测试 private
+方法的讨论，参见《修改代码的艺术》）</p>
+<p>而在 rust 中，我们不用过多担心测试私有函数的问题，因为通常 rust
+的单元测试会直接与被测代码放置在一起，见以下代码： <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// src/biz.rs</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">int_adder</span>(op1:<span class="type">i32</span>, op2:<span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">    op1 + op2</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(test)]</span></span><br><span class="line"><span class="keyword">mod</span> tests &#123;</span><br><span class="line">    <span class="keyword">use</span> super::*;</span><br><span class="line"></span><br><span class="line">    <span class="meta">#[test]</span></span><br><span class="line">    <span class="keyword">fn</span> <span class="title function_">should_return_4_when_2_add_2</span>() &#123;</span><br><span class="line">        <span class="built_in">assert_eq!</span>(<span class="title function_ invoke__">int_adder</span>(<span class="number">2</span>, <span class="number">2</span>), <span class="number">4</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+按照上述方式，在 biz 中定义了 child module: <code>tests</code>，child
+module 能够合法的访问他的 parent，因此能够直接调用其 parent
+的私有方法。</p>
+<p>同时，<code>#[cfg(test)]</code>确保了该单元测试不会被编译（除非在
+test 模式下）。</p>
+<h3 id="集成测试">集成测试</h3>
+<p>与 java 类似，rust 也能识别特定的测试目录 tests, tests 目录与 src
+目录并列，作为专门存放集成测试的地方。</p>
+<p>显然，放在 tests
+中的测试代码不再能访问到私有函数了。不过集成测试本来也不应该测试细节。另外，放置在
+tests 目录下的测试代码，不再需要<code>#[cfg(test)]</code> attribute
+了，rust 编译器会自动识别所有 tests 目录下的代码为测试。</p>
+<p>对上一节中的例子进行修改，得到如下集成测试： <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">-----------------------------------------------</span><br><span class="line"><span class="comment">// src/biz.rs</span></span><br><span class="line">-----------------------------------------------</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">int_adder</span>(op1:<span class="type">i32</span>, op2:<span class="type">i32</span>) <span class="punctuation">-&gt;</span> <span class="type">i32</span> &#123;</span><br><span class="line">    op1 + op2</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">-----------------------------------------------</span><br><span class="line"><span class="comment">// src/lib.rs</span></span><br><span class="line">-----------------------------------------------</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">mod</span> biz;</span><br><span class="line"></span><br><span class="line">-----------------------------------------------</span><br><span class="line"><span class="comment">// tests/biz_test.rs</span></span><br><span class="line">-----------------------------------------------</span><br><span class="line"><span class="keyword">use</span> simplest_test::biz;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[test]</span></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">should_return_4_when_2_add_2</span>() &#123;</span><br><span class="line">    <span class="built_in">assert_eq!</span>(biz::<span class="title function_ invoke__">int_adder</span>(<span class="number">2</span>, <span class="number">2</span>), <span class="number">4</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>再看看测试输出： <figure class="highlight subunit"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">   Compiling simplest-test v0.1.0 (/Users/xxx/simplest-test)</span><br><span class="line">    Finished dev [unoptimized + debuginfo] target(s) in 0.55s</span><br><span class="line">     Running target/debug/deps/simplest_test-c430fbaec5f55b85</span><br><span class="line"></span><br><span class="line">running 0 tests</span><br><span class="line"></span><br><span class="line"><span class="keyword">test </span>result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out</span><br><span class="line"></span><br><span class="line">     Running target/debug/deps/biz_test-c9cf61d397408434</span><br><span class="line"></span><br><span class="line">running 1 test</span><br><span class="line"><span class="keyword">test </span>should_return_4_when_2_add_2 ... ok</span><br><span class="line"></span><br><span class="line"><span class="keyword">test </span>result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out</span><br><span class="line"></span><br><span class="line">   Doc-tests simplest-test</span><br><span class="line"></span><br><span class="line">running 0 tests</span><br></pre></td></tr></table></figure> 可以看到，与前文相比，一共有三部分
+<code>running x tests</code>，比之前多的一部分，就是我们新增的集成测试了。tests
+目录下的测试会单独占据一块输出。</p>
+<h3 id="测试运行控制">测试运行控制</h3>
+<ol type="1">
+<li>默认情况下，rust
+采用多线程并行执行所有测试，当有串行需要时可以执行：<code>cargo test -- --test-threads=&#123;thread_numbers&#125;</code>来控制执行测试的线程数。</li>
+<li>rust 默认不打印 passed test
+的任何输出，当有需要打印输出时，执行：<code>cargo test -- --show-output</code></li>
+<li>当期望只运行某个特定测试时，执行：<code>cargo test &#123;test_function_name&#125;</code></li>
+<li>当期望只运行某一类测试时，执行：<code>cargo test &#123;test_function_name_matcher&#125;</code></li>
+<li>与 junit 类似，当期望 ignore 测试时，在测试函数上添加：
+<code>#[ignore]</code> attribute</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/03/14/rust-test/" title="Rust 怎么写测试">http://lenshood.github.io/2020/03/14/rust-test/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/test/" rel="tag"># test</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/02/04/redis-distributed-lock/" rel="prev" title="Java 基于 Redis 实现分布式锁需要注意什么？">
+                  <i class="fa fa-angle-left"></i> Java 基于 Redis 实现分布式锁需要注意什么？
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/03/16/rust-module/" rel="next" title="Rust Module">
+                  Rust Module <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Git Pages 镜像到 Gitee Pages 在本站早期的文章Build your own blog site by using GithubPages + Hexo + Travis CI中描述了如何使用 Hexo 和 Travis 来在 Git Pages 服务上搭建自己的个人博客。 但使用了一段时间之后，发现 Git Pages 的方案存在一些问题： - 访问速度慢。不走 VPN 访问">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Git Pages 镜像到 Gitee Pages">
+<meta property="og:url" content="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Git Pages 镜像到 Gitee Pages 在本站早期的文章Build your own blog site by using GithubPages + Hexo + Travis CI中描述了如何使用 Hexo 和 Travis 来在 Git Pages 服务上搭建自己的个人博客。 但使用了一段时间之后，发现 Git Pages 的方案存在一些问题： - 访问速度慢。不走 VPN 访问">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_pages_service.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/git_access_token.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_access_token.png">
+<meta property="og:image" content="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_update.png">
+<meta property="article:published_time" content="2020-04-06T13:21:26.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.287Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="github pages">
+<meta property="article:tag" content="gitee pages">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_pages_service.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/","path":"2020/04/06/mirror-github-pages-to-gitee-paages/","title":"Git Pages 镜像到 Gitee Pages"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Git Pages 镜像到 Gitee Pages | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#git-pages-%E9%95%9C%E5%83%8F%E5%88%B0-gitee-pages"><span class="nav-number">1.</span> <span class="nav-text">Git Pages 镜像到 Gitee Pages</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#hexo-%E7%9A%84-deploy-%E5%8A%9F%E8%83%BD"><span class="nav-number">1.1.</span> <span class="nav-text">Hexo 的 deploy 功能</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#gitee-%E5%88%9B%E5%BB%BA%E4%BB%93%E5%BA%93%E7%94%9F%E6%88%90-access-token"><span class="nav-number">1.2.</span> <span class="nav-text">Gitee 创建仓库，生成 Access
+Token</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#travis"><span class="nav-number">1.3.</span> <span class="nav-text">Travis</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%83%A8%E7%BD%B2-gitee-pages"><span class="nav-number">1.4.</span> <span class="nav-text">部署 Gitee Pages</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Git Pages 镜像到 Gitee Pages | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Git Pages 镜像到 Gitee Pages
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-04-06 21:21:26" itemprop="dateCreated datePublished" datetime="2020-04-06T21:21:26+08:00">2020-04-06</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Others/" itemprop="url" rel="index"><span itemprop="name">Others</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="git-pages-镜像到-gitee-pages">Git Pages 镜像到 Gitee Pages</h2>
+<p>在本站早期的文章<a
+href="https://lenshood.github.io/2019/04/02/Build-your-own-blog-site-by-using-GithubPages-Hexo-Travis/">Build
+your own blog site by using GithubPages + Hexo + Travis
+CI</a>中描述了如何使用 Hexo 和 Travis 来在 Git Pages
+服务上搭建自己的个人博客。</p>
+<p>但使用了一段时间之后，发现 Git Pages 的方案存在一些问题： -
+访问速度慢。不走 VPN 访问 Github 速度感人，Git Pages
+也一样，各种资源、图片加载缓慢。 - 难以被 Baidu
+收录。网友提供了各种办法来解决，但都挺麻烦。</p>
+<p>所以当我了解到 Gitee
+也提供了免费的静态网页服务后，决定试试看，但毕竟一边在 github
+上更新，一边在 gitee 更新，既麻烦又容易出错，所以期望能够直接把 github
+上的更新自动同步到 gitee 上。</p>
+<p>经过一些实验后，我成功的实现了把 Git Pages 镜像到 Gitee Pages
+的需求。</p>
+<span id="more"></span>
+<h3 id="hexo-的-deploy-功能">Hexo 的 deploy 功能</h3>
+<p>Hexo 的 Deployment 配置简单而强大： 对于部署到 Git 仓库，直接配置：
+<figure class="highlight dts"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">deploy:</span></span><br><span class="line"><span class="symbol">  type:</span> git</span><br><span class="line"><span class="symbol">  repo:</span> <span class="params">&lt;repository url&gt;</span> <span class="meta"># https:<span class="comment">//bitbucket.org/JohnSmith/johnsmith.bitbucket.io</span></span></span><br><span class="line"><span class="symbol">  branch:</span> [branch]</span><br><span class="line"><span class="symbol">  message:</span> [message]</span><br></pre></td></tr></table></figure>
+就能在执行<code>deploy</code>命令后自动将生成的静态网页提交至 git
+仓库。</p>
+<p>结合我们的诉求，我们期望每次执行 <code>deploy</code>
+时，同时将生成的页面提交至多个仓库（github 和 gitee），可以这样配置：
+<figure class="highlight nestedtext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">deploy</span><span class="punctuation">:</span></span><br><span class="line"><span class="bullet">-</span> <span class="string">type: git</span></span><br><span class="line">  <span class="attribute">repo</span><span class="punctuation">:</span></span><br><span class="line"><span class="bullet">-</span> <span class="string">type: heroku</span></span><br><span class="line">  <span class="attribute">repo</span><span class="punctuation">:</span></span><br></pre></td></tr></table></figure></p>
+<h3 id="gitee-创建仓库生成-access-token">Gitee 创建仓库，生成 Access
+Token</h3>
+<p>与 github 一样，gitee 也需要创建一个仓库，然后把静态页面文件 push
+上去。</p>
+<p>Gitee Pages 略有不同，任何仓库都可以尝试部署为 Pages，不过需要依赖
+Gitee 提供 Pages 服务，如下图所示：</p>
+<img src="/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_pages_service.png" class="">
+<p>部署后的访问地址规则如下： -
+若仓库名直接设置为用户名，则访问地址为：<code>https://&#123;用户名&#125;.gitee.io</code>
+-
+其他类型的仓库名，访问地址为：<code>https://gitee.io/&#123;用户名&#125;/&#123;仓库名&#125;</code></p>
+<p>仓库创建完成后，就可以尝试通过 Hexo 将静态页面部署至 Gitee Pages
+了。在这之前，我们还需要创建一个 <strong>Access Token</strong>。</p>
+<p>点击
+<code>Gitee 头像 -&gt; settings -&gt; 左边栏 personal access token</code>,
+创建一个 token，该 token 只用于 hexo push
+代码，因此只勾选<code>Full control of your projects</code>即可。</p>
+<p>创建完毕后注意保存待用。</p>
+<h3 id="travis">Travis</h3>
+<p>最后一步，配置 Travis 自动触发构建。</p>
+<p>先前，我们在 github 仓库里已经完整配置了
+<code>.travis.yml</code>，这一次我们也完全不用改动它，需要改动的是 Hexo
+的<code>_config.yml</code>。</p>
+<p>为了防止 Access Token 泄露，先前的 <code>_config.yml</code> 中配置的
+deploy 隐藏了 Access Token，通过 travis 在执行时来填入： <figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">deploy:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">type:</span> <span class="string">git</span></span><br><span class="line">  <span class="attr">repo:</span> <span class="string">https://git_access_token@github.com/LENSHOOD/lenshood.github.io.git</span></span><br><span class="line">  <span class="attr">branch:</span> <span class="string">master</span></span><br></pre></td></tr></table></figure>
+这里的<code>git_access_token</code>被记录在 Travis 里：</p>
+<img src="/2020/04/06/mirror-github-pages-to-gitee-paages/git_access_token.png" class="">
+<p>现在我们在 <code>_config.yml</code>里增加 gitee 的配置，完整如下：
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">deploy:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">type:</span> <span class="string">git</span></span><br><span class="line">  <span class="attr">repo:</span> <span class="string">https://git_access_token@github.com/LENSHOOD/lenshood.github.io.git</span></span><br><span class="line">  <span class="attr">branch:</span> <span class="string">master</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">type:</span> <span class="string">git</span></span><br><span class="line">  <span class="attr">repo:</span> <span class="string">https://gitee_access_token@gitee.com/lenshood/lenshood.git</span></span><br><span class="line">  <span class="attr">branch:</span> <span class="string">master</span></span><br></pre></td></tr></table></figure></p>
+<p>同样的我们把 <code>gitee_access_token</code> 也添加在 Travis
+里面就好了：</p>
+<img src="/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_access_token.png" class="">
+<blockquote>
+<p>gitee 的 access token 在使用上与 github 略有不同，github 中 repo
+链接直接配置为 <code>https://&#123;access_token&#125;@&#123;仓库地址&#125;</code> 即可，但
+gitee 需要配置为
+<code>https://&#123;用户名&#125;:&#123;access_token&#125;@&#123;仓库地址&#125;</code></p>
+</blockquote>
+<h3 id="部署-gitee-pages">部署 Gitee Pages</h3>
+<p>Gitee Pages 比较 low 的一点是，每次有更新 push 到仓库，必须要手动点击
+<code>Services -&gt; Gitee Pages</code> 进入后点击 <code>update</code>
+才可以，自动部署需要付费版才可以。</p>
+<img src="/2020/04/06/mirror-github-pages-to-gitee-paages/gitee_update.png" class="">
+<p>不过不管如何，用 Gitee Pages，总算可以被 Baidu 收录了！</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/" title="Git Pages 镜像到 Gitee Pages">http://lenshood.github.io/2020/04/06/mirror-github-pages-to-gitee-paages/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/github-pages/" rel="tag"># github pages</a>
+              <a href="/tags/gitee-pages/" rel="tag"># gitee pages</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/04/04/some-jaava-tips/" rel="prev" title="一些 Java 语言 Tips">
+                  <i class="fa fa-angle-left"></i> 一些 Java 语言 Tips
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/04/18/java-factory-thread-pool/" rel="next" title="虚拟工厂：Java 线程池">
+                  虚拟工厂：Java 线程池 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

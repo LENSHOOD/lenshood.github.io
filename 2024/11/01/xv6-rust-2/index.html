@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="With the help of the previous article, right now we have a good foundation for running rust on risc-v platform. In the second episode, we are going to jump into some real code of xv6, and take care o">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&#x2F;Xv6 Rust 0x02&#x2F; - printf!(&quot;Hello xv6-rust!&quot;)">
+<meta property="og:url" content="http://lenshood.github.io/2024/11/01/xv6-rust-2/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="With the help of the previous article, right now we have a good foundation for running rust on risc-v platform. In the second episode, we are going to jump into some real code of xv6, and take care o">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2024/11/01/xv6-rust-2/header.jpg">
+<meta property="article:published_time" content="2024-11-01T06:36:49.000Z">
+<meta property="article:modified_time" content="2025-07-29T02:17:59.500Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="os">
+<meta property="article:tag" content="rust">
+<meta property="article:tag" content="xv6">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2024/11/01/xv6-rust-2/header.jpg">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2024/11/01/xv6-rust-2/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2024/11/01/xv6-rust-2/","path":"2024/11/01/xv6-rust-2/","title":"/Xv6 Rust 0x02/ - printf!(\"Hello xv6-rust!\")"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>/Xv6 Rust 0x02/ - printf!("Hello xv6-rust!") | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#short-but-important-assembly-code"><span class="nav-number">1.</span> <span class="nav-text">1. Short but important
+assembly code</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#machine---supervisor"><span class="nav-number">2.</span> <span class="nav-text">2. Machine -&gt; Supervisor</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#we-need-uart"><span class="nav-number">3.</span> <span class="nav-text">3. We need UART</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#printf"><span class="nav-number">4.</span> <span class="nav-text">4. printf!()</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">91</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2024/11/01/xv6-rust-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="&#x2F;Xv6 Rust 0x02&#x2F; - printf!(&quot;Hello xv6-rust!&quot;) | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          /Xv6 Rust 0x02/ - printf!("Hello xv6-rust!")
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2024-11-01 14:36:49" itemprop="dateCreated datePublished" datetime="2024-11-01T14:36:49+08:00">2024-11-01</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-07-29 10:17:59" itemprop="dateModified" datetime="2025-07-29T10:17:59+08:00">2025-07-29</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2024/11/01/xv6-rust-2/header.jpg" class="" width="500">
+<p>With the help of the previous article, right now we have a good
+foundation for running rust on risc-v platform.</p>
+<p>In the second episode, we are going to jump into some real code of
+xv6, and take care of the initialize from machine level to supervisor
+level, and finally, make the <code>printf!()</code> macro available in
+our code!</p>
+<span id="more"></span>
+<h2 id="short-but-important-assembly-code">1. Short but important
+assembly code</h2>
+<p>In our latest code, we set the entry of our code as
+<code>main()</code>, and after that, we only did one thing before
+running the test code, which is set the stack pointer.</p>
+<p>However, xv6 will do more in the stage of initialization, it chooses
+to have an individual ASM file to put the very initial code in it, and
+the ASM file named "<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/asm/entry.S">entry.S</a>"(some
+part of code or comment will be truncated, please click the link
+attached to the file to see the full code):</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">### entry.S</span><br><span class="line"></span><br><span class="line">.section .text</span><br><span class="line">.global _entry</span><br><span class="line">_entry:</span><br><span class="line">        la sp, stack0    # load the addr of &quot;stack0&quot; in to sp, &quot;stack0&quot; located in start.rs</span><br><span class="line">        li a0, 1024*4    # load immediate 4096 to a0</span><br><span class="line">        csrr a1, mhartid # read csr, load mhartid to a1 (store the id of current hart, start from 0)</span><br><span class="line">        addi a1, a1, 1   # a1 = a1 + 1</span><br><span class="line">        mul a0, a0, a1   # a0 = a0 * a1</span><br><span class="line">        add sp, sp, a0   # sp = sp + a0</span><br><span class="line">        call start</span><br><span class="line">spin:</span><br><span class="line">        j spin</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>The above code basically set up a 4096-bytes stack, for every hart,
+and the start address of stack, which we have set to
+<code>0x80001000</code> in our previous code, comes from a constant
+<code>stack0</code> that located in the "<a
+href="(https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/start.rs#L13)">start.rs</a>".</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// start.rs</span></span><br><span class="line">... ...</span><br><span class="line"><span class="meta">#[repr(C, align(16))]</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">Stack0Aligned</span>([<span class="type">u8</span>; <span class="number">4096</span> * NCPU]);</span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">static</span> stack0: Stack0Aligned = <span class="title function_ invoke__">Stack0Aligned</span>([<span class="number">0</span>; <span class="number">4096</span> * NCPU]);</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>Define the <code>stack0</code> as a <code>u8</code> array with length
+of <code>4096*NCPU</code> can safely reserve enough space for kernel
+stack in each hart, after compiled, the <code>stack0</code> will be
+settled in the <code>.rodata</code> section, with its address available
+in the memory range.</p>
+<p>Let's take a look about it (the binary <code>kernel</code> is the
+kernel output of <a
+href="https://github.com/LENSHOOD/xv6-rust">xv6-rust</a>):</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">readelf -s kernel | grep stack0</span></span><br><span class="line">Num:    Value            Size   Type    Bind    Vis      Ndx  Name</span><br><span class="line">... ...</span><br><span class="line">33873:  0000000080015800 32768  OBJECT  GLOBAL  DEFAULT    2  stack0</span><br><span class="line">... ...</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">readelf -S kernel</span>              </span><br><span class="line">There are 21 section headers, starting at offset 0x2b58f8:</span><br><span class="line"></span><br><span class="line">Section Headers:</span><br><span class="line">  [Nr] Name              Type             Address           Offset</span><br><span class="line">       Size              EntSize          Flags  Link  Info  Align</span><br><span class="line">  [ 0]                   NULL             0000000000000000  00000000</span><br><span class="line">       0000000000000000  0000000000000000           0     0     0</span><br><span class="line">  [ 1] .text             PROGBITS         0000000080000000  00001000</span><br><span class="line">       0000000000015000  0000000000000000  AX       0     0     16</span><br><span class="line">  [ 2] .rodata           PROGBITS         0000000080015000  00016000</span><br><span class="line">       000000000000d950  0000000000000000  AM       0     0     16</span><br><span class="line">  [ 3] .eh_frame         PROGBITS         0000000080022950  00023950</span><br><span class="line">       00000000000004b8  0000000000000000   A       0     0     8</span><br><span class="line">  [ 4] .data             PROGBITS         0000000080022e08  00023e08</span><br><span class="line">       000000000002b788  0000000000000000  WA       0     0     8</span><br><span class="line">  [ 5] .bss              NOBITS           000000008004e590  0004f590</span><br><span class="line">       0000000000000660  0000000000000000  WA       0     0     8</span><br><span class="line">  ... ...</span><br></pre></td></tr></table></figure>
+<p>The above content shows the <code>stack0</code> has address
+<code>0x80015800</code>, with <code>Ndx = 2</code> means the
+<code>stack0</code> is located at <code>.rodata</code> section.</p>
+<p>Basically the <code>entry.S</code> only responsible for initialized
+the stack pointer, and then jump to rust code directly.</p>
+<p>Finally, please don't forget to update the program entry in the
+<code>entry.ld</code>, as well as the text section:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line">ENTRY( _entry )</span><br><span class="line">... ...</span><br><span class="line">/* As we declared &quot;.section .text&quot; in the beginning of entry.S, </span><br><span class="line"> * we shoud put the &quot;*(.text)&quot; here with the first order.</span><br><span class="line"> * This will ensure the entry.S is at the beginning of the binary.</span><br><span class="line"> */</span><br><span class="line">.text : &#123;</span><br><span class="line">  *(.text) *(.text*)</span><br><span class="line">&#125;</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<p>And declare the <code>entry.S</code> in <code>main.rs</code>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.rs</span></span><br><span class="line">... ...</span><br><span class="line">global_asm!(<span class="built_in">include_str!</span>(<span class="string">&quot;entry.S&quot;</span>));</span><br><span class="line">... ...</span><br></pre></td></tr></table></figure>
+<h2 id="machine---supervisor">2. Machine -&gt; Supervisor</h2>
+<p>No doubt that the last line of ASM <code>call start</code> will bring
+us to the <code>start()</code>, and here is the core part of the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/start.rs#L16"><code>start()</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// start.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">start</span>() &#123;</span><br><span class="line">    <span class="comment">// set M Previous Privilege mode to Supervisor, for mret.</span></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut </span><span class="variable">x</span> = <span class="title function_ invoke__">r_mstatus</span>();</span><br><span class="line">    x &amp;= !MSTATUS_MPP_MASK;</span><br><span class="line">    x |= MSTATUS_MPP_S;</span><br><span class="line">    <span class="title function_ invoke__">w_mstatus</span>(x);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// set M Exception Program Counter to main, for mret.</span></span><br><span class="line">    <span class="comment">// requires gcc -mcmodel=medany</span></span><br><span class="line">    <span class="title function_ invoke__">w_mepc</span>(kmain <span class="keyword">as</span> <span class="type">usize</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// disable paging for now.</span></span><br><span class="line">    <span class="title function_ invoke__">w_satp</span>(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// delegate all interrupts and exceptions to supervisor mode.</span></span><br><span class="line">    <span class="title function_ invoke__">w_medeleg</span>(<span class="number">0xffff</span>);</span><br><span class="line">    <span class="title function_ invoke__">w_mideleg</span>(<span class="number">0xffff</span>);</span><br><span class="line">    <span class="title function_ invoke__">w_sie</span>(<span class="title function_ invoke__">r_sie</span>() | SIE_SEIE | SIE_STIE | SIE_SSIE);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// configure Physical Memory Protection to give supervisor mode</span></span><br><span class="line">    <span class="comment">// access to all of physical memory.</span></span><br><span class="line">    <span class="title function_ invoke__">w_pmpaddr0</span>(<span class="number">0x3ffffffffffff</span>);</span><br><span class="line">    <span class="title function_ invoke__">w_pmpcfg0</span>(<span class="number">0xf</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ask for clock interrupts.</span></span><br><span class="line">    <span class="comment">// Note: here we could safely comment the timer init, because it won&#x27;t be needed for a period </span></span><br><span class="line">    <span class="comment">// timerinit();</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// keep each CPU&#x27;s hartid in its tp register, for cpuid().</span></span><br><span class="line">    <span class="keyword">let</span> <span class="variable">id</span> = <span class="title function_ invoke__">r_mhartid</span>();</span><br><span class="line">    <span class="title function_ invoke__">w_tp</span>(id);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// switch to supervisor mode and jump to main().</span></span><br><span class="line">    <span class="keyword">unsafe</span> &#123; asm!(<span class="string">&quot;mret&quot;</span>) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Actually, we cannot even call it a piece of "rust" code, because if
+you clone the repo and go through the related code, you may find nearly
+all functions here (like <code>r_mstatus()</code> or
+<code>w_mepc()</code>) are wrappers to ASM code.</p>
+<p>Almost all of the above functions are operate risc-v CSRs (control
+and status registers), of course we could follow the risc-v
+specification to learn the details about those CSRs (the entire <a
+href="https://drive.google.com/file/d/17GeetSnT5wW3xNuAHI95-SI1gPGd5sJ_/view">Privileged
+Specification</a> with 166 pages only talks about the CSRs), but I'm
+gonna post the following table to briefly introduce what they do in the
+<code>start()</code>.</p>
+<p>CSRs are a group of registers that can only be accessed in privileged
+mode, such as machine mode or supervisor mode, those registers are
+capable of store status, or changing the system configurations, and can
+be read or written by CSR instructions.</p>
+<table>
+<colgroup>
+<col style="width: 17%" />
+<col style="width: 35%" />
+<col style="width: 47%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Register</th>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>mstatus</strong></td>
+<td>Machine Status Register</td>
+<td>The mstatus register keeps track of and controls the hart’s current
+operating state.<br />Here we only care about the MPP filed, which
+stores the previous privileged mode:<br />M = 11; S = 01; U =
+00;<br />Back to the code, it sets the previous privileged mode from
+machine to supervisor. (Note that here the MPP filed only store the mode
+value, the privileged mode won't be switched immediately)</td>
+</tr>
+<tr class="even">
+<td><strong>mepc</strong></td>
+<td>Machine Exception Program Counter</td>
+<td>When a trap is taken into M-mode, mepc is written with the virtual
+address of the instruction that was interrupted or that encountered the
+exception, and it may be explicitly written by software.<br />So why
+here in the code, the function address of <code>kmain</code> been
+written? It's highly connected with the <code>mret</code> instruction,
+we will get back to this afterward.</td>
+</tr>
+<tr class="odd">
+<td><strong>stap</strong></td>
+<td>Supervisor Address Translation and Protection</td>
+<td>It controls supervisor-mode address translation and protection. And
+here we just set it to 0 for disable the virtual address
+translation.</td>
+</tr>
+<tr class="even">
+<td><strong>medeleg / mideleg</strong></td>
+<td>Machine Trap Delegation Registers</td>
+<td>By default, all traps at any privilege level are handled in machine
+mode. In our code, both these registers are set as 0xffff to indicate
+that all traps will be delegated to handle on S-mode</td>
+</tr>
+<tr class="odd">
+<td><strong>sie</strong></td>
+<td>Supervisor Interrupt Registers</td>
+<td>In the code, the External / Timer / Software interrupts are all
+enabled on S-mode.</td>
+</tr>
+<tr class="even">
+<td><strong>pmpaddr0 / pmpcfg0</strong></td>
+<td>Physical Memory Protection</td>
+<td>These two register combined controlling the access permission across
+a specific address range.<br />Here, xv6 allows RWX permission on
+S-mode, across the range of <code>0~0x3ffffffffffff</code>, that range
+covers almost 1PiB address space.</td>
+</tr>
+<tr class="odd">
+<td><strong>tp</strong></td>
+<td>Thread Pointer</td>
+<td><code>tp</code> is one of the general purpose registers, not part of
+CSR. Obviously the name thread pointer indicates this register is a
+thread local store register.<br />Then it's easy for us to understand
+the code: store hart id into <code>tp</code> for quicker access.</td>
+</tr>
+</tbody>
+</table>
+<p>The instruction <code>mret</code> is highly related to the
+<code>mepc</code> register, like we described in the above table.
+<code>mret</code> is called "Trap-Return Instructions", which is to
+return from the trap.</p>
+<p>Generally speaking, when any trap like interrupt or exception
+happens, the instruction address where the trigger the trap, will be
+stored in the <code>xPC</code> register(like <code>mepc</code> or
+<code>sepc</code>), then the program will be redirect to a trap handler
+that related to the specific trap. Once the handler done its work, and
+the program needs to return to the original location, it will need to
+fetch the address from <code>xPC</code>, and set program counter with
+that, then jump back to the address.</p>
+<p><code>mret</code> (and not surprisingly, there is a <code>sret</code>
+too) does the whole process by only one instruction, besides, it will
+also trigger the privileged mode switch, to the mode saved in the MPP
+filed of <code>mstatus</code>.</p>
+<p>So I suppose you have understood the code logic here: at first set
+the <code>kmain</code> to <code>mepc</code>, then do some work, at last
+call <code>mret</code> so that the program will jump to the
+<code>kmain</code>, while the privileged mode is switched to S-mode as
+well.</p>
+<blockquote>
+<p><strong>How does risc-v deal with the privileged mode
+switch?</strong></p>
+<p><em>.... RISC-V Privileged Specification Chapter 1.2 ...</em></p>
+<p><em>A hart normally runs application code in U-mode until some trap
+(e.g., a supervisor call or a timer</em> <em>interrupt) forces a switch
+to a trap handler, which usually runs in a more privileged mode. The
+hart</em> <em>will then execute the trap handler, which will eventually
+resume execution at or after the original</em> <em>trapped instruction
+in U-mode. Traps that increase privilege level are termed vertical
+traps, while traps</em> <em>that remain at the same privilege level are
+termed horizontal traps. The RISC-V privileged architecture</em>
+<em>provides flexible routing of traps to different privilege
+layers.</em></p>
+<p><em>.... RISC-V Privileged Specification Chapter 1.2 ...</em></p>
+<p>Generally, when a trap happens, the address of where the cause the
+trap will be saved in <code>mepc</code> or <code>sepc</code>, regarding
+the current privileged mode. After trap handled by specific handler, it
+should call either <code>mret</code> or <code>sret</code> to return to
+the previous mode, which is stored in the <code>MPP</code> or
+<code>SPP</code> filed of the <code>mstatus</code>.</p>
+</blockquote>
+<h2 id="we-need-uart">3. We need UART</h2>
+<p>With the <code>mret</code> is executed, the program is running into a
+new file: <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/main.rs#L97"><code>main.rs</code></a>,
+which is hard to tell if it's new, because we already have one, one not
+exactly since we will introduce a new function <code>kmain</code> to
+replace our previous <code>main</code>.</p>
+<p>Don't be frightened by a lot of new functions that are called within
+<code>kmain</code>, we are not gonna need them currently, the only
+functions we should pay our attention to are the
+<code>Uart::init()</code> and <code>Console::init()</code>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">kmain</span>() &#123;</span><br><span class="line">    <span class="comment">// The cpuid() returns the hart id, according to the last article </span></span><br><span class="line">    <span class="comment">// we run qemu with only one cpu, so we could just comment it</span></span><br><span class="line">    <span class="comment">// if cpuid() == 0 &#123;</span></span><br><span class="line">        Uart::<span class="title function_ invoke__">init</span>();</span><br><span class="line">        Console::<span class="title function_ invoke__">init</span>();</span><br><span class="line">      ... ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>QEMU generic <a
+href="https://www.qemu.org/docs/master/system/riscv/virt.html">virtual
+platform</a> for risc-v supports a "NS16550 compatible UART". According
+to the memory address mapping we talked about in the last chapter:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">qemu-system-riscv64 -monitor stdio</span></span><br><span class="line">QEMU 9.1.0 monitor - type &#x27;help&#x27; for more information</span><br><span class="line">(qemu) info mtree</span><br><span class="line">address-space: cpu-memory-0</span><br><span class="line">address-space: memory</span><br><span class="line">  0000000000000000-ffffffffffffffff (prio 0, i/o): system</span><br><span class="line">    0000000000001000-000000000000ffff (prio 0, rom): riscv.spike.mrom</span><br><span class="line">    0000000001000000-000000000100000f (prio 1, i/o): riscv.htif.uart</span><br><span class="line">    0000000002000000-0000000002003fff (prio 0, i/o): riscv.aclint.swi</span><br><span class="line">    0000000002004000-000000000200bfff (prio 0, i/o): riscv.aclint.mtimer</span><br><span class="line">    0000000080000000-0000000087ffffff (prio 0, ram): riscv.spike.ram</span><br><span class="line"></span><br><span class="line">address-space: I/O</span><br><span class="line">  0000000000000000-000000000000ffff (prio 0, i/o): io</span><br></pre></td></tr></table></figure>
+<p>UART address starts from <code>0x1000000</code>. And there are about
+10 registers to config and control the UART (for more details refer to
+the <a href="http://byterunner.com/16550.html">16550
+specification</a>).</p>
+<p>Let's go back to code. We can find all UART related code in the file
+<a
+href="https://github.com/LENSHOOD/xv6-rust/blob/master/kernel/src/uart.rs"><code>uart.rs</code></a>.
+And basically <code>Uart::init()</code> initializes the UART in the mode
+of 8 bits + 38.4k baud rate + FIFO with interrupt.</p>
+<p>In fact, after initialize, we could directly put or get chars by the
+following code:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// uart.rs</span></span><br><span class="line"><span class="comment">// Please note that there are many more functions and lines of code in the original uart.rs, </span></span><br><span class="line"><span class="comment">// but we won&#x27;t need those right now, only the code here is necessary.</span></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">static</span> <span class="keyword">mut</span> UART_INSTANCE: Uart = Uart::<span class="title function_ invoke__">create</span>();</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">putc_sync</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>, c: <span class="type">u8</span>) &#123;  </span><br><span class="line">  <span class="comment">// wait for Transmit Holding Empty to be set in LSR.</span></span><br><span class="line">  <span class="keyword">while</span> (ReadReg!(LSR) &amp; LSR_TX_IDLE) == <span class="number">0</span> &#123;&#125;</span><br><span class="line">  WriteReg!(THR, c);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">fn</span> <span class="title function_">getc</span>(<span class="keyword">self</span>: &amp;<span class="keyword">Self</span>) <span class="punctuation">-&gt;</span> <span class="type">i8</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">if</span> ReadReg!(LSR) &amp; <span class="number">0x01</span> != <span class="number">0</span> &#123;</span><br><span class="line">    <span class="comment">// input data is ready.</span></span><br><span class="line">    ReadReg!(RHR) <span class="keyword">as</span> <span class="type">i8</span></span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    -<span class="number">1</span></span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Let's have a quick test to print a "A" to the console:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">kmain</span>() &#123;</span><br><span class="line">  Uart::<span class="title function_ invoke__">init</span>();</span><br><span class="line">  <span class="keyword">unsafe</span> &#123; UART_INSTANCE.<span class="title function_ invoke__">putc_sync</span>(<span class="string">&#x27;A&#x27;</span> <span class="keyword">as</span> <span class="type">u8</span>) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line">     Finished dev [unoptimized + debuginfo] target(s) in 0.07s</span><br><span class="line">     Running `qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`</span><br><span class="line">A</span><br></pre></td></tr></table></figure>
+<p>Awesome, we have printed the first letter! Since we can print a
+letter, the <code>printf!()</code> is around the corner.</p>
+<h2 id="printf">4. printf!()</h2>
+<p>At last, we got here. So far we already output a letter "A" through
+UART, the next we simply need to create a printer and call UART inside
+to print.</p>
+<p>Generally speaking, the only difference between UART with a printer
+is that the printer takes a format string rather than a character, which
+means the printer is on a higher abstraction level, and needs to conduct
+the preprocess of format string, to parse the format string to a
+standard string, and then crack down the string to characters.</p>
+<p>Refer to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/printf.rs#L12"><code>print.rs</code></a>,
+the macro <code>printf!()</code> receives the input arguments as the
+"format_args":</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// print.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> printf</span><br><span class="line">&#123;</span><br><span class="line">	($($arg:tt)*) =&gt; &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123;</span><br><span class="line">            crate::printf::PRINTER.<span class="title function_ invoke__">printf</span>(core::<span class="built_in">format_args!</span>($($arg)*))</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">printf</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>, args: Arguments&lt;<span class="symbol">&#x27;_</span>&gt;) &#123;</span><br><span class="line">  <span class="comment">// Like before, we won&#x27;t need any locks here, the logic with locks could be commentted safely</span></span><br><span class="line">  <span class="keyword">let</span> <span class="variable">_</span> = <span class="keyword">unsafe</span> &#123; CONSOLE_INSTANCE.<span class="title function_ invoke__">write_fmt</span>(args).<span class="title function_ invoke__">unwrap</span>() &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>"format_args" allow us to print a string with params, such as
+<code>printf!("This is a &#123;&#125;", "param")</code>.</p>
+<p>The best part here is we don't need to do anything by ourselves to
+parse the relatively complex arguments: <code>"This is a &#123;&#125;"</code> and
+<code>"param"</code>. There is a rust trait
+<code>core::fmt::Write</code> takes care of all that stuff!</p>
+<p>Let's go to the <a
+href="https://github.com/LENSHOOD/xv6-rust/blob/b3a46d46d1b8196b5194eca670f835e476823088/kernel/src/console.rs#L107"><code>console.rs</code></a>:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// console.rs</span></span><br><span class="line"><span class="title function_ invoke__">pub</span>(<span class="keyword">crate</span>) <span class="keyword">static</span> <span class="keyword">mut</span> CONSOLE_INSTANCE: Console = Console::<span class="title function_ invoke__">create</span>();</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> <span class="title class_">Write</span> <span class="keyword">for</span> <span class="title class_">Console</span> &#123;</span><br><span class="line">    <span class="comment">// The trait Write expects us to write the function write_str</span></span><br><span class="line">    <span class="comment">// which looks like:</span></span><br><span class="line">    <span class="keyword">fn</span> <span class="title function_">write_str</span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, s: &amp;<span class="type">str</span>) <span class="punctuation">-&gt;</span> <span class="type">Result</span>&lt;(), Error&gt; &#123;</span><br><span class="line">        <span class="keyword">for</span> <span class="variable">c</span> <span class="keyword">in</span> s.<span class="title function_ invoke__">bytes</span>() &#123;</span><br><span class="line">            <span class="keyword">self</span>.<span class="title function_ invoke__">putc</span>(c <span class="keyword">as</span> <span class="type">u16</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// Return that we succeeded.</span></span><br><span class="line">        <span class="title function_ invoke__">Ok</span>(())</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">fn</span> <span class="title function_">putc</span>(<span class="keyword">self</span>: &amp;<span class="keyword">mut</span> <span class="keyword">Self</span>, c: <span class="type">u16</span>) &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> c == BACKSPACE &#123;</span><br><span class="line">        <span class="comment">// if the user typed backspace, overwrite with a space.</span></span><br><span class="line">        UART_INSTANCE.<span class="title function_ invoke__">putc_sync</span>(<span class="number">0x08</span>); <span class="comment">// ascii \b char</span></span><br><span class="line">        UART_INSTANCE.<span class="title function_ invoke__">putc_sync</span>(<span class="number">0x20</span>); <span class="comment">// ascii space char</span></span><br><span class="line">        UART_INSTANCE.<span class="title function_ invoke__">putc_sync</span>(<span class="number">0x08</span>); <span class="comment">// ascii \b char</span></span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        UART_INSTANCE.<span class="title function_ invoke__">putc_sync</span>(c <span class="keyword">as</span> <span class="type">u8</span>);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The <code>Write</code> trait implemented the function
+<code>write_fmt</code> by default, we only need to implement the
+<code>write_str</code> here and output the string that has already been
+parsed correctly. The string can be outputted by calling the UART
+function <code>putc_sync</code>.</p>
+<p>Finally, we could print something with <code>printf!()</code>!</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">&quot;C&quot;</span> <span class="keyword">fn</span> <span class="title function_">kmain</span>() &#123;</span><br><span class="line">  Uart::<span class="title function_ invoke__">init</span>();</span><br><span class="line">  Console::<span class="title function_ invoke__">init</span>();</span><br><span class="line">  printf!(<span class="string">&quot;\nHello xv6-rust!\n&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>And the output:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">... ...</span><br><span class="line">     Finished dev [unoptimized + debuginfo] target(s) in 1.60s</span><br><span class="line">     Running `qemu-system-riscv64 -s -S -machine virt -bios none -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -kernel target/riscv64gc-unknown-none-elf/debug/xv6-rust-sample`</span><br><span class="line"></span><br><span class="line">Hello xv6-rust!</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>It works!</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2024/11/01/xv6-rust-2/" title="&#x2F;Xv6 Rust 0x02&#x2F; - printf!(&quot;Hello xv6-rust!&quot;)">http://lenshood.github.io/2024/11/01/xv6-rust-2/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/os/" rel="tag"># os</a>
+              <a href="/tags/rust/" rel="tag"># rust</a>
+              <a href="/tags/xv6/" rel="tag"># xv6</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2024/10/23/xv6-rust-1/" rel="prev" title="&#x2F;Xv6 Rust 0x01&#x2F; - Getting Started is the Hardest Part">
+                  <i class="fa fa-angle-left"></i> /Xv6 Rust 0x01/ - Getting Started is the Hardest Part
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2024/11/08/xv6-rust-3/" rel="next" title="&#x2F;Xv6 Rust 0x03&#x2F; - Memory Virtualization">
+                  /Xv6 Rust 0x03/ - Memory Virtualization <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>
