@@ -14,7 +14,7 @@ The entire lab is based on the [Gymnasium](https://gymnasium.farama.org/), which
 
 
 
-## Inverted Hover Helicopter & DQN approach
+## Inverted Hover Helicopter & DQN Approach
 
 
 
@@ -34,23 +34,19 @@ Per the [documentation](https://gymnasium.farama.org/environments/box2d/lunar_la
 For each step, the reward:
 
 is increased/decreased the closer/further the lander is to the landing pad.
-
 is increased/decreased the slower/faster the lander is moving.
-
 is decreased the more the lander is tilted (angle not horizontal).
-
 is increased by 10 points for each leg that is in contact with the ground.
-
 is decreased by 0.03 points each frame a side engine is firing.
-
 is decreased by 0.3 points each frame the main engine is firing.
 
 The episode receive an additional reward of -100 or +100 points for crashing or landing safely respectively.
-
 An episode is considered a solution if it scores at least 200 points.
 ```
 
 Comparing the landing reward, seems hover can be way more easier, since we only need to limit the position vertically and horizontally, no need to concern of fuel and landing posture.
+
+### Extend the original LunarLander
 
 To adjust the original LunarLander meeting our new target: hover, the reward model needs to be updated. And benefit by the open sourced code of gymnasium, we can directly extend the LunarLander by override a few methods.
 
@@ -91,6 +87,14 @@ class FancyLunarLander(LunarLander):
 
         return obs, reward, terminated, truncated, info
 ```
+
+In the override method `step()` , we at first calling the super method to get necessary outputs such as the observations, terminated, truncated and information, which are no need to change at all and will be returned by our override method.
+
+The only change introduced is the "reward", because in our "FancyLunarLander" we don't want to follow the original reward model, which is designed to land in a limited area. Our new goal is to hover, so what we need is let the LunarLander stick in a 2D area, which we can define the vertical and horizontal positions.
+
+According to the override method, obviously, we limit the 2D area to a square that coordinates are `x = [-x_range, x_range]`, `y = [1 - y_range, 1 + y_range]`. The less the x_range / y_range are, the smaller the square is.
+
+Besides, the reward model needs to be redesigned, which as per the code, if the current position of the LunarLander is in the square, it increases the reward by adding positive values (zone_reward and height_reward) to the reward variable, on the contrary, if the current position is out of the square, the reward will be decreased due to negative values to be added.
 
 
 
