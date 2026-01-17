@@ -100,3 +100,44 @@ Besides, the reward model needs to be redesigned, which as per the code, if the 
 
 ## Lunar Lander Inverted Hover
 
+The previous chapter proves it's relatively easy to stay a hover status if appropriate rewards are provided. So can we have an inverted hover if we set appropriate rewards as well?
+
+The answer is no, inverted hovering wouldn't be that easy to build like a plain hover. Two obstacles preventing us from achieving that:
+
+1. Standard lunar lander can only produce positive thrust. 
+
+   To make lunar lander hovering, all we need to do is adjusting the main power to produce positive thrust combining with fine adjustments of left/right engines. But it's impossible for having positive thrust only if the lunar lander is in the inverted status,  since positive thrust would just accelerate the lunar lander to crash.
+
+2. Inverted position is not a common and easily achievable posture
+
+   In Gymnasium, the initial status of lunar lander, is in upright position with random velocity/angular velocity, it's difficult & inefficient to set several rewards toward inverted hover state and letting reenforcement learning model to discover the correct movements by itself.
+
+To overcome the above 2 obstacles, first we need change the lunar lander source code to have negative thrust, then we are going to use the approaches from the paper, which is “*Apprenticeship Learning for Target Trajectory*”, to learn from expert trajectory.
+
+### Negative thrust
+
+In Gymnasium, there are two envs of lunar lander, discrete or continuous. At this time we are going to use the continuous env which allows us passing `Box(-1, +1, (2,), dtype=np.float32)` as the action for more precise control. For the lunar lander, the main engine will be turned off completely if `main < 0` and the throttle scales affinely from 50% to 100% for `0 <= main <= 1`
+
+What we need to modify is to unlock the limitation of no power if `main < 0`. Instead, we would want the main engine outputs negative thrust if `main < 0`. 
+
+The version of Gymnasium we are using is v1.2.3, locate to the code we can find the limitation of main power at [here](https://github.com/Farama-Foundation/Gymnasium/blob/43965e15c2424a2b6955c79e774b0810457fd5be/gymnasium/envs/box2d/lunar_lander.py#L535):
+
+``` python
+f self.continuous:
+    m_power = (np.clip(action[0], 0.0, 1.0) + 1.0) * 0.5  # 0.5..1.0
+    assert m_power >= 0.5 and m_power <= 1.0
+else:
+    m_power = 1.0
+```
+
+As we'll use the "continuous" mode so we only need to change the `clip` and `assert` to the following:
+
+``` python
+m_power = (np.clip(action[0], -1.0, 1.0))
+```
+
+With the minor change, we create a class named `BidirectionalLunarLander`, extends from LunarLander and override the entire `step()` method containing the change as well. (Full code see: )
+
+Now we have negative thrust, let's move on to the next step.
+
+### *Apprenticeship Learning for Target Trajectory*
