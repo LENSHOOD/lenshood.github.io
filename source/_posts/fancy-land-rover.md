@@ -140,4 +140,60 @@ With the minor change, we create a class named `BidirectionalLunarLander`, exten
 
 Now we have negative thrust, let's move on to the next step.
 
-### *Apprenticeship Learning for Target Trajectory*
+### Apprenticeship Learning for Target Trajectory
+
+Considering the difficulty of pushing the RF model to randomly learn a way to flip, it's better to positively find a way that probably drives the lunar lander flip to inverted posture. Once it goes into inverted, then we try to make it stable in the position.
+
+Based on the `BidirectionalLunarLander`, with several attempts, I created a `naive_inverted_controller` that can produce actions to make the lunar lander flip in most cases. It has nothing to do with "learning", it also isn't an optimal controller, it's just a  "naive" controller:
+
+```python
+def navie_inverted_controller(obs, phase, sign):
+    x = obs[0]
+    y = obs[1]
+    vx = obs[2]
+    vy = obs[3]
+    theta = obs[4]
+    omega = obs[5]
+
+    # angle wrap to [-pi, pi]
+    theta_wrapped = np.arctan2(np.sin(theta), np.cos(theta))
+    theta_abs = abs(theta_wrapped)
+
+    side = 0
+    main = 0
+    if phase == 1:
+        if y > 1.4:
+            return np.array([0, 0], dtype=np.float32), phase
+            
+        if theta_abs < 1.9:
+            side = -0.6 * sign
+            main = 0.8
+        elif theta_abs > 1.9 and abs(omega) > 0.1 :
+            side = 1 * sign
+            main = -1
+        else:
+            phase = 2
+
+    if phase == 2:
+        if y > 1.4:
+            return np.array([0, 0], dtype=np.float32), phase
+
+        main = -0.6
+        if vx > 0.1:
+            side = 0.5
+        elif vx < -0.1:
+            side = -0.5
+        else:
+            side = 0
+
+    return np.array([
+        np.clip(main, -1.0, 1.0),
+        np.clip(side, -1.0, 1.0)
+    ], dtype=np.float32), phase
+```
+
+Many hard coded statics are in the implementation, but don't worry, it works on our `BidirectionalLunarLander` and can be used to generate training data later.
+
+Once we can confidently drive the lunar lander to flip, next is how to make it stable in the inverted position without crash. Obviously our naive controller is only good at flip, it cannot fine control the lunar lander towards stabilization. But with the experience of the previous chapter - lunar lander hover - it's straightforward to stable the lunar lander by using reenforcement learning.
+
+This time as we are using the `continuous` control model, DQN might not be a good choice. SAC will be better.
