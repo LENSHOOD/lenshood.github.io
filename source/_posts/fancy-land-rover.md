@@ -142,7 +142,7 @@ Now we have negative thrust, let's move on to the next step.
 
 ### Apprenticeship Learning for Target Trajectory
 
-Considering the difficulty of pushing the RF model to randomly learn a way to flip, it's better to positively find a way that probably drives the lunar lander flip to inverted posture. Once it goes into inverted, then we try to make it stable in the position.
+Considering the difficulty of pushing the RL model to randomly learn a way to flip, it's better to positively find a way that probably drives the lunar lander flip to inverted posture. Once it goes into inverted, then we try to make it stable in the position.
 
 Based on the `BidirectionalLunarLander`, with several attempts, I created a `naive_inverted_controller` that can produce actions to make the lunar lander flip in most cases. It has nothing to do with "learning", it also isn't an optimal controller, it's just a  "naive" controller:
 
@@ -196,4 +196,101 @@ Many hard coded statics are in the implementation, but don't worry, it works on 
 
 Once we can confidently drive the lunar lander to flip, next is how to make it stable in the inverted position without crash. Obviously our naive controller is only good at flip, it cannot fine control the lunar lander towards stabilization. But with the experience of the previous chapter - lunar lander hover - it's straightforward to stable the lunar lander by using reenforcement learning.
 
-This time as we are using the `continuous` control model, DQN might not be a good choice. SAC will be better.
+First we build a Env wrapper that overrides the default reward model to the reward model dedicated for inverted hovering:
+
+```python
+class InvertedHoverWrapper(gym.Wrapper):
+    def __init__(self, env, controller, y_ref=1.2):
+        super().__init__(env)
+        self.controller = controller
+        self.y_ref = y_ref
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        self.controller.reset(obs[2])
+
+        for _ in range(200):
+            action, phase = self.controller.act(obs)
+            obs, _, terminated, truncated, _ = self.env.step(action)
+
+            if terminated or truncated:
+                obs, info = self.env.reset(**kwargs)
+                self.controller.reset(obs[2])
+
+            if phase == 2:
+                break
+
+        return obs, info
+
+    def step(self, action):
+        obs, _, terminated, truncated, info = self.env.step(action)
+
+        reward = self.tracking_reward(obs, action)
+
+        done = terminated or truncated
+        if abs(obs[1]) > 3.0:
+            done = True
+
+        return obs, reward, done, False, info
+
+    def tracking_reward(self, obs, action):
+        x, y, vx, vy, theta, omega, _, _ = obs
+        main, side = action
+    
+        theta_err = np.arctan2(
+            np.sin(theta - np.pi),
+            np.cos(theta - np.pi)
+        )
+    
+        reward = (
+            - 4.0 * theta_err**2
+            - 2.0 * omega**2
+    
+            - 3.0 * (y - self.y_ref)**2
+            - 2.0 * vy**2
+    
+            - 3.0 * x**2
+            - 2.0 * vx**2
+    
+            - 0.1 * main**2
+            - 0.05 * side**2
+        )
+    
+        return reward
+```
+
+The `controller` being passed to `__init__` is exactly our naive controller, and we use the naive controller to operate the lunar lander to inverted position when `reset()` is called. Hence, while training the model by using the wrapper, the initial position is considered as inverted already, the RL model only needs to keep the position as long as possible.
+
+This time as we are using the `continuous` control model, DQN might not be a good choice. [SAC](https://spinningup.openai.com/en/latest/algorithms/sac.html) will be better.
+
+Using SAC along with the `InvertedHoverWrapper`, we could train a good RL model that is able to stay the lunar lander in inverted position. Combined with naive controller, we can build a `HybridExpert` to operate the `BidirectionalLunarLander`:
+
+```python
+class HybridExpert:
+    def __init__(self, inverted_controller, rf_policy):
+        self.inverted_controller = inverted_controller
+        self.rf_policy = rf_policy
+        self.phase = 0
+
+    def reset(self, vx0):
+        self.inverted_controller.reset(vx0)
+        self.phase = 0
+
+    def act(self, obs):
+        if self.phase != 2:
+            action, phase = self.inverted_controller.act(obs)
+            self.phase = phase
+            return action
+        else:
+            action, _ = self.rf_policy.predict(obs, deterministic=True)
+            return action
+```
+
+Let's see how the `HybridExpert` works:
+
+
+
+### Expert Distill
+
+
+
