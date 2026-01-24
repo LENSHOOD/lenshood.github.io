@@ -12,14 +12,6 @@ The entire lab is based on the [Gymnasium](https://gymnasium.farama.org/), which
 
  <!-- more -->
 
-
-
-## Inverted Hover Helicopter & DQN Approach
-
-
-
-
-
 ## Lunar Lander Hover
 
 To make the LunarLander hover in the air instead of landing, basically we'll need to redefine the reward model.
@@ -290,7 +282,95 @@ Let's see how the `HybridExpert` works:
 
 
 
-### Expert Distill
+### Expert Distillation
+
+Now we already have the HybridExpert that is capable of flipping the lunar lander to inverted and keep it stable. But there are some flaws of the HybridExpert:
+
+The flipping movement is made by a classic controller instead of a machine learning model. There's `phase` stored in the object determine whether to act by the naive controller or by the RL model. The controlling is discontinuity in separate stages, making the HybridExpert lacks of generalizability.
+
+To have a universal, generalized model capable of output actions from the beginning of the env reset to the end state, we should perform a sort of thing that training another model learning from the HybridExpert, that is expert distillation.
+
+We are going to use the combination of Behavior Cloning and DAgger to train a new model from HybridExpert.
+
+#### Behavior Cloning
+
+This is quite straightforward, we have the HybridExpert in our hand, we let it run thousands of times, record all trajectory as the training data, use the data to train a neural network.
+
+```python
+def build_bc_policy(obs_dim=8, act_dim=2):
+    inputs = layers.Input(shape=(obs_dim,))
+    x = layers.Dense(128, activation="relu")(inputs)
+    x = layers.Dense(128, activation="relu")(x)
+    outputs = layers.Dense(act_dim, activation="tanh")(x)
+
+    model = models.Model(inputs, outputs)
+    return model
+
+# record HybridExpert movements(observations and actions) into 'data'
+obs_all = data["obs"]          # (N, 8)
+actions_all = data["actions"]  # (N, 2)
+dataset = tf.data.Dataset.from_tensor_slices(
+    (obs_all.astype(np.float32), actions_all.astype(np.float32))
+)
+
+dataset = dataset.shuffle(10000).batch(256).prefetch(tf.data.AUTOTUNE)
+policy = build_bc_policy()
+policy.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=3e-4),
+    loss="mse"
+)
+policy.fit(
+    dataset,
+    epochs=30
+)
+```
+
+The neural network is a very simple model who has two hidden layers that contain 128 parameters for each, input = 8 and output = 2.
+
+But this is like learning drive by watching drive videos, even we have record thousands of "videos" that HybridExpert has well operated, but it doesn't know how to do if in the position it never seen.
+
+Hence, sometimes the model will crash the lunar lander:
+
+
+
+#### DAgger
+
+By using the DAgger approach, we let our neural network model(the learner) to output actions from the input observation, but let the HybridExpert (the expert) to act based on the same observation. Appending the expert output actions into the dataset, so that the dataset now contains more abundant trajectories.
+
+```python
+def dagger_rollout(
+    env,
+    policy,
+    expert,
+    max_steps=500
+):
+    obs, _ = env.reset()
+    expert.reset(obs[2])
+
+    rollout_data = []
+
+    for t in range(max_steps):
+        # learner action
+        obs_batch = obs.reshape(1, -1).astype(np.float32)
+        learner_action = policy(obs_batch, training=False).numpy()[0]
+
+        # expert label
+        expert_action = expert.act(obs)
+
+        rollout_data.append({
+            "obs": obs.copy(),
+            "action": expert_action.copy()
+        })
+
+        obs, _, terminated, truncated, _ = env.step(learner_action)
+
+        if terminated or truncated:
+            break
+
+    return rollout_data
+```
+
+Using `dagger_rollout` to get more data and append to the dataset, train it again, then we'll get our final model. Let's see what it got now:
 
 
 
