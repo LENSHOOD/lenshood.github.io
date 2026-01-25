@@ -1,18 +1,18 @@
 ---
-title: Attempt of Fancy Land Rover
+title: Fancy Lunar Landers
 date: 2025-12-07 12:02:18
 tags:
 - unsupervised learning
 - DQN
 ---
 
-There was a very interesting lab in the course of [Unsupervised Learning, Recommenders, Reinforcement Learning](https://www.coursera.org/learn/unsupervised-learning-recommenders-reinforcement-learning?specialization=machine-learning-introduction) taught by Prof. Andrew Ng, which train a machine learning model to make sure the lunar lander land in a pre-defined range of area. 
+There was a very interesting lab in the course of [Unsupervised Learning, Recommenders, Reinforcement Learning](https://www.coursera.org/learn/unsupervised-learning-recommenders-reinforcement-learning?specialization=machine-learning-introduction) taught by Prof. Andrew Ng, which trains a machine learning model to make sure the lunar lander land in a pre-defined range of area. In the course, Andrew also mentioned one of his team's great work that using machine learning model to drive a toy helicopter flying inverted in the real word. That's amazing, the work they have done has been published: [*Autonomous Helicopter Aerobatics through Apprenticeship Learning*](https://cs.stanford.edu/~acoates/papers/AbbeelCoatesNg_IJRR2010.pdf).
 
 The entire lab is based on the [Gymnasium](https://gymnasium.farama.org/), which provides experiential environments for reinforcement learning. After finished the lab, I noticed the Gymnasium is quite flexible and easy to extend, making it possible to play the env in some fancy ways beyond the default configuration.
 
  <!-- more -->
 
-## Lunar Lander Hover
+## 1. Lunar Lander Hover
 
 To make the LunarLander hover in the air instead of landing, basically we'll need to redefine the reward model.
 
@@ -40,7 +40,7 @@ Comparing the landing reward, seems hover can be way more easier, since we only 
 
 ### Extend the original LunarLander
 
-To adjust the original LunarLander meeting our new target: hover, the reward model needs to be updated. And benefit by the open sourced code of gymnasium, we can directly extend the LunarLander by override a few methods.
+To adjust the original LunarLander reaching our new target: hover, the reward model needs to be updated. And benefit by the open sourced code of gymnasium, we can directly extend the LunarLander by overriding a few methods.
 
 ```python
 class FancyLunarLander(LunarLander):
@@ -80,21 +80,27 @@ class FancyLunarLander(LunarLander):
         return obs, reward, terminated, truncated, info
 ```
 
-In the override method `step()` , we at first calling the super method to get necessary outputs such as the observations, terminated, truncated and information, which are no need to change at all and will be returned by our override method.
+In the override method `step()` , we at first call the `super` method to get necessary outputs such as the observations, terminated, truncated and information, which are no need to change at all and will be returned by our override method.
 
-The only change introduced is the "reward", because in our "FancyLunarLander" we don't want to follow the original reward model, which is designed to land in a limited area. Our new goal is to hover, so what we need is let the LunarLander stick in a 2D area, which we can define the vertical and horizontal positions.
+The only change introduced is the "reward", because in our "FancyLunarLander" we don't want to follow the original reward model, which is designed to land in a limited area. Our new goal is to hover, so what we need is letting the LunarLander stick in a 2D area, which we can define the vertical and horizontal positions.
 
 According to the override method, obviously, we limit the 2D area to a square that coordinates are `x = [-x_range, x_range]`, `y = [1 - y_range, 1 + y_range]`. The less the x_range / y_range are, the smaller the square is.
 
 Besides, the reward model needs to be redesigned, which as per the code, if the current position of the LunarLander is in the square, it increases the reward by adding positive values (zone_reward and height_reward) to the reward variable, on the contrary, if the current position is out of the square, the reward will be decreased due to negative values to be added.
 
+Let's see an example of the model outputs:
 
 
-## Lunar Lander Inverted Hover
 
-The previous chapter proves it's relatively easy to stay a hover status if appropriate rewards are provided. So can we have an inverted hover if we set appropriate rewards as well?
+Looks it works very well!
 
-The answer is no, inverted hovering wouldn't be that easy to build like a plain hover. Two obstacles preventing us from achieving that:
+
+
+## 2. Lunar Lander Inverted Hover
+
+The previous chapter proves it's relatively easy to stay a hover status if appropriate rewards are provided. So can we have an inverted hover like the paper did if we set appropriate rewards as well?
+
+Unfortunately, the answer is no, inverted hovering wouldn't be that easy to build like a plain hover. Two obstacles are preventing us from achieving that:
 
 1. Standard lunar lander can only produce positive thrust. 
 
@@ -110,7 +116,7 @@ To overcome the above 2 obstacles, first we need change the lunar lander source 
 
 In Gymnasium, there are two envs of lunar lander, discrete or continuous. At this time we are going to use the continuous env which allows us passing `Box(-1, +1, (2,), dtype=np.float32)` as the action for more precise control. For the lunar lander, the main engine will be turned off completely if `main < 0` and the throttle scales affinely from 50% to 100% for `0 <= main <= 1`
 
-What we need to modify is to unlock the limitation of no power if `main < 0`. Instead, we would want the main engine outputs negative thrust if `main < 0`. 
+What we need to modify is to unlock the limitation of no power if `main < 0`. Instead, we would want the main engine outputs negative thrust when `main < 0`. 
 
 The version of Gymnasium we are using is v1.2.3, locate to the code we can find the limitation of main power at [here](https://github.com/Farama-Foundation/Gymnasium/blob/43965e15c2424a2b6955c79e774b0810457fd5be/gymnasium/envs/box2d/lunar_lander.py#L535):
 
@@ -284,17 +290,17 @@ Let's see how the `HybridExpert` works:
 
 ### Expert Distillation
 
-Now we already have the HybridExpert that is capable of flipping the lunar lander to inverted and keep it stable. But there are some flaws of the HybridExpert:
+Now we already have the `HybridExpert` that is capable of flipping the lunar lander to inverted and keep it stable. But there are some flaws of the `HybridExpert`:
 
-The flipping movement is made by a classic controller instead of a machine learning model. There's `phase` stored in the object determine whether to act by the naive controller or by the RL model. The controlling is discontinuity in separate stages, making the HybridExpert lacks of generalizability.
+The flipping movement is made by a classic controller instead of a machine learning model. There's a `phase` stored in the object determine whether to act by the naive controller or by the RL model. The controlling is discontinuity in separate stages, making the `HybridExpert` lacks of generalizability.
 
-To have a universal, generalized model capable of output actions from the beginning of the env reset to the end state, we should perform a sort of thing that training another model learning from the HybridExpert, that is expert distillation.
+To have a universal, generalized model capable of output actions from the beginning of the env reset to the end state, we should perform a sort of thing that training another model learning from the `HybridExpert`, that is expert distillation.
 
-We are going to use the combination of Behavior Cloning and DAgger to train a new model from HybridExpert.
+We are going to use the combination of [Behavior Cloning](https://en.wikipedia.org/wiki/Imitation_learning) and [DAgger](https://proceedings.mlr.press/v15/ross11a.html) to train a new model from `HybridExpert`.
 
 #### Behavior Cloning
 
-This is quite straightforward, we have the HybridExpert in our hand, we let it run thousands of times, record all trajectory as the training data, use the data to train a neural network.
+This is quite straightforward, we have the `HybridExpert` in our hand, we let it run thousands of times, record all trajectories as the training data, use the data to train a neural network.
 
 ```python
 def build_bc_policy(obs_dim=8, act_dim=2):
@@ -327,7 +333,7 @@ policy.fit(
 
 The neural network is a very simple model who has two hidden layers that contain 128 parameters for each, input = 8 and output = 2.
 
-But this is like learning drive by watching drive videos, even we have record thousands of "videos" that HybridExpert has well operated, but it doesn't know how to do if in the position it never seen.
+But this is like learning drive by watching drive videos, even we have record thousands of "videos" that `HybridExpert` has well operated, but it doesn't know how to do if in the position it's never seen.
 
 Hence, sometimes the model will crash the lunar lander:
 
@@ -335,7 +341,7 @@ Hence, sometimes the model will crash the lunar lander:
 
 #### DAgger
 
-By using the DAgger approach, we let our neural network model(the learner) to output actions from the input observation, but let the HybridExpert (the expert) to act based on the same observation. Appending the expert output actions into the dataset, so that the dataset now contains more abundant trajectories.
+By using the DAgger approach, we let our neural network model (the learner) to output actions from the input observation, but let the `HybridExpert` (the expert) to act based on the same observation. Appending the expert output actions into the dataset, so that the dataset now contains more abundant trajectories.
 
 ```python
 def dagger_rollout(
