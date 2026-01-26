@@ -89,8 +89,9 @@ According to the override method, obviously, we limit the 2D area to a square th
 Besides, the reward model needs to be redesigned, which as per the code, if the current position of the LunarLander is in the square, it increases the reward by adding positive values (zone_reward and height_reward) to the reward variable, on the contrary, if the current position is out of the square, the reward will be decreased due to negative values to be added.
 
 Let's see an example of the model outputs:
-
-
+<video controls width="100%">   
+  <source src="{% asset_path hover.mp4 %}" type="video/mp4"> 
+</video>
 
 Looks it works very well!
 
@@ -134,7 +135,7 @@ As we'll use the "continuous" mode so we only need to change the `clip` and `ass
 m_power = (np.clip(action[0], -1.0, 1.0))
 ```
 
-With the minor change, we create a class named `BidirectionalLunarLander`, extends from LunarLander and override the entire `step()` method containing the change as well. (Full code see: )
+With the minor change, we create a class named `BidirectionalLunarLander`, extends from LunarLander and override the entire `step()` method containing the change as well. (Full code see [here](https://github.com/LENSHOOD/2022-Machine-Learning-Specialization/blob/4b2211a9d2de2cf0de3e5c0a60bf7f1b750786cc/Unsupervised%20learning%20recommenders%20reinforcement%20learning/week3/Practice%20Lab-Reinforcement%20Learning/bidirection_lunar_lander.py#L9))
 
 Now we have negative thrust, let's move on to the next step.
 
@@ -286,7 +287,9 @@ class HybridExpert:
 
 Let's see how the `HybridExpert` works:
 
-
+<video controls width="100%">   
+  <source src="{% asset_path hybrid_expert.mp4 %}" type="video/mp4"> 
+</video>
 
 ### Expert Distillation
 
@@ -336,7 +339,9 @@ The neural network is a very simple model who has two hidden layers that contain
 But this is like learning drive by watching drive videos, even we have record thousands of "videos" that `HybridExpert` has well operated, but it doesn't know how to do if in the position it's never seen.
 
 Hence, sometimes the model will crash the lunar lander:
-
+<video controls width="100%">   
+  <source src="{% asset_path bc.mp4 %}" type="video/mp4"> 
+</video>
 
 
 #### DAgger
@@ -377,6 +382,11 @@ def dagger_rollout(
 ```
 
 Using `dagger_rollout` to get more data and append to the dataset, train it again, then we'll get our final model. Let's see what it got now:
+<video controls width="100%">   
+  <source src="{% asset_path dagger.mp4 %}" type="video/mp4"> 
+</video>
 
 
+## Ref
 
+[Full Code](https://github.com/LENSHOOD/2022-Machine-Learning-Specialization/blob/main/Unsupervised%20learning%20recommenders%20reinforcement%20learning/week3/Practice%20Lab-Reinforcement%20Learning/fancy_lander_v2.ipynb)
