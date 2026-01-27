@@ -6,6 +6,8 @@ tags:
 - DQN
 ---
 
+<img src="https://gymnasium.farama.org/_images/lunar_lander.gif" style="zoom:50%;" />
+
 There was a very interesting lab in the course of [Unsupervised Learning, Recommenders, Reinforcement Learning](https://www.coursera.org/learn/unsupervised-learning-recommenders-reinforcement-learning?specialization=machine-learning-introduction) taught by Prof. Andrew Ng, which trains a machine learning model to make sure the lunar lander land in a pre-defined range of area. In the course, Andrew also mentioned one of his team's great work that using machine learning model to drive a toy helicopter flying inverted in the real word. That's amazing, the work they have done has been published: [*Autonomous Helicopter Aerobatics through Apprenticeship Learning*](https://cs.stanford.edu/~acoates/papers/AbbeelCoatesNg_IJRR2010.pdf).
 
 The entire lab is based on the [Gymnasium](https://gymnasium.farama.org/), which provides experiential environments for reinforcement learning. After finished the lab, I noticed the Gymnasium is quite flexible and easy to extend, making it possible to play the env in some fancy ways beyond the default configuration.
