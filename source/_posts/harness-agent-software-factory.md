@@ -32,12 +32,24 @@ validation (showcase?)
 Harness:
 Roles
 Rules (AGENTS.md)
-Gate (fitness)
+Gate (fitness, lints, constrains, hooks)
 Communication
 
+Playground/simulation:
+showcase to agents in different personas
 ## Context & Memory
 context management
 memory system
 sessions archiving
 update spec
 knowledge extraction
+
+## Agent Friendly Environment
+Testable artifact (by test tooling)
+Observability to agents
+
+## Workflow
+day0-day1-day2
+agile sprint
+retro / tech debt / ADR
+
