@@ -1,5 +1,5 @@
 ---
-title: Building Software Factory with Harness Agents
+title: AI时代的软件工厂管理框架
 date: 2026-05-23 22:46:57
 tags:
   - AI
@@ -7,49 +7,24 @@ tags:
 categories:
   - Software Engineering
 ---
-## Spec & Contract
-project level:
-architecture & tech stack
-project background & goal
-roadmap
+## 1. 引言：软件开发范式迁移
+### 1.1 传统软件开发的"手工作坊"困境
+### 1.2 AI Agent引发的范式转折
 
-feature level:
-requirements
-targets
-story list (INVEST principle)
+## 2. 工业生产方法论
+### 2.1 六西格玛与生产一致性
+### 2.2 丰田生产系统与质量内建
+### 2.3 TOC与人类关注点迁移
 
-story level:
-Description
-DoD
-ACs
-
-## Generator & Evaluator
-Iterations:
-replanning
-implementation
-validation (showcase?)
-
-Harness:
-Roles
-Rules (AGENTS.md)
-Gate (fitness, lints, constrains, hooks)
-Communication
-
-Playground/simulation:
-showcase to agents in different personas
-## Context & Memory
-context management
-memory system
-sessions archiving
-update spec
-knowledge extraction
-
-## Agent Friendly Environment
-Testable artifact (by test tooling)
-Observability to agents
-
-## Workflow
-day0-day1-day2
-agile sprint
-retro / tech debt / ADR
-
+## 3. 软件工厂管理框架
+### 3.1 核心概念定义
+#### 3.1.1 Playbook
+#### 3.1.2 对抗
+#### 3.1.3 持续改善
+### 3.2 整体框架
+### 3.3 设计哲学
+## 4. 框架拆解
+### 4.1 生产单元层
+### 4.2 组织能力层
+### 4.3 人类接口层
+## 5. 边界与展望
