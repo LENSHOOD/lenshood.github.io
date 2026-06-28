@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="传统软件开发是&quot;手工作坊&quot; 软件开发的本质是知识在不同形式下的传递——需求被转化为设计，再被转化为软件，软件开发是知识通过开发者发生重组的过程。 这种转化的过程知识密度很高，导致软件开发深度依赖人脑的参与，让软件开发者更像是手工业者，软件开发更像是做手艺活。当我们以手工业的视角看待以往的软件行业时，会很熟悉以下的现象： - 横向扩展困难： 给一个已经延迟的项目增加人手，往往使项目更加延迟 - 产物">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AI 时代的软件工厂管理框架">
+<meta property="og:url" content="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="传统软件开发是&quot;手工作坊&quot; 软件开发的本质是知识在不同形式下的传递——需求被转化为设计，再被转化为软件，软件开发是知识通过开发者发生重组的过程。 这种转化的过程知识密度很高，导致软件开发深度依赖人脑的参与，让软件开发者更像是手工业者，软件开发更像是做手艺活。当我们以手工业的视角看待以往的软件行业时，会很熟悉以下的现象： - 横向扩展困难： 给一个已经延迟的项目增加人手，往往使项目更加延迟 - 产物">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/1.png">
+<meta property="og:image" content="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/2.png">
+<meta property="article:published_time" content="2026-05-23T14:46:57.000Z">
+<meta property="article:modified_time" content="2026-06-28T10:06:19.764Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="AI">
+<meta property="article:tag" content="agent">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/1.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2026/05/23/harness-agent-software-factory/","path":"2026/05/23/harness-agent-software-factory/","title":"AI 时代的软件工厂管理框架"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>AI 时代的软件工厂管理框架 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BC%A0%E7%BB%9F%E8%BD%AF%E4%BB%B6%E5%BC%80%E5%8F%91%E6%98%AF%E6%89%8B%E5%B7%A5%E4%BD%9C%E5%9D%8A"><span class="nav-number">1.</span> <span class="nav-text">传统软件开发是&quot;手工作坊&quot;</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%9F%E4%BA%A7%E5%8D%95%E5%85%83%E5%B1%82"><span class="nav-number">2.</span> <span class="nav-text">生产单元层</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%84%E7%BB%87%E8%83%BD%E5%8A%9B%E5%B1%82"><span class="nav-number">3.</span> <span class="nav-text">组织能力层</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%BA%E7%B1%BB%E6%8E%A5%E5%8F%A3%E5%B1%82"><span class="nav-number">4.</span> <span class="nav-text">人类接口层</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%8B%E4%B8%80%E6%AD%A5"><span class="nav-number">5.</span> <span class="nav-text">下一步</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">93</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">107</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="AI 时代的软件工厂管理框架 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          AI 时代的软件工厂管理框架
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2026-05-23 22:46:57" itemprop="dateCreated datePublished" datetime="2026-05-23T22:46:57+08:00">2026-05-23</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2026-06-28 18:06:19" itemprop="dateModified" datetime="2026-06-28T18:06:19+08:00">2026-06-28</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="传统软件开发是手工作坊">传统软件开发是"手工作坊"</h2>
+<p>软件开发的本质是知识在不同形式下的传递——需求被转化为设计，再被转化为软件，软件开发是知识通过开发者发生重组的过程。</p>
+<p>这种转化的过程知识密度很高，导致软件开发深度依赖人脑的参与，让软件开发者更像是手工业者，软件开发更像是做手艺活。当我们以手工业的视角看待以往的软件行业时，会很熟悉以下的现象：
+- <strong>横向扩展困难：</strong>
+给一个已经延迟的项目增加人手，往往使项目更加延迟 -
+<strong>产物高度依赖个人：</strong>
+同样的功能需求，不同开发者开发的效率、质量差异巨大 -
+<strong>过程可见性差：</strong>
+开发者脑中的认知过程是黑箱，交付时只能看到输入（需求）和输出（代码），中间过程不可见也不可控
+- <strong>不确定性贯穿始终：</strong>
+几乎没见过按计划交付的软件项目，其时间、风险、质量皆难以准确预估 ## AI
+引发的范式转移 <a
+href="https://en.wikipedia.org/wiki/No_Silver_Bullet">《没有银弹》</a>中提到：软件开发的复杂性可被区分为本质复杂性和偶然复杂性，偶然复杂性可以被工具降低，但本质复杂性无法消除（有意思的是《没有银弹》发表至今已经40年，但其内核看起来仍然成立）。</p>
+<p>AI
+似乎也不是银弹，但软件开发确实变了。偶然复杂性有望被全面解决，人类的工作面会提升到更高的抽象层级：只关注本质复杂性。</p>
+<p>当AI能够承担编码执行、测试生成、代码审查、甚至大部分架构设计和需求分析工作时，软件开发可以不再是手工作坊，<strong>“认知契约”</strong>
+会成为人与机器之间的规格图纸和双向协议，人定义意图和约束，机器反馈可行性和成本。</p>
+<p>软件工业化随之而来：执行层可以被标准化、可预测、可规模化地替代，从而使管理层（人）能够从执行中分离出来，专注于更高层级的流程设计、质量体系和持续优化。</p>
+<p>那么当软件开发具备了工业化管理的前提条件时，是否有可能构建一个适用于AI时代的软件工厂管理框架？
+## 软件工厂管理框架</p>
+<p>在讨论管理框架之前，首先要问：我们要管理什么？为什么要管理？</p>
+<p>当软件研发中大规模引入 AI 协作后，可以预见的有： -
+产出代码的边际成本大幅降低，但相应的让人类的决策和注意力成本大幅上升 -
+AI 基础设施方便扩缩容，人力编排不再是难题，人类需要适应频繁上下文切换 -
+与人类开发者不同，智能体没有长期记忆，领域知识共享和记忆管理会非常重要 -
+由于上下文窗口长度的限制，AI 存在认知漂移和产出物不一致的问题 -
+智能体的工作过程完全可观测，对生产行为进行细粒度监控和优化成为可能</p>
+<p>因此，软件工厂的管理维度应聚焦于： - 如何提升人类的认知和决策质量 -
+如何确保生产的一致性 - 如何让知识和信息被充分共享 ### 三层框架
+完整的软件工厂框架是一种三层结构：</p>
+<img src="/2026/05/23/harness-agent-software-factory/1.png" class="">
+<p><strong>生产单元层</strong>： 这一层由各种 APU（Agentic Production
+Unit）来组织智能体进行协作和生产，负责不同任务的 APU 会有些许差异。
+这一层的目标是最大化释放AI的生产力，同时依靠生产单元和组织层面的体系来约束产出，确保生产一致性。</p>
+<p><strong>组织能力层</strong>：
+这一层的核心目的是定义跨APU的能力和活动，例如行业知识和合规性约束，架构规则和生产规范，生产效率持续观测和改善等。
+这一层本质上是聚合了企业核心的数据资产，且具有资产迭代的能力。人类和APU都依赖这些数据资产来处理自己所在层次的工作。</p>
+<p><strong>人类接口层</strong>：
+这一层将人类的价值聚焦在方向感、判断力和创造力的活动上，例如战略输入，权衡裁决，最终确认，直觉验证等。通过人类接口层的隔离，生产细节被屏蔽掉，人类重点关注数据和决策，只在需要时才介入生产流程。</p>
+<h2 id="生产单元层">生产单元层</h2>
+<p>生产单元层封装了实际执行工作的各类 APU，而 APU 推进生产的核心是围绕
+Playbook 构建的智能体。这些智能体在 APU
+中按照设定的工序将原料变为产物。</p>
+<p>Playbook
+是为确保智能体高质量地将输入转化为产出而设计的完整管理规范，它定义了软件工厂中不同“工种”为了完成其特定工作所依赖的要素，包括工序、约束、工装和反馈的组合：
+- 工序（Process）是Playbook的核心，它定义了具体的操作步骤序列 -
+约束（Constraint）定义边界，是不可违反的规则和限制 -
+工装（Fixture）是智能体可用的各种辅助工具如Skills，MCPs等 -
+反馈（Feedback）描述了需要回传和分析的数据，用于持续改进</p>
+<p>这里以 “软件交付 APU” 举例说明 APU 的工作方式：</p>
+<p>软件交付APU封装了包括需求拆解，代码生产，质量保障等几个核心的Playbook。</p>
+<p>它开始工作的前置条件是明确的 “认知契约”： -
+提供需求说明书以确认交付范围，提供架构设计文档以确认技术路线 -
+无论契约的形式，其内容应意图清晰、约束明确、验收标准可判定</p>
+<p>整个APU的工作流遵循标准的迭代式开发流程： 1.
+需求拆解智能体：基于输入将交付目标拆解为Story列表，过程中涉及的领域知识可以在组织知识库中搜索获取，对需求和架构的质疑会拉起产品APU和架构APU的流程进行澄清。
+2. 代码生产智能体：围绕 Story
+进行开发，验证，集成等工作。生产代码期间遵循架构，安全，合规等约束，涉及技术，架构层面的冲突则引入架构APU来给出决策。智能体之间互相评议代码，提出修改意见。代码通过门禁检查后直接集成并部署。
+3.
+质量保障智能体：对部署的功能进行验证，提供测试结论。每到阶段性里程碑时，通知人类对可运行的软件进行验收，验收期间被确认的问题和改进重新形成Story加入Backlog。</p>
+<p>工作期间所形成的Story，设计图，代码，沟通总结，ADR，Review记录，验收记录等全部作为APU层面的上下文，可用来初始化或恢复智能体的记忆。
+工作期间上报的各类相关的信息，例如Story完成的时间，讨论和对抗的次数，被反复修改的代码块，被打破的约束等，会持续被反馈上报，用来支撑数据分析。</p>
+<h2 id="组织能力层">组织能力层</h2>
+<p>组织能力层定义了跨APU的能力和活动，这些能力和活动能帮助人类和 APU
+理解业务，明确边界和约束，以及对生产过程进行持续改善。</p>
+<p><strong>企业知识沉淀</strong>
+一个金融科技公司和一个汽车制造公司，虽然都在做软件开发，但其组织能力、合规要求、质量标准是截然不同的，为了让软件工厂能开发符合企业需求的软件，智能体需要理解企业实际的业务，这是知识沉淀的目的。</p>
+<p>从软件工厂的维度看，建设企业知识沉淀能力是为了服务智能体，但事实上知识沉淀的前提是数据治理。为了让智能体能找到准确的信息，同时又避免发生数据泄露等安全问题，对数据治理应当关注知识架构，数据质量，动态更新，权限隔离等方面。</p>
+<p><strong>组织约束管理</strong>
+由于智能体本身的非确定性特点，任由智能体发挥所产出的产物通常都会和需求大相径庭。为了确保软件工厂产出的一致性和可预测性，需要通过约束来控制整个生产过程，防止漂移。Playbook
+中的“约束（Constraint）”
+是其关键元素，用来定义智能体工作和产出物的边界，这些约束的来源正是组织约束管理所提供的内容。</p>
+<p>有约束就必须要确保约束被遵守，约束包括指导性和强制性两类： -
+指导性约束：基于Playbook中的约束，指导智能体的生产，同时智能体之间也相互进行对抗检查
+- 强制性约束：通过linter，checker，pipeline
+等工具，强制对产物进行门禁检查</p>
+<p><strong>持续改善优化</strong>
+由于智能体工作过程的高透明度，让软件工厂能以比人类团队细致的多的层面对生产过程进行观察。这种观察能在生产一致性和质量提升层面提供巨大价值。</p>
+<p>可参考以下关键指标来评估软件工厂生产的一致性和质量：</p>
+<table>
+<colgroup>
+<col style="width: 13%" />
+<col style="width: 15%" />
+<col style="width: 71%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">维度</th>
+<th style="text-align: left;">指标</th>
+<th style="text-align: left;">含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">功能一致性</td>
+<td style="text-align: left;">功能行为等价率</td>
+<td
+style="text-align: left;">两组不同智能体对同一需求的实现，在相同输入下输出是否一致</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">效率一致性</td>
+<td style="text-align: left;">成本等价率</td>
+<td
+style="text-align: left;">两组实现在相同模型和负载下的token消耗和基础设施费用是否接近</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">缺陷密度</td>
+<td style="text-align: left;">千行代码缺陷率</td>
+<td style="text-align: left;">AI生成代码的缺陷密度趋势</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">第一次通过率</td>
+<td style="text-align: left;">无需返工的比例</td>
+<td style="text-align: left;">代码生成后直接通过所有质量门禁的比例</td>
+</tr>
+</tbody>
+</table>
+<h2 id="人类接口层">人类接口层</h2>
+<p>回到文章开头的判断，我们期望 AI
+能够帮助我们解决掉软件开发中的偶然复杂性，让人类能专注于本质复杂性的解决，因此人类接口层的目的就是为了给人类提供一个管理视角，提供人与AI在不同工作面之间的交互接口。例如，需要人类参与的典型场景有：</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">参与类型</th>
+<th style="text-align: left;">触发条件</th>
+<th style="text-align: left;">人类角色</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">战略输入</td>
+<td style="text-align: left;">项目启动、方向调整</td>
+<td style="text-align: left;">定义Why，设定约束和优先级</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">权衡裁决</td>
+<td style="text-align: left;">对抗无法收敛</td>
+<td style="text-align: left;">在多个方案中选择，承担决策责任</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">最终确认</td>
+<td style="text-align: left;">质量门禁通过前</td>
+<td style="text-align: left;">确认交付物符合预期</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">直觉验证</td>
+<td style="text-align: left;">探索性测试阶段</td>
+<td style="text-align: left;">发现AI无法察觉的体验和感受问题</td>
+</tr>
+</tbody>
+</table>
+<p>人类通常更习惯于持续做一件事，但站在管理视角下，人势必会面临频繁的上下文切换。所以对于人类的参与和介入体验也需要有充分考量，例如更多的采用图形化方式描述问题，通过多轮对话牵引更深入的思考，提供建议和推演帮助分析等等。</p>
+<h2 id="下一步">下一步</h2>
+<p>基于前面对三个层次的解释，我们可以将开始的管理框架简图更新为如下的详图：</p>
+<img src="/2026/05/23/harness-agent-software-factory/2.png" class="">
+<p>不过，前面讨论的软件工厂管理框架，主要聚焦在概念层面，具体的设计考量尚未深入，后续我们将将层层递进，逐一讨论并细化。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2026/05/23/harness-agent-software-factory/" title="AI 时代的软件工厂管理框架">http://lenshood.github.io/2026/05/23/harness-agent-software-factory/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/AI/" rel="tag"># AI</a>
+              <a href="/tags/agent/" rel="tag"># agent</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2025/12/07/fancy-land-rover/" rel="prev" title="Fancy Lunar Landers">
+                  <i class="fa fa-angle-left"></i> Fancy Lunar Landers
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2026</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>

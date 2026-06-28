@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="There was a very interesting lab in the course of Unsupervised Learning, Recommenders, Reinforcement Learning taught by Prof. Andrew Ng, which trains a machine learning model to make sure the lunar l">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Fancy Lunar Landers">
+<meta property="og:url" content="http://lenshood.github.io/2025/12/07/fancy-land-rover/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="There was a very interesting lab in the course of Unsupervised Learning, Recommenders, Reinforcement Learning taught by Prof. Andrew Ng, which trains a machine learning model to make sure the lunar l">
+<meta property="og:locale">
+<meta property="og:image" content="https://gymnasium.farama.org/_images/lunar_lander.gif">
+<meta property="article:published_time" content="2025-12-07T04:02:18.000Z">
+<meta property="article:modified_time" content="2026-06-28T10:06:19.727Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="unsupervised learning">
+<meta property="article:tag" content="DQN">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://gymnasium.farama.org/_images/lunar_lander.gif">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2025/12/07/fancy-land-rover/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2025/12/07/fancy-land-rover/","path":"2025/12/07/fancy-land-rover/","title":"Fancy Lunar Landers"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Fancy Lunar Landers | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#lunar-lander-hover"><span class="nav-number">1.</span> <span class="nav-text">1. Lunar Lander Hover</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#extend-the-original-lunarlander"><span class="nav-number">1.1.</span> <span class="nav-text">Extend the original
+LunarLander</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#lunar-lander-inverted-hover"><span class="nav-number">2.</span> <span class="nav-text">2. Lunar Lander Inverted Hover</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#negative-thrust"><span class="nav-number">2.1.</span> <span class="nav-text">Negative thrust</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#apprenticeship-learning-for-target-trajectory"><span class="nav-number">2.2.</span> <span class="nav-text">Apprenticeship
+Learning for Target Trajectory</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#expert-distillation"><span class="nav-number">2.3.</span> <span class="nav-text">Expert Distillation</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#behavior-cloning"><span class="nav-number">2.3.1.</span> <span class="nav-text">Behavior Cloning</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#dagger"><span class="nav-number">2.3.2.</span> <span class="nav-text">DAgger</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ref"><span class="nav-number">3.</span> <span class="nav-text">Ref</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">93</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">107</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2025/12/07/fancy-land-rover/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Fancy Lunar Landers | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Fancy Lunar Landers
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2025-12-07 12:02:18" itemprop="dateCreated datePublished" datetime="2025-12-07T12:02:18+08:00">2025-12-07</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2026-06-28 18:06:19" itemprop="dateModified" datetime="2026-06-28T18:06:19+08:00">2026-06-28</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><p><img src="https://gymnasium.farama.org/_images/lunar_lander.gif" style="zoom:50%;" /></p>
+<p>There was a very interesting lab in the course of <a
+href="https://www.coursera.org/learn/unsupervised-learning-recommenders-reinforcement-learning?specialization=machine-learning-introduction">Unsupervised
+Learning, Recommenders, Reinforcement Learning</a> taught by Prof.
+Andrew Ng, which trains a machine learning model to make sure the lunar
+lander land in a pre-defined range of area. In the course, Andrew also
+mentioned one of his team's great work that using machine learning model
+to drive a toy helicopter flying inverted in the real word. That's
+amazing, the work they have done has been published: <a
+href="https://cs.stanford.edu/~acoates/papers/AbbeelCoatesNg_IJRR2010.pdf"><em>Autonomous
+Helicopter Aerobatics through Apprenticeship Learning</em></a>.</p>
+<p>The entire lab is based on the <a
+href="https://gymnasium.farama.org/">Gymnasium</a>, which provides
+experiential environments for reinforcement learning. After finished the
+lab, I noticed the Gymnasium is quite flexible and easy to extend,
+making it possible to play the env in some fancy ways beyond the default
+configuration.</p>
+<p><span id="more"></span></p>
+<h2 id="lunar-lander-hover">1. Lunar Lander Hover</h2>
+<p>To make the LunarLander hover in the air instead of landing,
+basically we'll need to redefine the reward model.</p>
+<p>According to the original LunarLander, the target is to land on the
+ground with 2 legs, and the landing position should be between the two
+flags:</p>
+<p><img
+src="https://gymnasium.farama.org/_images/lunar_lander.gif" /></p>
+<p>Per the <a
+href="https://gymnasium.farama.org/environments/box2d/lunar_lander/">documentation</a>
+of LunarLander-V3, the reward model is:</p>
+<figure class="highlight livecodeserver"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">For <span class="keyword">each</span> step, <span class="keyword">the</span> reward:</span><br><span class="line"></span><br><span class="line">is increased/decreased <span class="keyword">the</span> closer/further <span class="keyword">the</span> lander is <span class="built_in">to</span> <span class="keyword">the</span> landing pad.</span><br><span class="line">is increased/decreased <span class="keyword">the</span> slower/faster <span class="keyword">the</span> lander is moving.</span><br><span class="line">is decreased <span class="keyword">the</span> more <span class="keyword">the</span> lander is tilted (angle <span class="keyword">not</span> horizontal).</span><br><span class="line">is increased <span class="keyword">by</span> <span class="number">10</span> points <span class="keyword">for</span> <span class="keyword">each</span> leg that is <span class="keyword">in</span> contact <span class="keyword">with</span> <span class="keyword">the</span> ground.</span><br><span class="line">is decreased <span class="keyword">by</span> <span class="number">0.03</span> points <span class="keyword">each</span> frame <span class="keyword">a</span> side engine is firing.</span><br><span class="line">is decreased <span class="keyword">by</span> <span class="number">0.3</span> points <span class="keyword">each</span> frame <span class="keyword">the</span> main engine is firing.</span><br><span class="line"></span><br><span class="line">The episode receive <span class="keyword">an</span> additional reward <span class="keyword">of</span> <span class="number">-100</span> <span class="keyword">or</span> +<span class="number">100</span> points <span class="keyword">for</span> crashing <span class="keyword">or</span> landing safely respectively.</span><br><span class="line">An episode is considered <span class="keyword">a</span> solution <span class="keyword">if</span> <span class="keyword">it</span> scores <span class="keyword">at</span> least <span class="number">200</span> points.</span><br></pre></td></tr></table></figure>
+<p>Comparing the landing reward, seems hover can be way more easier,
+since we only need to limit the position vertically and horizontally, no
+need to concern of fuel and landing posture.</p>
+<h3 id="extend-the-original-lunarlander">Extend the original
+LunarLander</h3>
+<p>To adjust the original LunarLander reaching our new target: hover,
+the reward model needs to be updated. And benefit by the open sourced
+code of gymnasium, we can directly extend the LunarLander by overriding
+a few methods.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">FancyLunarLander</span>(<span class="title class_ inherited__">LunarLander</span>):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, x_range, y_range, **kwargs</span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__(**kwargs)</span><br><span class="line">        self.max_step_reward = <span class="number">1.0</span></span><br><span class="line">        self.max_angle_error = <span class="number">1.0</span></span><br><span class="line">        self.safe_x_range = x_range</span><br><span class="line"></span><br><span class="line">        self.target_y = <span class="number">1.0</span></span><br><span class="line">        self.max_height_error = y_range</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">update_range</span>(<span class="params">self, x_range, y_range</span>):</span><br><span class="line">        self.safe_x_range = x_range</span><br><span class="line">        self.max_height_error = y_range</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">step</span>(<span class="params">self, action</span>):</span><br><span class="line">        obs, reward, terminated, truncated, info = <span class="built_in">super</span>().step(action)</span><br><span class="line">        x, y = obs[:<span class="number">2</span>]</span><br><span class="line">        </span><br><span class="line">        <span class="comment"># horizontal</span></span><br><span class="line">        <span class="keyword">if</span> <span class="built_in">abs</span>(x) &lt;= self.safe_x_range:</span><br><span class="line">            zone_reward = <span class="number">0.2</span> * (<span class="number">1</span> - <span class="built_in">abs</span>(x) / self.safe_x_range)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            zone_reward = -<span class="number">2.0</span> * (<span class="built_in">abs</span>(x) - self.safe_x_range)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># vertical</span></span><br><span class="line">        height_err = <span class="built_in">abs</span>(y - self.target_y)</span><br><span class="line">        <span class="keyword">if</span> height_err &lt; self.max_height_error:</span><br><span class="line">            height_reward = <span class="number">0.5</span> * (<span class="number">1</span> - height_err / self.max_height_error)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            height_reward = -<span class="number">1.0</span> * (height_err - self.max_height_error)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># composed rewards</span></span><br><span class="line">        reward = zone_reward + height_reward</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> obs, reward, terminated, truncated, info</span><br></pre></td></tr></table></figure>
+<p>In the override method <code>step()</code> , we at first call the
+<code>super</code> method to get necessary outputs such as the
+observations, terminated, truncated and information, which are no need
+to change at all and will be returned by our override method.</p>
+<p>The only change introduced is the "reward", because in our
+"FancyLunarLander" we don't want to follow the original reward model,
+which is designed to land in a limited area. Our new goal is to hover,
+so what we need is letting the LunarLander stick in a 2D area, which we
+can define the vertical and horizontal positions.</p>
+<p>According to the override method, obviously, we limit the 2D area to
+a square that coordinates are <code>x = [-x_range, x_range]</code>,
+<code>y = [1 - y_range, 1 + y_range]</code>. The less the x_range /
+y_range are, the smaller the square is.</p>
+<p>Besides, the reward model needs to be redesigned, which as per the
+code, if the current position of the LunarLander is in the square, it
+increases the reward by adding positive values (zone_reward and
+height_reward) to the reward variable, on the contrary, if the current
+position is out of the square, the reward will be decreased due to
+negative values to be added.</p>
+<p>Let's see an example of the model outputs:
+<video controls width="100%"><br />
+<source src="/2025/12/07/fancy-land-rover/hover.mp4" type="video/mp4"> </video></p>
+<p>Looks it works very well!</p>
+<h2 id="lunar-lander-inverted-hover">2. Lunar Lander Inverted Hover</h2>
+<p>The previous chapter proves it's relatively easy to stay a hover
+status if appropriate rewards are provided. So can we have an inverted
+hover like the paper did if we set appropriate rewards as well?</p>
+<p>Unfortunately, the answer is no, inverted hovering wouldn't be that
+easy to build like a plain hover. Two obstacles are preventing us from
+achieving that:</p>
+<ol type="1">
+<li><p>Standard lunar lander can only produce positive thrust.</p>
+<p>To make lunar lander hovering, all we need to do is adjusting the
+main power to produce positive thrust combining with fine adjustments of
+left/right engines. But it's impossible for having positive thrust only
+if the lunar lander is in the inverted status, since positive thrust
+would just accelerate the lunar lander to crash.</p></li>
+<li><p>Inverted position is not a common and easily achievable
+posture</p>
+<p>In Gymnasium, the initial status of lunar lander, is in upright
+position with random velocity/angular velocity, it's difficult &amp;
+inefficient to set several rewards toward inverted hover state and
+letting reenforcement learning model to discover the correct movements
+by itself.</p></li>
+</ol>
+<p>To overcome the above 2 obstacles, first we need change the lunar
+lander source code to have negative thrust, then we are going to use the
+approaches from the paper, which is “<em>Apprenticeship Learning for
+Target Trajectory</em>”, to learn from expert trajectory.</p>
+<h3 id="negative-thrust">Negative thrust</h3>
+<p>In Gymnasium, there are two envs of lunar lander, discrete or
+continuous. At this time we are going to use the continuous env which
+allows us passing <code>Box(-1, +1, (2,), dtype=np.float32)</code> as
+the action for more precise control. For the lunar lander, the main
+engine will be turned off completely if <code>main &lt; 0</code> and the
+throttle scales affinely from 50% to 100% for
+<code>0 &lt;= main &lt;= 1</code></p>
+<p>What we need to modify is to unlock the limitation of no power if
+<code>main &lt; 0</code>. Instead, we would want the main engine outputs
+negative thrust when <code>main &lt; 0</code>.</p>
+<p>The version of Gymnasium we are using is v1.2.3, locate to the code
+we can find the limitation of main power at <a
+href="https://github.com/Farama-Foundation/Gymnasium/blob/43965e15c2424a2b6955c79e774b0810457fd5be/gymnasium/envs/box2d/lunar_lander.py#L535">here</a>:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">f self.continuous:</span><br><span class="line">    m_power = (np.clip(action[<span class="number">0</span>], <span class="number">0.0</span>, <span class="number">1.0</span>) + <span class="number">1.0</span>) * <span class="number">0.5</span>  <span class="comment"># 0.5..1.0</span></span><br><span class="line">    <span class="keyword">assert</span> m_power &gt;= <span class="number">0.5</span> <span class="keyword">and</span> m_power &lt;= <span class="number">1.0</span></span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    m_power = <span class="number">1.0</span></span><br></pre></td></tr></table></figure>
+<p>As we'll use the "continuous" mode so we only need to change the
+<code>clip</code> and <code>assert</code> to the following:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">m_power = (np.clip(action[<span class="number">0</span>], -<span class="number">1.0</span>, <span class="number">1.0</span>))</span><br></pre></td></tr></table></figure>
+<p>With the minor change, we create a class named
+<code>BidirectionalLunarLander</code>, extends from LunarLander and
+override the entire <code>step()</code> method containing the change as
+well. (Full code see <a
+href="https://github.com/LENSHOOD/2022-Machine-Learning-Specialization/blob/4b2211a9d2de2cf0de3e5c0a60bf7f1b750786cc/Unsupervised%20learning%20recommenders%20reinforcement%20learning/week3/Practice%20Lab-Reinforcement%20Learning/bidirection_lunar_lander.py#L9">here</a>)</p>
+<p>Now we have negative thrust, let's move on to the next step.</p>
+<h3 id="apprenticeship-learning-for-target-trajectory">Apprenticeship
+Learning for Target Trajectory</h3>
+<p>Considering the difficulty of pushing the RL model to randomly learn
+a way to flip, it's better to positively find a way that probably drives
+the lunar lander flip to inverted posture. Once it goes into inverted,
+then we try to make it stable in the position.</p>
+<p>Based on the <code>BidirectionalLunarLander</code>, with several
+attempts, I created a <code>naive_inverted_controller</code> that can
+produce actions to make the lunar lander flip in most cases. It has
+nothing to do with "learning", it also isn't an optimal controller, it's
+just a "naive" controller:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">navie_inverted_controller</span>(<span class="params">obs, phase, sign</span>):</span><br><span class="line">    x = obs[<span class="number">0</span>]</span><br><span class="line">    y = obs[<span class="number">1</span>]</span><br><span class="line">    vx = obs[<span class="number">2</span>]</span><br><span class="line">    vy = obs[<span class="number">3</span>]</span><br><span class="line">    theta = obs[<span class="number">4</span>]</span><br><span class="line">    omega = obs[<span class="number">5</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># angle wrap to [-pi, pi]</span></span><br><span class="line">    theta_wrapped = np.arctan2(np.sin(theta), np.cos(theta))</span><br><span class="line">    theta_abs = <span class="built_in">abs</span>(theta_wrapped)</span><br><span class="line"></span><br><span class="line">    side = <span class="number">0</span></span><br><span class="line">    main = <span class="number">0</span></span><br><span class="line">    <span class="keyword">if</span> phase == <span class="number">1</span>:</span><br><span class="line">        <span class="keyword">if</span> y &gt; <span class="number">1.4</span>:</span><br><span class="line">            <span class="keyword">return</span> np.array([<span class="number">0</span>, <span class="number">0</span>], dtype=np.float32), phase</span><br><span class="line">            </span><br><span class="line">        <span class="keyword">if</span> theta_abs &lt; <span class="number">1.9</span>:</span><br><span class="line">            side = -<span class="number">0.6</span> * sign</span><br><span class="line">            main = <span class="number">0.8</span></span><br><span class="line">        <span class="keyword">elif</span> theta_abs &gt; <span class="number">1.9</span> <span class="keyword">and</span> <span class="built_in">abs</span>(omega) &gt; <span class="number">0.1</span> :</span><br><span class="line">            side = <span class="number">1</span> * sign</span><br><span class="line">            main = -<span class="number">1</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            phase = <span class="number">2</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> phase == <span class="number">2</span>:</span><br><span class="line">        <span class="keyword">if</span> y &gt; <span class="number">1.4</span>:</span><br><span class="line">            <span class="keyword">return</span> np.array([<span class="number">0</span>, <span class="number">0</span>], dtype=np.float32), phase</span><br><span class="line"></span><br><span class="line">        main = -<span class="number">0.6</span></span><br><span class="line">        <span class="keyword">if</span> vx &gt; <span class="number">0.1</span>:</span><br><span class="line">            side = <span class="number">0.5</span></span><br><span class="line">        <span class="keyword">elif</span> vx &lt; -<span class="number">0.1</span>:</span><br><span class="line">            side = -<span class="number">0.5</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            side = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> np.array([</span><br><span class="line">        np.clip(main, -<span class="number">1.0</span>, <span class="number">1.0</span>),</span><br><span class="line">        np.clip(side, -<span class="number">1.0</span>, <span class="number">1.0</span>)</span><br><span class="line">    ], dtype=np.float32), phase</span><br></pre></td></tr></table></figure>
+<p>Many hard coded statics are in the implementation, but don't worry,
+it works on our <code>BidirectionalLunarLander</code> and can be used to
+generate training data later.</p>
+<p>Once we can confidently drive the lunar lander to flip, next is how
+to make it stable in the inverted position without crash. Obviously our
+naive controller is only good at flip, it cannot fine control the lunar
+lander towards stabilization. But with the experience of the previous
+chapter - lunar lander hover - it's straightforward to stable the lunar
+lander by using reenforcement learning.</p>
+<p>First we build a Env wrapper that overrides the default reward model
+to the reward model dedicated for inverted hovering:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">InvertedHoverWrapper</span>(gym.Wrapper):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, env, controller, y_ref=<span class="number">1.2</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__(env)</span><br><span class="line">        self.controller = controller</span><br><span class="line">        self.y_ref = y_ref</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">reset</span>(<span class="params">self, **kwargs</span>):</span><br><span class="line">        obs, info = self.env.reset(**kwargs)</span><br><span class="line">        self.controller.reset(obs[<span class="number">2</span>])</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">200</span>):</span><br><span class="line">            action, phase = self.controller.act(obs)</span><br><span class="line">            obs, _, terminated, truncated, _ = self.env.step(action)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> terminated <span class="keyword">or</span> truncated:</span><br><span class="line">                obs, info = self.env.reset(**kwargs)</span><br><span class="line">                self.controller.reset(obs[<span class="number">2</span>])</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> phase == <span class="number">2</span>:</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> obs, info</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">step</span>(<span class="params">self, action</span>):</span><br><span class="line">        obs, _, terminated, truncated, info = self.env.step(action)</span><br><span class="line"></span><br><span class="line">        reward = self.tracking_reward(obs, action)</span><br><span class="line"></span><br><span class="line">        done = terminated <span class="keyword">or</span> truncated</span><br><span class="line">        <span class="keyword">if</span> <span class="built_in">abs</span>(obs[<span class="number">1</span>]) &gt; <span class="number">3.0</span>:</span><br><span class="line">            done = <span class="literal">True</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> obs, reward, done, <span class="literal">False</span>, info</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">tracking_reward</span>(<span class="params">self, obs, action</span>):</span><br><span class="line">        x, y, vx, vy, theta, omega, _, _ = obs</span><br><span class="line">        main, side = action</span><br><span class="line">    </span><br><span class="line">        theta_err = np.arctan2(</span><br><span class="line">            np.sin(theta - np.pi),</span><br><span class="line">            np.cos(theta - np.pi)</span><br><span class="line">        )</span><br><span class="line">    </span><br><span class="line">        reward = (</span><br><span class="line">            - <span class="number">4.0</span> * theta_err**<span class="number">2</span></span><br><span class="line">            - <span class="number">2.0</span> * omega**<span class="number">2</span></span><br><span class="line">    </span><br><span class="line">            - <span class="number">3.0</span> * (y - self.y_ref)**<span class="number">2</span></span><br><span class="line">            - <span class="number">2.0</span> * vy**<span class="number">2</span></span><br><span class="line">    </span><br><span class="line">            - <span class="number">3.0</span> * x**<span class="number">2</span></span><br><span class="line">            - <span class="number">2.0</span> * vx**<span class="number">2</span></span><br><span class="line">    </span><br><span class="line">            - <span class="number">0.1</span> * main**<span class="number">2</span></span><br><span class="line">            - <span class="number">0.05</span> * side**<span class="number">2</span></span><br><span class="line">        )</span><br><span class="line">    </span><br><span class="line">        <span class="keyword">return</span> reward</span><br></pre></td></tr></table></figure>
+<p>The <code>controller</code> being passed to <code>__init__</code> is
+exactly our naive controller, and we use the naive controller to operate
+the lunar lander to inverted position when <code>reset()</code> is
+called. Hence, while training the model by using the wrapper, the
+initial position is considered as inverted already, the RL model only
+needs to keep the position as long as possible.</p>
+<p>This time as we are using the <code>continuous</code> control model,
+DQN might not be a good choice. <a
+href="https://spinningup.openai.com/en/latest/algorithms/sac.html">SAC</a>
+will be better.</p>
+<p>Using SAC along with the <code>InvertedHoverWrapper</code>, we could
+train a good RL model that is able to stay the lunar lander in inverted
+position. Combined with naive controller, we can build a
+<code>HybridExpert</code> to operate the
+<code>BidirectionalLunarLander</code>:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">HybridExpert</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, inverted_controller, rf_policy</span>):</span><br><span class="line">        self.inverted_controller = inverted_controller</span><br><span class="line">        self.rf_policy = rf_policy</span><br><span class="line">        self.phase = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">reset</span>(<span class="params">self, vx0</span>):</span><br><span class="line">        self.inverted_controller.reset(vx0)</span><br><span class="line">        self.phase = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">act</span>(<span class="params">self, obs</span>):</span><br><span class="line">        <span class="keyword">if</span> self.phase != <span class="number">2</span>:</span><br><span class="line">            action, phase = self.inverted_controller.act(obs)</span><br><span class="line">            self.phase = phase</span><br><span class="line">            <span class="keyword">return</span> action</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            action, _ = self.rf_policy.predict(obs, deterministic=<span class="literal">True</span>)</span><br><span class="line">            <span class="keyword">return</span> action</span><br></pre></td></tr></table></figure>
+<p>Let's see how the <code>HybridExpert</code> works:</p>
+<video controls width="100%">
+<source src="/2025/12/07/fancy-land-rover/hybrid_expert.mp4" type="video/mp4">
+</video>
+<h3 id="expert-distillation">Expert Distillation</h3>
+<p>Now we already have the <code>HybridExpert</code> that is capable of
+flipping the lunar lander to inverted and keep it stable. But there are
+some flaws of the <code>HybridExpert</code>:</p>
+<p>The flipping movement is made by a classic controller instead of a
+machine learning model. There's a <code>phase</code> stored in the
+object determine whether to act by the naive controller or by the RL
+model. The controlling is discontinuity in separate stages, making the
+<code>HybridExpert</code> lacks of generalizability.</p>
+<p>To have a universal, generalized model capable of output actions from
+the beginning of the env reset to the end state, we should perform a
+sort of thing that training another model learning from the
+<code>HybridExpert</code>, that is expert distillation.</p>
+<p>We are going to use the combination of <a
+href="https://en.wikipedia.org/wiki/Imitation_learning">Behavior
+Cloning</a> and <a
+href="https://proceedings.mlr.press/v15/ross11a.html">DAgger</a> to
+train a new model from <code>HybridExpert</code>.</p>
+<h4 id="behavior-cloning">Behavior Cloning</h4>
+<p>This is quite straightforward, we have the <code>HybridExpert</code>
+in our hand, we let it run thousands of times, record all trajectories
+as the training data, use the data to train a neural network.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">build_bc_policy</span>(<span class="params">obs_dim=<span class="number">8</span>, act_dim=<span class="number">2</span></span>):</span><br><span class="line">    inputs = layers.Input(shape=(obs_dim,))</span><br><span class="line">    x = layers.Dense(<span class="number">128</span>, activation=<span class="string">&quot;relu&quot;</span>)(inputs)</span><br><span class="line">    x = layers.Dense(<span class="number">128</span>, activation=<span class="string">&quot;relu&quot;</span>)(x)</span><br><span class="line">    outputs = layers.Dense(act_dim, activation=<span class="string">&quot;tanh&quot;</span>)(x)</span><br><span class="line"></span><br><span class="line">    model = models.Model(inputs, outputs)</span><br><span class="line">    <span class="keyword">return</span> model</span><br><span class="line"></span><br><span class="line"><span class="comment"># record HybridExpert movements(observations and actions) into &#x27;data&#x27;</span></span><br><span class="line">obs_all = data[<span class="string">&quot;obs&quot;</span>]          <span class="comment"># (N, 8)</span></span><br><span class="line">actions_all = data[<span class="string">&quot;actions&quot;</span>]  <span class="comment"># (N, 2)</span></span><br><span class="line">dataset = tf.data.Dataset.from_tensor_slices(</span><br><span class="line">    (obs_all.astype(np.float32), actions_all.astype(np.float32))</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">dataset = dataset.shuffle(<span class="number">10000</span>).batch(<span class="number">256</span>).prefetch(tf.data.AUTOTUNE)</span><br><span class="line">policy = build_bc_policy()</span><br><span class="line">policy.<span class="built_in">compile</span>(</span><br><span class="line">    optimizer=tf.keras.optimizers.Adam(learning_rate=<span class="number">3e-4</span>),</span><br><span class="line">    loss=<span class="string">&quot;mse&quot;</span></span><br><span class="line">)</span><br><span class="line">policy.fit(</span><br><span class="line">    dataset,</span><br><span class="line">    epochs=<span class="number">30</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>The neural network is a very simple model who has two hidden layers
+that contain 128 parameters for each, input = 8 and output = 2.</p>
+<p>But this is like learning drive by watching drive videos, even we
+have record thousands of "videos" that <code>HybridExpert</code> has
+well operated, but it doesn't know how to do if in the position it's
+never seen.</p>
+<p>Hence, sometimes the model will crash the lunar lander:
+<video controls width="100%"><br />
+<source src="/2025/12/07/fancy-land-rover/bc.mp4" type="video/mp4"> </video></p>
+<h4 id="dagger">DAgger</h4>
+<p>By using the DAgger approach, we let our neural network model (the
+learner) to output actions from the input observation, but let the
+<code>HybridExpert</code> (the expert) to act based on the same
+observation. Appending the expert output actions into the dataset, so
+that the dataset now contains more abundant trajectories.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">dagger_rollout</span>(<span class="params"></span></span><br><span class="line"><span class="params">    env,</span></span><br><span class="line"><span class="params">    policy,</span></span><br><span class="line"><span class="params">    expert,</span></span><br><span class="line"><span class="params">    max_steps=<span class="number">500</span></span></span><br><span class="line"><span class="params"></span>):</span><br><span class="line">    obs, _ = env.reset()</span><br><span class="line">    expert.reset(obs[<span class="number">2</span>])</span><br><span class="line"></span><br><span class="line">    rollout_data = []</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> t <span class="keyword">in</span> <span class="built_in">range</span>(max_steps):</span><br><span class="line">        <span class="comment"># learner action</span></span><br><span class="line">        obs_batch = obs.reshape(<span class="number">1</span>, -<span class="number">1</span>).astype(np.float32)</span><br><span class="line">        learner_action = policy(obs_batch, training=<span class="literal">False</span>).numpy()[<span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># expert label</span></span><br><span class="line">        expert_action = expert.act(obs)</span><br><span class="line"></span><br><span class="line">        rollout_data.append(&#123;</span><br><span class="line">            <span class="string">&quot;obs&quot;</span>: obs.copy(),</span><br><span class="line">            <span class="string">&quot;action&quot;</span>: expert_action.copy()</span><br><span class="line">        &#125;)</span><br><span class="line"></span><br><span class="line">        obs, _, terminated, truncated, _ = env.step(learner_action)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> terminated <span class="keyword">or</span> truncated:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> rollout_data</span><br></pre></td></tr></table></figure>
+<p>Using <code>dagger_rollout</code> to get more data and append to the
+dataset, train it again, then we'll get our final model. Let's see what
+it got now: <video controls width="100%"><br />
+<source src="/2025/12/07/fancy-land-rover/dagger.mp4" type="video/mp4"> </video></p>
+<h2 id="ref">Ref</h2>
+<p><a
+href="https://github.com/LENSHOOD/2022-Machine-Learning-Specialization/blob/main/Unsupervised%20learning%20recommenders%20reinforcement%20learning/week3/Practice%20Lab-Reinforcement%20Learning/fancy_lander_v2.ipynb">Full
+Code</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2025/12/07/fancy-land-rover/" title="Fancy Lunar Landers">http://lenshood.github.io/2025/12/07/fancy-land-rover/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/unsupervised-learning/" rel="tag"># unsupervised learning</a>
+              <a href="/tags/DQN/" rel="tag"># DQN</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2025/06/29/linux-tracing-kprobe/" rel="prev" title="Linux Tracing - Kprobe">
+                  <i class="fa fa-angle-left"></i> Linux Tracing - Kprobe
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2026/05/23/harness-agent-software-factory/" rel="next" title="AI 时代的软件工厂管理框架">
+                  AI 时代的软件工厂管理框架 <i class="fa fa-angle-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2026</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>
