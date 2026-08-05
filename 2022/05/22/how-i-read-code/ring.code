@@ -1,0 +1,3 @@
+func (r *classical[T]) isEmpty(tail uint64, head uint64) bool {
+	return (tail < head) || (tail-head == 0)
+}

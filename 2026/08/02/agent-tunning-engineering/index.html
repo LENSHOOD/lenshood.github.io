@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.2.0">
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Roboto+Mono:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"lenshood.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.2","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Agent 调优工程，是 FDE 把数字员工智能体从Demo推进到生产可用的关键工程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」">
+<meta property="og:url" content="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/index.html">
+<meta property="og:site_name" content="Lenshood">
+<meta property="og:description" content="Agent 调优工程，是 FDE 把数字员工智能体从Demo推进到生产可用的关键工程。">
+<meta property="og:locale">
+<meta property="og:image" content="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/header.png">
+<meta property="og:image" content="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/1.png">
+<meta property="article:published_time" content="2026-08-02T11:50:07.000Z">
+<meta property="article:modified_time" content="2026-08-05T07:49:32.878Z">
+<meta property="article:author" content="Lenshood">
+<meta property="article:tag" content="Agent">
+<meta property="article:tag" content="FDE">
+<meta property="article:tag" content="AI Workforce">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Agent Engineering">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/header.png">
+
+
+<link rel="canonical" href="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh","comments":true,"permalink":"http://lenshood.github.io/2026/08/02/agent-tunning-engineering/","path":"2026/08/02/agent-tunning-engineering/","title":"Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」 | Lenshood</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4"></script>
+  <script class="next-config" data-name="google_analytics" type="application/json">{"tracking_id":"PUEl-M5yzvvDvk3aBT4OetgMoLOX38OZ8nZgoLcEZp4","only_pageview":false,"measure_protocol_api_secret":null}</script>
+  <script src="/js/third-party/analytics/google-analytics.js" defer></script>
+
+  <script src="/js/third-party/analytics/baidu-analytics.js" defer></script>
+  <script async src="https://hm.baidu.com/hm.js?9838df2db88eb05f5159ca8e58b5f778"></script>
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+
+
+
+
+
+  
+
+
+
+
+  
+
+  <script class="next-config" data-name="enableMath" type="application/json">false</script><script class="next-config" data-name="mathjax" type="application/json">{"enable":true,"tags":"none","js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js","integrity":"sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="}}</script>
+<script src="/js/third-party/math/mathjax.js" defer></script>
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><link rel="alternate" href="/atom.xml" title="Lenshood" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Lenshood</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Software Developer @ThoughtWorks</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a></li>
+  </ul>
+</nav>
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%9C%89-agent-%E8%B0%83%E4%BC%98%E5%B7%A5%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">1. 为什么要有 Agent 调优工程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF-agent-%E8%B0%83%E4%BC%98%E5%B7%A5%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">2. 什么是 Agent 调优工程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#agent-%E8%B0%83%E4%BC%98%E5%B7%A5%E7%A8%8B%E6%80%8E%E4%B9%88%E5%81%9A"><span class="nav-number">3.</span> <span class="nav-text">3. Agent 调优工程怎么做</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E4%BC%98%E6%98%AF%E4%B8%80%E4%B8%AA-loop"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 调优是一个 Loop</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AE%BE%E5%AE%9A%E5%9F%BA%E5%87%86%E6%B5%8B%E8%AF%95benchmark"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 设定基准测试（Benchmark）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%AD%E7%B1%BB%E8%B0%83%E4%BC%98%E6%96%B9%E6%B3%95"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 六类调优方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%94%B6%E6%95%9B%E8%BE%B9%E7%95%8C"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 收敛边界</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8-agent-%E6%9D%A5%E8%B0%83%E4%BC%98-agent"><span class="nav-number">4.</span> <span class="nav-text">4. 用 Agent 来调优 Agent</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Lenshood</p>
+  <div class="site-description" itemprop="description">Three Cats Man</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">94</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">112</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/LENSHOOD" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;LENSHOOD" rel="noopener me" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → atom.xml" rel="noopener me"><i class="fa fa-rss fa-fw"></i>RSS</a>
+      </span>
+  </div>
+  <div class="cc-license animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="https://cdnjs.cloudflare.com/ajax/libs/creativecommons-vocabulary/2020.11.3/assets/license_badges/small/by_nc_sa.svg" alt="Creative Commons"></a>
+  </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh">
+    <link itemprop="mainEntityOfPage" href="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Lenshood">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Lenshood">
+      <meta itemprop="description" content="Three Cats Man">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」 | Lenshood">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2026-08-02 19:50:07" itemprop="dateCreated datePublished" datetime="2026-08-02T19:50:07+08:00">2026-08-02</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2026-08-05 15:49:32" itemprop="dateModified" datetime="2026-08-05T15:49:32+08:00">2026-08-05</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/Software-Engineering/" itemprop="url" rel="index"><span itemprop="name">Software Engineering</span></a>
+        </span>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><img src="/2026/08/02/agent-tunning-engineering/header.png" class="" width="500">
+<p>Agent 调优工程，是 FDE
+把数字员工智能体从Demo推进到生产可用的关键工程。</p>
+<span id="more"></span>
+<p>我的同事佳新在布道 AI Workforce 的文章《<a
+href="https://mp.weixin.qq.com/s/jlxA41Aav4AvwtJ0ClRphg">FDE：用系统工程释放
+AI 的工业革命级价值</a>》中曾经提到，FDE 是对端到端结果负责的单一
+owner，FDE
+不只要能识别业务机会和沉淀能力，还要让数字员工能真正生产可用，并持续升级，最终实现业务再造。</p>
+<p>本文把问题聚拢，专门讨论其中具体且关键的一环：<strong>Agent
+调优工程</strong>。我们将从一次真实的长程 Agent
+调优经历出发，解释为什么调优需要工程化，基准测试和多轮迭代应该怎样设计，以及
+FDE 如何借助 AI 调优来达到持续运营的目标。</p>
+<h2 id="为什么要有-agent-调优工程">1. 为什么要有 Agent 调优工程</h2>
+<p>近期我们在某制造业客户落地 AI Workforce
+时，需要构建一个架构设计智能体：读取业务上下文和需求，产出包含
+ADR、架构图和时序图的架构文档。FDE
+和业务方一起工作了没多久，智能体就构建完成了，它有 5 个阶段，会调用多个
+Skill 和 SubAgent，会运行脚本，也会多次向用户确认和澄清。</p>
+<p>但棘手的问题才刚刚出现。产出的架构图不符合业务要求：组件随意堆叠，内外部边界不清，模块交互关系错乱，系统层级未能正确体现；多次执行有时会不遵守既定流程：还没有完成现状分析就直接进入方案设计，架构决策尚未确认就开始画图，甚至跳过
+Review
+直接生成最终文档；运行时间久，长程任务稳定性差：有时运行到一半自己就停止了，有时会突然进入死循环。</p>
+<p>Demo和生产的差别就在这里，同样都能走完流程生成产出物，但一个稳定可用，另一个不稳定也不可用。对于上述这些问题的调优，通常我们第一个想到的办法就是
+“打补丁”，哪里不对补哪里，反正也是跟AI聊天，直接告诉它
+“这里不能xxx，应该xxx”，5分钟就能出一个新版。这的确是一种朴素的调优办法，但和工程化调优不沾边。</p>
+<p><strong>第一，手工、随意的调优不可靠不可信。</strong>
+如果只是凭感觉反复强调“严格按顺序执行”，下一次恰好没有跳步骤，也无法知道是改动真的生效，还是模型随机波动。调优必须有固定旧版、可重复任务、完整运行记录、单次变更假设和明确通过条件，才能回答“是否真的更稳定、为什么变好了、有没有影响到别的能力”。</p>
+<p><strong>第二，必须先找到问题属于哪一层。</strong>
+智能体不按流程办事，可能是流程指令不清、阶段之间没有明确交接条件，也可能是主
+agent 在子 agent 尚未结束时就关闭了会话。前者应修改 Skill
+Prompt，后者属于 Runtime Harness。</p>
+<p><strong>第三，调优是一件持续的事，而不是一锤子买卖。</strong>
+业务规则会变，模型会不断升级或来回切换，触发、规划和工具使用行为也可能改变。今天通过的版本，半年后未必仍然适用。因此每个已上线
+Agent
+都需要保留回归测试集和版本记录，发生任何关键变化都应触发重新验证。</p>
+<p>工程化的意义，是把“这次好像跑通了”变成一条可以复核的证据链。只有这条证据链成立，FDE
+才能判断这次 Agent 真的被优化了。</p>
+<h2 id="什么是-agent-调优工程">2. 什么是 Agent 调优工程</h2>
+<p>Agent 调优工程，是围绕以 Skill、Plugin 等方式沉淀领域能力的 Agent
+建立的持续改进机制。它把业务目标翻译成基准测试，通过真实执行候选版本，依据全链路
+Trace
+定位问题点，再触发修改Agent的描述、指令、脚本或验证规则等，最后用是否通过基准测试决定是否完成调优。</p>
+<p>借助 Agent 调优工程，FDE
+能够把业务流程和领域知识总结沉淀成可执行的契约，再用生产证据决定数字员工的能力边界。</p>
+<p>这里需要区分 “Agent调优工程” 和 “Harness 工程”
+的定义边界。简单来说，<strong>Agent
+调优工程修改的是“数字员工会什么、怎样完成领域任务”</strong>：例如 Skill
+/ Plugin 的触发描述、指令、Context、示例、领域 Workflow、Tool
+schema、脚本和验证规则。<strong>Harness
+工程修改的是“数字员工在什么通用环境里运行”</strong>：例如会话管理、权限、Tool
+dispatch、SubAgent lifecycle、重试、Context compaction 和观测机制。</p>
+<p>两者不能混在同一次测试中计算收益。若 Harness 发生变化，旧 Baseline
+就失去可比性，需要在新环境中重跑；若 Trace
+证明问题来自领域能力，那么再修改 Skill / Plugin。</p>
+<p>另外，在正式开始 Agent 调优之前，我们应该意识到一个真正生产可用的
+Agent 需要满足如下条件： -
+质量：在典型任务和关键场景上达到目标，而不是只展示一次成功案例； -
+安全：高风险动作有确定性约束，即使通过任何其他基准测试都不能放过一次严重错误；
+- 成本：Token、模型调用和工具成本在预算内； -
+时延：在足够样本上统计执行时延和超时率满足业务 SLA； -
+可观测：能看到输入、Skill 加载、Tool Call、SubAgent 和最终 Outcome
+的完整 Trace； - 可治理：有版本管理、支持灰度，知道每次变更为什么发生；
+- 可恢复：发生故障时能够停止、降级或转人工。</p>
+<h2 id="agent-调优工程怎么做">3. Agent 调优工程怎么做</h2>
+<h3 id="调优是一个-loop">3.1 调优是一个 Loop</h3>
+<p>一轮完整调优包含八个动作：</p>
+<ol type="1">
+<li>先定义清楚什么是 “更好”，即基准测试</li>
+<li>准备一组有代表性的测试任务</li>
+<li>先跑旧版，记录当前表现作为 Baseline</li>
+<li>查看运行记录，找到主要问题</li>
+<li>基于有效性判断，选择&amp;组合优化方法</li>
+<li>做出一个或数个待测试的 Candidate</li>
+<li>用同样的任务比较新旧版本</li>
+<li>保留更好的版本，继续下一轮或停止</li>
+</ol>
+<p>为了公平比较，新旧版本应该使用相同的模型、输入、工具权限和评分标准。每一轮也尽量只验证一个主要改动，避免同时修改很多地方，最后却不知道哪一项真正有效。</p>
+<p>例如，面对前面提到的跳步骤问题，一轮实验可以这样描述：</p>
+<blockquote>
+<p>看到的问题：部分任务没有 Review 记录，就直接生成了最终结果。<br />
+优化尝试：要求 Review
+阶段生成完成标记，最终阶段开始前必须先检查这个标记。<br />
+判定失败：任何测试任务仍然跳过 Review，或者虽然不跳步，但预设错误没有被
+Review 发现。</p>
+</blockquote>
+<h3 id="设定基准测试benchmark">3.2 设定基准测试（Benchmark）</h3>
+<p>一个典型的基准测试可以是这样的：</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>要检查什么</th>
+<th>要回答的问题</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>最终产出物</td>
+<td>任务是否真正完成</td>
+<td>必需文件全部产生，下游能够继续工作</td>
+</tr>
+<tr class="even">
+<td>严重错误</td>
+<td>哪些情况出现一次就不能接受</td>
+<td>跳过审批、越权调用工具、缺少关键产物</td>
+</tr>
+<tr class="odd">
+<td>结果质量</td>
+<td>完成以后做得好不好</td>
+<td>内容正确、依据完整、能够追溯到输入</td>
+</tr>
+<tr class="even">
+<td>办事过程</td>
+<td>是否按要求完成必要步骤</td>
+<td>先分析再设计，Review 通过后才能输出最终版</td>
+</tr>
+<tr class="odd">
+<td>时间和成本</td>
+<td>是否满足业务预算</td>
+<td>在规定时间内完成，单次费用不超过上限</td>
+</tr>
+<tr class="even">
+<td>原有能力</td>
+<td>新版本是否破坏旧功能</td>
+<td>原有命令、文件格式和使用方式仍然有效</td>
+</tr>
+</tbody>
+</table>
+<p>调优时最核心的对照只有两个：正在使用的旧版本和本轮新版本。两者使用同一批任务、同一个模型和相同环境重复运行，比较谁最终通过了全部基准测试，这样才能把变化归因到本轮修改。Anthropic
+的 <a
+href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Agent
+Eval 实践</a>与 OpenAI 的 <a
+href="https://github.com/openai/openai-cookbook/blob/main/examples/evaluation/Building_resilient_prompts_using_an_evaluation_flywheel.md">Evaluation
+Flywheel</a>也都强调重复执行、运行记录、失败分析和定向改进的组合。</p>
+<h3 id="六类调优方法">3.3 六类调优方法</h3>
+<p>已经有很多论文、开源项目和工程实践讨论 Agent
+调优，汇总下来我们归纳出六类调优方法：</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>方法</th>
+<th>什么时候用</th>
+<th>怎么做</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>人工诊断+控制变量</td>
+<td>目标清楚，能大致定位问题所在的步骤或范围，但不知道问题具体出在哪里时</td>
+<td>先确定测试和错误定义，之后每次只改一项，例如 Skill
+描述，步骤，工具等；OpenAI <a
+href="https://github.com/openai/openai-cookbook/blob/main/examples/evaluation/Building_resilient_prompts_using_an_evaluation_flywheel.md">Evaluation
+Flywheel</a>就是这类受控迭代</td>
+</tr>
+<tr class="even">
+<td>多候选优选</td>
+<td>改善类目标，在有限的维度上可能存在多种改善路径</td>
+<td>一次生成多个不同的 Candidate，在同一组 Eval
+上排名；是一种类似育种的规模化筛选方法。<a
+href="https://arxiv.org/abs/2211.01910">APE</a>展示了这种思路</td>
+</tr>
+<tr class="odd">
+<td>文本梯度反馈</td>
+<td>有成功标准和足够的失败案例，可以由AI辅助归因</td>
+<td>类似ML的梯度下降法，让模型基于失败案例归因，然后对当前版本生成批评文本，再据此改写；<a
+href="https://doi.org/10.18653/v1/2023.emnlp-main.494">ProTeGi</a>、<a
+href="https://arxiv.org/abs/2406.07496">TextGrad</a>与 <a
+href="https://arxiv.org/abs/2507.19457">GEPA</a>都提供了不同实现</td>
+</tr>
+<tr class="even">
+<td>竞争筛选搜索</td>
+<td>当维度互相耦合，可选组合很多时，多候选枚举的方法行不通</td>
+<td>以类似遗传筛选和搜索树的方式，对候选做变形、组合和分支探索，保留优胜，再逐轮淘汰；可参考
+<a href="https://arxiv.org/abs/2309.03409">OPRO</a>、<a
+href="https://arxiv.org/abs/2310.16427">PromptAgent</a>与 <a
+href="https://arxiv.org/abs/2309.16797">Promptbreeder</a></td>
+</tr>
+<tr class="odd">
+<td>全链路优化</td>
+<td>对于多阶段的复杂任务，单个阶段的优化效果不明显，需要端到端优化</td>
+<td>用统一的端到端指标同时优化几个环节，避免局部优化全局劣化的问题；<a
+href="https://arxiv.org/abs/2310.03714">DSPy</a>展示了如何把多阶段 LLM
+程序作为整体优化</td>
+</tr>
+<tr class="even">
+<td>工作日志和自我提升</td>
+<td>对于通用能力覆盖不到的个性化长尾需求，需要可插拔的优化</td>
+<td>智能体通过反思的方式积累工作日志，把经过多次确认的失败变成经验，经验只适用于特定场景，不影响能力主体；可参考
+<a href="https://arxiv.org/abs/2303.11366">Reflexion</a>、<a
+href="https://arxiv.org/abs/2308.10144">ExpeL</a>、<a
+href="https://arxiv.org/abs/2303.17651">Self-Refine</a> 与 <a
+href="https://arxiv.org/abs/2305.16291">Voyager</a></td>
+</tr>
+</tbody>
+</table>
+<p>这些研究共同说明，自然语言指令、示例、工具调用和 Workflow
+都可以成为可测试、可搜索的制品。与传统模型训练不同，Agent
+调优会经常修改可读、可版本化的文件；因此每次修改不论是否通过基准测试，都应该留下父版本、记录动机和淘汰原因。</p>
+<h3 id="收敛边界">3.4 收敛边界</h3>
+<p>通常只要 Candidate
+通过了基准测试即可认为优化完成，然而有时优化过程会难以收敛，例如对于运行速度提升20%的目标，可能无论怎么优化都只能达到15%，为了应对这种情况，需要明确优化的收敛边界。</p>
+<p>一组实用的收敛边界可以是： - 成功通过基准测试 - 已达到最大尝试轮次 -
+连续 N 轮的绝对收益都低于设定阈值 - 所有优化方法都已尝试过 -
+成本或时延已达到临界点</p>
+<p>这些边界设定必须在调优开始前写下来，运行中不能因为结果不好看就临时放宽。例如，可以约定至少运行
+10 轮，连续 2 轮提升都低于 1% 时停止，同时设置总预算和最长运行时间。</p>
+<p>另外，稳妥的方式是保留一组各有取舍的候选：有的版本更快，有的更便宜，有的在长
+Context 下更稳定。最终版本由业务优先级选择。</p>
+<h2 id="用-agent-来调优-agent">4. 用 Agent 来调优 Agent</h2>
+<p>FDE 用 AI 赋能企业再造的同时，自己也应该以 AI Native
+的方式工作。显然，前面所述的调优工程中，大量的执行工作可以完整交给 Agent
+来驱动。</p>
+<p>OpenAI 在《<a
+href="https://openai.com/index/building-self-improving-tax-agents-with-codex/">Building
+self-improving tax agents with
+Codex</a>》中展示了其实践：把生产发现结构化为可复现问题，再交给 Coding
+Agent 修改并最终通过测试验证。同样的，我们构建了面向调优 Claude Code
+Plugin 的 <code>plugin-tuner</code> 将调优过程收敛为一个通用
+Campaign：它接收用户目标、待优化的 Plugin 和 Eval Spec
+作为输入参数，通过真实的 Claude Agent SDK Adapter 执行原版Plugin
+与Candidate，记录
+Trace，选择适合的调优方法，并持续迭代到收敛门禁通过。</p>
+<p><code>plugin-tuner</code> 的控制流： <img src="/2026/08/02/agent-tunning-engineering/1.png" class=""></p>
+<p><code>plugin-tuner</code> 作为一种支持 FDE
+工作的称手工具，它非常适合被集成在《<a
+href="https://mp.weixin.qq.com/s/jlxA41Aav4AvwtJ0ClRphg">FDE：用系统工程释放
+AI 的工业革命级价值</a>》中提到的 “FDE 工作台” 中。FDE
+在客户现场积累的长期资产，是从业务目标、失败样本、调优决策到生产证据的完整链路。FDE
+工作台将这条链路标准化后，每次交付都会为下一次同类工作留下可复用的
+Benchmark、失败分类和调优策略。</p>
+<h2 id="总结">总结</h2>
+<p>本文介绍了Agent 调优工程的概念，Agent
+调优应该被视为是持续运营数字员工能力的必要手段。伴随着 AI
+技术的快速发展，可以预见 Agent
+调优工程也会是一种快速迭代的工程方法，期待今后能与各位读者持续讨论这一主题。</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>Post author:  </strong>Lenshood
+  </li>
+  <li class="post-copyright-link">
+      <strong>Post link: </strong>
+      <a href="http://lenshood.github.io/2026/08/02/agent-tunning-engineering/" title="Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」">http://lenshood.github.io/2026/08/02/agent-tunning-engineering/</a>
+  </li>
+  <li class="post-copyright-license">
+      <strong>Copyright Notice:  </strong>All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> unless stating additionally.
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>Welcome to my other publishing channels</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+          <a target="_blank" class="social-link" href="/atom.xml">
+            <span class="icon">
+              <i class="fa fa-rss"></i>
+            </span>
+
+            <span class="label">RSS</span>
+          </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/Agent/" rel="tag"># Agent</a>
+              <a href="/tags/FDE/" rel="tag"># FDE</a>
+              <a href="/tags/AI-Workforce/" rel="tag"># AI Workforce</a>
+              <a href="/tags/Evaluation/" rel="tag"># Evaluation</a>
+              <a href="/tags/Agent-Engineering/" rel="tag"># Agent Engineering</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2026/05/23/harness-agent-software-factory/" rel="prev" title="AI 时代的软件工厂管理框架">
+                  <i class="fa fa-angle-left"></i> AI 时代的软件工厂管理框架
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+    <div class="comments utterances-container"></div>
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2026</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">Lenshood</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+<script class="next-config" data-name="utterances" type="application/json">{"enable":true,"repo":"LENSHOOD/lenshood.github.io","issue_term":"pathname","theme":"github-light"}</script>
+<script src="/js/third-party/comments/utterances.js" defer></script>
+
+</body>
+</html>
