@@ -1,5 +1,5 @@
 ---
-title: Agent 调优工程：如何把数字员工从“Demo”推进到“生产可用”
+title: Agent 调优工程：如何把数字员工从「Demo」推进到「生产可用」
 date: 2026-08-02 19:50:07
 tags:
   - Agent
@@ -11,7 +11,7 @@ categories:
   - Software Engineering
 ---
 
-{% asset_img header.webp %}
+{% asset_img header.png 500 %}
 
 Agent 调优工程，是 FDE 把数字员工智能体从Demo推进到生产可用的关键工程。
 
